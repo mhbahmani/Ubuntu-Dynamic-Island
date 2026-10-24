@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.ubuntu-island"
+          path="/org/gnome/shell/extensions/ubuntu-island/">
+    <key name="pill-width" type="i">
+      <default>170</default>
+      <range min="150" max="210"/>
+      <summary>Collapsed pill width</summary>
+      <description>Width of the compact island in pixels.</description>
+    </key>
+    <key name="expanded-width" type="i">
+      <default>440</default>
+      <range min="380" max="480"/>
+      <summary>Expanded card width</summary>
+      <description>Width of the expanded island in pixels.</description>
+    </key>
+    <key name="animation-duration" type="i">
+      <default>220</default>
+      <range min="0" max="500"/>
+      <summary>Animation duration</summary>
+      <description>Morph animation duration in milliseconds; 0 disables it.</description>
+    </key>
+    <key name="disable-animations" type="b">
+      <default>false</default>
+      <summary>Disable animations</summary>
+      <description>Force instant open/close regardless of system animation settings.</description>
+    </key>
+    <key name="hover-open" type="b">
+      <default>false</default>
+      <summary>Open on hover</summary>
+      <description>Expand the island after hovering the pill. Click always works too.</description>
+    </key>
+    <key name="hover-open-delay" type="i">
+      <default>180</default>
+      <range min="100" max="1000"/>
+      <summary>Hover open delay</summary>
+      <description>Milliseconds of hovering before the island expands.</description>
+    </key>
+    <key name="hover-close-delay" type="i">
+      <default>350</default>
+      <range min="0" max="2000"/>
+      <summary>Hover close delay</summary>
+      <description>Grace period before the expanded island closes after the pointer leaves.</description>
+    </key>
+    <key name="metrics-interval" type="i">
+      <default>2</default>
+      <range min="1" max="10"/>
+      <summary>Metrics sampling interval</summary>
+      <description>Seconds between CPU/RAM/network samples.</description>
+    </key>
+    <key name="move-clock" type="b">
+      <default>true</default>
+      <summary>Move clock to the right</summary>
+      <description>Move the notification/calendar button out of the panel center for the island.</description>
+    </key>
+    <key name="enable-media" type="b">
+      <default>true</default>
+      <summary>Media controls</summary>
+      <description>Show the now-playing section.</description>
+    </key>
+    <key name="enable-metrics" type="b">
+      <default>true</default>
+      <summary>System metrics</summary>
+      <description>Show CPU, RAM, and network meters.</description>
+    </key>
+    <key name="enable-audio" type="b">
+      <default>true</default>
+      <summary>Audio controls</summary>
+      <description>Show volume and output device selection.</description>
+    </key>
+    <key name="enable-bluetooth" type="b">
+      <default>true</default>
+      <summary>Bluetooth controls</summary>
+      <description>Show paired devices and the adapter power toggle.</description>
+    </key>
+    <key name="enable-remote-art" type="b">
+      <default>true</default>
+      <summary>Fetch remote album art</summary>
+      <description>Download HTTP(S) artwork through a bounded, host-checked, disk-cached request.</description>
+    </key>
+  </schema>
+</schemalist>

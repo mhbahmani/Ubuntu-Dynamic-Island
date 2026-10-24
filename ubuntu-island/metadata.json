@@ -1,0 +1,8 @@
+{
+  "uuid": "ubuntu-island@example.local",
+  "name": "Ubuntu Island",
+  "description": "Dynamic Island for GNOME Shell 46: media with artwork, CPU/RAM/network meters, audio output and Bluetooth controls",
+  "shell-version": ["46"],
+  "version": 2,
+  "settings-schema": "org.gnome.shell.extensions.ubuntu-island"
+}

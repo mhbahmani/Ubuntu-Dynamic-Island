@@ -1,0 +1,146 @@
+/* GNOME Shell 46 stylesheet, scoped to ubuntu-island-* classes. */
+
+/* Single morphing surface: collapsed shows a pill with bottom-rounded
+   corners attached to the panel edge; open shows the full card. */
+.ubuntu-island-surface {
+    background-color: #101018;
+}
+.ubuntu-island-surface-collapsed {
+    border: 1px solid rgba(255, 255, 255, 0.13);
+    border-radius: 0 0 18px 18px;
+}
+.ubuntu-island-surface-open {
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 20px;
+}
+
+.ubuntu-island-pill {
+    height: 32px;
+    padding: 0 14px;
+    spacing: 8px;
+    background-color: transparent;
+}
+.ubuntu-island-pill StIcon {
+    icon-size: 15px;
+    color: #eeeefa;
+}
+.ubuntu-island-pill StLabel {
+    color: #eeeefa;
+    font-weight: 600;
+}
+.ubuntu-island-cpu-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 4px;
+    background-color: #58c08a;
+}
+.ubuntu-island-dot-low { background-color: #58c08a; }
+.ubuntu-island-dot-mid { background-color: #e0a63f; }
+.ubuntu-island-dot-high { background-color: #e0614f; }
+
+.ubuntu-island-card {
+    padding: 14px 16px 16px 16px;
+    spacing: 12px;
+}
+
+.ubuntu-island-header {
+    color: #cfc9ff;
+    font-weight: 700;
+    font-size: 10.5pt;
+}
+.ubuntu-island-title {
+    color: #f4f4ff;
+    font-weight: 700;
+    font-size: 12pt;
+}
+.ubuntu-island-muted {
+    color: #a2a1b8;
+    font-size: 10pt;
+}
+
+.ubuntu-island-metrics { spacing: 8px; }
+.ubuntu-island-metric {
+    background-color: #262638;
+    border-radius: 11px;
+    padding: 8px;
+    spacing: 4px;
+    min-width: 88px;
+}
+.ubuntu-island-metric-value {
+    color: #f4f4ff;
+    font-weight: 700;
+    font-size: 11pt;
+    min-width: 68px;
+}
+.ubuntu-island-metric-bar {
+    background-color: #17172a;
+    border-radius: 3px;
+    height: 6px;
+    margin-top: 2px;
+}
+.ubuntu-island-metric-bar-fill {
+    background-color: #7c6ff0;
+    border-radius: 3px;
+    height: 6px;
+}
+
+.ubuntu-island-row { spacing: 10px; }
+.ubuntu-island-cover {
+    width: 68px;
+    height: 68px;
+    border-radius: 10px;
+    background-color: #39365e;
+}
+.ubuntu-island-artwork {
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    background-color: transparent;
+}
+
+.ubuntu-island-control {
+    border-radius: 10px;
+    background-color: #2e2d42;
+    padding: 7px;
+    color: #eeeefa;
+}
+.ubuntu-island-control:hover { background-color: #43415f; }
+.ubuntu-island-control StIcon { icon-size: 18px; }
+
+.ubuntu-island-progress-row { spacing: 10px; }
+.ubuntu-island-time {
+    color: #a2a1b8;
+    font-size: 9.5pt;
+    min-width: 42px;
+}
+.ubuntu-island-progress-track {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #17172a;
+}
+.ubuntu-island-progress-fill {
+    height: 8px;
+    border-radius: 4px;
+    background-color: #7c6ff0;
+}
+
+.ubuntu-island-separator {
+    height: 1px;
+    background-color: #343447;
+}
+
+.ubuntu-island-volume { spacing: 10px; }
+.ubuntu-island-output {
+    border-radius: 10px;
+    background-color: #2e2d42;
+    padding: 7px 9px;
+    color: #eeeefa;
+}
+.ubuntu-island-output:hover { background-color: #43415f; }
+.ubuntu-island-output-active {
+    background-color: #3d3758;
+    border: 1px solid #7c6ff0;
+}
+.ubuntu-island-output StLabel { font-size: 10.5pt; }
+
+.ubuntu-island-device { spacing: 8px; }
