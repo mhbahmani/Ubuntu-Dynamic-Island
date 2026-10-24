@@ -1,146 +1,208 @@
-/* GNOME Shell 46 stylesheet, scoped to ubuntu-island-* classes. */
+/*
+ * GNOME Shell 46 stylesheet, scoped to ubuntu-island-* classes.
+ * Warm glass palette (Ricelin-inspired):
+ *   bright #fff6f0 · cream #e6d6cb · subtle #b9a99e · faint #9a8c82
+ *   vermilion accent #e0563b (deep #a3371f) · hairline rgba(230,214,203,.13)
+ * The translucent gradient over the backdrop Shell.BlurEffect gives the
+ * frosted-glass look; colors stay readable on any wallpaper.
+ */
 
-/* Single morphing surface: collapsed shows a pill with bottom-rounded
-   corners attached to the panel edge; open shows the full card. */
 .ubuntu-island-surface {
-    background-color: #101018;
+    background-gradient-direction: vertical;
 }
 .ubuntu-island-surface-collapsed {
-    border: 1px solid rgba(255, 255, 255, 0.13);
+    background-gradient-start: rgba(46, 35, 27, 0.72);
+    background-gradient-end: rgba(28, 19, 15, 0.82);
+    border: 1px solid rgba(230, 214, 203, 0.15);
     border-radius: 0 0 18px 18px;
 }
 .ubuntu-island-surface-open {
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    border-radius: 20px;
+    background-gradient-start: rgba(46, 35, 27, 0.52);
+    background-gradient-end: rgba(26, 18, 13, 0.68);
+    border: 1px solid rgba(230, 214, 203, 0.16);
+    border-radius: 22px;
+}
+
+/* 1px top sheen inside the glass panel. */
+.ubuntu-island-sheen {
+    background-color: rgba(255, 246, 240, 0.08);
+    border-radius: 2px;
+    height: 1px;
+    margin-left: 26px;
+    margin-right: 26px;
 }
 
 .ubuntu-island-pill {
-    height: 32px;
-    padding: 0 14px;
-    spacing: 8px;
+    height: 26px;
+    padding: 0 13px;
+    spacing: 7px;
     background-color: transparent;
+    border: none;
 }
 .ubuntu-island-pill StIcon {
-    icon-size: 15px;
-    color: #eeeefa;
+    color: #e6d6cb;
 }
-.ubuntu-island-pill StLabel {
-    color: #eeeefa;
+.ubuntu-island-pill-title {
+    color: #fff6f0;
     font-weight: 600;
-}
-.ubuntu-island-cpu-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 4px;
-    background-color: #58c08a;
-}
-.ubuntu-island-dot-low { background-color: #58c08a; }
-.ubuntu-island-dot-mid { background-color: #e0a63f; }
-.ubuntu-island-dot-high { background-color: #e0614f; }
-
-.ubuntu-island-card {
-    padding: 14px 16px 16px 16px;
-    spacing: 12px;
-}
-
-.ubuntu-island-header {
-    color: #cfc9ff;
-    font-weight: 700;
     font-size: 10.5pt;
 }
-.ubuntu-island-title {
-    color: #f4f4ff;
+.ubuntu-island-cpu-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 4px;
+    background-color: #7fb58a;
+}
+.ubuntu-island-dot-low { background-color: #7fb58a; }
+.ubuntu-island-dot-mid { background-color: #e0a63f; }
+.ubuntu-island-dot-high { background-color: #e0563b; }
+
+.ubuntu-island-card {
+    padding: 13px 18px 15px 18px;
+    spacing: 11px;
+}
+.ubuntu-island-section { spacing: 10px; }
+
+.ubuntu-island-header {
+    color: #9a8c82;
+    font-weight: 700;
+    font-size: 8.5pt;
+    letter-spacing: 1.4px;
+}
+.ubuntu-island-subheader {
+    color: #9a8c82;
+    font-weight: 700;
+    font-size: 8.5pt;
+    letter-spacing: 1.4px;
+}
+.ubuntu-island-muted {
+    color: #b9a99e;
+    font-size: 10pt;
+}
+.ubuntu-island-device-name {
+    color: #e6d6cb;
+    font-size: 10.5pt;
+}
+
+/* Media */
+.ubuntu-island-media-row { spacing: 14px; }
+.ubuntu-island-track {
+    color: #fff6f0;
     font-weight: 700;
     font-size: 12pt;
 }
-.ubuntu-island-muted {
-    color: #a2a1b8;
+.ubuntu-island-artist {
+    color: #9a8c82;
     font-size: 10pt;
 }
-
-.ubuntu-island-metrics { spacing: 8px; }
-.ubuntu-island-metric {
-    background-color: #262638;
-    border-radius: 11px;
-    padding: 8px;
-    spacing: 4px;
-    min-width: 88px;
-}
-.ubuntu-island-metric-value {
-    color: #f4f4ff;
-    font-weight: 700;
-    font-size: 11pt;
-    min-width: 68px;
-}
-.ubuntu-island-metric-bar {
-    background-color: #17172a;
-    border-radius: 3px;
-    height: 6px;
-    margin-top: 2px;
-}
-.ubuntu-island-metric-bar-fill {
-    background-color: #7c6ff0;
-    border-radius: 3px;
-    height: 6px;
-}
-
-.ubuntu-island-row { spacing: 10px; }
 .ubuntu-island-cover {
-    width: 68px;
-    height: 68px;
-    border-radius: 10px;
-    background-color: #39365e;
+    width: 72px;
+    height: 72px;
+    border-radius: 12px;
+    background-color: rgba(230, 214, 203, 0.08);
+    border: 1px solid rgba(230, 214, 203, 0.12);
 }
 .ubuntu-island-artwork {
-    width: 64px;
-    height: 64px;
-    border-radius: 8px;
+    width: 68px;
+    height: 68px;
+    border-radius: 9px;
     background-color: transparent;
 }
+.ubuntu-island-transport { spacing: 9px; margin-top: 4px; }
 
-.ubuntu-island-control {
-    border-radius: 10px;
-    background-color: #2e2d42;
-    padding: 7px;
-    color: #eeeefa;
+/* Vermilion "seal" play button. */
+.ubuntu-island-seal {
+    border-radius: 9px;
+    padding: 6px;
+    background-gradient-direction: vertical;
+    background-gradient-start: #e0563b;
+    background-gradient-end: #a3371f;
+    border: 1px solid rgba(255, 154, 100, 0.4);
 }
-.ubuntu-island-control:hover { background-color: #43415f; }
-.ubuntu-island-control StIcon { icon-size: 18px; }
+.ubuntu-island-seal:hover {
+    border-color: rgba(255, 154, 100, 0.8);
+}
+
+/* Ghost icon buttons (transport, mute, bluetooth actions). */
+.ubuntu-island-ghost {
+    border-radius: 8px;
+    padding: 6px;
+    background-color: rgba(230, 214, 203, 0.07);
+}
+.ubuntu-island-ghost:hover { background-color: rgba(230, 214, 203, 0.16); }
 
 .ubuntu-island-progress-row { spacing: 10px; }
 .ubuntu-island-time {
-    color: #a2a1b8;
-    font-size: 9.5pt;
-    min-width: 42px;
+    color: #b9a99e;
+    font-size: 9pt;
+    min-width: 40px;
+    font-feature-settings: "tnum";
 }
 .ubuntu-island-progress-track {
-    height: 8px;
+    height: 7px;
     border-radius: 4px;
-    background-color: #17172a;
+    background-color: rgba(0, 0, 0, 0.38);
 }
 .ubuntu-island-progress-fill {
-    height: 8px;
+    height: 7px;
     border-radius: 4px;
-    background-color: #7c6ff0;
+    background-gradient-direction: horizontal;
+    background-gradient-start: #a3371f;
+    background-gradient-end: #ff9a64;
+}
+
+/* System metrics: four flexible tiles, no hard min-widths. */
+.ubuntu-island-metrics { spacing: 8px; }
+.ubuntu-island-metric {
+    background-color: rgba(230, 214, 203, 0.06);
+    border: 1px solid rgba(230, 214, 203, 0.08);
+    border-radius: 9px;
+    padding: 8px 6px;
+    spacing: 3px;
+}
+.ubuntu-island-metric-name {
+    color: #9a8c82;
+    font-weight: 700;
+    font-size: 8pt;
+    letter-spacing: 1px;
+}
+.ubuntu-island-metric-value {
+    color: #fff6f0;
+    font-weight: 700;
+    font-size: 11pt;
+    font-feature-settings: "tnum";
+}
+.ubuntu-island-metric-bar {
+    background-color: rgba(0, 0, 0, 0.38);
+    border-radius: 2px;
+    height: 4px;
+    margin-top: 2px;
+}
+.ubuntu-island-metric-bar-fill {
+    background-color: #e0563b;
+    border-radius: 2px;
+    height: 4px;
 }
 
 .ubuntu-island-separator {
     height: 1px;
-    background-color: #343447;
+    background-color: rgba(230, 214, 203, 0.10);
+    -st-shadow: 0px 0px 0px rgba(0, 0, 0, 0);
 }
 
 .ubuntu-island-volume { spacing: 10px; }
+.ubuntu-island-outputs { spacing: 6px; }
 .ubuntu-island-output {
-    border-radius: 10px;
-    background-color: #2e2d42;
-    padding: 7px 9px;
-    color: #eeeefa;
+    border-radius: 9px;
+    padding: 7px 11px;
+    background-color: rgba(230, 214, 203, 0.06);
+    border: 1px solid rgba(230, 214, 203, 0.08);
 }
-.ubuntu-island-output:hover { background-color: #43415f; }
+.ubuntu-island-output:hover { background-color: rgba(230, 214, 203, 0.14); }
 .ubuntu-island-output-active {
-    background-color: #3d3758;
-    border: 1px solid #7c6ff0;
+    background-color: rgba(224, 86, 59, 0.16);
+    border: 1px solid rgba(255, 154, 100, 0.55);
 }
-.ubuntu-island-output StLabel { font-size: 10.5pt; }
+.ubuntu-island-output-label { color: #e6d6cb; font-size: 10.5pt; }
 
 .ubuntu-island-device { spacing: 8px; }

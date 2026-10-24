@@ -15,12 +15,19 @@ directories next to it are earlier prototypes kept for reference).
   chrome-managed `St.Widget`, animated with width/height/opacity tweens
   (`COLLAPSED → EXPANDING → EXPANDED → COLLAPSING`), interrupt-safe under
   rapid toggling, snapping closed when hidden over fullscreen windows.
-- Click toggles; **Escape and outside clicks close** (outside clicks still
-  propagate to apps underneath); optional hover open/close with grace delays.
+- **Glass look**: real backdrop blur (`Shell.BlurEffect`, as used by the
+  Ubuntu dock) under a warm translucent gradient with hairline borders and a
+  1px top sheen — the vermilion/cream palette is adapted from the Ricelin
+  Quickshell rice.
+- Click toggles; **Escape and outside clicks close** via the same modal-grab
+  pattern GNOME's own popup menus use (outside presses release input
+  immediately so apps receive the next click); optional hover open/close.
 - **Media**: MPRIS discovery with playing-player priority, play/pause/skip,
-  local `file://` artwork and **remote HTTPS artwork** through a bounded
-  (2 MiB, MIME allowlist, host-validated, DNS-checked, disk-cached) loader,
-  progress bar with seek (`SetPosition`, only when `CanSeek`).
+  progress bar with seek (`SetPosition`, only when `CanSeek`), local
+  `file://` artwork and **remote HTTPS artwork** through a bounded
+  (2 MiB, MIME allowlist, host-validated, DNS-checked, disk-cached) loader.
+  **The whole media section disappears when no player exists** and the card
+  reflows its height live.
 - **System**: CPU and RAM percentages plus RX/TX rate for the lowest-metric
   default-route interface (VPN tunnels win), sampled from procfs.
 - **Audio**: GNOME's shared Gvc mixer, volume slider, mute, and **output
@@ -71,6 +78,10 @@ syntax, parser, and API checks here do not replace it.
 
 ## Limitations
 
+- Backdrop blur requires `Shell.BlurEffect` in the Shell build (present on
+  Ubuntu 24.04's patched GNOME 46; dropped with a log line if absent).
+- While open, the island holds an input grab like a native menu: the one
+  press that dismisses it is consumed rather than passed to the app.
 - The date-menu relocation uses GNOME 46 private panel boxes
   (`Main.panel._centerBox`/`_rightBox`); other panel extensions may conflict.
 - Remote-art DNS validation is checked before connecting and after redirects

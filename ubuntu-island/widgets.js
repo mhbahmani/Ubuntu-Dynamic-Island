@@ -12,9 +12,9 @@ export const pct = value => value == null ? '—' : `${Math.round(value)}%`;
 export const clip = (text, max) =>
     text.length > max ? `${text.slice(0, Math.max(1, max - 1))}…` : text;
 
-export function button(name, tooltip, action, size = 18) {
+export function button(name, tooltip, action, size = 18, css = 'ubuntu-island-control') {
     const b = new St.Button({
-        style_class: 'ubuntu-island-control', can_focus: true, reactive: true,
+        style_class: css, can_focus: true, reactive: true,
         child: icon(name, size), accessible_name: tooltip,
     });
     b.connect('clicked', action);

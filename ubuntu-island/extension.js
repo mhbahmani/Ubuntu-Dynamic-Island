@@ -17,6 +17,7 @@ export default class UbuntuIsland extends Extension {
         this._states = {};
         this._progressTimer = 0;
         this._settingsIds = [];
+        this._layoutSignature = '';
 
         if (this._settings.get_boolean('move-clock')) this._moveCalendar();
 
@@ -89,6 +90,7 @@ export default class UbuntuIsland extends Extension {
             bluetooth: this._states.bluetooth,
             expanded: this._island?.expanded ?? false,
             showMetrics: this._settings.get_boolean('enable-metrics'),
+            pillWidth: this._settings.get_int('pill-width'),
         });
     }
 
@@ -107,6 +109,7 @@ export default class UbuntuIsland extends Extension {
             this._art?.cancel();
             this._card.renderArt(null);
         }
+        this._layoutIfChanged({media: Boolean(state?.available)});
         this._syncProgressTimer();
     }
 
@@ -121,6 +124,7 @@ export default class UbuntuIsland extends Extension {
         if (!this._enabled) return;
         this._states.audio = state;
         this._card.renderAudio(state);
+        this._layoutIfChanged({outputs: state?.outputs?.length ?? 0});
     }
 
     _renderBluetooth(state) {
@@ -128,6 +132,16 @@ export default class UbuntuIsland extends Extension {
         this._states.bluetooth = state;
         this._card.renderBluetooth(state);
         this._renderPill();
+        this._layoutIfChanged({devices: state?.devices?.length ?? 0});
+    }
+
+    // Sections can appear or vanish while the card is open (player quits,
+    // output list changes); the island height follows the new content.
+    _layoutIfChanged(parts) {
+        const signature = JSON.stringify(parts);
+        if (signature === this._layoutSignature) return;
+        this._layoutSignature = signature;
+        this._island?.relayout();
     }
 
     // One-second UI clock while the card is open and a player is active.

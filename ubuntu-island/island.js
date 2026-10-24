@@ -1,4 +1,5 @@
 import St from 'gi://St';
+import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -10,29 +11,27 @@ export const IslandState = Object.freeze({
     COLLAPSING: 'collapsing',
 });
 
-const COLLAPSED_HEIGHT = 32;
+const COLLAPSED_HEIGHT = 34;
 const HEIGHT_BUDGET = 0.8; // of the monitor height
 const clampRange = (value, lower, upper) => Math.max(lower, Math.min(upper, value));
 
 // The island is a single chrome-managed St.Widget surface: the compact pill
 // and the expanded card are two children of the same actor, morphed with
-// width/height/opacity tweens instead of a separate popup menu. The surface
-// itself is not reactive, so clicks outside the pill (and outside the open
-// card) pass through to the applications underneath.
+// width/height/opacity tweens instead of a separate popup menu. A backdrop
+// blur effect plus a translucent gradient give the glass look.
 export class IslandSurface {
     constructor({settings, pill, card, onStateChange}) {
         this._settings = settings;
         this._onStateChange = onStateChange;
         this.state = IslandState.COLLAPSED;
         this._token = 0; // invalidates stale transition completions on interrupt
-        this._stagePress = 0;
-        this._stageKey = 0;
         this._hoverOpen = 0;
         this._hoverClose = 0;
         this._hoverEnabled = false;
         this._hoverOpenMs = 180;
         this._hoverCloseMs = 350;
         this._layoutSignal = 0;
+        this._grab = null;
 
         this.actor = new St.Widget({
             style_class: 'ubuntu-island-surface ubuntu-island-surface-collapsed',
@@ -43,10 +42,18 @@ export class IslandSurface {
         this._pill = pill;
         this._card = card;
         this._pill.x_align = Clutter.ActorAlign.CENTER;
-        this._pill.y_align = Clutter.ActorAlign.START;
+        this._pill.y_align = Clutter.ActorAlign.CENTER;
         this._card.hide();
         this.actor.add_child(this._pill);
         this.actor.add_child(this._card);
+        // 1px inner top highlight, the "sheen" line of a glass panel.
+        this._sheen = new St.Widget({style_class: 'ubuntu-island-sheen'});
+        this._sheen.x_align = Clutter.ActorAlign.FILL;
+        this._sheen.y_align = Clutter.ActorAlign.START;
+        this.actor.add_child(this._sheen);
+
+        this._addBlur();
+        this.applyDimensions();
 
         this._connections = [];
         const track = (owner, signal, handler) =>
@@ -56,17 +63,34 @@ export class IslandSurface {
             // Chrome hides us over fullscreen windows; never reappear expanded.
             if (!this.actor.visible) this._snapCollapsed();
         });
+        // Dismissal follows the PopupMenu pattern: while open we hold a modal
+        // grab, so every press/key reaches this captured-event handler — even
+        // presses over windows, which never emit stage events on Wayland.
+        track(this.actor, 'captured-event', (actor, event) => this._onCapturedEvent(actor, event));
         track(this._pill, 'enter-event', () => this._hoverEnterPill());
         for (const part of [this._pill, this._card]) {
             track(part, 'enter-event', () => this._hoverEnter());
             track(part, 'leave-event', () => this._hoverLeave());
         }
-
-        this.applyDimensions();
     }
 
     get expanded() {
         return this.state === IslandState.EXPANDED || this.state === IslandState.EXPANDING;
+    }
+
+    // Real backdrop blur behind the island (Shell.BlurEffect, also used by
+    // the Ubuntu dock). Dropped silently if this Shell build lacks it.
+    _addBlur() {
+        try {
+            this._blur = new Shell.BlurEffect();
+            this._blur.mode = Shell.BlurMode.BACKDROP;
+            this._blur.radius = 14;
+            this._blur.brightness = 0.85;
+            this.actor.add_effect(this._blur);
+        } catch (e) {
+            console.warn(`[Ubuntu Island] blur unavailable: ${e.message}`);
+            this._blur = null;
+        }
     }
 
     show() {
@@ -84,7 +108,7 @@ export class IslandSurface {
 
     destroy() {
         this._cancelHoverTimers();
-        this._syncStageHandlers(false);
+        this._releaseGrab();
         if (this._layoutSignal) Main.layoutManager.disconnect(this._layoutSignal);
         this._layoutSignal = 0;
         for (const [owner, id] of this._connections) owner.disconnect(id);
@@ -120,6 +144,7 @@ export class IslandSurface {
         const token = ++this._token;
         this._setState(IslandState.EXPANDING);
         this._cancelHoverTimers();
+        this._takeGrab();
         this._card.show();
         const [, natural] = this._card.get_preferred_height(this._expandedWidth);
         this._expandedHeight = Math.max(COLLAPSED_HEIGHT, Math.min(natural, this._heightBudget()));
@@ -136,6 +161,8 @@ export class IslandSurface {
         if (this.state === IslandState.COLLAPSED || this.state === IslandState.COLLAPSING) return;
         const token = ++this._token;
         this._setState(IslandState.COLLAPSING);
+        // Release input immediately so apps receive clicks during the close.
+        this._releaseGrab();
         const duration = this._animationMs();
         this._easeSize(this._collapsedWidth, COLLAPSED_HEIGHT, duration, () => {
             if (token !== this._token) return;
@@ -146,14 +173,59 @@ export class IslandSurface {
         this._easeOpacity(this._card, 0, duration);
     }
 
+    // Content-driven height refresh while open (sections appearing/vanishing).
+    relayout() {
+        if (this.state !== IslandState.EXPANDED) return;
+        const [, natural] = this._card.get_preferred_height(this._expandedWidth);
+        const target = Math.max(COLLAPSED_HEIGHT, Math.min(natural, this._heightBudget()));
+        this._expandedHeight = target;
+        this._easeSize(this._expandedWidth, target, Math.min(160, this._animationMs()), null);
+    }
+
     _setState(state) {
         this.state = state;
         const open = this.expanded;
         this.actor.set_style_class_name(open
             ? 'ubuntu-island-surface ubuntu-island-surface-open'
             : 'ubuntu-island-surface ubuntu-island-surface-collapsed');
-        this._syncStageHandlers(open);
         this._onStateChange?.(state);
+    }
+
+    _takeGrab() {
+        if (this._grab) return;
+        try {
+            this._grab = Main.pushModal(this.actor, {actionMode: Shell.ActionMode.POPUP});
+            this.actor.reactive = true;
+        } catch (e) {
+            console.warn(`[Ubuntu Island] input grab failed: ${e.message}`);
+            this._grab = null;
+        }
+    }
+
+    _releaseGrab() {
+        if (!this._grab) return;
+        try {
+            Main.popModal(this._grab);
+        } catch (e) {
+            console.warn(`[Ubuntu Island] releasing input grab: ${e.message}`);
+        }
+        this._grab = null;
+        this.actor.reactive = false;
+    }
+
+    _onCapturedEvent(actor, event) {
+        const type = event.type();
+        if (type === Clutter.EventType.BUTTON_PRESS || type === Clutter.EventType.TOUCH_BEGIN) {
+            const source = event.get_source();
+            if (!(source && actor.contains(source))) {
+                this.collapse();
+                return Clutter.EVENT_PROPAGATE;
+            }
+        } else if (type === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
+            this.collapse();
+            return Clutter.EVENT_STOP;
+        }
+        return Clutter.EVENT_PROPAGATE;
     }
 
     _easeSize(width, height, duration, onDone) {
@@ -183,6 +255,7 @@ export class IslandSurface {
     // settle here so rapid toggling can never leave a half-sized surface.
     _snapCollapsed() {
         this._token++;
+        this._releaseGrab();
         this.actor.remove_all_transitions();
         this._pill.opacity = 255;
         this._card.opacity = 0;
@@ -200,31 +273,6 @@ export class IslandSurface {
             // St.Settings unavailable; the user preference still applies.
         }
         return clampRange(this._settings.get_int('animation-duration'), 0, 500);
-    }
-
-    // Outside clicks and Escape only while open. Outside clicks still
-    // propagate so applications underneath keep receiving them.
-    _syncStageHandlers(active) {
-        if (active && !this._stagePress) {
-            this._stagePress = global.stage.connect('button-press-event', (stage, event) => {
-                const source = event.get_source();
-                if (source && this.actor.contains(source)) return Clutter.EVENT_PROPAGATE;
-                this.collapse();
-                return Clutter.EVENT_PROPAGATE;
-            });
-            this._stageKey = global.stage.connect('key-press-event', (stage, event) => {
-                if (event.get_key_symbol() === Clutter.KEY_Escape) {
-                    this.collapse();
-                    return Clutter.EVENT_STOP;
-                }
-                return Clutter.EVENT_PROPAGATE;
-            });
-        } else if (!active && this._stagePress) {
-            global.stage.disconnect(this._stagePress);
-            this._stagePress = 0;
-            global.stage.disconnect(this._stageKey);
-            this._stageKey = 0;
-        }
     }
 
     // ---- optional hover behavior (click always works; hover is opt-in) ----
