@@ -1,0 +1,27 @@
+/* GNOME Shell 46 stylesheet, intentionally scoped to extension-specific classes. */
+.ubuntu-island-pill {
+    background-color: #101018;
+    border: 1px solid rgba(255,255,255,0.13);
+    border-radius: 0 0 18px 18px;
+    padding: 0 15px;
+    min-width: 138px;
+    height: 30px;
+    spacing: 9px;
+}
+.ubuntu-island-pill-open { background-color: #252338; }
+.ubuntu-island-pill StIcon { icon-size: 15px; }
+.ubuntu-island-pill StLabel { color: #eeeefa; font-weight: 600; }
+.ubuntu-island-menu { background-color: #13131d; border: 1px solid #343447; border-radius: 20px; }
+.ubuntu-island-popup-item { padding: 0; }
+.ubuntu-island-root { padding: 15px; spacing: 12px; min-width: 390px; }
+.ubuntu-island-header { color: #d1cbff; font-weight: 700; font-size: 11pt; }
+.ubuntu-island-title { color: #f4f4ff; font-weight: 700; font-size: 12pt; }
+.ubuntu-island-muted { color: #a2a1b8; font-size: 10pt; }
+.ubuntu-island-metric { background-color: #262638; border-radius: 11px; padding: 8px; spacing: 4px; }
+.ubuntu-island-row { spacing: 9px; }
+.ubuntu-island-cover { width: 68px; height: 68px; border-radius: 9px; background: #39365e; }
+.ubuntu-island-control { border-radius: 10px; background-color: #2e2d42; padding: 7px; }
+.ubuntu-island-control:hover { background-color: #43415f; }
+.ubuntu-island-separator { height: 1px; background-color: #343447; }
+.ubuntu-island-device { spacing: 8px; }
+.ubuntu-island-volume { spacing: 10px; }

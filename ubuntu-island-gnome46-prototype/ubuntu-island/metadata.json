@@ -1,0 +1,7 @@
+{
+  "uuid": "ubuntu-island@example.local",
+  "name": "Ubuntu Island",
+  "description": "Compact media, system metrics, Bluetooth, and audio controls for GNOME Shell 46",
+  "shell-version": ["46"],
+  "version": 1
+}
