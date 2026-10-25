@@ -69,15 +69,18 @@ re-testing.
 
 ## OPEN ISSUES (user-reported 2026-10-25, deliberately NOT fixed yet)
 
-Screenshots `4.png` (laptop, looks good) and `5.png` (external, broken) sit
-untracked at the repo root. Work top-down or as instructed; each entry lists
-the analysis done so far, ranked hypotheses, and the fix to implement once
-confirmed.
+Screenshots `4.png` (laptop, looks good) and `5.png`/`6.png` (external,
+broken) sit untracked at the repo root. Work top-down or as instructed; each
+entry lists the analysis done so far, ranked hypotheses, and the fix to
+implement once confirmed.
 
 ### 1. Card background does not render on the external monitor
 
-**Symptom (5.png):** expanded card on the external monitor shows only faint
-text/icons — no glass background at all. Fine on the laptop screen (4.png).
+**Symptom (5.png, 6.png):** expanded card on the external monitor shows only
+faint text/icons — no glass background at all. Fine on the laptop screen
+(4.png). 6.png confirms it is persistent and that the island is *positioned
+correctly* (top-center) — placement/`_recenter` work; only the surface
+background painting fails.
 
 **Analysis:** the background layer is `Shell.BlurEffect(BACKDROP)` +
 translucent gradient (`ubuntu-island/island.js:83-95` `_addBlur`,
