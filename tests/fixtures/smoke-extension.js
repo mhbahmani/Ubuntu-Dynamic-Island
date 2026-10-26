@@ -59,7 +59,7 @@ export default class Smoke extends UbuntuIsland {
         await this._capture('collapsed');
 
         const media = {available: true, title: 'A quiet place to begin', artist: 'Evening sessions',
-            playerName: 'spotify', status: 'Playing', canControl: true, canNext: true, canPrevious: true, canSeek: true, lengthSec: 240};
+            playerName: 'spotify', status: 'Playing', positionSec: 72, canControl: true, canNext: true, canPrevious: true, canSeek: true, lengthSec: 240};
         this._renderMedia(media);
         // Procedural fixture cover; no real music or network request needed.
         const pixels = new Uint8Array(160 * 160 * 4);

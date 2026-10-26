@@ -166,6 +166,7 @@ export class MediaService {
             artist: (Array.isArray(artists) ? artists.join(', ') : String(artists ?? '')) || 'Unknown artist',
             artUrl: unpack(meta['mpris:artUrl']) || '',
             status,
+            positionSec: this.positionSec(),
             lengthSec: this._lengthUs > 0 ? this._lengthUs / 1e6 : null,
             canSeek: this._canSeek,
             canPrevious: canControl && Boolean(this._prop(proxy, 'CanGoPrevious')),

@@ -293,7 +293,9 @@ export class Card {
         setEnabled(this._next, state.canNext);
         this._canSeek = Boolean(state.canSeek);
         this._lengthSec = Number(state.lengthSec) > 0 ? Number(state.lengthSec) : null;
-        this.renderProgress(null);
+        // Render the position from this update, not a zero placeholder that
+        // remains visible until the next progress timer tick.
+        this.renderProgress(state.positionSec);
     }
 
     renderArt(content) {
