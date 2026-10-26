@@ -3,6 +3,7 @@ import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {containsPoint} from './services/presentation.js';
 
 export const IslandState = Object.freeze({
     COLLAPSED: 'collapsed',
@@ -17,8 +18,8 @@ const clampRange = (value, lower, upper) => Math.max(lower, Math.min(upper, valu
 
 // The island is a single chrome-managed St.Widget surface: the compact pill
 // and the expanded card are two children of the same actor, morphed with
-// width/height/opacity tweens instead of a separate popup menu. A backdrop
-// blur effect plus a translucent gradient give the glass look.
+// width/height/opacity tweens instead of a separate popup menu. The opaque
+// surface paints reliably on mixed-scale monitors without backdrop sampling.
 export class IslandSurface {
     constructor({settings, pill, card, onStateChange}) {
         this._settings = settings;
@@ -41,7 +42,8 @@ export class IslandSurface {
         });
         this._pill = pill;
         this._card = card;
-        this._pill.x_align = Clutter.ActorAlign.CENTER;
+        this._pill.x_align = Clutter.ActorAlign.FILL;
+        this._pill.x_expand = true;
         this._pill.y_align = Clutter.ActorAlign.CENTER;
         this._card.hide();
         this.actor.add_child(this._pill);
@@ -52,12 +54,13 @@ export class IslandSurface {
         this._sheen.y_align = Clutter.ActorAlign.START;
         this.actor.add_child(this._sheen);
 
-        this._addBlur();
+        this._themeContext = St.ThemeContext?.get_for_stage(global.stage) ?? null;
         this.applyDimensions();
 
         this._connections = [];
         const track = (owner, signal, handler) =>
             this._connections.push([owner, owner.connect(signal, handler)]);
+        if (this._themeContext) track(this._themeContext, 'notify::scale-factor', () => this.applyDimensions());
         track(this.actor, 'notify::width', () => this._recenter());
         track(this.actor, 'notify::visible', () => {
             // Chrome hides us over fullscreen windows; never reappear expanded.
@@ -67,6 +70,14 @@ export class IslandSurface {
         // grab, so every press/key reaches this captured-event handler — even
         // presses over windows, which never emit stage events on Wayland.
         track(this.actor, 'captured-event', (actor, event) => this._onCapturedEvent(actor, event));
+        track(Main.sessionMode, 'updated', () => {
+            if (Main.sessionMode.isLocked || Main.sessionMode.isGreeter) {
+                this._snapCollapsed();
+                this.actor.hide();
+            } else {
+                this.actor.show();
+            }
+        });
         track(this._pill, 'enter-event', () => this._hoverEnterPill());
         for (const part of [this._pill, this._card]) {
             track(part, 'enter-event', () => this._hoverEnter());
@@ -78,21 +89,6 @@ export class IslandSurface {
         return this.state === IslandState.EXPANDED || this.state === IslandState.EXPANDING;
     }
 
-    // Real backdrop blur behind the island (Shell.BlurEffect, also used by
-    // the Ubuntu dock). Dropped silently if this Shell build lacks it.
-    _addBlur() {
-        try {
-            this._blur = new Shell.BlurEffect();
-            this._blur.mode = Shell.BlurMode.BACKDROP;
-            this._blur.radius = 14;
-            this._blur.brightness = 0.85;
-            this.actor.add_effect(this._blur);
-        } catch (e) {
-            console.warn(`[Ubuntu Island] blur unavailable: ${e.message}`);
-            this._blur = null;
-        }
-    }
-
     show() {
         Main.layoutManager.addChrome(this.actor, {
             trackFullscreen: true, // hidden while the monitor has a fullscreen window
@@ -100,8 +96,8 @@ export class IslandSurface {
             affectsInputRegion: true,
         });
         this._layoutSignal = Main.layoutManager.connect('monitors-changed', () => {
+            this.applyDimensions();
             this._recenter();
-            this._clampHeight();
         });
         this._recenter();
     }
@@ -118,13 +114,13 @@ export class IslandSurface {
     }
 
     applyDimensions() {
-        this._collapsedWidth = clampRange(this._settings.get_int('pill-width'), 150, 210);
-        this._expandedWidth = clampRange(this._settings.get_int('expanded-width'), 380, 480);
-        if (!this.expanded) {
-            this._token++;
-            this.actor.set_size(this._collapsedWidth, COLLAPSED_HEIGHT);
-            this._recenter();
-        }
+        this._scale = this._themeContext?.scale_factor ?? 1;
+        this._collapsedHeight = COLLAPSED_HEIGHT * this._scale;
+        this._border = 2 * this._scale;
+        this._collapsedWidth = this._scale * clampRange(this._settings.get_int('pill-width'), 150, 210);
+        this._expandedWidth = this._scale * clampRange(this._settings.get_int('expanded-width'), 380, 480);
+        if (this.expanded) this.relayout();
+        else this._snapCollapsed();
     }
 
     setHoverEnabled(enabled, openDelayMs, closeDelayMs) {
@@ -144,14 +140,24 @@ export class IslandSurface {
         const token = ++this._token;
         this._setState(IslandState.EXPANDING);
         this._cancelHoverTimers();
-        this._takeGrab();
+        if (!this._takeGrab()) {
+            this._setState(IslandState.COLLAPSED);
+            return;
+        }
         this._card.show();
-        const [, natural] = this._card.get_preferred_height(this._expandedWidth);
-        this._expandedHeight = Math.max(COLLAPSED_HEIGHT, Math.min(natural, this._heightBudget()));
+        this._pill.reactive = false;
+        this._pill.can_focus = false;
+        const natural = this._card._islandPreferredHeight
+            ? this._card._islandPreferredHeight(this._expandedWidth - this._border)
+            : this._cardContent().get_preferred_height(this._expandedWidth - this._border)[1];
+        this._expandedHeight = Math.max(this._collapsedHeight, Math.min(natural + this._border, this._heightBudget()));
+        this._sizeCard(this._expandedHeight);
         const duration = this._animationMs();
         this._easeSize(this._expandedWidth, this._expandedHeight, duration, () => {
             if (token !== this._token) return;
             this._setState(IslandState.EXPANDED);
+            this.relayout();
+            this._card.navigate_focus(null, St.DirectionType.TAB_FORWARD, false);
         });
         this._easeOpacity(this._pill, 0, duration);
         this._easeOpacity(this._card, 255, duration);
@@ -163,8 +169,10 @@ export class IslandSurface {
         this._setState(IslandState.COLLAPSING);
         // Release input immediately so apps receive clicks during the close.
         this._releaseGrab();
+        this._pill.reactive = true;
+        this._pill.can_focus = true;
         const duration = this._animationMs();
-        this._easeSize(this._collapsedWidth, COLLAPSED_HEIGHT, duration, () => {
+        this._easeSize(this._collapsedWidth, this._collapsedHeight, duration, () => {
             if (token !== this._token) return;
             this._card.hide();
             this._setState(IslandState.COLLAPSED);
@@ -175,11 +183,26 @@ export class IslandSurface {
 
     // Content-driven height refresh while open (sections appearing/vanishing).
     relayout() {
-        if (this.state !== IslandState.EXPANDED) return;
-        const [, natural] = this._card.get_preferred_height(this._expandedWidth);
-        const target = Math.max(COLLAPSED_HEIGHT, Math.min(natural, this._heightBudget()));
+        if (!this.expanded) return;
+        const natural = this._card._islandPreferredHeight
+            ? this._card._islandPreferredHeight(this._expandedWidth - this._border)
+            : this._cardContent().get_preferred_height(this._expandedWidth - this._border)[1];
+        const target = Math.max(this._collapsedHeight, Math.min(natural + this._border, this._heightBudget()));
         this._expandedHeight = target;
-        this._easeSize(this._expandedWidth, target, Math.min(160, this._animationMs()), null);
+        this._sizeCard(target);
+        // During opening, preserve the transition's completion callback.
+        if (this.state === IslandState.EXPANDED)
+            this._easeSize(this._expandedWidth, target, Math.min(160, this._animationMs()), null);
+    }
+
+    _cardContent() {
+        return this._card.get_child?.() ?? this._card;
+    }
+
+    _sizeCard(height) {
+        // Give content its final geometry once; only the containing surface
+        // morphs. Reflowing every label and device row each frame causes jank.
+        this._card.set_size(this._expandedWidth - this._border, Math.max(1, height - this._border));
     }
 
     _setState(state) {
@@ -188,17 +211,20 @@ export class IslandSurface {
         this.actor.set_style_class_name(open
             ? 'ubuntu-island-surface ubuntu-island-surface-open'
             : 'ubuntu-island-surface ubuntu-island-surface-collapsed');
+        this._recenter();
         this._onStateChange?.(state);
     }
 
     _takeGrab() {
-        if (this._grab) return;
+        if (this._grab) return true;
         try {
             this._grab = Main.pushModal(this.actor, {actionMode: Shell.ActionMode.POPUP});
             this.actor.reactive = true;
+            return true;
         } catch (e) {
             console.warn(`[Ubuntu Island] input grab failed: ${e.message}`);
             this._grab = null;
+            return false;
         }
     }
 
@@ -216,13 +242,21 @@ export class IslandSurface {
     _onCapturedEvent(actor, event) {
         const type = event.type();
         if (type === Clutter.EventType.BUTTON_PRESS || type === Clutter.EventType.TOUCH_BEGIN) {
-            const source = event.get_source();
-            if (!(source && actor.contains(source))) {
+            const [x, y] = event.get_coords();
+            const [left, top] = actor.get_transformed_position();
+            const [width, height] = actor.get_transformed_size();
+            if (!containsPoint(x, y, left, top, width, height)) {
                 this.collapse();
-                return Clutter.EVENT_PROPAGATE;
+                return Clutter.EVENT_STOP;
             }
         } else if (type === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
             this.collapse();
+            return Clutter.EVENT_STOP;
+        } else if (type === Clutter.EventType.KEY_PRESS &&
+            (event.get_key_symbol() === Clutter.KEY_Tab || event.get_key_symbol() === Clutter.KEY_ISO_Left_Tab)) {
+            const backward = Boolean(event.get_state() & Clutter.ModifierType.SHIFT_MASK);
+            this._card.navigate_focus(global.stage.key_focus,
+                backward ? St.DirectionType.TAB_BACKWARD : St.DirectionType.TAB_FORWARD, true);
             return Clutter.EVENT_STOP;
         }
         return Clutter.EVENT_PROPAGATE;
@@ -257,10 +291,14 @@ export class IslandSurface {
         this._token++;
         this._releaseGrab();
         this.actor.remove_all_transitions();
+        this._pill.remove_all_transitions();
+        this._card.remove_all_transitions();
+        this._pill.reactive = true;
+        this._pill.can_focus = true;
         this._pill.opacity = 255;
         this._card.opacity = 0;
         this._card.hide();
-        this.actor.set_size(this._collapsedWidth, COLLAPSED_HEIGHT);
+        this.actor.set_size(this._collapsedWidth, this._collapsedHeight);
         this._recenter();
         if (this.state !== IslandState.COLLAPSED) this._setState(IslandState.COLLAPSED);
     }
@@ -311,8 +349,9 @@ export class IslandSurface {
 
     _pointerInside() {
         const [x, y] = global.get_pointer();
-        const picked = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
-        return Boolean(picked && (this.actor.contains(picked) || picked === this.actor));
+        const [left, top] = this.actor.get_transformed_position();
+        const [width, height] = this.actor.get_transformed_size();
+        return containsPoint(x, y, left, top, width, height);
     }
 
     _cancelHoverTimers() {
@@ -335,7 +374,7 @@ export class IslandSurface {
         if (!monitor) return;
         this.actor.set_position(
             Math.round(monitor.x + (monitor.width - this.actor.width) / 2),
-            monitor.y);
+            monitor.y + (this.expanded ? 8 * this._scale : 0));
     }
 
     _heightBudget() {
