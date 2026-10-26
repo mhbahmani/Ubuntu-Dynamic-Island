@@ -9,9 +9,19 @@ import {MediaService} from './services/media.js';
 import {BluetoothService} from './services/bluetooth.js';
 import {AudioService} from './services/audio.js';
 import {ArtLoader} from './services/art.js';
+import {layoutSignature} from './services/presentation.js';
 
 export default class UbuntuIsland extends Extension {
     enable() {
+        try {
+            this._enable();
+        } catch (error) {
+            this.disable();
+            throw error;
+        }
+    }
+
+    _enable() {
         this._enabled = true;
         this._settings = this.getSettings();
         this._states = {};
@@ -30,12 +40,15 @@ export default class UbuntuIsland extends Extension {
             selectOutput: id => this._audio?.selectOutput(id),
             btToggle: device => this._bluetooth?.toggle(device),
             btPower: () => this._bluetooth?.setPowered(!this._states.bluetooth?.powered),
+            close: () => this._island?.collapse(),
+            preferences: () => { this._island?.collapse(); this.openPreferences(); },
+            relayout: () => this._island?.relayout(),
         });
         this._island = new IslandSurface({
             settings: this._settings,
             pill: this._pill.actor,
             card: this._card.actor,
-            onStateChange: () => this._syncProgressTimer(),
+            onStateChange: () => { this._syncProgressTimer(); this._renderPill(); },
         });
         this._island.setHoverEnabled(
             this._settings.get_boolean('hover-open'),
@@ -71,6 +84,10 @@ export default class UbuntuIsland extends Extension {
             this._settingsIds.push(this._settings.connect(`changed::${key}`, handler));
         watch('pill-width', () => this._island?.applyDimensions());
         watch('expanded-width', () => this._island?.applyDimensions());
+        watch('move-clock', () => {
+            if (this._settings.get_boolean('move-clock')) this._moveCalendar();
+            else this._restoreCalendar();
+        });
         const syncHover = () => this._island?.setHoverEnabled(
             this._settings.get_boolean('hover-open'),
             this._settings.get_int('hover-open-delay'),
@@ -78,7 +95,7 @@ export default class UbuntuIsland extends Extension {
         watch('hover-open', syncHover);
         watch('hover-open-delay', syncHover);
         watch('hover-close-delay', syncHover);
-        // Module toggles, the metrics interval, and move-clock changes take
+        // Module toggles and the metrics interval take
         // effect after a disable/enable cycle.
     }
 
@@ -90,7 +107,6 @@ export default class UbuntuIsland extends Extension {
             bluetooth: this._states.bluetooth,
             expanded: this._island?.expanded ?? false,
             showMetrics: this._settings.get_boolean('enable-metrics'),
-            pillWidth: this._settings.get_int('pill-width'),
         });
     }
 
@@ -101,15 +117,18 @@ export default class UbuntuIsland extends Extension {
         this._renderPill();
         const artUrl = state?.available ? String(state.artUrl ?? '') : '';
         const remote = /^https?:/i.test(artUrl);
-        if (artUrl && (!remote || this._settings.get_boolean('enable-remote-art'))) {
-            this._art?.load(artUrl, 64, content => {
+        if (artUrl !== this._artUrl && artUrl && (!remote || this._settings.get_boolean('enable-remote-art'))) {
+            this._artUrl = artUrl;
+            this._card.renderArt(null);
+            this._art?.load(artUrl, 192, content => {
                 if (this._enabled) this._card.renderArt(content);
             });
-        } else {
+        } else if (!artUrl || (remote && !this._settings.get_boolean('enable-remote-art'))) {
+            this._artUrl = '';
             this._art?.cancel();
             this._card.renderArt(null);
         }
-        this._layoutIfChanged({media: Boolean(state?.available)});
+        this._layoutIfChanged();
         this._syncProgressTimer();
     }
 
@@ -124,7 +143,7 @@ export default class UbuntuIsland extends Extension {
         if (!this._enabled) return;
         this._states.audio = state;
         this._card.renderAudio(state);
-        this._layoutIfChanged({outputs: state?.outputs?.length ?? 0});
+        this._layoutIfChanged();
     }
 
     _renderBluetooth(state) {
@@ -132,13 +151,13 @@ export default class UbuntuIsland extends Extension {
         this._states.bluetooth = state;
         this._card.renderBluetooth(state);
         this._renderPill();
-        this._layoutIfChanged({devices: state?.devices?.length ?? 0});
+        this._layoutIfChanged();
     }
 
     // Sections can appear or vanish while the card is open (player quits,
     // output list changes); the island height follows the new content.
-    _layoutIfChanged(parts) {
-        const signature = JSON.stringify(parts);
+    _layoutIfChanged() {
+        const signature = layoutSignature(this._states);
         if (signature === this._layoutSignature) return;
         this._layoutSignature = signature;
         this._island?.relayout();
@@ -172,9 +191,9 @@ export default class UbuntuIsland extends Extension {
         const right = Main.panel._rightBox;
         if (!date || !center || !right || date.get_parent() !== center) return;
         const index = center.get_children().indexOf(date);
+        this._dateRestore = {date, center, index};
         center.remove_child(date);
         right.insert_child_at_index(date, 0);
-        this._dateRestore = {date, center, index};
     }
 
     _restoreCalendar() {
@@ -191,7 +210,7 @@ export default class UbuntuIsland extends Extension {
         this._enabled = false;
         if (this._progressTimer) GLib.Source.remove(this._progressTimer);
         this._progressTimer = 0;
-        for (const id of this._settingsIds) this._settings.disconnect(id);
+        for (const id of this._settingsIds ?? []) this._settings.disconnect(id);
         this._settingsIds = [];
         this._system?.stop();
         this._media?.stop();
@@ -206,5 +225,6 @@ export default class UbuntuIsland extends Extension {
         this._states = null;
         this._restoreCalendar();
         this._settings = null;
+        this._artUrl = null;
     }
 }

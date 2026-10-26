@@ -1,11 +1,10 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
+import Atk from 'gi://Atk';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
-import {icon, label, row, column, button, divider, pct, clip} from './widgets.js';
+import {icon, label, row, column, button, pct, setEnabled} from './widgets.js';
 import {formatTime, clampFraction} from './services/format.js';
-
-const METRIC_BAR_WIDTH = 64;
 
 // Expanded island content, split into sections. Each section renders its own
 // empty state, tolerates a missing service snapshot (module disabled or
@@ -18,59 +17,143 @@ export class Card {
         this._canSeek = false;
         this._lengthSec = null;
         this._sectionCount = 0;
+        this._pages = new Map();
+        this._tabs = new Map();
+        this._page = null;
+        this._manualPage = false;
+        this._outputRows = new Map();
+        this._deviceRows = new Map();
 
-        this.actor = column('ubuntu-island-card');
-        this.actor.reactive = true; // the open card swallows stray clicks like a panel popup
-        this.actor.x_align = Clutter.ActorAlign.FILL;
-        this.actor.y_align = Clutter.ActorAlign.FILL;
+        this.actor = column('ubuntu-island-container');
+        this._scroll = new St.ScrollView({style_class: 'ubuntu-island-scroll', overlay_scrollbars: true, x_expand: true, y_expand: true});
+        this._scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+        this.actor.add_child(this._scroll);
+        this.actor._islandPreferredHeight = () => 260 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        this._body = column('ubuntu-island-card');
+        this._scroll.set_child(this._body);
+        this.actor.reactive = true;
+        this.actor.x_align = Clutter.ActorAlign.CENTER;
+        this.actor.y_align = Clutter.ActorAlign.START;
 
         if (settings.get_boolean('enable-media')) this._buildMedia();
         if (settings.get_boolean('enable-metrics')) this._buildMetrics();
         if (settings.get_boolean('enable-audio')) this._buildAudio();
         if (settings.get_boolean('enable-bluetooth')) this._buildBluetooth();
+        this._empty = column('ubuntu-island-empty');
+        this._empty.add_child(label(this._sectionCount ? 'Nothing playing' : 'Your island, your way', 'ubuntu-island-track'));
+        this._empty.add_child(label(this._sectionCount ? 'Start a track in your music app.' : 'Enable modules in Island preferences.'));
+        this._body.add_child(this._empty);
+        this._buildNavigation();
+        this._syncPages();
     }
 
-    // A titled section with a hairline divider separating it from the next.
+    // Shared heading and content spacing for each module.
     _section(title) {
-        const isFirst = this._sectionCount === 0;
         this._sectionCount++;
-        const box = column();
-        if (title) box.add_child(label(title, 'ubuntu-island-header'));
+        const box = column('ubuntu-island-section-box');
+        const header = row('ubuntu-island-section-heading');
+        const heading = label(title, 'ubuntu-island-header');
+        heading.x_expand = true;
+        header.add_child(heading);
+        box.add_child(header);
         const content = column('ubuntu-island-section');
         box.add_child(content);
-        const sep = isFirst ? null : divider();
-        if (sep) this.actor.add_child(sep);
-        this.actor.add_child(box);
+        this._body.add_child(box);
+        const id = {'NOW PLAYING': 'media', SYSTEM: 'system', SOUND: 'audio', BLUETOOTH: 'bluetooth'}[title];
+        const page = {box, header, content, available: true};
+        this._pages.set(id, page);
         const setVisible = visible => {
-            box.visible = visible;
-            if (sep) sep.visible = visible;
+            page.available = visible;
+            this._syncPages();
         };
-        return {box, content, setVisible};
+        return {box, header, content, setVisible};
+    }
+
+    _buildNavigation() {
+        const navigation = row('ubuntu-island-navigation');
+        const items = [
+            ['media', 'audio-x-generic-symbolic', 'Now playing'],
+            ['system', 'utilities-system-monitor-symbolic', 'System'],
+            ['audio', 'audio-volume-high-symbolic', 'Sound'],
+            ['bluetooth', 'bluetooth-symbolic', 'Bluetooth'],
+        ];
+        for (const [id, glyph, title] of items) {
+            if (!this._pages.has(id)) continue;
+            const tab = button(glyph, title, () => this.selectPage(id), 15, 'ubuntu-island-tab');
+            tab.accessible_role = Atk.Role.PAGE_TAB;
+            navigation.add_child(tab);
+            this._tabs.set(id, tab);
+        }
+        const spacer = new St.Widget({x_expand: true});
+        this._pageCaption = label('', 'ubuntu-island-source');
+        navigation.add_child(this._pageCaption);
+        navigation.add_child(spacer);
+        navigation.add_child(button('emblem-system-symbolic', 'Island preferences',
+            () => this._actions.preferences(), 14, 'ubuntu-island-tab'));
+        navigation.add_child(button('window-close-symbolic', 'Close Ubuntu Island',
+            () => this._actions.close(), 14, 'ubuntu-island-tab'));
+        this.actor.add_child(navigation);
+    }
+
+    selectPage(id) {
+        if (!this._pages.get(id)?.available) return;
+        this._manualPage = true;
+        this._page = id;
+        this._syncPages();
+        this._actions.relayout?.();
+    }
+
+    _syncPages() {
+        if (!this._pages.get(this._page)?.available)
+            this._page = [...this._pages].find(([, page]) => page.available)?.[0] ?? null;
+        for (const [id, page] of this._pages) {
+            page.box.visible = page.available && id === this._page;
+            const tab = this._tabs.get(id);
+            if (!tab) continue;
+            tab.visible = page.available;
+            if (id === this._page) {
+                tab.add_style_pseudo_class('checked');
+                tab.add_accessible_state(Atk.StateType.SELECTED);
+            } else {
+                tab.remove_style_pseudo_class('checked');
+                tab.remove_accessible_state(Atk.StateType.SELECTED);
+            }
+        }
+        if (this._pageCaption)
+            this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth'}[this._page] ?? '';
+        this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : ''}`);
+        if (this._empty) this._empty.visible = !this._page;
     }
 
     _buildMedia() {
         this._mediaSection = this._section('NOW PLAYING');
+        this._mediaSection.header.hide();
         const content = this._mediaSection.content;
 
         const music = row('ubuntu-island-media-row');
         this._cover = new St.Bin({
             style_class: 'ubuntu-island-cover',
+            clip_to_allocation: true,
             x_align: Clutter.ActorAlign.CENTER,
             y_align: Clutter.ActorAlign.CENTER,
         });
         this._cover.set_child(icon('audio-x-generic-symbolic', 28));
         music.add_child(this._cover);
 
-        const details = column();
-        this._track = label('No media player detected', 'ubuntu-island-track');
-        this._artist = label('Open an MPRIS-compatible player', 'ubuntu-island-artist');
+        const details = column('ubuntu-island-media-details');
+        details.x_expand = true;
+        this._track = label('', 'ubuntu-island-track');
+        this._artist = label('', 'ubuntu-island-artist');
         details.add_child(this._track);
         details.add_child(this._artist);
         const controls = row('ubuntu-island-transport');
+        this._source = label('PLAYER', 'ubuntu-island-source');
+        this._source.x_expand = true;
+        controls.add_child(this._source);
         this._previous = button('media-skip-backward-symbolic', 'Previous track',
             () => this._actions.mediaCommand('Previous'), 16, 'ubuntu-island-ghost');
         this._play = new St.Button({
-            style_class: 'ubuntu-island-seal', can_focus: true, reactive: true,
+            style_class: 'ubuntu-island-seal', can_focus: true, reactive: true, track_hover: true,
             accessible_name: 'Play or pause',
         });
         this._play.set_child(icon('media-playback-start-symbolic', 15));
@@ -86,26 +169,26 @@ export class Card {
 
         const progress = row('ubuntu-island-progress-row');
         this._elapsed = label('0:00', 'ubuntu-island-time');
-        this._progressTrack = new St.Widget({
-            style_class: 'ubuntu-island-progress-track', reactive: true, x_expand: true,
+        this._progressTrack = new Slider.Slider(0);
+        this._progressTrack.x_expand = true;
+        this._progressTrack.accessible_name = 'Track position';
+        this._updatingProgress = false;
+        this._draggingProgress = false;
+        this._progressTrack.connect('drag-begin', () => { this._draggingProgress = true; });
+        this._progressTrack.connect('drag-end', () => {
+            this._draggingProgress = false;
+            if (this._canSeek && this._lengthSec)
+                this._actions.seek(this._progressTrack.value * this._lengthSec);
         });
-        this._progressFill = new St.Widget({style_class: 'ubuntu-island-progress-fill'});
-        this._progressTrack.add_child(this._progressFill);
-        this._progressTrack.connect('button-press-event', (actor, event) => {
-            if (!this._canSeek || !this._lengthSec) return Clutter.EVENT_PROPAGATE;
-            const [trackX] = actor.get_transformed_position();
-            const [pointerX] = event.get_coords();
-            const fraction = clampFraction((pointerX - trackX) / Math.max(1, actor.width));
-            const seconds = fraction * this._lengthSec;
-            this._actions.seek(seconds);
-            this.renderProgress(seconds);
-            return Clutter.EVENT_STOP;
+        this._progressTrack.connect('notify::value', () => {
+            if (!this._updatingProgress && !this._draggingProgress && this._canSeek && this._lengthSec)
+                this._actions.seek(this._progressTrack.value * this._lengthSec);
         });
         progress.add_child(this._elapsed);
         progress.add_child(this._progressTrack);
         this._total = label('–:––', 'ubuntu-island-time');
         progress.add_child(this._total);
-        content.add_child(progress);
+        details.add_child(progress);
 
         // Hidden until a player shows up.
         this._mediaSection.setVisible(false);
@@ -122,8 +205,11 @@ export class Card {
             box.add_child(value);
             let bar = null;
             if (withBar) {
-                const track = new St.Widget({style_class: 'ubuntu-island-metric-bar'});
+                const track = new St.Widget({style_class: 'ubuntu-island-metric-bar',
+                    y_align: Clutter.ActorAlign.CENTER});
                 bar = new St.Widget({style_class: 'ubuntu-island-metric-bar-fill'});
+                bar._fraction = 0;
+                track.connect('notify::width', () => { bar.width = Math.round(bar._fraction * track.width); });
                 track.add_child(bar);
                 box.add_child(track);
             }
@@ -132,8 +218,8 @@ export class Card {
         };
         this._cpu = tile('CPU', true);
         this._ram = tile('RAM', true);
-        this._rx = tile('↓ RX', false);
-        this._tx = tile('↑ TX', false);
+        this._rx = tile('↓ DOWN', false);
+        this._tx = tile('↑ UP', false);
         section.content.add_child(metrics);
         this._iface = label('Network: detecting…');
         section.content.add_child(this._iface);
@@ -165,40 +251,46 @@ export class Card {
         section.content.add_child(volumeRow);
 
         this._outputs = column('ubuntu-island-outputs');
+        this._outputStatus = label('Detecting audio outputs…');
+        section.content.add_child(this._outputStatus);
         section.content.add_child(this._outputs);
     }
 
     _buildBluetooth() {
         const section = this._section('BLUETOOTH');
-        const heading = row();
-        heading.add_child(label('DEVICES', 'ubuntu-island-subheader'));
-        heading.add_child(new St.Widget({x_expand: true}));
+        const heading = section.header;
         this._power = button('bluetooth-disabled-symbolic', 'Toggle Bluetooth power',
             () => this._actions.btPower(), 15, 'ubuntu-island-ghost');
         this._power.visible = false;
         heading.add_child(this._power);
         heading.add_child(button('emblem-system-symbolic', 'Open Bluetooth Settings',
             () => Util.spawn(['gnome-control-center', 'bluetooth']), 15, 'ubuntu-island-ghost'));
-        section.content.add_child(heading);
         this._btStatus = label('Detecting Bluetooth…');
         section.content.add_child(this._btStatus);
-        this._devices = column();
+        this._btError = label('', 'ubuntu-island-error');
+        this._btError.hide();
+        section.content.add_child(this._btError);
+        this._devices = column('ubuntu-island-devices');
         section.content.add_child(this._devices);
     }
 
     renderMedia(state) {
         if (!this._mediaSection) return;
         const available = Boolean(state?.available);
+        const wasAvailable = this._pages.get('media').available;
+        if (available && !wasAvailable && !this._manualPage) this._page = 'media';
         // With no player the whole section is gone, not an empty placeholder.
         this._mediaSection.setVisible(available);
         if (!available) return;
-        this._track.text = clip(String(state.title ?? ''), 48);
-        this._artist.text = clip(String(state.artist ?? ''), 64);
+        this._track.text = String(state.title ?? 'Unknown title');
+        this._artist.text = String(state.artist ?? 'Unknown artist');
+        this._source.text = String(state.playerName || 'Player');
         this._play.child.icon_name = state.status === 'Playing'
             ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic';
-        this._play.reactive = Boolean(state.canControl);
-        this._previous.reactive = Boolean(state.canPrevious);
-        this._next.reactive = Boolean(state.canNext);
+        this._play.accessible_name = state.status === 'Playing' ? 'Pause' : 'Play';
+        setEnabled(this._play, state.canControl);
+        setEnabled(this._previous, state.canPrevious);
+        setEnabled(this._next, state.canNext);
         this._canSeek = Boolean(state.canSeek);
         this._lengthSec = Number(state.lengthSec) > 0 ? Number(state.lengthSec) : null;
         this.renderProgress(null);
@@ -206,7 +298,8 @@ export class Card {
 
     renderArt(content) {
         this._cover?.set_child(content
-            ? new St.Widget({content, style_class: 'ubuntu-island-artwork'})
+            ? new St.Widget({content, style_class: 'ubuntu-island-artwork',
+                content_gravity: Clutter.ContentGravity.RESIZE_ASPECT})
             : icon('audio-x-generic-symbolic', 28));
     }
 
@@ -217,10 +310,13 @@ export class Card {
         this._elapsed.text = formatTime(position ?? 0);
         this._total.text = formatTime(total);
         const fraction = total && position != null ? clampFraction(position / total) : 0;
-        // The track is x_expand inside the fixed-width card, so its live width
-        // is the reference for the fill once the card has been allocated.
-        this._progressFill.width = Math.round(fraction * Math.max(1, this._progressTrack.width));
-        this._progressTrack.reactive = Boolean(this._canSeek && total);
+        // Keep the thumb under the pointer while a seek is being dragged.
+        if (!this._draggingProgress) {
+            this._updatingProgress = true;
+            this._progressTrack.value = fraction;
+            this._updatingProgress = false;
+        }
+        setEnabled(this._progressTrack, this._canSeek && total);
     }
 
     renderSystem(state) {
@@ -229,8 +325,10 @@ export class Card {
         this._ram.value.text = pct(state.memory);
         this._rx.value.text = state.rx ?? '—';
         this._tx.value.text = state.tx ?? '—';
-        this._cpu.bar.width = Math.round(clampFraction((state.cpu ?? 0) / 100) * METRIC_BAR_WIDTH);
-        this._ram.bar.width = Math.round(clampFraction((state.memory ?? 0) / 100) * METRIC_BAR_WIDTH);
+        for (const [metric, value] of [[this._cpu, state.cpu], [this._ram, state.memory]]) {
+            metric.bar._fraction = clampFraction((value ?? 0) / 100);
+            metric.bar.width = Math.round(metric.bar._fraction * (metric.bar.get_parent()?.width ?? 0));
+        }
         this._iface.text = `Network: ${state.iface ?? 'unavailable'}`;
     }
 
@@ -247,50 +345,97 @@ export class Card {
             ? 'audio-volume-muted-symbolic'
             : level < 0.33 ? 'audio-volume-low-symbolic'
             : level < 0.66 ? 'audio-volume-medium-symbolic' : 'audio-volume-high-symbolic';
-        this._outputs.destroy_all_children();
-        if (!state.available) {
-            this._outputs.add_child(label('Sound server not available'));
-            return;
+        setEnabled(this._mute, state.available);
+        setEnabled(this._slider, state.available);
+        this._mute.accessible_name = state.muted ? 'Unmute output' : 'Mute output';
+        const outputs = state.available ? state.outputs ?? [] : [];
+        this._outputStatus.text = !state.available ? 'Sound output unavailable'
+            : outputs.length ? '' : 'No output devices found';
+        this._outputStatus.visible = Boolean(this._outputStatus.text);
+        const ids = new Set(outputs.map(output => output.id));
+        for (const [id, item] of this._outputRows) {
+            if (!ids.has(id)) { item.destroy(); this._outputRows.delete(id); }
         }
-        if (!state.outputs.length) this._outputs.add_child(label('No output devices found'));
-        for (const output of state.outputs) {
-            const item = new St.Button({
-                style_class: `ubuntu-island-output${output.active ? ' ubuntu-island-output-active' : ''}`,
-                can_focus: true,
-                x_expand: true,
-                accessible_name: `Switch to ${output.name}`,
-                child: label(clip(String(output.name ?? ''), 42), 'ubuntu-island-output-label'),
-            });
-            item.connect('clicked', () => this._actions.selectOutput(output.id));
-            this._outputs.add_child(item);
+        for (const [index, output] of outputs.entries()) {
+            let item = this._outputRows.get(output.id);
+            if (!item) {
+                item = new St.Button({can_focus: true, reactive: true, track_hover: true, x_expand: true});
+                const content = row('ubuntu-island-output-row');
+                content.x_expand = true;
+                content.add_child(icon('audio-speakers-symbolic', 16));
+                const text = label('', 'ubuntu-island-output-label');
+                text.x_expand = true;
+                content.add_child(text);
+                const check = icon('object-select-symbolic', 16);
+                content.add_child(check);
+                item.set_child(content);
+                item._name = text;
+                item._check = check;
+                item.connect('clicked', () => this._actions.selectOutput(output.id));
+                this._outputs.add_child(item);
+                this._outputRows.set(output.id, item);
+            }
+            item.set_style_class_name(
+                `ubuntu-island-output${output.active ? ' ubuntu-island-output-active' : ''}`);
+            item._name.text = String(output.name ?? 'Audio output');
+            item._check.opacity = output.active ? 255 : 0;
+            item.accessible_name = `${output.active ? 'Active output:' : 'Switch to'} ${output.name}`;
+            if (this._outputs.get_child_at_index(index) !== item)
+                this._outputs.set_child_at_index(item, index);
         }
     }
 
     renderBluetooth(state) {
         if (!this._btStatus || !state) return;
-        const connected = state.devices.filter(d => d.connected).length;
+        const devices = state.devices ?? [];
+        const connected = devices.filter(d => d.connected).length;
         this._btStatus.text = !state.available ? 'Bluetooth service unavailable'
             : !state.hasAdapter ? 'No Bluetooth adapter found'
-            : !state.powered ? 'Bluetooth is powered off'
-                : `${connected} connected · ${state.devices.length} paired`;
+            : !state.powered ? 'Bluetooth is off · turn it on to connect'
+            : !devices.length ? 'No paired devices · open Bluetooth Settings'
+            : `${connected} connected · ${devices.length} paired`;
         this._power.visible = Boolean(state.available && state.hasAdapter);
         this._power.child.icon_name = state.powered
             ? 'bluetooth-active-symbolic' : 'bluetooth-disabled-symbolic';
-        this._devices.destroy_all_children();
-        if (state.available && state.powered && state.devices.length === 0)
-            this._devices.add_child(label('Pair devices using Bluetooth Settings'));
-        for (const device of state.devices) {
-            const deviceRow = row('ubuntu-island-device');
-            const nameText = clip(String(device.name ?? ''), 34);
-            const name = label(device.battery == null ? nameText : `${nameText} · ${device.battery}%`,
-                'ubuntu-island-device-name');
-            name.x_expand = true;
-            deviceRow.add_child(name);
-            deviceRow.add_child(button(
-                device.connected ? 'network-offline-symbolic' : 'network-transmit-receive-symbolic',
-                `${device.connected ? 'Disconnect' : 'Connect'} ${device.name}`,
-                () => this._actions.btToggle(device), 14, 'ubuntu-island-ghost'));
-            this._devices.add_child(deviceRow);
+        this._power.accessible_name = state.powered ? 'Turn Bluetooth off' : 'Turn Bluetooth on';
+        setEnabled(this._power, !state.powerPending);
+        this._btError.text = state.error ?? '';
+        this._btError.visible = Boolean(state.error);
+        const visibleDevices = state.powered ? devices : [];
+        const paths = new Set(visibleDevices.map(device => device.path));
+        for (const [path, item] of this._deviceRows) {
+            if (!paths.has(path)) { item.destroy(); this._deviceRows.delete(path); }
+        }
+        for (const [index, device] of visibleDevices.entries()) {
+            let item = this._deviceRows.get(device.path);
+            if (!item) {
+                item = new St.Button({can_focus: true, reactive: true, track_hover: true, x_expand: true});
+                const content = row('ubuntu-island-device');
+                content.x_expand = true;
+                content.add_child(icon('bluetooth-symbolic', 16));
+                const details = column();
+                details.x_expand = true;
+                item._name = label('', 'ubuntu-island-device-name');
+                item._status = label('', 'ubuntu-island-device-status');
+                details.add_child(item._name);
+                details.add_child(item._status);
+                content.add_child(details);
+                item._action = label('', 'ubuntu-island-device-action');
+                content.add_child(item._action);
+                item.set_child(content);
+                item.connect('clicked', () => this._actions.btToggle(item._device));
+                this._devices.add_child(item);
+                this._deviceRows.set(device.path, item);
+            }
+            item._device = device;
+            item.set_style_class_name('ubuntu-island-device-button');
+            item._name.text = String(device.name ?? 'Bluetooth device');
+            item._status.text = `${device.connected ? 'Connected' : 'Not connected'}${device.battery == null ? '' : ` · ${device.battery}% battery`}`;
+            item._action.text = device.pending ? 'Working…' : device.connected ? 'Disconnect' : 'Connect';
+            item.accessible_name = `${item._action.text} ${device.name}, ${item._status.text}`;
+            setEnabled(item, !device.pending);
+            if (this._devices.get_child_at_index(index) !== item)
+                this._devices.set_child_at_index(item, index);
         }
     }
 }
