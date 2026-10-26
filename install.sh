@@ -1,7 +1,7 @@
 #!/bin/sh
 # Non-destructive per-user installation for Ubuntu Island.
 set -eu
-UUID='ubuntu-island@example.local'
+UUID='ubuntu-island@mhbahmani.github.io'
 SRC=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 BASE="${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions"
 DEST="$BASE/$UUID"

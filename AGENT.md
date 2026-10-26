@@ -57,8 +57,8 @@ First compare installed source with the working tree; stale installations can
 look like regressions:
 
 ```sh
-diff -q ~/.local/share/gnome-shell/extensions/ubuntu-island@example.local/extension.js extension.js
-cat ~/.local/share/gnome-shell/extensions/ubuntu-island@example.local/metadata.json
+diff -q ~/.local/share/gnome-shell/extensions/ubuntu-island@mhbahmani.github.io/extension.js extension.js
+cat ~/.local/share/gnome-shell/extensions/ubuntu-island@mhbahmani.github.io/metadata.json
 ```
 
 From the repository root:

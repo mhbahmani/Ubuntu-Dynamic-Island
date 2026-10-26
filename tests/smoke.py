@@ -16,7 +16,7 @@ import tempfile
 def main():
     source = Path(__file__).resolve().parents[1]
     root = Path(tempfile.mkdtemp(prefix="ubuntu-island-smoke-"))
-    extension = root / "share/gnome-shell/extensions/ubuntu-island@example.local"
+    extension = root / "share/gnome-shell/extensions/ubuntu-island@mhbahmani.github.io"
     extension.mkdir(parents=True)
     for path in source.glob("*.js"):
         shutil.copy2(path, extension / path.name)
@@ -29,7 +29,7 @@ def main():
     subprocess.run(["glib-compile-schemas", "--strict", str(extension / "schemas")], check=True)
     mode = root / "share/gnome-shell/modes/island-smoke.json"
     mode.parent.mkdir(parents=True)
-    mode.write_text(json.dumps({"parentMode": "user", "enabledExtensions": ["ubuntu-island@example.local"],
+    mode.write_text(json.dumps({"parentMode": "user", "enabledExtensions": ["ubuntu-island@mhbahmani.github.io"],
                                 "showWelcomeDialog": False, "components": []}))
     runtime = root / "runtime"
     runtime.mkdir(mode=0o700)

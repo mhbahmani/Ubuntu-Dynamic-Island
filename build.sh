@@ -2,7 +2,7 @@
 # Builds an installable, versioned extension zip with compiled schemas.
 set -eu
 cd "$(dirname -- "$0")"
-UUID='ubuntu-island@example.local'
+UUID='ubuntu-island@mhbahmani.github.io'
 VERSION=$(sed -n 's/.*"version": \([0-9]*\).*/\1/p' metadata.json)
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT

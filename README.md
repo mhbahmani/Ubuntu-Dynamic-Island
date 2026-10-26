@@ -62,7 +62,7 @@ and [compact playing pill](screenshots/playing-pill.png).
 ```bash
 ./install.sh
 # Log out and back in (Wayland; do NOT use Alt+F2 'r'), then:
-gnome-extensions enable ubuntu-island@example.local
+gnome-extensions enable ubuntu-island@mhbahmani.github.io
 ```
 
 `install.sh` compiles the GSettings schema and installs per-user under
@@ -73,7 +73,7 @@ installable zip.
 
 ```bash
 gnome-shell --version        # 46.0
-gnome-extensions info ubuntu-island@example.local
+gnome-extensions info ubuntu-island@mhbahmani.github.io
 journalctl --user -b | grep -i 'Ubuntu Island\|ubuntu-island'
 ```
 
