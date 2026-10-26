@@ -29,6 +29,9 @@ export class BluetoothService {
         this._subscriptions = [];
         this._adapter = null; // {path, powered}
         this._devices = new Map(); // path -> {path, name, connected, battery}
+        this._pending = new Set();
+        this._powerPending = false;
+        this._error = '';
     }
 
     start() {
@@ -162,36 +165,51 @@ export class BluetoothService {
             available: this._available,
             hasAdapter: Boolean(this._adapter),
             powered: Boolean(this._adapter?.powered),
-            devices,
+            devices: devices.map(device => ({...device, pending: this._pending.has(device.path)})),
+            powerPending: this._powerPending,
+            error: this._error,
         });
     }
 
     toggle(device) {
-        if (!this._alive || !device?.path?.startsWith('/org/bluez/')) return;
+        if (!this._alive || !this._adapter?.powered || !this._devices.has(device?.path) ||
+            this._pending.has(device.path)) return;
+        this._pending.add(device.path);
+        this._error = '';
+        this._emit();
         const method = device.connected ? 'Disconnect' : 'Connect';
         Gio.DBus.system.call(BLUEZ, device.path, DEVICE, method, null, null,
             Gio.DBusCallFlags.NONE, 10000, this._cancellable, (connection, result) => {
                 if (!this._alive) return;
+                this._pending.delete(device.path);
                 try {
                     connection.call_finish(result);
                 } catch (e) {
                     console.warn(`[Ubuntu Island] Bluetooth ${method}: ${e.message}`);
+                    this._error = `Could not ${method.toLowerCase()} ${device.name}. Try again in Bluetooth Settings.`;
                     this._snapshot(); // resync in case events were missed
                 }
+                this._emit();
             });
     }
 
     setPowered(on) {
-        if (!this._alive || !this._adapter?.path) return;
+        if (!this._alive || !this._adapter?.path || this._powerPending) return;
+        this._powerPending = true;
+        this._error = '';
+        this._emit();
         Gio.DBus.system.call(BLUEZ, this._adapter.path, PROPERTIES, 'Set',
             new GLib.Variant('(ssv)', [ADAPTER, 'Powered', new GLib.Variant('b', Boolean(on))]),
             null, Gio.DBusCallFlags.NONE, 5000, this._cancellable, (connection, result) => {
                 if (!this._alive) return;
+                this._powerPending = false;
                 try {
                     connection.call_finish(result);
                 } catch (e) {
                     console.warn(`[Ubuntu Island] Bluetooth power: ${e.message}`);
+                    this._error = 'Could not change Bluetooth power. Check Bluetooth Settings.';
                 }
+                this._emit();
                 this._snapshot();
             });
     }
@@ -211,5 +229,7 @@ export class BluetoothService {
         this._devices.clear();
         this._adapter = null;
         this._available = false;
+        this._pending.clear();
+        this._powerPending = false;
     }
 }
