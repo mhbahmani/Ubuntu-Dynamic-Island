@@ -342,7 +342,7 @@ export class Card {
         this._networkChart.push(state.rxBytes, state.txBytes);
         this._rx.accessible_name = `Download ${state.rx ?? 'unavailable'}`;
         this._tx.accessible_name = `Upload ${state.tx ?? 'unavailable'}`;
-        this._iface.text = `${state.iface ?? 'Network unavailable'} · ${60 * this._settings.get_int('metrics-interval')}s history · auto network scale`;
+        this._iface.text = `${state.iface ?? 'Network unavailable'} · ${60 * this._settings.get_int('metrics-interval')}s history`;
 
     }
 
