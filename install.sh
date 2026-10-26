@@ -12,7 +12,7 @@ if [ -e "$DEST" ]; then
     printf 'Previous installation backed up to: %s\n' "$BAK"
 fi
 mkdir "$DEST"
-cp -R "$SRC/extension.js" "$SRC/island.js" "$SRC/card.js" "$SRC/pill.js" "$SRC/widgets.js" \
+cp -R "$SRC/extension.js" "$SRC/island.js" "$SRC/card.js" "$SRC/charts.js" "$SRC/pill.js" "$SRC/widgets.js" \
       "$SRC/prefs.js" "$SRC/metadata.json" "$SRC/stylesheet.css" "$SRC/services" "$DEST/"
 mkdir "$DEST/schemas"
 cp "$SRC"/schemas/*.xml "$DEST/schemas/"

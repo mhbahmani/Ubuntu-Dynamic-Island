@@ -40,7 +40,11 @@ export default class Smoke extends UbuntuIsland {
         this._bluetooth?.stop();
         this._settings.set_boolean('disable-animations', true);
         if (this._media) this._media.positionSec = () => 72;
-        this._renderSystem({cpu: 24, memory: 48, iface: 'wlan0', rx: '2.4 MB/s', tx: '128 KB/s'});
+        for (let i = 0; i < 60; i++) this._renderSystem({
+            cpu: 24 + 16 * Math.sin(i / 5), memory: 48 + 4 * Math.sin(i / 12),
+            iface: 'wlan0', rx: '2.4 MB/s', tx: '128 KB/s',
+            rxBytes: 1e6 + 8e5 * Math.sin(i / 4), txBytes: 2e5 + 1e5 * Math.sin(i / 3),
+        });
         const audio = {available: true, volume: 0.64, muted: false, outputs: [
             {id: 1, name: 'Built-in speakers', active: true},
             {id: 2, name: 'HDMI / DisplayPort', active: false},
@@ -89,7 +93,24 @@ export default class Smoke extends UbuntuIsland {
                 'More than one module surface is visible');
             await this._capture(name);
         }
+        this._card.selectPage('system');
+        for (const theme of ['ocean', 'forest', 'ember', 'graphite']) {
+            this._settings.set_string('color-theme', theme);
+            this._settings.set_int('surface-opacity', theme === 'graphite' ? 98 : 85);
+            assert(this._island.actor.opacity === 255, 'Opacity faded text and controls');
+            assert(this._card.actor.has_style_class_name(`ubuntu-island-theme-${theme}`), 'Theme did not apply live');
+            await this._capture(`theme-${theme}`);
+        }
         this._card.selectPage('media');
+        await delay(100);
+        let hiddenRepaints = 0;
+        const chart = this._card._cpu.chart;
+        const repaintSignal = chart.actor.connect('repaint', () => hiddenRepaints++);
+        for (let i = 0; i < 100; i++) chart.push(25);
+        await delay(100);
+        assert(hiddenRepaints === 0, 'Hidden chart repainted');
+        assert(chart.series[0].count === 60, 'History grew beyond its bound');
+        chart.actor.disconnect(repaintSignal);
 
         // Real pointer picking catches clipped or overlaid footer buttons.
         const pointer = Clutter.get_default_backend().get_default_seat()
@@ -115,6 +136,13 @@ export default class Smoke extends UbuntuIsland {
         assert(this._island.actor.width === this._settings.get_int('expanded-width') * 2,
             'Surface does not follow CSS scaling');
         await this._capture('scaled');
+        this._card.selectPage('system');
+        await this._capture('scaled-system');
+        const [captionX, captionY] = this._card._iface.get_transformed_position();
+        const [, captionHeight] = this._card._iface.get_transformed_size();
+        const [, footerY] = this._card._tabs.get('system').get_parent().get_transformed_position();
+        assert(captionY + captionHeight <= footerY, 'System history caption is clipped');
+        this._card.selectPage('media');
         context.scale_factor = originalScale;
         await delay(200);
 
@@ -149,6 +177,6 @@ export default class Smoke extends UbuntuIsland {
         this.disable();
         if (saved) assert(saved.date.get_parent() === saved.center, 'Calendar parent was not restored');
         assert(!this._island && !this._progressTimer, 'Disable retained actors or progress timer');
-        console.log('[Island Smoke] PASS: render, idle media, narrow layout, persistent rows, outside press, Escape, rapid toggle, disable');
+        console.log('[Island Smoke] PASS: themes, opacity, bounded charts, hidden redraws, scaled layout, render, idle media, narrow layout, persistent rows, outside press, Escape, rapid toggle, disable');
     }
 }

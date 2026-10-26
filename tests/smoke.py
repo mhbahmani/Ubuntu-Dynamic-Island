@@ -39,7 +39,7 @@ def main():
                        XDG_DATA_DIRS=f"{root}/share:/usr/local/share:/usr/share", ISLAND_SMOKE_OUTPUT=str(root))
     print(f"Screenshots and logs: {root}", flush=True)
     with (root / "runtime.log").open("w") as output:
-        subprocess.run(["timeout", "18s", "dbus-run-session", "--", "gnome-shell", "--headless",
+        subprocess.run(["timeout", "25s", "dbus-run-session", "--", "gnome-shell", "--headless",
                         "--wayland", "--no-x11", "--mode=island-smoke", "--virtual-monitor=1280x960"],
                        env=environment, stdout=output, stderr=subprocess.STDOUT, check=False)
     log = (root / "runtime.log").read_text()

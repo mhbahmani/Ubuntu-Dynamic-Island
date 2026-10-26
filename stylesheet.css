@@ -97,8 +97,6 @@
 }
 .ubuntu-island-metric-name { color: #b7bbc5; font-size: 9pt; font-weight: 600; letter-spacing: 0.6px; }
 .ubuntu-island-metric-value { color: #f8f9fc; font-size: 11pt; font-weight: 600; font-feature-settings: "tnum"; }
-.ubuntu-island-metric-bar { height: 3px; border-radius: 2px; background-color: #626773; }
-.ubuntu-island-metric-bar-fill { height: 3px; border-radius: 2px; background-color: #e0563b; }
 /* Sound and connection faces */
 .ubuntu-island-volume { spacing: 10px; }
 .ubuntu-island-volume .ubuntu-island-metric-value { min-width: 42px; }
@@ -129,6 +127,14 @@
 
 .ubuntu-island-tab:checked:hover { background-color: rgba(224, 86, 59, 0.32); color: #ffd4bc; }
 
+/* Bounded native history plots; no animation or backdrop effects. */
+.ubuntu-island-history-tile { padding: 6px 10px; spacing: 4px; }
+.ubuntu-island-history { height: 22px; color: #e99478; }
+.ubuntu-island-history-network { height: 24px; }
+.ubuntu-island-network-rates { spacing: 12px; }
+.ubuntu-island-network-down { color: #6bcced; font-size: 10pt; font-weight: 600; }
+.ubuntu-island-network-up { color: #d9a8fa; font-size: 10pt; font-weight: 600; }
+
 .ubuntu-island-theme-ocean .ubuntu-island-history { color: #8acdf6; }
 .ubuntu-island-theme-ocean .ubuntu-island-tab:checked { color: #8acdf6; background-color: rgba(71, 157, 220, 0.24); }
 .ubuntu-island-theme-ocean .ubuntu-island-seal { background-color: #29648d; }
@@ -147,7 +153,9 @@
 .ubuntu-island-theme-ember .slider { -barlevel-active-background-color: #ffc19b; }
 .ubuntu-island-theme-ember .ubuntu-island-output-active { background-color: rgba(207, 106, 56, 0.24); border-color: #ffc19b; }
 
-
+.ubuntu-island-card-system { padding-top: 12px; }
+.ubuntu-island-system-section { spacing: 8px; }
+.ubuntu-island-system-content { spacing: 6px; }
 .ubuntu-island-theme-ocean .ubuntu-island-tab:checked:hover,
 .ubuntu-island-theme-forest .ubuntu-island-tab:checked:hover,
 .ubuntu-island-theme-ember .ubuntu-island-tab:checked:hover { background-color: rgba(235, 239, 255, 0.18); }

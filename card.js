@@ -1,3 +1,4 @@
+import {HistoryChart} from './charts.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Atk from 'gi://Atk';
@@ -121,7 +122,7 @@ export class Card {
         }
         if (this._pageCaption)
             this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth'}[this._page] ?? '';
-        this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : ''}`);
+        this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : ''}`);
         if (this._empty) this._empty.visible = !this._page;
     }
 
@@ -196,32 +197,39 @@ export class Card {
 
     _buildMetrics() {
         const section = this._section('SYSTEM');
+        section.box.add_style_class_name('ubuntu-island-system-section');
+        section.content.add_style_class_name('ubuntu-island-system-content');
         const metrics = row('ubuntu-island-metrics');
-        const tile = (name, withBar) => {
-            const box = column('ubuntu-island-metric');
+        const tile = name => {
+            const box = column('ubuntu-island-metric ubuntu-island-history-tile');
             box.x_expand = true;
-            box.add_child(label(name, 'ubuntu-island-metric-name'));
+            const heading = row();
+            const title = label(name, 'ubuntu-island-metric-name');
+            title.x_expand = true;
+            heading.add_child(title);
             const value = label('—', 'ubuntu-island-metric-value');
-            box.add_child(value);
-            let bar = null;
-            if (withBar) {
-                const track = new St.Widget({style_class: 'ubuntu-island-metric-bar',
-                    y_align: Clutter.ActorAlign.CENTER});
-                bar = new St.Widget({style_class: 'ubuntu-island-metric-bar-fill'});
-                bar._fraction = 0;
-                track.connect('notify::width', () => { bar.width = Math.round(bar._fraction * track.width); });
-                track.add_child(bar);
-                box.add_child(track);
-            }
+            heading.add_child(value);
+            box.add_child(heading);
+            const chart = new HistoryChart();
+            box.add_child(chart.actor);
             metrics.add_child(box);
-            return {value, bar};
+            return {value, chart};
         };
-        this._cpu = tile('CPU', true);
-        this._ram = tile('RAM', true);
-        this._rx = tile('↓ DOWN', false);
-        this._tx = tile('↑ UP', false);
+        this._cpu = tile('CPU');
+        this._ram = tile('MEMORY');
         section.content.add_child(metrics);
-        this._iface = label('Network: detecting…');
+        const network = column('ubuntu-island-metric ubuntu-island-history-tile');
+        const rates = row('ubuntu-island-network-rates');
+        this._rx = label('↓ —', 'ubuntu-island-network-down');
+        this._rx.x_expand = true;
+        this._tx = label('↑ —', 'ubuntu-island-network-up');
+        rates.add_child(this._rx);
+        rates.add_child(this._tx);
+        network.add_child(rates);
+        this._networkChart = new HistoryChart(true);
+        network.add_child(this._networkChart.actor);
+        section.content.add_child(network);
+        this._iface = label('Network: detecting…', 'ubuntu-island-source');
         section.content.add_child(this._iface);
     }
 
@@ -325,13 +333,17 @@ export class Card {
         if (!this._cpu || !state) return;
         this._cpu.value.text = pct(state.cpu);
         this._ram.value.text = pct(state.memory);
-        this._rx.value.text = state.rx ?? '—';
-        this._tx.value.text = state.tx ?? '—';
-        for (const [metric, value] of [[this._cpu, state.cpu], [this._ram, state.memory]]) {
-            metric.bar._fraction = clampFraction((value ?? 0) / 100);
-            metric.bar.width = Math.round(metric.bar._fraction * (metric.bar.get_parent()?.width ?? 0));
-        }
-        this._iface.text = `Network: ${state.iface ?? 'unavailable'}`;
+        this._rx.text = `↓ ${state.rx ?? '—'}`;
+        this._tx.text = `↑ ${state.tx ?? '—'}`;
+        this._cpu.chart.push(state.cpu);
+        this._ram.chart.push(state.memory);
+        if (this._networkIface !== state.iface) this._networkChart.clear();
+        this._networkIface = state.iface;
+        this._networkChart.push(state.rxBytes, state.txBytes);
+        this._rx.accessible_name = `Download ${state.rx ?? 'unavailable'}`;
+        this._tx.accessible_name = `Upload ${state.tx ?? 'unavailable'}`;
+        this._iface.text = `${state.iface ?? 'Network unavailable'} · ${60 * this._settings.get_int('metrics-interval')}s history · auto network scale`;
+
     }
 
     renderAudio(state) {

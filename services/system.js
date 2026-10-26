@@ -55,16 +55,18 @@ export class SystemMonitor {
             this._iface = iface;
             const now = GLib.get_monotonic_time() / 1e6;
             const current = iface ? networkBytes(network, iface) : null;
-            let rx = '—', tx = '—';
+            let rx = '—', tx = '—', rxBytes = null, txBytes = null;
             if (current && this._previousNetwork) {
                 const dt = now - this._previousNetwork.time;
                 if (dt > 0.1) {
-                    rx = formatRate(Math.max(0, current.rx - this._previousNetwork.rx) / dt);
-                    tx = formatRate(Math.max(0, current.tx - this._previousNetwork.tx) / dt);
+                    rxBytes = Math.max(0, current.rx - this._previousNetwork.rx) / dt;
+                    rx = formatRate(rxBytes);
+                    txBytes = Math.max(0, current.tx - this._previousNetwork.tx) / dt;
+                    tx = formatRate(txBytes);
                 }
             }
             this._previousNetwork = current ? {...current, time: now} : null;
-            this._onChange({cpu: cpuValue, memory, iface: iface ?? 'No default route', rx, tx});
+            this._onChange({cpu: cpuValue, memory, iface: iface ?? 'No default route', rx, tx, rxBytes, txBytes});
         } catch (e) {
             if (!this._alive) return;
             console.warn(`[Ubuntu Island] Metrics: ${e.message}`);
