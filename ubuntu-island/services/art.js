@@ -16,6 +16,26 @@ const CACHE_LIMIT = 24;
 // disk-cached Soup request. Nothing here blocks the Shell main loop, requests
 // are cancelled on track change, and SVG is never accepted (active content).
 export class ArtLoader {
+    load(uri, sizePx, onContent) {
+        this.cancel();
+        const request = new ArtworkRequest();
+        this._request = request;
+        request.load(uri, sizePx, content => {
+            if (this._request === request) onContent(content);
+        });
+    }
+
+    cancel() {
+        this._request?.cancel();
+        this._request = null;
+    }
+
+    destroy() { this.cancel(); }
+}
+
+// Each request owns its cancellable. A callback from an old track can never
+// start work with the new track's cancellable or replace its cover.
+class ArtworkRequest {
     constructor() {
         this._session = null;
         this._cancellable = null;
@@ -43,7 +63,6 @@ export class ArtLoader {
 
     cancel() {
         this._cancellable?.cancel();
-        this._cancellable = null;
     }
 
     destroy() {
@@ -87,7 +106,7 @@ export class ArtLoader {
         }
         // Resolve before connecting so hostnames pointing at private,
         // loopback, or link-local space can never be fetched.
-        GLib.Resolver.get_default().lookup_by_name_async(verdict.host, this._cancellable,
+        Gio.Resolver.get_default().lookup_by_name_async(verdict.host, this._cancellable,
             (resolver, result) => {
                 try {
                     const addresses = resolver.lookup_by_name_finish(result);
@@ -122,35 +141,61 @@ export class ArtLoader {
     }
 
     _fetchRemote(uri, sizePx, onContent) {
-        this._session ??= new Soup.Session({timeout: 8, user_agent: 'ubuntu-island/2'});
+        this._session ??= new Soup.Session({timeout: 8, user_agent: 'ubuntu-island/4'});
         const message = Soup.Message.new('GET', uri);
-        this._session.send_and_read_async(message, GLib.PRIORITY_DEFAULT_IDLE, this._cancellable,
+        // Do not follow redirects to an unvalidated address. Stream in bounded
+        // chunks instead of allocating an unbounded body before checking size.
+        message.set_flags(Soup.MessageFlags.NO_REDIRECT);
+        this._session.send_async(message, GLib.PRIORITY_DEFAULT_IDLE, this._cancellable,
             (session, result) => {
+                let stream;
                 try {
-                    const bytes = session.send_and_read_finish(result);
+                    stream = session.send_finish(result);
                     if (message.get_status() !== Soup.Status.OK)
                         throw new Error(`HTTP ${message.get_status()}`);
-                    // Redirects may have landed on another host; re-validate the
-                    // final URI. (DNS of the redirect target is not re-resolved;
-                    // literal private targets are still refused.)
+                    // Re-check the actual URI even though redirects are disabled.
                     const finalHost = message.get_uri()?.get_host?.() ?? '';
                     if (!finalHost || classifyHost(finalHost) === 'block')
                         throw new Error('redirected to a blocked host');
-                    let mime = '';
-                    try {
-                        [mime] = message.get_response_headers().get_content_type(null);
-                    } catch {
-                        // Pixbuf decoding still validates the actual bytes.
-                    }
-                    if (mime && !ALLOWED_MIME.includes(mime)) throw new Error(`type ${mime} not allowed`);
-                    const size = bytes.get_size();
-                    if (size <= 0 || size > MAX_BYTES) throw new Error('unexpected artwork size');
-                    this._storeCache(this._cacheFileFor(uri), bytes);
-                    this._pixbufFromStream(Gio.MemoryInputStream.new_from_bytes(bytes), sizePx, onContent);
+                    const headers = message.get_response_headers();
+                    const mime = (headers.get_one('Content-Type') ?? '').split(';')[0].trim().toLowerCase();
+                    if (!ALLOWED_MIME.includes(mime)) throw new Error(`type ${mime} not allowed`);
+                    if (headers.get_content_length() > MAX_BYTES) throw new Error('artwork exceeds 2 MiB');
+                    this._readBounded(stream, uri, sizePx, onContent);
                 } catch (e) {
+                    stream?.close_async(GLib.PRIORITY_DEFAULT_IDLE, null, (source, res) => {
+                        try { source.close_finish(res); } catch { /* best effort */ }
+                    });
                     this._fail(e, onContent);
                 }
             });
+    }
+
+    _readBounded(stream, uri, sizePx, onContent) {
+        const chunks = [];
+        let total = 0;
+        const close = () => stream.close_async(GLib.PRIORITY_DEFAULT_IDLE, null, (source, result) => {
+            try { source.close_finish(result); } catch { /* best effort */ }
+        });
+        const read = () => stream.read_bytes_async(64 * 1024, GLib.PRIORITY_DEFAULT_IDLE,
+            this._cancellable, (source, result) => {
+                try {
+                    const bytes = source.read_bytes_finish(result);
+                    const size = bytes.get_size();
+                    total += size;
+                    if (total > MAX_BYTES) throw new Error('artwork exceeds 2 MiB');
+                    if (size) { chunks.push(bytes.get_data()); read(); return; }
+                    close();
+                    if (!total) throw new Error('empty artwork');
+                    const data = new Uint8Array(total);
+                    let offset = 0;
+                    for (const chunk of chunks) { data.set(chunk, offset); offset += chunk.length; }
+                    const body = new GLib.Bytes(data);
+                    this._storeCache(this._cacheFileFor(uri), body);
+                    this._pixbufFromStream(Gio.MemoryInputStream.new_from_bytes(body), sizePx, onContent);
+                } catch (error) { close(); this._fail(error, onContent); }
+            });
+        read();
     }
 
     _pixbufFromStream(stream, sizePx, onContent) {
@@ -174,7 +219,7 @@ export class ArtLoader {
         const width = pixbuf.get_width();
         const height = pixbuf.get_height();
         if (width <= 0 || height <= 0) return null;
-        const content = new St.ImageContent();
+        const content = St.ImageContent.new_with_preferred_size(width, height);
         const format = pixbuf.get_has_alpha() ? Cogl.PixelFormat.RGBA_8888 : Cogl.PixelFormat.RGB_888;
         try {
             content.set_data(pixbuf.get_pixels(), format, width, height, pixbuf.get_rowstride());
@@ -195,7 +240,7 @@ export class ArtLoader {
     }
 
     _storeCache(file, bytes) {
-        file.replace_contents_async(bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION,
+        file.replace_contents_bytes_async(bytes, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION,
             this._cancellable, (source, result) => {
                 try {
                     source.replace_contents_finish(result);
@@ -210,8 +255,8 @@ export class ArtLoader {
     _pruneCache() {
         if (this._pruning || !this._cacheFile) return;
         this._pruning = true;
-        this._cacheFile.enumerate_children_async('standard::name,standard::mtime',
-            Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT_IDLE, null, (dir, result) => {
+        this._cacheFile.enumerate_children_async('standard::name,time::modified',
+            Gio.FileQueryInfoFlags.NONE, GLib.PRIORITY_DEFAULT_IDLE, this._cancellable, (dir, result) => {
                 const done = () => {
                     this._pruning = false;
                 };
@@ -224,12 +269,12 @@ export class ArtLoader {
                 }
                 const entries = [];
                 const collect = () => {
-                    enumerator.next_files_async(64, GLib.PRIORITY_DEFAULT_IDLE, null, (en, res) => {
+                    enumerator.next_files_async(64, GLib.PRIORITY_DEFAULT_IDLE, this._cancellable, (en, res) => {
                         try {
                             const infos = en.next_files_finish(res);
                             if (infos.length) {
                                 for (const info of infos)
-                                    entries.push({name: info.get_name(), mtime: info.get_attribute_uint64('standard::mtime')});
+                                    entries.push({name: info.get_name(), mtime: info.get_attribute_uint64('time::modified')});
                                 collect();
                                 return;
                             }
@@ -240,7 +285,7 @@ export class ArtLoader {
                         entries.sort((a, b) => a.mtime - b.mtime);
                         for (const victim of entries.slice(0, Math.max(0, entries.length - CACHE_LIMIT))) {
                             const target = Gio.File.new_for_path(GLib.build_filenamev([this._cacheDir, victim.name]));
-                            target.delete_async(GLib.PRIORITY_DEFAULT_IDLE, null, (f, res) => {
+                            target.delete_async(GLib.PRIORITY_DEFAULT_IDLE, this._cancellable, (f, res) => {
                                 try {
                                     f.delete_finish(res);
                                 } catch {
@@ -256,6 +301,7 @@ export class ArtLoader {
     }
 
     _fail(e, onContent) {
+        if (this._cancellable?.is_cancelled()) return;
         console.warn(`[Ubuntu Island] Artwork: ${e.message}`);
         onContent(null);
     }
