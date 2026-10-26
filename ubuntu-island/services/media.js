@@ -1,6 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {estimatePositionSec} from './format.js';
+import {selectPlayer} from './presentation.js';
 
 const PREFIX = 'org.mpris.MediaPlayer2.';
 const PATH = '/org/mpris/MediaPlayer2';
@@ -15,7 +16,6 @@ export class MediaService {
         this._proxies = new Map();
         this._adding = new Set();
         this._selected = null;
-        this._timer = 0;
         this._alive = false;
         this._cancellable = null;
         this._busy = false;
@@ -32,14 +32,24 @@ export class MediaService {
     start() {
         this._alive = true;
         this._cancellable = new Gio.Cancellable();
-        this._poll();
-        this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 5, () => {
-            this._poll();
-            return GLib.SOURCE_CONTINUE;
-        });
+        this._nameWatch = Gio.DBus.session.signal_subscribe(
+            'org.freedesktop.DBus', 'org.freedesktop.DBus', 'NameOwnerChanged',
+            '/org/freedesktop/DBus', null, Gio.DBusSignalFlags.NONE,
+            (connection, sender, path, iface, signal, params) => {
+                const [name, , owner] = params.deep_unpack();
+                if (!this._alive || !name.startsWith(PREFIX)) return;
+                const old = this._proxies.get(name);
+                if (old) {
+                    for (const id of old._islandSignals) old.disconnect(id);
+                    this._proxies.delete(name);
+                }
+                if (owner && !this._adding.has(name)) this._add(name);
+                this._sync();
+            });
+        this._discover();
     }
 
-    _poll() {
+    _discover() {
         if (!this._alive || this._busy) return;
         this._busy = true;
         Gio.DBus.session.call('org.freedesktop.DBus', '/org/freedesktop/DBus',
@@ -63,6 +73,7 @@ export class MediaService {
                     this._sync();
                 } catch (e) {
                     console.warn(`[Ubuntu Island] MPRIS discovery: ${e.message}`);
+                    this._onChange({available: false});
                 }
             });
     }
@@ -75,16 +86,17 @@ export class MediaService {
                 if (!this._alive) return;
                 try {
                     const proxy = Gio.DBusProxy.new_for_bus_finish(result);
+                    if (!proxy.g_name_owner) return;
                     proxy._islandSignals = [
                         proxy.connect('g-properties-changed', (p, changed) => {
                             const names = changed.deep_unpack();
-                            if ('Position' in names) this._rebasePosition(p);
+                            if ('Position' in names && this._selected === name) this._rebasePosition(p);
                             this._sync();
                         }),
                         proxy.connect('g-signal', (p, sender, signalName, params) => {
                             if (signalName !== 'Seeked') return;
                             const [position] = params?.deep_unpack?.() ?? [];
-                            this._rebasePosition(p, position);
+                            if (this._selected === name) this._rebasePosition(p, position);
                             this._sync();
                         }),
                     ];
@@ -108,20 +120,23 @@ export class MediaService {
 
     _sync() {
         if (!this._alive) return;
-        const players = [...this._proxies.entries()];
-        const playing = players.find(([, p]) => this._prop(p, 'PlaybackStatus') === 'Playing');
-        // Prefer a currently playing player, otherwise preserve selection.
-        const selected = playing ?? players.find(([name]) => name === this._selected) ?? players[0];
+        const players = [...this._proxies.entries()].map(([name, proxy]) => ({
+            name, proxy,
+            status: this._prop(proxy, 'PlaybackStatus'),
+            title: String(unpack((this._prop(proxy, 'Metadata') ?? {})['xesam:title']) ?? ''),
+        }));
+        const selected = selectPlayer(players, this._selected);
         if (!selected) {
             this._selected = null;
             this._playing = false;
             this._positionUs = 0;
             this._lengthUs = 0;
             this._trackId = null;
+            this._canSeek = false;
             this._onChange({available: false});
             return;
         }
-        const [name, proxy] = selected;
+        const {name, proxy} = selected;
         const meta = this._prop(proxy, 'Metadata') ?? {};
         const trackId = unpack(meta['mpris:trackid']) ?? null;
         if (name !== this._selected || trackId !== this._trackId) {
@@ -134,19 +149,28 @@ export class MediaService {
             this._lengthUs = Number(unpack(meta['mpris:length']) ?? this._lengthUs);
         }
         const status = this._prop(proxy, 'PlaybackStatus') || 'Stopped';
+        // Freeze the estimated position at pause and restart its clock at play.
+        // A cached Position is often stale when only PlaybackStatus changes.
+        if (this._playing !== (status === 'Playing')) {
+            this._positionUs = this.positionSec() * 1e6;
+            this._positionAt = monotonicSec();
+        }
         this._playing = status === 'Playing';
-        this._canSeek = Boolean(this._prop(proxy, 'CanSeek'));
+        const canControl = Boolean(this._prop(proxy, 'CanControl'));
+        const artists = unpack(meta['xesam:artist']);
+        this._canSeek = canControl && Boolean(this._prop(proxy, 'CanSeek'));
         this._onChange({
             available: true,
+            playerName: name.slice(PREFIX.length).split('.')[0],
             title: unpack(meta['xesam:title']) || 'Unknown title',
-            artist: (unpack(meta['xesam:artist']) || []).join(', ') || 'Unknown artist',
+            artist: (Array.isArray(artists) ? artists.join(', ') : String(artists ?? '')) || 'Unknown artist',
             artUrl: unpack(meta['mpris:artUrl']) || '',
             status,
             lengthSec: this._lengthUs > 0 ? this._lengthUs / 1e6 : null,
             canSeek: this._canSeek,
-            canPrevious: Boolean(this._prop(proxy, 'CanGoPrevious')),
-            canNext: Boolean(this._prop(proxy, 'CanGoNext')),
-            canControl: Boolean(this._prop(proxy, 'CanControl')),
+            canPrevious: canControl && Boolean(this._prop(proxy, 'CanGoPrevious')),
+            canNext: canControl && Boolean(this._prop(proxy, 'CanGoNext')),
+            canControl,
         });
     }
 
@@ -178,6 +202,9 @@ export class MediaService {
         if (!COMMANDS.includes(method)) return;
         const proxy = this._proxies.get(this._selected);
         if (!proxy) return;
+        if (!this._prop(proxy, 'CanControl')) return;
+        if (method === 'Previous' && !this._prop(proxy, 'CanGoPrevious')) return;
+        if (method === 'Next' && !this._prop(proxy, 'CanGoNext')) return;
         proxy.call(method, null, Gio.DBusCallFlags.NONE, 2500,
             this._cancellable, (p, result) => {
                 if (!this._alive) return;
@@ -191,8 +218,8 @@ export class MediaService {
 
     stop() {
         this._alive = false;
-        if (this._timer) GLib.Source.remove(this._timer);
-        this._timer = 0;
+        if (this._nameWatch) Gio.DBus.session.signal_unsubscribe(this._nameWatch);
+        this._nameWatch = 0;
         this._cancellable?.cancel();
         this._cancellable = null;
         for (const proxy of this._proxies.values())
