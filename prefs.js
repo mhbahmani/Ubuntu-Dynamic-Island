@@ -8,6 +8,18 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         const settings = this.getSettings();
 
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
+        const themes = ['graphite', 'ocean', 'forest', 'ember'];
+        const theme = new Adw.ComboRow({title: 'Color theme',
+            model: Gtk.StringList.new(['Graphite', 'Ocean', 'Forest', 'Ember']),
+            selected: Math.max(0, themes.indexOf(settings.get_string('color-theme')))});
+        theme.connect('notify::selected', () => settings.set_string('color-theme', themes[theme.selected]));
+        const themeChanged = settings.connect('changed::color-theme', () => {
+            theme.selected = Math.max(0, themes.indexOf(settings.get_string('color-theme')));
+        });
+        window.connect('close-request', () => { settings.disconnect(themeChanged); return false; });
+        appearance.add(theme);
+        appearance.add(spin(settings, 'surface-opacity', 'Background opacity',
+            '% · Text and controls stay fully opaque', 70, 100, 1));
         appearance.add(spin(settings, 'pill-width', 'Collapsed width', 'px', 150, 210, 2));
         appearance.add(spin(settings, 'expanded-width', 'Expanded width', 'px', 380, 480, 4));
         appearance.add(spin(settings, 'animation-duration', 'Animation duration', 'ms', 0, 500, 10));

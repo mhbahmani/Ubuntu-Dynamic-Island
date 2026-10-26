@@ -2,6 +2,16 @@
 <schemalist>
   <schema id="org.gnome.shell.extensions.ubuntu-island"
           path="/org/gnome/shell/extensions/ubuntu-island/">
+    <key name="color-theme" type="s">
+      <default>'graphite'</default>
+      <choices><choice value="graphite"/><choice value="ocean"/><choice value="forest"/><choice value="ember"/></choices>
+      <summary>Color theme</summary>
+    </key>
+    <key name="surface-opacity" type="i">
+      <default>98</default>
+      <range min="70" max="100"/>
+      <summary>Background opacity percentage</summary>
+    </key>
     <key name="pill-width" type="i">
       <default>170</default>
       <range min="150" max="210"/>

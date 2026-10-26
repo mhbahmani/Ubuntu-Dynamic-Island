@@ -1,0 +1,38 @@
+// Run with GSETTINGS_BACKEND=memory and GNOME's helper typelib/library paths.
+// Constructs real GTK controls without presenting a window or touching user settings.
+import Gio from 'gi://Gio';
+import Adw from 'gi://Adw';
+
+Gio.Resource.load('/usr/share/gnome-shell/org.gnome.Shell.Extensions.src.gresource')._register();
+const {default: Preferences} = await import('../prefs.js');
+const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent();
+const [, bytes] = root.get_child('metadata.json').load_contents(null);
+const metadata = JSON.parse(new TextDecoder().decode(bytes));
+metadata.path = root.get_path();
+metadata.dir = root;
+Adw.init();
+const prefs = new Preferences(metadata);
+const settings = prefs.getSettings();
+const window = new Adw.PreferencesWindow();
+prefs.fillPreferencesWindow(window);
+function find(widget, title) {
+    if (widget instanceof Adw.PreferencesRow && widget.title === title) return widget;
+    for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+        const result = find(child, title);
+        if (result) return result;
+    }
+    return null;
+}
+const theme = find(window, 'Color theme');
+const opacity = find(window, 'Background opacity');
+if (!theme || !opacity) throw new Error('Appearance controls are missing');
+theme.selected = 1;
+if (settings.get_string('color-theme') !== 'ocean') throw new Error('Theme selection did not save');
+settings.set_string('color-theme', 'forest');
+if (theme.selected !== 2) throw new Error('Theme selection did not follow settings');
+opacity.adjustment.value = 80;
+if (settings.get_int('surface-opacity') !== 80) throw new Error('Opacity did not save');
+settings.set_int('surface-opacity', 100);
+if (opacity.adjustment.value !== 100) throw new Error('Opacity control did not follow settings');
+window.close();
+print('Preferences controls and bidirectional settings passed');

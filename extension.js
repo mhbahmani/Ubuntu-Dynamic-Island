@@ -9,6 +9,7 @@ import {MediaService} from './services/media.js';
 import {BluetoothService} from './services/bluetooth.js';
 import {AudioService} from './services/audio.js';
 import {ArtLoader} from './services/art.js';
+import {surfaceStyle} from './services/appearance.js';
 import {layoutSignature} from './services/presentation.js';
 
 export default class UbuntuIsland extends Extension {
@@ -55,6 +56,7 @@ export default class UbuntuIsland extends Extension {
             this._settings.get_int('hover-open-delay'),
             this._settings.get_int('hover-close-delay'));
         this._watchSettings();
+        this._applyAppearance();
 
         // Model events drive isolated UI updates; no UI code in the services.
         if (this._settings.get_boolean('enable-media')) {
@@ -82,6 +84,8 @@ export default class UbuntuIsland extends Extension {
     _watchSettings() {
         const watch = (key, handler) =>
             this._settingsIds.push(this._settings.connect(`changed::${key}`, handler));
+        watch('color-theme', () => this._applyAppearance());
+        watch('surface-opacity', () => this._applyAppearance());
         watch('pill-width', () => this._island?.applyDimensions());
         watch('expanded-width', () => this._island?.applyDimensions());
         watch('move-clock', () => {
@@ -97,6 +101,12 @@ export default class UbuntuIsland extends Extension {
         watch('hover-close-delay', syncHover);
         // Module toggles and the metrics interval take
         // effect after a disable/enable cycle.
+    }
+
+    _applyAppearance() {
+        const theme = this._settings.get_string('color-theme');
+        this._island.actor.set_style(surfaceStyle(theme, this._settings.get_int('surface-opacity')));
+        this._card.actor.set_style_class_name(`ubuntu-island-container ubuntu-island-theme-${theme}`);
     }
 
     _renderPill() {
