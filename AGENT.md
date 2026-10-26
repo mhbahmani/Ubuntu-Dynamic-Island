@@ -2,7 +2,7 @@
 
 ## Scope and environment
 
-- The repository root is the current extension (v5): entry points and build
+- The repository root is the current extension (v6): entry points and build
   scripts at root, with `services/`, `schemas/`, `tests/`, and `screenshots/`.
   Obsolete prototypes were removed; consult Git history if needed.
 - Target GNOME Shell 46 on Ubuntu Wayland. See `README.md` for development
@@ -17,6 +17,11 @@
 - Keep Ricelin’s compact artwork-and-controls composition and separate module
   tabs. Current direction is matte graphite, 98–99% opacity, Noto Sans, and
   restrained vermilion controls. Do not restore the old brown palette or clear glass.
+- Theme and background opacity preferences apply live. Keep text fully opaque.
+- Charts use the existing metrics sampler and four 60-sample typed buffers.
+  Never add a per-frame animation, independent polling, or hidden repaint loop.
+  CPU/memory use fixed percentage scales; network shares an automatic scale,
+  with download above the baseline and upload below. Reset on interface changes.
 - Keep navigation outside scrolling content so switching pages leaves the
   footer stable. Preserve device rows and focus across service updates.
 - The idle notch has no “Island” label or placeholder music icon. Playing and
@@ -72,7 +77,7 @@ checks rendering, idle media, artwork decoding, repeated pointer hover/clicks,
 Artifacts stay in its printed `/tmp/ubuntu-island-smoke-*` directory. Keep
 only README-linked example screenshots in the repository.
 
-v5 passed 26 Node tests, syntax/schema checks, preferences module import, and
+v6 passed 30 Node tests, syntax/schema checks, preferences module import, and
 headless GNOME tests. These do not establish physical mixed-monitor rendering,
 HDMI hotplug/routing, live MPRIS control, Bluetooth, suspend/resume, or fullscreen
 behavior. Run the README hardware acceptance checks before claiming those pass.

@@ -37,6 +37,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   remain controllable. Seeking uses GNOME's native keyboard-accessible slider.
 - **System**: CPU and RAM percentages plus RX/TX rate for the lowest-metric
   default-route interface (VPN tunnels win), read asynchronously from procfs.
+  CPU and memory have fixed 0–100% history charts. Download and upload share
+  a mirrored chart (download above, upload below), with an automatic shared scale.
 - **Audio**: GNOME's shared Gvc mixer, volume slider, mute, and **output
   device selection through `change_output(Gvc.MixerUIDevice)`** (port/profile
   aware), seeded from existing sinks and updated through Gvc output signals.
@@ -46,7 +48,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   pairing stays in GNOME Settings. Operations show pending states and inline
   failures. Audio and Bluetooth rows are retained across updates to preserve
   focus. A scroll container keeps controls reachable on short displays.
-- **Preferences** (`prefs.js` + GSettings): widths, animation duration,
+- **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
+  background opacity (70–100%, default 98%), widths, animation duration,
   reduced animation, hover behavior, metrics interval, module toggles,
   remote-art toggle, clock relocation.
 - Full `disable()` cleanup of timers, signal handlers, D-Bus subscriptions,
@@ -130,6 +133,7 @@ ubuntu-dynamic-island/
   extension.js            # lifecycle, service wiring, clock relocation
   island.js               # morphing surface + interaction state machine
   card.js                 # expanded content sections
+  charts.js               # native drawing actors for bounded history
   pill.js                 # compact pill content
   widgets.js              # shared St widget factories
   prefs.js                # preferences dialog (GSettings)
@@ -161,3 +165,29 @@ and unavailable HDMI ports are filtered with live availability updates.
 Verification includes 26 Node tests, preferences module import, and headless
 GNOME rendering with twelve real pointer hover/click cycles and 200% scaling.
 Physical mixed-monitor and HDMI hotplug acceptance still need a session reload.
+
+### Lightweight charts and appearance (v6)
+
+Theme and opacity changes apply immediately after opening preferences. Opacity
+only affects the background; text and controls stay fully opaque. No blur was added.
+
+Charts share the existing metrics sampler (default: once every two seconds).
+Four 60-sample typed buffers use 1,920 bytes for history; there are no extra timers,
+network requests, chart libraries, or chart animations. Hidden charts collect
+samples without requesting repaints. Disable System metrics to stop sampling.
+Missing samples leave gaps; network history resets when the active interface changes.
+The history window is 60 sampling intervals (two minutes at the default).
+
+Validated with 30 Node tests, real GTK preferences bindings, and isolated GNOME
+rendering at normal and 200% scale. The smoke test covers live theme/opacity changes
+and verifies hidden charts do not repaint. These checks are not a battery-life or
+whole-desktop performance benchmark.
+
+To check the real preferences controls without changing user settings (requires
+an available desktop display):
+
+```sh
+glib-compile-schemas --strict schemas
+GSETTINGS_BACKEND=memory GI_TYPELIB_PATH=/usr/lib/gnome-shell/girepository-1.0 \
+  LD_LIBRARY_PATH=/usr/lib/gnome-shell gjs -m tests/prefs-smoke.mjs
+```
