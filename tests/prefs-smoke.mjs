@@ -25,7 +25,8 @@ function find(widget, title) {
 }
 const theme = find(window, 'Color theme');
 const opacity = find(window, 'Background opacity');
-if (!theme || !opacity) throw new Error('Appearance controls are missing');
+const matte = find(window, 'Matte backing');
+if (!theme || !opacity || !matte) throw new Error('Appearance controls are missing');
 theme.selected = 1;
 if (settings.get_string('color-theme') !== 'ocean') throw new Error('Theme selection did not save');
 settings.set_string('color-theme', 'forest');
@@ -34,5 +35,9 @@ opacity.adjustment.value = 80;
 if (settings.get_int('surface-opacity') !== 80) throw new Error('Opacity did not save');
 settings.set_int('surface-opacity', 100);
 if (opacity.adjustment.value !== 100) throw new Error('Opacity control did not follow settings');
+matte.adjustment.value = 25;
+if (settings.get_int('surface-matte') !== 25) throw new Error('Matte did not save');
+settings.set_int('surface-matte', 60);
+if (matte.adjustment.value !== 60) throw new Error('Matte control did not follow settings');
 window.close();
 print('Preferences controls and bidirectional settings passed');

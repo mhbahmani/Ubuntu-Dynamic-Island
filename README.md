@@ -49,7 +49,9 @@ and [compact playing pill](screenshots/playing-pill.png).
   failures. Audio and Bluetooth rows are retained across updates to preserve
   focus. A scroll container keeps controls reachable on short displays.
 - **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
-  background opacity (70–100%, default 98%), widths, animation duration,
+  background opacity (70–100%, default 98%), matte backing (0–100%, default
+  60%) that flattens the translucent tint into a frosted solid panel instead
+  of clear glass, widths, animation duration,
   reduced animation, hover behavior, metrics interval, module toggles,
   remote-art toggle, clock relocation.
 - Full `disable()` cleanup of timers, signal handlers, D-Bus subscriptions,

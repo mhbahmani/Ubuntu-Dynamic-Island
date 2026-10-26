@@ -12,6 +12,12 @@
       <range min="70" max="100"/>
       <summary>Background opacity percentage</summary>
     </key>
+    <key name="surface-matte" type="i">
+      <default>60</default>
+      <range min="0" max="100"/>
+      <summary>Matte backing percentage</summary>
+      <description>Solid frosted tone behind the tint; 0 keeps a clear-glass gradient.</description>
+    </key>
     <key name="pill-width" type="i">
       <default>170</default>
       <range min="150" max="210"/>

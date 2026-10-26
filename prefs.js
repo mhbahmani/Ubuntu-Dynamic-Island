@@ -20,6 +20,8 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         appearance.add(theme);
         appearance.add(spin(settings, 'surface-opacity', 'Background opacity',
             '% · Text and controls stay fully opaque', 70, 100, 1));
+        appearance.add(spin(settings, 'surface-matte', 'Matte backing',
+            '% · Frosted solid tone behind the tint; 0 is clear glass', 0, 100, 1));
         appearance.add(spin(settings, 'pill-width', 'Collapsed width', 'px', 150, 210, 2));
         appearance.add(spin(settings, 'expanded-width', 'Expanded width', 'px', 380, 480, 4));
         appearance.add(spin(settings, 'animation-duration', 'Animation duration', 'ms', 0, 500, 10));

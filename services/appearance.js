@@ -6,9 +6,23 @@ export const THEMES = Object.freeze({
     ember: {top: [57, 43, 37], bottom: [35, 27, 24]},
 });
 
-export function surfaceStyle(theme, opacity) {
+// `opacity` is the transparency of the theme tint; `matte` adds a solid
+// backing layer in the palette's mid tone on top of that tint. The two are
+// folded into one gradient: at matte 100% the surface becomes the flat mid
+// tone regardless of opacity, so the island reads as a frosted panel instead
+// of clear glass. Text and controls paint fully opaque above it.
+export function surfaceStyle(theme, opacity, matte = 0) {
     const palette = THEMES[theme] ?? THEMES.graphite;
     const alpha = Math.max(70, Math.min(100, Number.isFinite(opacity) ? opacity : 98)) / 100;
-    return `background-gradient-start: rgba(${palette.top.join(',')},${alpha}); ` +
-        `background-gradient-end: rgba(${palette.bottom.join(',')},${alpha});`;
+    const flatten = Math.max(0, Math.min(100, Number.isFinite(matte) ? matte : 0)) / 100;
+    // Composite of tint(alpha) + matte layer(flatten): out = matte*mid +
+    // (1-matte)*alpha*stop over (1-(1-alpha)*(1-matte)) background bleed.
+    const alphaEff = flatten <= 0 ? alpha : flatten >= 1 ? 1 : 1 - (1 - alpha) * (1 - flatten);
+    const mean = palette.top.map((channel, index) => (channel + palette.bottom[index]) / 2);
+    const stop = channels => channels
+        .map((channel, index) =>
+            Math.round((flatten * mean[index] + (1 - flatten) * alpha * channel) / alphaEff))
+        .join(',');
+    return `background-gradient-start: rgba(${stop(palette.top)},${alphaEff}); ` +
+        `background-gradient-end: rgba(${stop(palette.bottom)},${alphaEff});`;
 }

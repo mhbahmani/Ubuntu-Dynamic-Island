@@ -86,6 +86,7 @@ export default class UbuntuIsland extends Extension {
             this._settingsIds.push(this._settings.connect(`changed::${key}`, handler));
         watch('color-theme', () => this._applyAppearance());
         watch('surface-opacity', () => this._applyAppearance());
+        watch('surface-matte', () => this._applyAppearance());
         watch('pill-width', () => this._island?.applyDimensions());
         watch('expanded-width', () => this._island?.applyDimensions());
         watch('move-clock', () => {
@@ -105,7 +106,10 @@ export default class UbuntuIsland extends Extension {
 
     _applyAppearance() {
         const theme = this._settings.get_string('color-theme');
-        this._island.actor.set_style(surfaceStyle(theme, this._settings.get_int('surface-opacity')));
+        this._island.actor.set_style(surfaceStyle(
+            theme,
+            this._settings.get_int('surface-opacity'),
+            this._settings.get_int('surface-matte')));
         this._card.actor.set_style_class_name(`ubuntu-island-container ubuntu-island-theme-${theme}`);
     }
 
