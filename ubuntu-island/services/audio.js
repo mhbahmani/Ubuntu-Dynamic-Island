@@ -12,6 +12,8 @@ export class AudioService {
         this._stream = null;
         this._streamSignals = [];
         this._outputs = new Map(); // Gvc MixerUIDevice id -> {id, name}
+        this._removedOutputs = new Set();
+        this._outputSignals = new Map();
     }
 
     start() {
@@ -25,12 +27,28 @@ export class AudioService {
 
     _onSignal(signal, id) {
         if (signal === 'output-added') {
+            this._removedOutputs.delete(id);
             const device = this._control.lookup_output_id(id);
-            if (device) this._outputs.set(id, this._describe(device));
+            if (device) this._remember(device);
         } else if (signal === 'output-removed') {
-            this._outputs.delete(id);
+            this._forget(id);
+            this._removedOutputs.add(id);
         }
         this._sync();
+    }
+
+    _remember(device) {
+        const id = device.get_id();
+        this._outputs.set(id, this._describe(device));
+        if (!this._outputSignals.has(id))
+            this._outputSignals.set(id, [device, device.connect('notify::port-available', () => this._sync())]);
+    }
+
+    _forget(id) {
+        const connection = this._outputSignals.get(id);
+        if (connection) connection[0].disconnect(connection[1]);
+        this._outputSignals.delete(id);
+        this._outputs.delete(id);
     }
 
     _describe(device) {
@@ -51,6 +69,21 @@ export class AudioService {
             }
         }
         const ready = this._control.get_state() === Gvc.MixerControlState.READY;
+        // The shared mixer is usually ready before this extension starts, so
+        // output-added alone misses built-in devices. Seed existing sinks too.
+        if (ready) {
+            for (const stream of this._control.get_sinks()) {
+                const device = this._control.lookup_device_from_stream(stream);
+                if (device && !this._removedOutputs.has(device.get_id()))
+                    this._remember(device);
+            }
+            for (const id of this._outputs.keys()) {
+                if (!this._control.lookup_output_id(id)) this._forget(id);
+            }
+        } else {
+            for (const id of this._outputs.keys()) this._forget(id);
+            this._removedOutputs.clear();
+        }
         const max = this._control.get_vol_max_norm();
         const volume = sink && max > 0 ? sink.volume / max : 0;
         let activeId = -1;
@@ -59,6 +92,11 @@ export class AudioService {
             if (device) activeId = device.get_id();
         }
         const outputs = [...this._outputs.values()]
+            .filter(output => {
+                const device = this._control.lookup_output_id(output.id);
+                // Registered HDMI connectors are not necessarily connected.
+                return device && (output.id === activeId || !device.has_ports() || device.port_available);
+            })
             .sort((a, b) => a.name.localeCompare(b.name))
             .slice(0, 8)
             .map(output => ({...output, active: output.id === activeId}));
@@ -99,6 +137,7 @@ export class AudioService {
         this._streamSignals = [];
         this._stream = null;
         this._control = null;
-        this._outputs.clear();
+        for (const id of this._outputs.keys()) this._forget(id);
+        this._removedOutputs.clear();
     }
 }
