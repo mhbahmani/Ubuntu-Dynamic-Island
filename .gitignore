@@ -1,4 +1,4 @@
 .codegraph/
 node_modules/
 *.zip
-ubuntu-island/schemas/gschemas.compiled
+schemas/gschemas.compiled

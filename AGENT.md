@@ -2,10 +2,11 @@
 
 ## Scope and environment
 
-- Edit `ubuntu-island/`, the current implementation (v5). The sibling
-  `ubuntu-island-gnome46-*` directories are frozen prototypes; leave them alone.
-- Target GNOME Shell 46 on Ubuntu Wayland. Read `HARNESS_SPEC.md` for runtime
-  acceptance cases and constraints. Later user design requests take precedence.
+- The repository root is the current extension (v5): entry points and build
+  scripts at root, with `services/`, `schemas/`, `tests/`, and `screenshots/`.
+  Obsolete prototypes were removed; consult Git history if needed.
+- Target GNOME Shell 46 on Ubuntu Wayland. See `README.md` for development
+  and runtime acceptance checks. Later user design requests take precedence.
 - Keep Shell responsive: asynchronous I/O, bounded artwork downloads, no
   subprocess loops or blocking reads. Never use sudo.
 - Disconnect signals, cancel asynchronous work, release modal grabs, and
@@ -51,11 +52,11 @@ First compare installed source with the working tree; stale installations can
 look like regressions:
 
 ```sh
-diff -q ~/.local/share/gnome-shell/extensions/ubuntu-island@example.local/extension.js ubuntu-island/extension.js
+diff -q ~/.local/share/gnome-shell/extensions/ubuntu-island@example.local/extension.js extension.js
 cat ~/.local/share/gnome-shell/extensions/ubuntu-island@example.local/metadata.json
 ```
 
-From `ubuntu-island/`:
+From the repository root:
 
 ```sh
 node --test
@@ -74,7 +75,7 @@ only README-linked example screenshots in the repository.
 v5 passed 26 Node tests, syntax/schema checks, preferences module import, and
 headless GNOME tests. These do not establish physical mixed-monitor rendering,
 HDMI hotplug/routing, live MPRIS control, Bluetooth, suspend/resume, or fullscreen
-behavior. Run the A01–A18 hardware acceptance cases before claiming those pass.
+behavior. Run the README hardware acceptance checks before claiming those pass.
 
 `./install.sh` backs up the previous per-user installation. Under Wayland,
 log out and back in to load changed code; never restart Shell with Alt+F2 `r`.
