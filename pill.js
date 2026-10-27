@@ -1,28 +1,36 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
-import {icon, label, row} from './widgets.js';
+import {icon, label, row, clip} from './widgets.js';
 
 // Compact notch content shown while collapsed. The St.Button gives keyboard
 // focus semantics and an accessibility name for the toggle action.
 export class Pill {
-    constructor(onToggle) {
+    constructor(onToggle, onToggleTitle) {
         this.actor = new St.Button({
             style_class: 'ubuntu-island-pill',
-            can_focus: true,
+            can_focus: false,
             reactive: true,
             accessible_name: 'Open Ubuntu Island',
         });
         this.actor.connect('clicked', onToggle);
+        if (onToggleTitle) {
+            // Middle-click quickly hides the track name without opening the
+            // island; a plain click still expands.
+            this.actor.connect('button-press-event', (actor, event) => {
+                if (event.get_button() !== 2) return Clutter.EVENT_PROPAGATE;
+                onToggleTitle();
+                return Clutter.EVENT_STOP;
+            });
+        }
+
         const content = row('ubuntu-island-pill-content');
-        content.x_expand = true;
         this.actor.set_child(content);
 
         this._mediaIcon = icon('audio-x-generic-symbolic', 14);
-        this._title = label('', 'ubuntu-island-pill-title');
-        this._title.x_expand = true;
+        this._title = label('Island', 'ubuntu-island-pill-title');
         this._bluetooth = icon('bluetooth-symbolic', 12);
         this._bluetooth.visible = false;
-        this._cpuDot = new St.Widget({style_class: 'ubuntu-island-cpu-dot', y_align: Clutter.ActorAlign.CENTER});
+        this._cpuDot = new St.Widget({style_class: 'ubuntu-island-cpu-dot'});
         content.add_child(this._mediaIcon);
         content.add_child(this._title);
         content.add_child(new St.Widget({x_expand: true}));
@@ -30,12 +38,14 @@ export class Pill {
         content.add_child(this._bluetooth);
     }
 
-    // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({media, system, bluetooth, expanded, showMetrics}) {
+    // pillWidth comes from settings; the title clip length adapts so the row
+    // never overflows the pill's fixed width (St labels cannot ellipsize).
+    // showTitle=false hides the track name, keeping the play state icon.
+    render({media, system, bluetooth, expanded, showMetrics, showTitle = true, pillWidth = 170}) {
         const available = Boolean(media?.available);
-        this._mediaIcon.visible = available;
-        this._title.visible = available;
-        this._title.text = available ? String(media.title ?? '') : '';
+        const titleBudget = Math.max(6, Math.floor((pillWidth - 92) / 6.5));
+        this._title.visible = Boolean(showTitle);
+        this._title.text = available ? clip(String(media.title ?? ''), titleBudget) : 'Island';
         this._mediaIcon.icon_name = available
             ? (media.status === 'Playing' ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic')
             : 'audio-x-generic-symbolic';

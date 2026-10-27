@@ -41,6 +41,7 @@ export class Card {
         if (settings.get_boolean('enable-metrics')) this._buildMetrics();
         if (settings.get_boolean('enable-audio')) this._buildAudio();
         if (settings.get_boolean('enable-bluetooth')) this._buildBluetooth();
+        this.setPillTitleVisible(settings.get_boolean('pill-show-title'));
         this._empty = column('ubuntu-island-empty');
         this._empty.add_child(label(this._sectionCount ? 'Nothing playing' : 'Your island, your way', 'ubuntu-island-track'));
         this._empty.add_child(label(this._sectionCount ? 'Start a track in your music app.' : 'Enable modules in Island preferences.'));
@@ -59,6 +60,14 @@ export class Card {
         actor.remove_style_pseudo_class?.('hover');
         for (let child = actor.get_first_child(); child; child = child.get_next_sibling())
             this._clearHover(child);
+    }
+
+    setPillTitleVisible(visible) {
+        if (!this._pillTitle) return;
+        this._pillTitle.child.icon_name = visible
+            ? 'eye-open-negative-filled-symbolic' : 'eye-not-looking-symbolic';
+        this._pillTitle.accessible_name = visible
+            ? 'Hide the track name in the notch' : 'Show the track name in the notch';
     }
 
     // Shared heading and content spacing for each module.
@@ -177,6 +186,12 @@ export class Card {
         controls.add_child(this._previous);
         controls.add_child(this._play);
         controls.add_child(this._next);
+        // Quick control for the collapsed notch: hide the track name and keep
+        // just the play state icon (middle-clicking the notch does the same).
+        this._pillTitle = button('eye-open-negative-filled-symbolic',
+            'Hide the track name in the notch',
+            () => this._actions.togglePillTitle?.(), 14, 'ubuntu-island-ghost');
+        controls.add_child(this._pillTitle);
         details.add_child(controls);
         music.add_child(details);
         content.add_child(music);
