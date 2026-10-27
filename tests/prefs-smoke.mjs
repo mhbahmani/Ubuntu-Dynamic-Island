@@ -25,7 +25,7 @@ function find(widget, title) {
 }
 const theme = find(window, 'Color theme');
 const opacity = find(window, 'Background opacity');
-const matte = find(window, 'Matte backing');
+const matte = find(window, 'Matte tone');
 if (!theme || !opacity || !matte) throw new Error('Appearance controls are missing');
 theme.selected = 1;
 if (settings.get_string('color-theme') !== 'ocean') throw new Error('Theme selection did not save');

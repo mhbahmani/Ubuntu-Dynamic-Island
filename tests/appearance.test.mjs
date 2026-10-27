@@ -12,7 +12,7 @@ test('appearance clamps background opacity without fading content', () => {
     assert(surfaceStyle('ocean', 0).includes(',0)'));
     assert(!surfaceStyle('ocean', 0).includes('NaN'));
     assert(surfaceStyle('ocean', 1).includes(',0.01)'));
-    assert(surfaceStyle('ocean', 0, 50).includes(',0.5)'));
+    assert(surfaceStyle('ocean', 0, 50).includes(',0)'));
     assert.equal(surfaceStyle('forest', 500), surfaceStyle('forest', 100));
 });
 
@@ -25,24 +25,25 @@ test('matte backing leaves the pure tint untouched at zero', () => {
     }
 });
 
-test('full matte becomes a flat solid panel at any opacity', () => {
+test('full matte flattens color while preserving chosen opacity', () => {
     for (const theme of Object.keys(THEMES)) {
         for (const opacity of [70, 98, 100]) {
             const solid = surfaceStyle(theme, opacity, 100);
-            assert(solid.includes(',1)'), solid);
+            assert(solid.includes(`,${opacity / 100})`), solid);
             const [start, end] = solid.match(/rgba\(([^)]+)\)/g);
             assert.equal(start, end, theme); // both stops are the flat mid tone
         }
     }
     // Graphite mid tone: mean of [48,50,56] and [29,31,36], rounded.
-    assert(surfaceStyle('graphite', 98, 100).includes('rgba(39,41,46,1)'));
+    assert(surfaceStyle('graphite', 98, 100).includes('rgba(39,41,46,0.98)'));
 });
 
-test('partial matte composites tint and backing alphas exactly', () => {
-    // Background visibility drops from (1-alpha) to (1-alpha)*(1-matte).
-    assert(surfaceStyle('graphite', 70, 50).includes(',0.85)'));
-    assert(surfaceStyle('ocean', 80, 75).includes(',0.95)'));
-    assert(surfaceStyle('forest', 100, 60).includes(',1)'));
-    // With matte 0 the alpha stays the plain tint alpha.
-    assert(surfaceStyle('ember', 80, 0).includes(',0.8)'));
+test('every matte setting preserves the full opacity range', () => {
+    for (const theme of Object.keys(THEMES))
+        for (const matte of [0, 25, 60, 100])
+            for (const opacity of [0, 1, 20, 50, 69, 70, 98, 100]) {
+                const colors = surfaceStyle(theme, opacity, matte).match(/rgba\([^)]+\)/g);
+                assert.equal(colors.length, 2);
+                for (const color of colors) assert(color.endsWith(`,${opacity / 100})`), color);
+            }
 });

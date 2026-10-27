@@ -15,8 +15,8 @@
     <key name="surface-matte" type="i">
       <default>60</default>
       <range min="0" max="100"/>
-      <summary>Matte backing percentage</summary>
-      <description>Solid frosted tone behind the tint; 0 keeps a clear-glass gradient.</description>
+      <summary>Matte tone percentage</summary>
+      <description>Flattens the background gradient; opacity independently controls transparency.</description>
     </key>
     <key name="pill-show-title" type="b">
       <default>true</default>
