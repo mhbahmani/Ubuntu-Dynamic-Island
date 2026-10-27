@@ -2,7 +2,7 @@
 
 ## Scope and environment
 
-- The repository root is the current extension (v8): entry points and build
+- The repository root is the current extension (v9): entry points and build
   scripts at root, with `services/`, `schemas/`, `tests/`, and `screenshots/`.
   Obsolete prototypes were removed; consult Git history if needed.
 - Target GNOME Shell 46 on Ubuntu Wayland. See `README.md` for development
@@ -31,7 +31,11 @@
   collapsed title (`pill-show-title`); keep the playback icon visible.
 - Keep load average and used-memory values compact on the CPU/MEMORY heading
   line; omit “load” and “used”, keep the percentage, and preserve accessible labels.
-- Selected tabs use a neutral indicator, never an orange focus/selection ring.
+- Metric names and inline secondary values must not ellipsize.
+- Opening focuses the surface; Tab then enters the controls. Selected tabs use
+  a neutral indicator, never an orange focus/selection ring.
+- Opacity supports 0–100%. Handle zero alpha without dividing by zero; matte
+  backing remains an independent control.
 - Opening preferences keeps the panel open and suspends its modal grab and
   hover-close behavior. Track the actual preferences window by title (including
   late title updates), reuse the watcher when raised, and clean up on failure,
@@ -87,7 +91,7 @@ checks rendering, idle media, artwork decoding, repeated pointer hover/clicks,
 Artifacts stay in its printed `/tmp/ubuntu-island-smoke-*` directory. Keep
 only README-linked example screenshots in the repository.
 
-v8 passed 42 Node tests, syntax/schema checks, preferences module import, and
+v9 passed 43 Node tests, syntax/schema checks, preferences module import, and
 headless GNOME tests. These do not establish physical mixed-monitor rendering,
 HDMI hotplug/routing, live MPRIS control, Bluetooth, suspend/resume, or fullscreen
 behavior. Run the README hardware acceptance checks before claiming those pass.

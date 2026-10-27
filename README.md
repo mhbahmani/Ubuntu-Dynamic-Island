@@ -49,7 +49,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   failures. Audio and Bluetooth rows are retained across updates to preserve
   focus. A scroll container keeps controls reachable on short displays.
 - **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
-  background opacity (70–100%, default 98%), matte backing (0–100%, default
+  background opacity (0–100%, default 98%), matte backing (0–100%, default
   60%) that flattens the translucent tint into a frosted solid panel instead
   of clear glass, widths, animation duration,
   reduced animation, hover behavior, metrics interval, module toggles,
@@ -208,3 +208,10 @@ still require disabling and re-enabling the extension, as stated in preferences.
 
 Validation includes 42 Node regressions and isolated GNOME rendering, pointer
 navigation, title toggling, and a real GTK preferences window lifecycle.
+
+### Layout and transparency fixes (v9)
+
+Metric headings retain their natural width. Opening focuses the panel instead of
+the first tab, so selection and keyboard focus no longer produce different
+initial outlines. Background opacity now supports the full 0–100% range; set
+matte backing to 0 too if you want a fully transparent base surface.

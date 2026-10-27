@@ -86,6 +86,7 @@ export default class Smoke extends UbuntuIsland {
         await this._capture('playing-pill');
         this._island.expand();
         assert(this._island.state === 'expanded', 'Could not expand');
+        assert(global.stage.key_focus === this._island.actor, 'Opening focused a child control');
         this._card.renderProgress(72);
         await this._capture('expanded');
         const decoded = await new Promise(resolve => this._art.load(
@@ -197,6 +198,17 @@ export default class Smoke extends UbuntuIsland {
         assert(this._island.state === 'collapsed' && !this._island._grab, 'Rapid toggle retained input grab');
 
         this._settings.set_int('expanded-width', 380);
+        this._card.selectPage('system');
+        this._island.expand();
+        await this._capture('narrow-system');
+        for (const metric of [this._card._cpu, this._card._ram]) {
+            const title = metric.sub.get_parent().get_first_child();
+            assert(!title.clutter_text.get_layout().is_ellipsized(), 'Metric heading was ellipsized');
+        }
+        this._settings.set_int('surface-opacity', 0);
+        await this._capture('transparent');
+        this._settings.set_int('surface-opacity', 98);
+        this._card.selectPage('media');
         this._renderMedia({...media, title: 'A long track title that must ellipsize inside the narrow island without pushing controls away'});
         this._card.renderArt(cover);
         this._island.expand();
