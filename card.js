@@ -104,6 +104,10 @@ export class Card {
         for (const [id, glyph, title] of items) {
             if (!this._pages.has(id)) continue;
             const tab = button(glyph, title, () => this.selectPage(id), 15, 'ubuntu-island-tab');
+            const face = column('ubuntu-island-tab-face');
+            face.add_child(icon(glyph, 15));
+            face.add_child(new St.Widget({style_class: 'ubuntu-island-tab-marker'}));
+            tab.set_child(face);
             tab.accessible_role = Atk.Role.PAGE_TAB;
             navigation.add_child(tab);
             this._tabs.set(id, tab);
@@ -236,18 +240,26 @@ export class Card {
             const box = column('ubuntu-island-metric ubuntu-island-history-tile');
             box.x_expand = true;
             const heading = row('ubuntu-island-metric-heading');
-            heading.add_child(label(name, 'ubuntu-island-metric-name', false));
-            const sub = label('', 'ubuntu-island-metric-sub', false);
-            sub.hide();
-            heading.add_child(sub);
-            heading.add_child(new St.Widget({x_expand: true}));
-            const value = label('—', 'ubuntu-island-metric-value');
+            const title = label(name, 'ubuntu-island-metric-name', false);
+            title.x_expand = true;
+            heading.add_child(title);
+            const value = label('—', 'ubuntu-island-metric-value', false);
+            value.x_align = Clutter.ActorAlign.END;
             heading.add_child(value);
+            // Honor enlarged text: keep the name and secondary value together,
+            // moving only the percentage below when one line cannot fit.
+            const fit = () => {
+                if (heading.width <= 0) return;
+                const needed = title.get_preferred_width(-1)[1] + value.get_preferred_width(-1)[1]
+                    + heading.get_theme_node().get_length('spacing');
+                heading.vertical = needed > heading.width;
+            };
+            heading.connect('notify::width', fit);
             box.add_child(heading);
             const chart = new HistoryChart();
             box.add_child(chart.actor);
             metrics.add_child(box);
-            return {value, sub, chart};
+            return {value, title, chart, fit};
         };
         this._cpu = tile('CPU');
         this._ram = tile('MEMORY');
@@ -369,16 +381,18 @@ export class Card {
         // Percentages stay the primary figures; load and used memory ride
         // along on the heading line without redundant words.
         this._cpu.value.text = pct(state.cpu);
-        this._cpu.sub.text = state.loadAvg == null ? '' : state.loadAvg.toFixed(2);
-        this._cpu.sub.visible = Boolean(this._cpu.sub.text);
+        const load = Number.isFinite(state.loadAvg) ? state.loadAvg.toFixed(2) : '';
+        const used = state.memoryUsed == null ? '' : formatCapacity(state.memoryUsed);
+        this._cpu.title.clutter_text.set_markup(`CPU <span size="smaller" weight="normal">${load}</span>`);
+        this._ram.title.clutter_text.set_markup(`MEMORY <span size="smaller" weight="normal">${used}</span>`);
         this._ram.value.text = pct(state.memory);
-        this._ram.sub.text = state.memoryUsed == null ? '' : formatCapacity(state.memoryUsed);
-        this._ram.sub.visible = Boolean(this._ram.sub.text);
+        this._cpu.fit();
+        this._ram.fit();
         this._cpu.value.accessible_name = state.cpu == null
             ? 'CPU usage unavailable' : `CPU usage ${Math.round(state.cpu)} percent`;
-        this._cpu.sub.accessible_name = state.loadAvg == null
+        this._cpu.title.accessible_name = state.loadAvg == null
             ? 'Load average unavailable' : `1-minute load average ${state.loadAvg.toFixed(2)}`;
-        this._ram.sub.accessible_name = state.memoryUsed == null
+        this._ram.title.accessible_name = state.memoryUsed == null
             ? 'Memory usage unavailable' : `Memory used ${formatCapacity(state.memoryUsed)}`;
         this._rx.text = `↓ ${state.rx ?? '—'}`;
         this._tx.text = `↑ ${state.tx ?? '—'}`;

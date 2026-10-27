@@ -202,11 +202,29 @@ export default class Smoke extends UbuntuIsland {
         this._island.expand();
         await this._capture('narrow-system');
         for (const metric of [this._card._cpu, this._card._ram]) {
-            const title = metric.sub.get_parent().get_first_child();
+            const title = metric.title;
             assert(!title.clutter_text.get_layout().is_ellipsized(), 'Metric heading was ellipsized');
         }
-        this._settings.set_int('surface-opacity', 0);
-        await this._capture('transparent');
+        const desktopText = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const oldTextScale = desktopText.get_double('text-scaling-factor');
+        for (const scale of [1.25, 1.5]) {
+            desktopText.set_double('text-scaling-factor', scale);
+            await this._capture(`large-text-${scale}`);
+            for (const metric of [this._card._cpu, this._card._ram]) {
+                const layout = metric.title.clutter_text.get_layout();
+                assert(!layout.is_ellipsized(), 'Large metric heading was ellipsized');
+                assert(!metric.value.clutter_text.get_layout().is_ellipsized(), 'Large metric percentage was ellipsized');
+                assert(layout.get_pixel_size()[0] <= metric.title.width + 1, 'Large metric heading was clipped');
+            }
+        }
+        desktopText.set_double('text-scaling-factor', oldTextScale);
+        for (const opacity of [0, 20, 50, 70, 100]) {
+            this._settings.set_int('surface-opacity', opacity);
+            await this._capture(`opacity-${opacity}`);
+            const [, start, end] = this._island.actor.get_theme_node().get_background_gradient();
+            assert(Math.abs(start.alpha - opacity * 255 / 100) <= 1, 'Rendered start alpha differs from opacity');
+            assert(Math.abs(end.alpha - opacity * 255 / 100) <= 1, 'Rendered end alpha differs from opacity');
+        }
         this._settings.set_int('surface-opacity', 98);
         this._card.selectPage('media');
         this._renderMedia({...media, title: 'A long track title that must ellipsize inside the narrow island without pushing controls away'});
