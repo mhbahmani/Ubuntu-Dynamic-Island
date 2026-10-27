@@ -9,7 +9,10 @@ test('appearance clamps background opacity without fading content', () => {
         assert(!surfaceStyle(theme, 80).includes('opacity:'));
     }
     assert.equal(surfaceStyle('invalid', NaN), surfaceStyle('graphite', 98));
-    assert.equal(surfaceStyle('ocean', 0), surfaceStyle('ocean', 70));
+    assert(surfaceStyle('ocean', 0).includes(',0)'));
+    assert(!surfaceStyle('ocean', 0).includes('NaN'));
+    assert(surfaceStyle('ocean', 1).includes(',0.01)'));
+    assert(surfaceStyle('ocean', 0, 50).includes(',0.5)'));
     assert.equal(surfaceStyle('forest', 500), surfaceStyle('forest', 100));
 });
 

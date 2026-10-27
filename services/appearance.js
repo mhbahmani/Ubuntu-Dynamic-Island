@@ -13,13 +13,13 @@ export const THEMES = Object.freeze({
 // of clear glass. Text and controls paint fully opaque above it.
 export function surfaceStyle(theme, opacity, matte = 0) {
     const palette = THEMES[theme] ?? THEMES.graphite;
-    const alpha = Math.max(70, Math.min(100, Number.isFinite(opacity) ? opacity : 98)) / 100;
+    const alpha = Math.max(0, Math.min(100, Number.isFinite(opacity) ? opacity : 98)) / 100;
     const flatten = Math.max(0, Math.min(100, Number.isFinite(matte) ? matte : 0)) / 100;
     // Composite of tint(alpha) + matte layer(flatten): out = matte*mid +
     // (1-matte)*alpha*stop over (1-(1-alpha)*(1-matte)) background bleed.
     const alphaEff = flatten <= 0 ? alpha : flatten >= 1 ? 1 : 1 - (1 - alpha) * (1 - flatten);
     const mean = palette.top.map((channel, index) => (channel + palette.bottom[index]) / 2);
-    const stop = channels => channels
+    const stop = channels => alphaEff === 0 ? channels.join(',') : channels
         .map((channel, index) =>
             Math.round((flatten * mean[index] + (1 - flatten) * alpha * channel) / alphaEff))
         .join(',');

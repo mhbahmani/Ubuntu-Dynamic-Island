@@ -19,7 +19,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         window.connect('close-request', () => { settings.disconnect(themeChanged); return false; });
         appearance.add(theme);
         appearance.add(spin(settings, 'surface-opacity', 'Background opacity',
-            '% · Text and controls stay fully opaque', 70, 100, 1));
+            '% · Text and controls stay fully opaque', 0, 100, 1));
         appearance.add(spin(settings, 'surface-matte', 'Matte backing',
             '% · Frosted solid tone behind the tint; 0 is clear glass', 0, 100, 1));
         appearance.add(spin(settings, 'pill-width', 'Collapsed width', 'px', 150, 210, 2));

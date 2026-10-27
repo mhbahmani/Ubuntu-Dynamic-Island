@@ -9,7 +9,7 @@
     </key>
     <key name="surface-opacity" type="i">
       <default>98</default>
-      <range min="70" max="100"/>
+      <range min="0" max="100"/>
       <summary>Background opacity percentage</summary>
     </key>
     <key name="surface-matte" type="i">
