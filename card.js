@@ -292,7 +292,8 @@ export class Card {
         this._mediaSection.setVisible(available);
         if (!available) return;
         this._track.text = String(state.title ?? 'Unknown title');
-        this._artist.text = String(state.artist ?? 'Unknown artist');
+        this._artist.text = String(state.artist ?? '');
+        this._artist.visible = Boolean(this._artist.text);
         this._source.text = String(state.playerName || 'Player');
         this._play.child.icon_name = state.status === 'Playing'
             ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic';

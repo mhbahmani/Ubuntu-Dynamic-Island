@@ -159,11 +159,14 @@ export class MediaService {
         const canControl = Boolean(this._prop(proxy, 'CanControl'));
         const artists = unpack(meta['xesam:artist']);
         this._canSeek = canControl && Boolean(this._prop(proxy, 'CanSeek'));
+        const playerName = name.slice(PREFIX.length).split('.')[0];
         this._onChange({
             available: true,
-            playerName: name.slice(PREFIX.length).split('.')[0],
-            title: unpack(meta['xesam:title']) || 'Unknown title',
-            artist: (Array.isArray(artists) ? artists.join(', ') : String(artists ?? '')) || 'Unknown artist',
+            playerName,
+            // Local video players often expose no track metadata; show the
+            // player name like GNOME's own media widget does.
+            title: unpack(meta['xesam:title']) || playerName,
+            artist: (Array.isArray(artists) ? artists.join(', ') : String(artists ?? '')) || '',
             artUrl: unpack(meta['mpris:artUrl']) || '',
             status,
             positionSec: this.positionSec(),

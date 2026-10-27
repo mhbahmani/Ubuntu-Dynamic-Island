@@ -15,6 +15,21 @@ test('idle browser registrations never create a media section', () => {
     assert.equal(selectPlayer([]), null);
 });
 
+test('a playing player counts even without track metadata', () => {
+    // Local video players often expose MPRIS with an empty title.
+    const video = {name: 'videos', status: 'Playing', title: ''};
+    assert.equal(selectPlayer([video]), video);
+    assert.equal(selectPlayer([video], 'other'), video);
+    // Once paused, a metadata-less player is treated as idle again.
+    assert.equal(selectPlayer([{...video, status: 'Paused'}]), null);
+    // When two players play at once, the titled one wins — unless the
+    // metadata-less one is the current selection, which then stays put.
+    const music = {name: 'music', status: 'Playing', title: 'Song'};
+    assert.equal(selectPlayer([video, music]), music);
+    assert.equal(selectPlayer([video, music], 'videos'), video);
+    assert.equal(selectPlayer([video, music], 'music'), music);
+});
+
 test('playing wins over preferred paused player; paused track stays controllable', () => {
     const paused = {name: 'music', status: 'Paused', title: 'Song'};
     const playing = {name: 'video', status: 'Playing', title: 'Video'};
