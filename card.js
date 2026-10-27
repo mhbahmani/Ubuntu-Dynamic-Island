@@ -47,6 +47,18 @@ export class Card {
         this._body.add_child(this._empty);
         this._buildNavigation();
         this._syncPages();
+        // Hiding the card mid-hover never delivers a leave-event on Wayland,
+        // so hover highlights survive into the next expand and read as a
+        // second, different selection indicator. Clear them at unmap.
+        this.actor.connect('notify::mapped', () => {
+            if (!this.actor.mapped) this._clearHover(this.actor);
+        });
+    }
+
+    _clearHover(actor) {
+        actor.remove_style_pseudo_class?.('hover');
+        for (let child = actor.get_first_child(); child; child = child.get_next_sibling())
+            this._clearHover(child);
     }
 
     // Shared heading and content spacing for each module.
