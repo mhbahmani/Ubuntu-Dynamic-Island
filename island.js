@@ -39,6 +39,7 @@ export class IslandSurface {
             style_class: 'ubuntu-island-surface ubuntu-island-surface-collapsed',
             layout_manager: new Clutter.BinLayout(),
             reactive: false,
+            can_focus: true,
             clip_to_allocation: true,
         });
         this._pill = pill;
@@ -158,7 +159,7 @@ export class IslandSurface {
             if (token !== this._token) return;
             this._setState(IslandState.EXPANDED);
             this.relayout();
-            this._card.navigate_focus(null, St.DirectionType.TAB_FORWARD, false);
+            this.actor.grab_key_focus();
         });
         this._easeOpacity(this._pill, 0, duration);
         this._easeOpacity(this._card, 255, duration);

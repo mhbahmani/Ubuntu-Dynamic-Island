@@ -19,6 +19,7 @@ function harness(animation = 220) {
         ease(options) { this.transition = options; }
         remove_all_transitions() { this.transition = null; }
         navigate_focus() {}
+        grab_key_focus() { this.focused = true; }
         get_transformed_position() { return [this.x ?? 0, this.y ?? 0]; }
         get_transformed_size() { return [this.width, this.height]; }
         finish() {
@@ -115,4 +116,10 @@ test('preferences preview stays open without a grab and restores dismissal', () 
     assert.equal(modal.size, 1);
     surface.collapse();
     assert.equal(modal.size, 0);
+});
+
+test('opening focuses the surface instead of giving the first tab a focus ring', () => {
+    const {surface} = harness(0);
+    surface.expand();
+    assert.equal(surface.actor.focused, true);
 });

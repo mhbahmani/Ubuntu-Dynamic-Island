@@ -236,8 +236,8 @@ export class Card {
             const box = column('ubuntu-island-metric ubuntu-island-history-tile');
             box.x_expand = true;
             const heading = row('ubuntu-island-metric-heading');
-            heading.add_child(label(name, 'ubuntu-island-metric-name'));
-            const sub = label('', 'ubuntu-island-metric-sub');
+            heading.add_child(label(name, 'ubuntu-island-metric-name', false));
+            const sub = label('', 'ubuntu-island-metric-sub', false);
             sub.hide();
             heading.add_child(sub);
             heading.add_child(new St.Widget({x_expand: true}));
