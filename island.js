@@ -33,6 +33,7 @@ export class IslandSurface {
         this._hoverCloseMs = 350;
         this._layoutSignal = 0;
         this._grab = null;
+        this._grabSuspended = false;
 
         this.actor = new St.Widget({
             style_class: 'ubuntu-island-surface ubuntu-island-surface-collapsed',
@@ -216,7 +217,7 @@ export class IslandSurface {
     }
 
     _takeGrab() {
-        if (this._grab) return true;
+        if (this._grabSuspended || this._grab) return true;
         try {
             this._grab = Main.pushModal(this.actor, {actionMode: Shell.ActionMode.POPUP});
             this.actor.reactive = true;
@@ -226,6 +227,23 @@ export class IslandSurface {
             this._grab = null;
             return false;
         }
+    }
+
+    // Live-tuning mode: while the separate preferences window is open, the
+    // island stays expanded but gives up its modal grab — otherwise the grab
+    // would swallow every click meant for that GTK window. Inside the island
+    // widgets keep working (they are shell actors); outside-click/Escape
+    // dismissal is suspended until resumeGrab().
+    suspendGrab() {
+        this._cancelHoverTimers();
+        this._grabSuspended = true;
+        this._releaseGrab();
+    }
+
+    resumeGrab() {
+        if (!this._grabSuspended) return;
+        this._grabSuspended = false;
+        if (this.expanded) this._takeGrab();
     }
 
     _releaseGrab() {
@@ -333,7 +351,7 @@ export class IslandSurface {
     }
 
     _hoverLeave() {
-        if (!this._hoverEnabled) return;
+        if (!this._hoverEnabled || this._grabSuspended) return;
         if (!this.expanded) {
             // Pointer left the pill before the open delay elapsed: stand down.
             this._cancelHoverTimers();

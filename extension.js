@@ -32,7 +32,7 @@ export default class UbuntuIsland extends Extension {
 
         if (this._settings.get_boolean('move-clock')) this._moveCalendar();
 
-        this._pill = new Pill(() => this._island?.toggle());
+        this._pill = new Pill(() => this._island?.toggle(), () => this._togglePillTitle());
         this._card = new Card(this._settings, {
             mediaCommand: method => this._media?.command(method),
             seek: seconds => this._media?.seek(seconds),
@@ -41,7 +41,8 @@ export default class UbuntuIsland extends Extension {
             selectOutput: id => this._audio?.selectOutput(id),
             btToggle: device => this._bluetooth?.toggle(device),
             btPower: () => this._bluetooth?.setPowered(!this._states.bluetooth?.powered),
-            preferences: () => { this._island?.collapse(); this.openPreferences(); },
+            preferences: () => this._openPreferencesLive(),
+            togglePillTitle: () => this._togglePillTitle(),
             relayout: () => this._island?.relayout(),
         });
         this._island = new IslandSurface({
@@ -80,9 +81,88 @@ export default class UbuntuIsland extends Extension {
         this._audio?.start();
     }
 
+    // Preferences open beside the island instead of closing it, so changes
+    // are visible in real time. The island suspends its input grab while the
+    // settings window exists (the grab would block that window) and resumes
+    // normal outside-click/Escape dismissal once it closes.
+    _openPreferencesLive() {
+        this._island?.suspendGrab();
+        if (this._prefsWindow) {
+            this._prefsWindow.activate(global.get_current_time());
+            return;
+        }
+        if (this._prefsWatch) return; // A launch is already pending.
+        this._watchPreferencesWindow();
+        try {
+            Promise.resolve(this.openPreferences()).catch(error => {
+                if (!this._enabled) return;
+                console.warn(`[Ubuntu Island] preferences: ${error.message}`);
+                this._endPreferencesWatch();
+            });
+        } catch (error) {
+            this._endPreferencesWatch();
+            console.warn(`[Ubuntu Island] preferences: ${error.message}`);
+        }
+    }
+
+    _watchPreferencesWindow() {
+        const watch = {created: 0, unmanaged: 0, timeout: 0, candidates: new Map()};
+        this._prefsWatch = watch;
+        const inspect = window => {
+            if (this._prefsWatch !== watch || this._prefsWindow) return;
+            // Titles can be unset at window-created. Wait for their updates,
+            // and never capture unrelated Settings or extension windows.
+            if (window.get_title() !== this.metadata.name) return;
+            this._prefsWindow = window;
+            if (watch.timeout) GLib.Source.remove(watch.timeout);
+            watch.timeout = 0;
+            watch.unmanaged = window.connect('unmanaged', () => this._endPreferencesWatch());
+        };
+        const observe = window => {
+            if (watch.candidates.has(window)) return;
+            const signals = [window.connect('notify::title', () => inspect(window))];
+            signals.push(window.connect('unmanaged', () => {
+                for (const id of signals) window.disconnect(id);
+                watch.candidates.delete(window);
+            }));
+            watch.candidates.set(window, signals);
+            inspect(window);
+        };
+        watch.created = global.display.connect('window-created', (display, window) => observe(window));
+        watch.timeout = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, 10, () => {
+            watch.timeout = 0;
+            if (this._prefsWatch === watch && !this._prefsWindow) this._endPreferencesWatch();
+            return GLib.SOURCE_REMOVE;
+        });
+        for (const actor of global.get_window_actors()) observe(actor.meta_window);
+    }
+
+    _endPreferencesWatch() {
+        this._disposePreferencesWatch();
+        this._island?.resumeGrab();
+    }
+
+    _disposePreferencesWatch() {
+        const watch = this._prefsWatch;
+        const window = this._prefsWindow;
+        this._prefsWatch = null;
+        this._prefsWindow = null;
+        if (!watch) return;
+        if (watch.created) global.display.disconnect(watch.created);
+        if (watch.timeout) GLib.Source.remove(watch.timeout);
+        if (window && watch.unmanaged) window.disconnect(watch.unmanaged);
+        for (const [candidate, signals] of watch.candidates)
+            for (const id of signals) candidate.disconnect(id);
+        watch.candidates.clear();
+    }
+
     _watchSettings() {
         const watch = (key, handler) =>
             this._settingsIds.push(this._settings.connect(`changed::${key}`, handler));
+        watch('pill-show-title', () => {
+            this._renderPill();
+            this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
+        });
         watch('color-theme', () => this._applyAppearance());
         watch('surface-opacity', () => this._applyAppearance());
         watch('surface-matte', () => this._applyAppearance());
@@ -103,6 +183,10 @@ export default class UbuntuIsland extends Extension {
         // effect after a disable/enable cycle.
     }
 
+    _togglePillTitle() {
+        this._settings.set_boolean('pill-show-title', !this._settings.get_boolean('pill-show-title'));
+    }
+
     _applyAppearance() {
         const theme = this._settings.get_string('color-theme');
         this._island.actor.set_style(surfaceStyle(
@@ -120,6 +204,7 @@ export default class UbuntuIsland extends Extension {
             bluetooth: this._states.bluetooth,
             expanded: this._island?.expanded ?? false,
             showMetrics: this._settings.get_boolean('enable-metrics'),
+            showTitle: this._settings.get_boolean('pill-show-title'),
         });
     }
 
@@ -223,6 +308,7 @@ export default class UbuntuIsland extends Extension {
         this._enabled = false;
         if (this._progressTimer) GLib.Source.remove(this._progressTimer);
         this._progressTimer = 0;
+        this._disposePreferencesWatch();
         for (const id of this._settingsIds ?? []) this._settings.disconnect(id);
         this._settingsIds = [];
         this._system?.stop();
