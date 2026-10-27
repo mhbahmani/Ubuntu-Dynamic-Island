@@ -214,6 +214,10 @@ export default class Smoke extends UbuntuIsland {
                 const layout = metric.title.clutter_text.get_layout();
                 assert(!layout.is_ellipsized(), 'Large metric heading was ellipsized');
                 assert(!metric.value.clutter_text.get_layout().is_ellipsized(), 'Large metric percentage was ellipsized');
+                const [left] = this._card.actor.get_transformed_position();
+                const [valueX] = metric.value.get_transformed_position();
+                const [valueWidth] = metric.value.get_transformed_size();
+                assert(valueX + valueWidth < left + this._card.actor.width, 'Percentage overflowed the card');
                 assert(layout.get_pixel_size()[0] <= metric.title.width + 1, 'Large metric heading was clipped');
             }
         }

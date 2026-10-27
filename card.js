@@ -252,7 +252,14 @@ export class Card {
                 if (heading.width <= 0) return;
                 const needed = title.get_preferred_width(-1)[1] + value.get_preferred_width(-1)[1]
                     + heading.get_theme_node().get_length('spacing');
-                heading.vertical = needed > heading.width;
+                const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+                // Child minimum widths can already exceed the scroll viewport.
+                // Use the fixed card width, not that oversized child allocation.
+                const available = (this.actor.width
+                    - this._body.get_theme_node().get_horizontal_padding()
+                    - metrics.get_theme_node().get_length('spacing')) / 2
+                    - box.get_theme_node().get_horizontal_padding() - 2 * scale;
+                heading.vertical = needed > available;
             };
             heading.connect('notify::width', fit);
             box.add_child(heading);
