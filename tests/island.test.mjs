@@ -99,3 +99,20 @@ test('fullscreen snap cancels transitions; stale completion cannot reopen the ca
     assert.equal(card.visible, false);
     assert.equal(modal.size, 0);
 });
+
+test('preferences preview stays open without a grab and restores dismissal', () => {
+    const {surface, modal} = harness(0);
+    surface.expand();
+    surface.suspendGrab();
+    assert.equal(surface.expanded, true);
+    assert.equal(modal.size, 0);
+    surface.applyDimensions();
+    assert.equal(surface.expanded, true);
+    surface.collapse();
+    surface.expand();
+    assert.equal(modal.size, 0, 'Reopening during preview must not block preferences');
+    surface.resumeGrab();
+    assert.equal(modal.size, 1);
+    surface.collapse();
+    assert.equal(modal.size, 0);
+});

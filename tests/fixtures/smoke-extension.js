@@ -17,7 +17,7 @@ const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAUL
 export default class Smoke extends UbuntuIsland {
     enable() {
         super.enable();
-        this._smoke().catch(error => console.error(`[Island Smoke] FAIL ${error.stack}`));
+        this._smoke().catch(error => console.error(`[Island Smoke] FAIL ${error.message}: ${error.stack}`));
     }
 
     async _capture(name) {
@@ -42,6 +42,7 @@ export default class Smoke extends UbuntuIsland {
         if (this._media) this._media.positionSec = () => 72;
         for (let i = 0; i < 60; i++) this._renderSystem({
             cpu: 24 + 16 * Math.sin(i / 5), memory: 48 + 4 * Math.sin(i / 12),
+            loadAvg: 1.44, memoryUsed: 3.5 * 1024 ** 3,
             iface: 'wlan0', rx: '2.4 MB/s', tx: '128 KB/s',
             rxBytes: 1e6 + 8e5 * Math.sin(i / 4), txBytes: 2e5 + 1e5 * Math.sin(i / 3),
         });
@@ -77,6 +78,11 @@ export default class Smoke extends UbuntuIsland {
         const cover = St.ImageContent.new_with_preferred_size(160, 160);
         cover.set_data(pixels, Cogl.PixelFormat.RGBA_8888, 160, 160, 160 * 4);
         this._card.renderArt(cover);
+        this._card._pillTitle.emit('clicked', 1);
+        assert(!this._pill._title.visible && this._pill._mediaIcon.visible, 'Hide title removed the playback icon');
+        await this._capture('hidden-title-pill');
+        this._togglePillTitle();
+        assert(this._pill._title.visible, 'Title did not return');
         await this._capture('playing-pill');
         this._island.expand();
         assert(this._island.state === 'expanded', 'Could not expand');
@@ -94,6 +100,8 @@ export default class Smoke extends UbuntuIsland {
             await this._capture(name);
         }
         this._card.selectPage('system');
+        this._island.suspendGrab();
+        assert(this._island.expanded && !this._island._grab, 'Preview retained the modal grab');
         for (const theme of ['ocean', 'forest', 'ember', 'graphite']) {
             this._settings.set_string('color-theme', theme);
             this._settings.set_int('surface-opacity', theme === 'graphite' ? 98 : 85);
@@ -101,6 +109,8 @@ export default class Smoke extends UbuntuIsland {
             assert(this._card.actor.has_style_class_name(`ubuntu-island-theme-${theme}`), 'Theme did not apply live');
             await this._capture(`theme-${theme}`);
         }
+        this._island.resumeGrab();
+        assert(this._island.expanded && this._island._grab, 'Preview failed to restore dismissal');
         this._card.selectPage('media');
         await delay(100);
         let hiddenRepaints = 0;
@@ -111,6 +121,38 @@ export default class Smoke extends UbuntuIsland {
         assert(hiddenRepaints === 0, 'Hidden chart repainted');
         assert(chart.series[0].count === 60, 'History grew beyond its bound');
         chart.actor.disconnect(repaintSignal);
+
+        // Exercise an actual GTK preferences window in this private compositor.
+        const launch = new Gio.SubprocessLauncher({flags: Gio.SubprocessFlags.NONE});
+        launch.set_environ(GLib.get_environ());
+        launch.setenv('GI_TYPELIB_PATH', '/usr/lib/gnome-shell/girepository-1.0', true);
+        launch.setenv('LD_LIBRARY_PATH', '/usr/lib/gnome-shell', true);
+        launch.setenv('XDG_RUNTIME_DIR', GLib.getenv('XDG_RUNTIME_DIR'), true);
+        launch.setenv('WAYLAND_DISPLAY', 'island-smoke', true);
+        launch.setenv('GDK_BACKEND', 'wayland', true);
+        launch.setenv('GTK_USE_PORTAL', '0', true);
+        launch.setenv('ADW_DISABLE_PORTAL', '1', true);
+        launch.setenv('GIO_USE_VFS', 'local', true);
+        launch.setenv('GTK_A11Y', 'none', true);
+        launch.setenv('GSETTINGS_BACKEND', 'memory', true);
+        let process;
+        this.openPreferences = () => {
+            process = launch.spawnv(['gjs', '-m', `${this.path}/tests/preview-window.mjs`]);
+        };
+        this._openPreferencesLive();
+        for (let i = 0; i < 30 && !this._prefsWindow; i++) await delay(200);
+        assert(this._prefsWindow && this._island.expanded && !this._island._grab,
+            `Preferences preview: tracked=${Boolean(this._prefsWindow)} expanded=${this._island.expanded} grab=${Boolean(this._island._grab)} windows=${global.get_window_actors().map(a => a.meta_window.get_title()).join(',')}`);
+        this._openPreferencesLive();
+        assert(this._prefsWindow, 'Raising preferences lost its close watcher');
+        await new Promise((resolve, reject) => process.wait_check_async(null, (child, result) => {
+            try { child.wait_check_finish(result); resolve(); } catch (error) { reject(error); }
+        }));
+        await delay(150);
+        assert(!this._prefsWatch && this._island.expanded && this._island._grab,
+            'Closing preferences did not restore normal island interaction');
+        this._settings.set_string('color-theme', 'graphite');
+        this._settings.set_int('surface-opacity', 98);
 
         // Real pointer picking catches clipped or overlaid footer buttons.
         const pointer = Clutter.get_default_backend().get_default_seat()
