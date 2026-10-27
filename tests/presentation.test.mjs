@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {containsPoint, selectPlayer, layoutSignature} from '../services/presentation.js';
+import {containsPoint, selectPlayer, layoutSignature, mediaTitle} from '../services/presentation.js';
 
 test('outside dismissal uses global geometry, including negative monitor origins', () => {
     assert.equal(containsPoint(-900, 30, -1000, 0, 440, 500), true);
@@ -35,6 +35,18 @@ test('playing wins over preferred paused player; paused track stays controllable
     const playing = {name: 'video', status: 'Playing', title: 'Video'};
     assert.equal(selectPlayer([paused, playing], 'music'), playing);
     assert.equal(selectPlayer([paused], 'music'), paused);
+});
+
+test('mediaTitle derives the file name when the player skips xesam:title', () => {
+    // Exactly what VLC exposes for an untagged local file.
+    assert.equal(
+        mediaTitle('', 'file:///home/user/Videos/nature_documentary.mp4', 'VLC'),
+        'nature_documentary');
+    assert.equal(mediaTitle('  ', 'file:///media/My%20Movie.mkv', 'VLC'), 'My Movie');
+    // A real title always wins; non-file URLs carry no usable basename.
+    assert.equal(mediaTitle('Song', 'file:///x/song.flac', 'Player'), 'Song');
+    assert.equal(mediaTitle('', 'https://youtu.be/watch?v=x', 'Brave'), 'Brave');
+    assert.equal(mediaTitle(undefined, undefined, 'Videos'), 'Videos');
 });
 
 test('layout signature stays stable across interleaved model events and volume changes', () => {

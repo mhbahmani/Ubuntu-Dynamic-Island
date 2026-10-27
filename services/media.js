@@ -1,7 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {estimatePositionSec} from './format.js';
-import {selectPlayer} from './presentation.js';
+import {selectPlayer, mediaTitle} from './presentation.js';
 
 const PREFIX = 'org.mpris.MediaPlayer2.';
 const PATH = '/org/mpris/MediaPlayer2';
@@ -120,11 +120,17 @@ export class MediaService {
 
     _sync() {
         if (!this._alive) return;
-        const players = [...this._proxies.entries()].map(([name, proxy]) => ({
-            name, proxy,
-            status: this._prop(proxy, 'PlaybackStatus'),
-            title: String(unpack((this._prop(proxy, 'Metadata') ?? {})['xesam:title']) ?? ''),
-        }));
+        const players = [...this._proxies.entries()].map(([name, proxy]) => {
+            const meta = this._prop(proxy, 'Metadata') ?? {};
+            return {
+                name, proxy,
+                status: this._prop(proxy, 'PlaybackStatus'),
+                title: mediaTitle(
+                    unpack(meta['xesam:title']),
+                    unpack(meta['xesam:url']) ?? '',
+                    ''),
+            };
+        });
         const selected = selectPlayer(players, this._selected);
         if (!selected) {
             this._selected = null;
@@ -163,9 +169,12 @@ export class MediaService {
         this._onChange({
             available: true,
             playerName,
-            // Local video players often expose no track metadata; show the
-            // player name like GNOME's own media widget does.
-            title: unpack(meta['xesam:title']) || playerName,
+            // Local video players often expose only a media URI; the file
+            // name makes a usable title, then the player name as last resort.
+            title: mediaTitle(
+                unpack(meta['xesam:title']),
+                unpack(meta['xesam:url']) ?? '',
+                playerName),
             artist: (Array.isArray(artists) ? artists.join(', ') : String(artists ?? '')) || '',
             artUrl: unpack(meta['mpris:artUrl']) || '',
             status,

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {selectPlayer} from '../services/presentation.js';
+import {selectPlayer, mediaTitle} from '../services/presentation.js';
 import {estimatePositionSec, formatTime, clampFraction} from '../services/format.js';
 
 // Evaluate the real service classes with GI boundaries replaced by fakes.
@@ -17,7 +17,7 @@ test('media position freezes on pause, resumes without jumping, and ignores idle
     let now = 10;
     let state;
     const Media = service('media', 'MediaService', {
-        selectPlayer, estimatePositionSec, GLib: {get_monotonic_time: () => now * 1e6},
+        selectPlayer, mediaTitle, estimatePositionSec, GLib: {get_monotonic_time: () => now * 1e6},
     });
     const media = new Media(value => { state = value; });
     const props = {PlaybackStatus: 'Playing', Position: 2e6,
@@ -60,7 +60,7 @@ test('media updates render seek, pause, resume and new tracks without a zero fra
     let now = 10;
     const calls = [];
     const Media = service('media', 'MediaService', {
-        selectPlayer, estimatePositionSec,
+        selectPlayer, mediaTitle, estimatePositionSec,
         GLib: {get_monotonic_time: () => now * 1e6,
             Variant: class { constructor(type, value) { this.value = value; } }},
         Gio: {DBusCallFlags: {NONE: 0}},
