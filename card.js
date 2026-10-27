@@ -6,6 +6,7 @@ import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 import {icon, label, row, column, button, pct, setEnabled} from './widgets.js';
 import {formatTime, clampFraction} from './services/format.js';
+import {formatCapacity} from './services/proc.js';
 
 // Expanded island content, split into sections. Each section renders its own
 // empty state, tolerates a missing service snapshot (module disabled or
@@ -217,7 +218,7 @@ export class Card {
             metrics.add_child(box);
             return {value, chart};
         };
-        this._cpu = tile('CPU');
+        this._cpu = tile('LOAD');
         this._ram = tile('MEMORY');
         section.content.add_child(metrics);
         const network = column('ubuntu-island-metric ubuntu-island-history-tile');
@@ -333,11 +334,15 @@ export class Card {
 
     renderSystem(state) {
         if (!this._cpu || !state) return;
-        this._cpu.value.text = pct(state.cpu);
-        this._ram.value.text = pct(state.memory);
+        this._cpu.value.text = state.loadAvg == null ? '—' : state.loadAvg.toFixed(2);
+        this._ram.value.text = state.memoryUsed == null ? pct(state.memory) : formatCapacity(state.memoryUsed);
+        this._cpu.value.accessible_name = state.loadAvg == null
+            ? 'Load average unavailable' : `1-minute load average ${state.loadAvg.toFixed(2)}`;
+        this._ram.value.accessible_name = state.memoryUsed == null
+            ? 'Memory usage unavailable' : `Memory used ${formatCapacity(state.memoryUsed)}`;
         this._rx.text = `↓ ${state.rx ?? '—'}`;
         this._tx.text = `↑ ${state.tx ?? '—'}`;
-        this._cpu.chart.push(state.cpu);
+        this._cpu.chart.push(state.loadPercent);
         this._ram.chart.push(state.memory);
         if (this._networkIface !== state.iface) this._networkChart.clear();
         this._networkIface = state.iface;

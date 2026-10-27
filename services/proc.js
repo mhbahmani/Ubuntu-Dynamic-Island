@@ -17,7 +17,7 @@ export function cpuPercent(previous, current) {
     return Math.max(0, Math.min(100, 100 * (1 - idle / total)));
 }
 
-export function memoryPercent(text) {
+export function memoryUsage(text) {
     const field = name => {
         const match = text.match(new RegExp(`^${name}:\\s+(\\d+)`, 'm'));
         return match ? Number(match[1]) : null;
@@ -25,7 +25,32 @@ export function memoryPercent(text) {
     const total = field('MemTotal');
     const available = field('MemAvailable');
     if (total === null || available === null || total <= 0) return null;
-    return Math.max(0, Math.min(100, 100 * (total - available) / total));
+    return {
+        usedBytes: Math.max(0, total - available) * 1024, // meminfo reports kB
+        percent: Math.max(0, Math.min(100, 100 * (total - available) / total)),
+    };
+}
+
+export function memoryPercent(text) {
+    return memoryUsage(text)?.percent ?? null;
+}
+
+// First field of /proc/loadavg: the 1-minute average of runnable tasks.
+export function parseLoadAvg(text) {
+    const match = String(text).match(/^\s*([0-9]+(?:\.[0-9]+)?)\s/);
+    return match ? Number(match[1]) : null;
+}
+
+// One cpuN row per logical core; 0 when the text carries only the aggregate.
+export function countCores(text) {
+    return text.split('\n').filter(line => /^cpu\d+\s/.test(line)).length;
+}
+
+export function formatCapacity(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) return '—';
+    if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
+    if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)} MB`;
+    return `${Math.round(bytes / 1024)} kB`;
 }
 
 export function networkBytes(text, iface) {

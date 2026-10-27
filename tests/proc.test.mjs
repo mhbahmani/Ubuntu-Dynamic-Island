@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {parseCpu, cpuPercent, memoryPercent, defaultInterface, networkBytes, formatRate} from '../services/proc.js';
+import {parseCpu, cpuPercent, memoryPercent, memoryUsage, parseLoadAvg, countCores, defaultInterface, networkBytes, formatRate, formatCapacity} from '../services/proc.js';
 
 test('CPU counter delta, not cumulative percentage', () => {
     const first = parseCpu('cpu  100 0 100 800 0 0 0 0 0 0\ncpu0 1 2 3');
@@ -10,6 +10,27 @@ test('CPU counter delta, not cumulative percentage', () => {
 });
 test('MemAvailable is used rather than MemFree', () => {
     assert.equal(memoryPercent('MemTotal: 1000 kB\nMemAvailable: 375 kB\n'), 62.5);
+});
+test('memoryUsage reports used bytes beside the percentage', () => {
+    const usage = memoryUsage('MemTotal: 1000 kB\nMemAvailable: 375 kB\n');
+    assert.equal(usage.usedBytes, 625 * 1024);
+    assert.equal(usage.percent, 62.5);
+    assert.equal(memoryUsage('MemTotal: 1000 kB\n'), null);
+});
+test('parseLoadAvg takes the 1-minute average', () => {
+    assert.equal(parseLoadAvg('0.84 0.90 1.05 2/1381 12345'), 0.84);
+    assert.equal(parseLoadAvg('  2.00 2.00 2.00 1/1 5'), 2);
+    assert.equal(parseLoadAvg('garbage'), null);
+});
+test('countCores counts per-core rows only', () => {
+    assert.equal(countCores('cpu  1 2 3\ncpu0 1 2 3\ncpu1 1 2 3\n'), 2);
+    assert.equal(countCores('cpu  1 2 3\nintr 1\n'), 0);
+});
+test('formatCapacity tiers', () => {
+    assert.equal(formatCapacity(625 * 1024), '625 kB');
+    assert.equal(formatCapacity(300 * 1024 * 1024), '300 MB');
+    assert.equal(formatCapacity(5.5 * 1024 ** 3), '5.5 GB');
+    assert.equal(formatCapacity(-1), '—');
 });
 test('Default route determines interface', () => {
     assert.equal(defaultInterface('Iface Destination Gateway Flags\neth0 00000000 0102A8C0 0003\n'), 'eth0');

@@ -1,6 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {parseCpu, cpuPercent, memoryPercent, networkBytes, defaultInterface, formatRate} from './proc.js';
+import {parseCpu, cpuPercent, memoryUsage, parseLoadAvg, countCores, networkBytes, defaultInterface, formatRate} from './proc.js';
 
 // Reads four tiny procfs files at a configurable cadence. Avoid heavier
 // operations in GNOME Shell.
@@ -23,6 +23,7 @@ export class SystemMonitor {
         this._timer = 0;
         this._previousCpu = null;
         this._previousNetwork = null;
+        this._cores = 0;
         this._iface = null;
         this._alive = false;
         this._busy = false;
@@ -42,14 +43,19 @@ export class SystemMonitor {
         if (!this._alive || this._busy) return;
         this._busy = true;
         try {
-            const [stat, meminfo, route, network] = await Promise.all(
-                ['/proc/stat', '/proc/meminfo', '/proc/net/route', '/proc/net/dev']
+            const [stat, meminfo, route, network, loadavg] = await Promise.all(
+                ['/proc/stat', '/proc/meminfo', '/proc/net/route', '/proc/net/dev', '/proc/loadavg']
                     .map(path => read(path, this._cancellable)));
             if (!this._alive) return;
             const cpu = parseCpu(stat);
             const cpuValue = cpuPercent(this._previousCpu, cpu);
             this._previousCpu = cpu;
-            const memory = memoryPercent(meminfo);
+            this._cores = this._cores || countCores(stat) || 1;
+            // Load as a share of logical cores keeps the 0–100 chart scale honest.
+            const loadAvg = parseLoadAvg(loadavg);
+            const loadPercent = loadAvg == null
+                ? null : Math.max(0, Math.min(100, 100 * loadAvg / this._cores));
+            const usage = memoryUsage(meminfo);
             const iface = defaultInterface(route);
             if (iface !== this._iface) this._previousNetwork = null; // counters are per interface
             this._iface = iface;
@@ -66,11 +72,20 @@ export class SystemMonitor {
                 }
             }
             this._previousNetwork = current ? {...current, time: now} : null;
-            this._onChange({cpu: cpuValue, memory, iface: iface ?? 'No default route', rx, tx, rxBytes, txBytes});
+            this._onChange({
+                cpu: cpuValue,
+                memory: usage?.percent ?? null,
+                memoryUsed: usage?.usedBytes ?? null,
+                loadAvg,
+                loadPercent,
+                iface: iface ?? 'No default route',
+                rx, tx, rxBytes, txBytes,
+            });
         } catch (e) {
             if (!this._alive) return;
             console.warn(`[Ubuntu Island] Metrics: ${e.message}`);
-            this._onChange({cpu: null, memory: null, iface: 'Unavailable', rx: '—', tx: '—'});
+            this._onChange({cpu: null, memory: null, memoryUsed: null, loadAvg: null, loadPercent: null,
+                iface: 'Unavailable', rx: '—', tx: '—'});
         } finally {
             this._busy = false;
         }
