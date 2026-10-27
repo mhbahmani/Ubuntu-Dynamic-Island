@@ -2,7 +2,7 @@
 
 ## Scope and environment
 
-- The repository root is the current extension (v9): entry points and build
+- The repository root is the current extension (v10): entry points and build
   scripts at root, with `services/`, `schemas/`, `tests/`, and `screenshots/`.
   Obsolete prototypes were removed; consult Git history if needed.
 - Target GNOME Shell 46 on Ubuntu Wayland. See `README.md` for development
@@ -31,11 +31,13 @@
   collapsed title (`pill-show-title`); keep the playback icon visible.
 - Keep load average and used-memory values compact on the CPU/MEMORY heading
   line; omit “load” and “used”, keep the percentage, and preserve accessible labels.
-- Metric names and inline secondary values must not ellipsize.
+- Metric names and inline secondary values share one expanding markup label;
+  verify its allocated width at narrow card widths and enlarged text.
 - Opening focuses the surface; Tab then enters the controls. Selected tabs use
   a neutral indicator, never an orange focus/selection ring.
 - Opacity supports 0–100%. Handle zero alpha without dividing by zero; matte
-  backing remains an independent control.
+  tone only affects RGB, never final alpha. Tab markers are separate actors,
+  not rounded shadows that change with focus.
 - Opening preferences keeps the panel open and suspends its modal grab and
   hover-close behavior. Track the actual preferences window by title (including
   late title updates), reuse the watcher when raised, and clean up on failure,
@@ -91,7 +93,7 @@ checks rendering, idle media, artwork decoding, repeated pointer hover/clicks,
 Artifacts stay in its printed `/tmp/ubuntu-island-smoke-*` directory. Keep
 only README-linked example screenshots in the repository.
 
-v9 passed 43 Node tests, syntax/schema checks, preferences module import, and
+v10 passed 43 Node tests, syntax/schema checks, preferences module import, and
 headless GNOME tests. These do not establish physical mixed-monitor rendering,
 HDMI hotplug/routing, live MPRIS control, Bluetooth, suspend/resume, or fullscreen
 behavior. Run the README hardware acceptance checks before claiming those pass.
@@ -107,3 +109,11 @@ Use `journalctl --user -b` to inspect extension errors.
 - Do not add co-author trailers. Never push or open a PR unless requested.
 - Keep build ZIPs, compiled schemas, caches, and loose diagnostic captures out
   of commits. Preserve user reference files when cleaning up; archive if needed.
+
+## Future work
+
+`docs/FEATURE_ROADMAP.md` is a proposal, not implemented functionality. It covers
+Weather, Commute, Calendar appointments, and explicit Task Progress integrations.
+Respect its optional-module lifecycle and performance budgets; verify provider/API
+compatibility before implementation. Do not add the roadmap features without a
+user implementation request.
