@@ -92,8 +92,6 @@ export class Card {
         navigation.add_child(spacer);
         navigation.add_child(button('emblem-system-symbolic', 'Island preferences',
             () => this._actions.preferences(), 14, 'ubuntu-island-tab'));
-        navigation.add_child(button('window-close-symbolic', 'Close Ubuntu Island',
-            () => this._actions.close(), 14, 'ubuntu-island-tab'));
         this.actor.add_child(navigation);
     }
 

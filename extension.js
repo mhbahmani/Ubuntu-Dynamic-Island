@@ -41,7 +41,6 @@ export default class UbuntuIsland extends Extension {
             selectOutput: id => this._audio?.selectOutput(id),
             btToggle: device => this._bluetooth?.toggle(device),
             btPower: () => this._bluetooth?.setPowered(!this._states.bluetooth?.powered),
-            close: () => this._island?.collapse(),
             preferences: () => { this._island?.collapse(); this.openPreferences(); },
             relayout: () => this._island?.relayout(),
         });
