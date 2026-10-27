@@ -2,7 +2,7 @@
 
 ## Scope and environment
 
-- The repository root is the current extension (v6): entry points and build
+- The repository root is the current extension (v8): entry points and build
   scripts at root, with `services/`, `schemas/`, `tests/`, and `screenshots/`.
   Obsolete prototypes were removed; consult Git history if needed.
 - Target GNOME Shell 46 on Ubuntu Wayland. See `README.md` for development
@@ -25,7 +25,17 @@
 - Keep navigation outside scrolling content so switching pages leaves the
   footer stable. Preserve device rows and focus across service updates.
 - The idle notch has no “Island” label or placeholder music icon. Playing and
-  paused tracks remain available; stopped or empty MPRIS registrations do not.
+  paused tracks remain available; stopped registrations do not. Playing media
+  without metadata uses the player/URI fallback title.
+- The media title eye toggle and middle-click on the notch change only the
+  collapsed title (`pill-show-title`); keep the playback icon visible.
+- Keep load average and used-memory values compact on the CPU/MEMORY heading
+  line; omit “load” and “used”, keep the percentage, and preserve accessible labels.
+- Selected tabs use a neutral indicator, never an orange focus/selection ring.
+- Opening preferences keeps the panel open and suspends its modal grab and
+  hover-close behavior. Track the actual preferences window by title (including
+  late title updates), reuse the watcher when raised, and clean up on failure,
+  close, and disable. Do not add continuous window polling.
 - Use explicit hover, focus, selected, disabled, pending, and error states.
   Respect reduced motion and interrupted animations.
 
@@ -77,7 +87,7 @@ checks rendering, idle media, artwork decoding, repeated pointer hover/clicks,
 Artifacts stay in its printed `/tmp/ubuntu-island-smoke-*` directory. Keep
 only README-linked example screenshots in the repository.
 
-v6 passed 30 Node tests, syntax/schema checks, preferences module import, and
+v8 passed 42 Node tests, syntax/schema checks, preferences module import, and
 headless GNOME tests. These do not establish physical mixed-monitor rendering,
 HDMI hotplug/routing, live MPRIS control, Bluetooth, suspend/resume, or fullscreen
 behavior. Run the README hardware acceptance checks before claiming those pass.

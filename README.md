@@ -193,3 +193,18 @@ glib-compile-schemas --strict schemas
 GSETTINGS_BACKEND=memory GI_TYPELIB_PATH=/usr/lib/gnome-shell/girepository-1.0 \
   LD_LIBRARY_PATH=/usr/lib/gnome-shell gjs -m tests/prefs-smoke.mjs
 ```
+
+### Compact controls and live settings preview (v8)
+
+CPU load and used memory sit beside their headings as short values (`1.44`,
+`3.5 GB`), with percentages retained. The navigation uses a neutral selection
+indicator. The eye beside the track title toggles its visibility in the collapsed
+notch; middle-clicking the notch is a shortcut. The playback icon stays visible.
+
+Opening preferences keeps the island expanded so appearance and width changes
+can be previewed. The settings window remains interactive; normal outside-click
+and Escape dismissal resume after it closes. Module toggles and sampling interval
+still require disabling and re-enabling the extension, as stated in preferences.
+
+Validation includes 42 Node regressions and isolated GNOME rendering, pointer
+navigation, title toggling, and a real GTK preferences window lifecycle.
