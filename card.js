@@ -114,9 +114,11 @@ export class Card {
             tab.visible = page.available;
             if (id === this._page) {
                 tab.add_style_pseudo_class('checked');
+                tab.add_style_class_name('ubuntu-island-tab-selected');
                 tab.add_accessible_state(Atk.StateType.SELECTED);
             } else {
                 tab.remove_style_pseudo_class('checked');
+                tab.remove_style_class_name('ubuntu-island-tab-selected');
                 tab.remove_accessible_state(Atk.StateType.SELECTED);
             }
         }

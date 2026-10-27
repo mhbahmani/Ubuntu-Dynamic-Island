@@ -84,7 +84,6 @@
 .ubuntu-island-navigation { spacing: 4px; padding: 10px 12px; border-top: 1px solid rgba(235, 239, 255, 0.09); border-radius: 0 0 19px 19px; background-color: rgba(15, 17, 22, 0.18); }
 .ubuntu-island-tab { padding: 9px 10px; border-radius: 10px; color: #b7bbc5; background-color: transparent; }
 .ubuntu-island-tab:hover { color: #f8f9fc; background-color: rgba(235, 239, 255, 0.13); }
-.ubuntu-island-tab:checked { color: #ffb38a; background-color: rgba(192, 68, 43, 0.18); }
 .ubuntu-island-tab:active { background-color: rgba(235, 239, 255, 0.13); }
 /* System face */
 .ubuntu-island-metrics { spacing: 8px; }
@@ -134,19 +133,19 @@
 .ubuntu-island-network-up { color: #d9a8fa; font-size: 10pt; font-weight: 600; }
 
 .ubuntu-island-theme-ocean .ubuntu-island-history { color: #8acdf6; }
-.ubuntu-island-theme-ocean .ubuntu-island-tab:checked { color: #8acdf6; background-color: rgba(71, 157, 220, 0.24); }
+.ubuntu-island-theme-ocean .ubuntu-island-tab.ubuntu-island-tab-selected { color: #8acdf6; background-color: rgba(71, 157, 220, 0.24); }
 .ubuntu-island-theme-ocean .ubuntu-island-seal { background-color: #29648d; }
 .ubuntu-island-theme-ocean .slider { -barlevel-active-background-color: #8acdf6; }
 .ubuntu-island-theme-ocean .ubuntu-island-output-active { background-color: rgba(71, 157, 220, 0.24); border-color: #8acdf6; }
 
 .ubuntu-island-theme-forest .ubuntu-island-history { color: #9bd7b4; }
-.ubuntu-island-theme-forest .ubuntu-island-tab:checked { color: #9bd7b4; background-color: rgba(76, 162, 115, 0.24); }
+.ubuntu-island-theme-forest .ubuntu-island-tab.ubuntu-island-tab-selected { color: #9bd7b4; background-color: rgba(76, 162, 115, 0.24); }
 .ubuntu-island-theme-forest .ubuntu-island-seal { background-color: #38684c; }
 .ubuntu-island-theme-forest .slider { -barlevel-active-background-color: #9bd7b4; }
 .ubuntu-island-theme-forest .ubuntu-island-output-active { background-color: rgba(76, 162, 115, 0.24); border-color: #9bd7b4; }
 
 .ubuntu-island-theme-ember .ubuntu-island-history { color: #ffc19b; }
-.ubuntu-island-theme-ember .ubuntu-island-tab:checked { color: #ffc19b; background-color: rgba(207, 106, 56, 0.24); }
+.ubuntu-island-theme-ember .ubuntu-island-tab.ubuntu-island-tab-selected { color: #ffc19b; background-color: rgba(207, 106, 56, 0.24); }
 .ubuntu-island-theme-ember .ubuntu-island-seal { background-color: #9e4c2f; }
 .ubuntu-island-theme-ember .slider { -barlevel-active-background-color: #ffc19b; }
 .ubuntu-island-theme-ember .ubuntu-island-output-active { background-color: rgba(207, 106, 56, 0.24); border-color: #ffc19b; }
@@ -154,38 +153,10 @@
 .ubuntu-island-card-system { padding-top: 12px; }
 .ubuntu-island-system-section { spacing: 8px; }
 .ubuntu-island-system-content { spacing: 6px; }
-.ubuntu-island-theme-ocean .ubuntu-island-tab:checked:hover,
-.ubuntu-island-theme-forest .ubuntu-island-tab:checked:hover,
-.ubuntu-island-theme-ember .ubuntu-island-tab:checked:hover { background-color: rgba(235, 239, 255, 0.18); }
 
-/* The selected tab always renders its checked state: hovering it, pressing
-   it, and the key focus it gains from being clicked never alter the
-   selection indicator (the plain focus ring stays for unselected tabs). */
-.ubuntu-island-tab:checked:hover,
-.ubuntu-island-tab:checked:active,
-.ubuntu-island-tab:checked:focus {
-    color: #ffb38a;
-    background-color: rgba(192, 68, 43, 0.18);
-    box-shadow: inset 0 0 0 0 rgba(0, 0, 0, 0);
-}
-.ubuntu-island-theme-ocean .ubuntu-island-tab:checked:hover,
-.ubuntu-island-theme-ocean .ubuntu-island-tab:checked:active,
-.ubuntu-island-theme-ocean .ubuntu-island-tab:checked:focus {
-    color: #8acdf6;
-    background-color: rgba(71, 157, 220, 0.24);
-    box-shadow: inset 0 0 0 0 rgba(0, 0, 0, 0);
-}
-.ubuntu-island-theme-forest .ubuntu-island-tab:checked:hover,
-.ubuntu-island-theme-forest .ubuntu-island-tab:checked:active,
-.ubuntu-island-theme-forest .ubuntu-island-tab:checked:focus {
-    color: #9bd7b4;
-    background-color: rgba(76, 162, 115, 0.24);
-    box-shadow: inset 0 0 0 0 rgba(0, 0, 0, 0);
-}
-.ubuntu-island-theme-ember .ubuntu-island-tab:checked:hover,
-.ubuntu-island-theme-ember .ubuntu-island-tab:checked:active,
-.ubuntu-island-theme-ember .ubuntu-island-tab:checked:focus {
-    color: #ffc19b;
-    background-color: rgba(207, 106, 56, 0.24);
-    box-shadow: inset 0 0 0 0 rgba(0, 0, 0, 0);
-}
+
+/* The selection indicator is an explicit class, not a pseudo-class state:
+   hover, press, and focus apply only to unselected tabs, so the selected
+   tab's look cannot vary. (St applies chained pseudo-class rules like
+   ":checked:hover" unreliably; GNOME's own theme never uses them.) */
+.ubuntu-island-tab.ubuntu-island-tab-selected { color: #ffb38a; background-color: rgba(192, 68, 43, 0.18); }
