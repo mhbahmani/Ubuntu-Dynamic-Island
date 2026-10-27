@@ -65,7 +65,8 @@ export class Card {
     setPillTitleVisible(visible) {
         if (!this._pillTitle) return;
         this._pillTitle.child.icon_name = visible
-            ? 'eye-open-negative-filled-symbolic' : 'eye-not-looking-symbolic';
+            ? 'view-reveal-symbolic' : 'view-conceal-symbolic';
+        this._pillTitle.set_style_class_name(`ubuntu-island-title-toggle${visible ? '' : ' ubuntu-island-title-hidden'}`);
         this._pillTitle.accessible_name = visible
             ? 'Hide the track name in the notch' : 'Show the track name in the notch';
     }
@@ -96,7 +97,7 @@ export class Card {
         const navigation = row('ubuntu-island-navigation');
         const items = [
             ['media', 'audio-x-generic-symbolic', 'Now playing'],
-            ['system', 'utilities-system-monitor-symbolic', 'System'],
+            ['system', 'org.gnome.SystemMonitor-symbolic', 'System'],
             ['audio', 'audio-volume-high-symbolic', 'Sound'],
             ['bluetooth', 'bluetooth-symbolic', 'Bluetooth'],
         ];
@@ -167,7 +168,10 @@ export class Card {
         details.x_expand = true;
         this._track = label('', 'ubuntu-island-track');
         this._artist = label('', 'ubuntu-island-artist');
-        details.add_child(this._track);
+        const titleRow = row('ubuntu-island-title-row');
+        this._track.x_expand = true;
+        titleRow.add_child(this._track);
+        details.add_child(titleRow);
         details.add_child(this._artist);
         const controls = row('ubuntu-island-transport');
         this._source = label('PLAYER', 'ubuntu-island-source');
@@ -188,10 +192,10 @@ export class Card {
         controls.add_child(this._next);
         // Quick control for the collapsed notch: hide the track name and keep
         // just the play state icon (middle-clicking the notch does the same).
-        this._pillTitle = button('eye-open-negative-filled-symbolic',
+        this._pillTitle = button('view-reveal-symbolic',
             'Hide the track name in the notch',
-            () => this._actions.togglePillTitle?.(), 14, 'ubuntu-island-ghost');
-        controls.add_child(this._pillTitle);
+            () => this._actions.togglePillTitle?.(), 14, 'ubuntu-island-title-toggle');
+        titleRow.add_child(this._pillTitle);
         details.add_child(controls);
         music.add_child(details);
         content.add_child(music);
@@ -363,12 +367,12 @@ export class Card {
     renderSystem(state) {
         if (!this._cpu || !state) return;
         // Percentages stay the primary figures; load and used memory ride
-        // along as a secondary line inside each tile.
+        // along on the heading line without redundant words.
         this._cpu.value.text = pct(state.cpu);
-        this._cpu.sub.text = state.loadAvg == null ? '' : `load ${state.loadAvg.toFixed(2)}`;
+        this._cpu.sub.text = state.loadAvg == null ? '' : state.loadAvg.toFixed(2);
         this._cpu.sub.visible = Boolean(this._cpu.sub.text);
         this._ram.value.text = pct(state.memory);
-        this._ram.sub.text = state.memoryUsed == null ? '' : `${formatCapacity(state.memoryUsed)} used`;
+        this._ram.sub.text = state.memoryUsed == null ? '' : formatCapacity(state.memoryUsed);
         this._ram.sub.visible = Boolean(this._ram.sub.text);
         this._cpu.value.accessible_name = state.cpu == null
             ? 'CPU usage unavailable' : `CPU usage ${Math.round(state.cpu)} percent`;

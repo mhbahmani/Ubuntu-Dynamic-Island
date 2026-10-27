@@ -95,9 +95,9 @@
     spacing: 6px;
 }
 .ubuntu-island-metric-heading { spacing: 4px; }
-.ubuntu-island-metric-name { color: #b7bbc5; font-size: 9pt; font-weight: 600; letter-spacing: 0.6px; }
+.ubuntu-island-metric-name { color: #b7bbc5; font-size: 8pt; font-weight: 600; letter-spacing: 0.4px; }
 .ubuntu-island-metric-value { color: #f8f9fc; font-size: 11pt; font-weight: 600; font-feature-settings: "tnum"; }
-.ubuntu-island-metric-sub { color: #b7bbc5; font-size: 8.5pt; font-feature-settings: "tnum"; }
+.ubuntu-island-metric-sub { color: #b7bbc5; font-size: 8pt; font-feature-settings: "tnum"; }
 /* Sound and connection faces */
 .ubuntu-island-volume { spacing: 10px; }
 .ubuntu-island-volume .ubuntu-island-metric-value { min-width: 42px; }
@@ -118,7 +118,7 @@
 /* Focus remains distinct from hover; selection also has an explicit check. */
 .ubuntu-island-output:focus, .ubuntu-island-device-button:focus,
 .ubuntu-island-ghost:focus, .ubuntu-island-seal:focus,
-.ubuntu-island-pill:focus, .ubuntu-island-tab:focus {
+.ubuntu-island-pill:focus {
     box-shadow: inset 0 0 0 2px #ffb38a;
 }
 .ubuntu-island-output:active, .ubuntu-island-device-button:active,
@@ -135,19 +135,19 @@
 .ubuntu-island-network-up { color: #d9a8fa; font-size: 10pt; font-weight: 600; }
 
 .ubuntu-island-theme-ocean .ubuntu-island-history { color: #8acdf6; }
-.ubuntu-island-theme-ocean .ubuntu-island-tab.ubuntu-island-tab-selected { color: #8acdf6; background-color: rgba(71, 157, 220, 0.24); }
+.ubuntu-island-theme-ocean .ubuntu-island-tab.ubuntu-island-tab-selected { color: #8acdf6; background-color: rgba(235, 239, 255, 0.08); }
 .ubuntu-island-theme-ocean .ubuntu-island-seal { background-color: #29648d; }
 .ubuntu-island-theme-ocean .slider { -barlevel-active-background-color: #8acdf6; }
 .ubuntu-island-theme-ocean .ubuntu-island-output-active { background-color: rgba(71, 157, 220, 0.24); border-color: #8acdf6; }
 
 .ubuntu-island-theme-forest .ubuntu-island-history { color: #9bd7b4; }
-.ubuntu-island-theme-forest .ubuntu-island-tab.ubuntu-island-tab-selected { color: #9bd7b4; background-color: rgba(76, 162, 115, 0.24); }
+.ubuntu-island-theme-forest .ubuntu-island-tab.ubuntu-island-tab-selected { color: #9bd7b4; background-color: rgba(235, 239, 255, 0.08); }
 .ubuntu-island-theme-forest .ubuntu-island-seal { background-color: #38684c; }
 .ubuntu-island-theme-forest .slider { -barlevel-active-background-color: #9bd7b4; }
 .ubuntu-island-theme-forest .ubuntu-island-output-active { background-color: rgba(76, 162, 115, 0.24); border-color: #9bd7b4; }
 
 .ubuntu-island-theme-ember .ubuntu-island-history { color: #ffc19b; }
-.ubuntu-island-theme-ember .ubuntu-island-tab.ubuntu-island-tab-selected { color: #ffc19b; background-color: rgba(207, 106, 56, 0.24); }
+.ubuntu-island-theme-ember .ubuntu-island-tab.ubuntu-island-tab-selected { color: #ffc19b; background-color: rgba(235, 239, 255, 0.08); }
 .ubuntu-island-theme-ember .ubuntu-island-seal { background-color: #9e4c2f; }
 .ubuntu-island-theme-ember .slider { -barlevel-active-background-color: #ffc19b; }
 .ubuntu-island-theme-ember .ubuntu-island-output-active { background-color: rgba(207, 106, 56, 0.24); border-color: #ffc19b; }
@@ -161,4 +161,11 @@
    hover, press, and focus apply only to unselected tabs, so the selected
    tab's look cannot vary. (St applies chained pseudo-class rules like
    ":checked:hover" unreliably; GNOME's own theme never uses them.) */
-.ubuntu-island-tab.ubuntu-island-tab-selected { color: #ffb38a; background-color: rgba(192, 68, 43, 0.18); }
+.ubuntu-island-tab.ubuntu-island-tab-selected { color: #f2f5fa; background-color: rgba(235, 239, 255, 0.08); box-shadow: inset 0 -2px 0 rgba(235, 239, 255, 0.65); }
+
+.ubuntu-island-tab:focus { box-shadow: inset 0 0 0 1px #b7c5d7; }
+.ubuntu-island-title-row { spacing: 6px; }
+.ubuntu-island-title-toggle { padding: 5px; border-radius: 7px; color: #b7bbc5; background-color: transparent; }
+.ubuntu-island-title-toggle:hover { color: #f8f9fc; background-color: rgba(235, 239, 255, 0.12); }
+.ubuntu-island-title-toggle:focus { box-shadow: inset 0 0 0 1px #b7c5d7; }
+.ubuntu-island-title-hidden { color: #f2f5fa; background-color: rgba(235, 239, 255, 0.10); }
