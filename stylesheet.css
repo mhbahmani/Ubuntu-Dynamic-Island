@@ -94,6 +94,7 @@
     padding: 12px 8px;
     spacing: 6px;
 }
+.ubuntu-island-metric-heading { spacing: 4px; }
 .ubuntu-island-metric-name { color: #b7bbc5; font-size: 9pt; font-weight: 600; letter-spacing: 0.6px; }
 .ubuntu-island-metric-value { color: #f8f9fc; font-size: 11pt; font-weight: 600; font-feature-settings: "tnum"; }
 .ubuntu-island-metric-sub { color: #b7bbc5; font-size: 8.5pt; font-feature-settings: "tnum"; }

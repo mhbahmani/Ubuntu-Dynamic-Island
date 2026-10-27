@@ -216,16 +216,15 @@ export class Card {
         const tile = name => {
             const box = column('ubuntu-island-metric ubuntu-island-history-tile');
             box.x_expand = true;
-            const heading = row();
-            const title = label(name, 'ubuntu-island-metric-name');
-            title.x_expand = true;
-            heading.add_child(title);
+            const heading = row('ubuntu-island-metric-heading');
+            heading.add_child(label(name, 'ubuntu-island-metric-name'));
+            const sub = label('', 'ubuntu-island-metric-sub');
+            sub.hide();
+            heading.add_child(sub);
+            heading.add_child(new St.Widget({x_expand: true}));
             const value = label('—', 'ubuntu-island-metric-value');
             heading.add_child(value);
             box.add_child(heading);
-            const sub = label('', 'ubuntu-island-metric-sub');
-            sub.hide();
-            box.add_child(sub);
             const chart = new HistoryChart();
             box.add_child(chart.actor);
             metrics.add_child(box);
