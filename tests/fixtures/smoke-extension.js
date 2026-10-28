@@ -30,6 +30,25 @@ export default class Smoke extends UbuntuIsland {
         finally { stream.close(null); }
     }
 
+    _checkNavigationAlignment() {
+        const center = actor => actor.get_transformed_position()[1] + actor.get_transformed_size()[1] / 2;
+        const caption = this._card._pageCaption;
+        const expected = center(caption);
+        const tolerance = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        for (const [id, tab] of this._card._tabs) {
+            if (!tab.visible) continue;
+            assert(Math.abs(center(tab.child.get_first_child()) - expected) <= tolerance,
+                `${id} icon is not aligned with the navigation caption`);
+            const glyph = tab.child.get_first_child();
+            const marker = tab.child.get_last_child();
+            assert(marker.get_transformed_position()[1] >= glyph.get_transformed_position()[1] + glyph.height,
+                `${id} selection marker overlaps its icon`);
+        }
+        const preferences = caption.get_parent().get_last_child();
+        assert(Math.abs(center(preferences.child) - expected) <= tolerance,
+            'Preferences icon is not aligned with the navigation caption');
+    }
+
     async _smoke() {
         await delay(3500);
         Main.overview.hide();
@@ -91,6 +110,7 @@ export default class Smoke extends UbuntuIsland {
         assert(global.stage.key_focus === this._island.actor, 'Opening focused a child control');
         this._card.renderProgress(72);
         await this._capture('expanded');
+        this._checkNavigationAlignment();
         const decoded = await new Promise(resolve => this._art.load(
             `file://${GLib.getenv('ISLAND_SMOKE_OUTPUT')}/expanded.png`, 64, resolve));
         assert(decoded !== null, 'Local artwork failed to decode');
@@ -207,6 +227,7 @@ export default class Smoke extends UbuntuIsland {
         await this._capture('scaled');
         this._card.selectPage('system');
         await this._capture('scaled-system');
+        this._checkNavigationAlignment();
         const [captionX, captionY] = this._card._iface.get_transformed_position();
         const [, captionHeight] = this._card._iface.get_transformed_size();
         const [, footerY] = this._card._tabs.get('system').get_parent().get_transformed_position();
@@ -227,6 +248,7 @@ export default class Smoke extends UbuntuIsland {
         this._card.selectPage('system');
         this._island.expand();
         await this._capture('narrow-system');
+        this._checkNavigationAlignment();
         for (const metric of [this._card._cpu, this._card._ram]) {
             const title = metric.title;
             assert(!title.clutter_text.get_layout().is_ellipsized(), 'Metric heading was ellipsized');
@@ -236,6 +258,7 @@ export default class Smoke extends UbuntuIsland {
         for (const scale of [1.25, 1.5]) {
             desktopText.set_double('text-scaling-factor', scale);
             await this._capture(`large-text-${scale}`);
+            this._checkNavigationAlignment();
             for (const metric of [this._card._cpu, this._card._ram]) {
                 const layout = metric.title.clutter_text.get_layout();
                 assert(!layout.is_ellipsized(), 'Large metric heading was ellipsized');

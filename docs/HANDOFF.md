@@ -6,6 +6,11 @@ extension remains v10. Weather is opt-in in preferences and needs a confirmed
 city or manual coordinates. See [WEATHER.md](WEATHER.md) for providers and setup.
 The new implementation keeps UI styling basic pending user direction.
 
+Navigation alignment repair: tab glyphs now share the vertical center of the
+caption and preferences icon. The selection marker is bottom-aligned independently
+in a BinLayout, preserving footer height. Native smoke checks cover alignment and
+marker separation at normal/200% scale, narrow width and enlarged text.
+
 Local development preview: `make preview` opens the actual extension
 in a nested GNOME window, initially Weather with sample data. `make preview-live` enables
 real weather; `make preview-headless` saves a screenshot. Uses a private bus, temporary

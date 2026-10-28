@@ -108,9 +108,16 @@ export class Card {
         for (const [id, glyph, title] of items) {
             if (!this._pages.has(id)) continue;
             const tab = button(glyph, title, () => this.selectPage(id), 15, 'ubuntu-island-tab');
-            const face = column('ubuntu-island-tab-face');
-            face.add_child(icon(glyph, 15));
-            face.add_child(new St.Widget({style_class: 'ubuntu-island-tab-marker'}));
+            // Keep the glyph centered on the same axis as the caption and
+            // preferences icon; the selection marker must not shift it upward.
+            const face = new St.Widget({style_class: 'ubuntu-island-tab-face',
+                layout_manager: new Clutter.BinLayout()});
+            const glyphActor = icon(glyph, 15);
+            glyphActor.x_align = Clutter.ActorAlign.CENTER;
+            glyphActor.y_align = Clutter.ActorAlign.CENTER;
+            face.add_child(glyphActor);
+            face.add_child(new St.Widget({style_class: 'ubuntu-island-tab-marker',
+                x_expand: true, y_expand: true, y_align: Clutter.ActorAlign.END}));
             tab.set_child(face);
             tab.accessible_role = Atk.Role.PAGE_TAB;
             navigation.add_child(tab);

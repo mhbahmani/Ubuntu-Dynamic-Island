@@ -165,7 +165,7 @@
 /* Selection is a child marker, never a rounded button shadow. */
 .ubuntu-island-tab { padding: 7px 10px; border: none; border-radius: 0; background-color: transparent; box-shadow: none; color: #b7bbc5; }
 .ubuntu-island-tab:hover, .ubuntu-island-tab:active, .ubuntu-island-tab:focus { background-color: transparent; box-shadow: none; border: none; color: #f8f9fc; }
-.ubuntu-island-tab-face { spacing: 5px; }
+.ubuntu-island-tab-face { min-height: 22px; }
 .ubuntu-island-tab-marker { height: 2px; background-color: transparent; }
 .ubuntu-island-tab-selected { color: #f8f9fc; }
 .ubuntu-island-tab-selected .ubuntu-island-tab-marker { background-color: #b7c5d7; }
