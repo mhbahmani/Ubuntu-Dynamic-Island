@@ -39,5 +39,15 @@ matte.adjustment.value = 25;
 if (settings.get_int('surface-matte') !== 25) throw new Error('Matte did not save');
 settings.set_int('surface-matte', 60);
 if (matte.adjustment.value !== 60) throw new Error('Matte control did not follow settings');
+const manual = find(window, 'Coordinates: latitude, longitude, timezone');
+if (!manual) throw new Error('Weather controls missing');
+manual.text = '35.6892, 51.3890, Asia/Tehran';
+manual.emit('apply');
+if (JSON.parse(settings.get_string('weather-location')).timezone !== 'Asia/Tehran')
+    throw new Error('Weather coordinates failed to save');
+const previous = settings.get_string('weather-location');
+manual.text = '91, 0, Bad/Zone';
+manual.emit('apply');
+if (settings.get_string('weather-location') !== previous) throw new Error('Invalid coordinates saved');
 window.close();
 print('Preferences controls and bidirectional settings passed');

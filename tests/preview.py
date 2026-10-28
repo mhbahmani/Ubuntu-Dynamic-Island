@@ -1,0 +1,82 @@
+#!/usr/bin/env python3
+"""Run the working tree in a private, windowed GNOME Shell (no installation)."""
+import argparse
+import json
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import tempfile
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--live', action='store_true', help='Fetch live Tehran weather instead of sample data')
+    parser.add_argument('--headless', action='store_true', help='Render without a window; saves weather.png')
+    parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
+    args = parser.parse_args()
+    if args.duration < 0:
+        parser.error('--duration must be nonnegative')
+    source = Path(__file__).resolve().parents[1]
+    root = Path(tempfile.mkdtemp(prefix='ubuntu-island-preview-'))
+    uuid = 'ubuntu-island@mhbahmani.github.io'
+    extension = root / 'share/gnome-shell/extensions' / uuid
+    extension.mkdir(parents=True)
+    for path in source.glob('*.js'):
+        shutil.copy2(path, extension / path.name)
+    for name in ('services', 'schemas'):
+        shutil.copytree(source / name, extension / name)
+    for name in ('metadata.json', 'stylesheet.css'):
+        shutil.copy2(source / name, extension / name)
+    (extension / 'extension.js').rename(extension / 'implementation.js')
+    shutil.copy2(source / 'tests/fixtures/local-preview.js', extension / 'extension.js')
+    shutil.copy2(source / 'tests/fixtures/local-preferences.mjs', extension / 'local-preferences.mjs')
+    subprocess.run(['glib-compile-schemas', '--strict', str(extension / 'schemas')], check=True)
+    mode = root / 'share/gnome-shell/modes/island-preview.json'
+    mode.parent.mkdir(parents=True)
+    mode.write_text(json.dumps({'parentMode': 'user', 'enabledExtensions': [uuid],
+                               'showWelcomeDialog': False, 'components': []}))
+    runtime = root / 'runtime'
+    runtime.mkdir(mode=0o700)
+    environment = dict(os.environ)
+    # Mutter must still find the host compositor after isolating XDG_RUNTIME_DIR.
+    display = environment.get('WAYLAND_DISPLAY')
+    if display and not os.path.isabs(display):
+        environment['WAYLAND_DISPLAY'] = str(Path(environment.get('XDG_RUNTIME_DIR', '/run/user/' + str(os.getuid()))) / display)
+    environment.update(XDG_RUNTIME_DIR=str(runtime), XDG_DATA_HOME=str(root / 'share'),
+                       XDG_CONFIG_HOME=str(root / 'config'), XDG_CACHE_HOME=str(root / 'cache'),
+                       XDG_DATA_DIRS=f'{root}/share:/usr/local/share:/usr/share', XDG_CURRENT_DESKTOP='GNOME',
+                       GSETTINGS_BACKEND='keyfile', ISLAND_PREVIEW_OUTPUT=str(root),
+                       ISLAND_PREVIEW_LIVE='1' if args.live else '0')
+    command = ['dbus-run-session', '--', 'gnome-shell',
+               '--headless' if args.headless else '--nested', '--wayland', '--no-x11',
+               '--wayland-display=island-preview', '--mode=island-preview']
+    if args.headless:
+        command.append('--virtual-monitor=1280x960')
+    print(f"{'Live' if args.live else 'Sample'} weather preview. Logs/screenshots: {root}", flush=True)
+    print('Close the preview window or press Ctrl+C to stop. Rerun after editing source.', flush=True)
+    with (root / 'runtime.log').open('w') as log:
+        process = subprocess.Popen(command, env=environment, stdout=log, stderr=subprocess.STDOUT,
+                                   start_new_session=True)
+        try:
+            code = process.wait(timeout=args.duration or (12 if args.headless else None))
+        except (KeyboardInterrupt, subprocess.TimeoutExpired):
+            import signal
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+            code = 0
+    output = (root / 'runtime.log').read_text()
+    ready = '[Island Preview] READY' in output
+    print('\n'.join(line for line in output.splitlines() if '[Island Preview]' in line))
+    if not ready:
+        print(f'Preview did not initialize. See {root / "runtime.log"}')
+        return 1
+    return code if code > 0 else 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main())

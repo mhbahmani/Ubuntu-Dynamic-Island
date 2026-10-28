@@ -1,3 +1,4 @@
+import {weatherPreferences} from './weather-prefs.js';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
@@ -52,6 +53,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         page.add(appearance);
         page.add(hover);
         page.add(modules);
+        page.add(weatherPreferences(settings, window));
         window.add(page);
     }
 }

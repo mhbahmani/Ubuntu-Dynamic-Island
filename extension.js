@@ -1,3 +1,4 @@
+import {WeatherService} from './services/weather.js';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -44,17 +45,20 @@ export default class UbuntuIsland extends Extension {
             preferences: () => this._openPreferencesLive(),
             togglePillTitle: () => this._togglePillTitle(),
             relayout: () => this._island?.relayout(),
+            weatherRefresh: () => this._weather?.refresh(),
+            pageChanged: () => this._syncWeather(),
         });
         this._island = new IslandSurface({
             settings: this._settings,
             pill: this._pill.actor,
             card: this._card.actor,
-            onStateChange: () => { this._syncProgressTimer(); this._renderPill(); },
+            onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); },
         });
         this._island.setHoverEnabled(
             this._settings.get_boolean('hover-open'),
             this._settings.get_int('hover-open-delay'),
             this._settings.get_int('hover-close-delay'));
+        this._card.actor.connect('notify::mapped', () => this._syncWeather());
         this._watchSettings();
         this._applyAppearance();
 
@@ -72,6 +76,16 @@ export default class UbuntuIsland extends Extension {
             this._audio = new AudioService(state => this._renderAudio(state));
         if (this._settings.get_boolean('enable-bluetooth'))
             this._bluetooth = new BluetoothService(state => this._renderBluetooth(state));
+
+        if (this._settings.get_boolean('enable-weather')) {
+            this._weather = new WeatherService(this._settings, state => {
+                if (!this._enabled) return;
+                this._states.weather = state;
+                this._card._weatherView?.render(state);
+            });
+            this._settingsIds.push(this._settings.connect('changed::weather-units', () =>
+                this._card._weatherView?.render(this._states.weather)));
+        }
 
         this._island.show();
         this._renderPill();
@@ -230,6 +244,10 @@ export default class UbuntuIsland extends Extension {
         this._syncProgressTimer();
     }
 
+    _syncWeather() {
+        this._weather?.setActive(Boolean(this._island?.expanded && this._card?._page === 'weather' && this._card.actor.mapped));
+    }
+
     _renderSystem(state) {
         if (!this._enabled) return;
         this._states.system = state;
@@ -316,6 +334,8 @@ export default class UbuntuIsland extends Extension {
         this._bluetooth?.stop();
         this._audio?.stop();
         this._art?.destroy();
+        this._weather?.stop();
+        this._weather = null;
         this._system = this._media = this._bluetooth = this._audio = this._art = null;
         this._island?.destroy();
         this._island = null;

@@ -4,13 +4,13 @@ A native GNOME Shell extension implementing a macOS-style Dynamic Island for
 Ubuntu 24.04-class GNOME Shell **46**, Wayland. The compact pill sits centered
 at the top of the primary monitor and morphs — one single surface, no popup
 window — into an expanded card with media controls, system meters, audio
-output selection, and Bluetooth device management.
+output selection, Bluetooth device management, and opt-in weather.
 
 The repository root contains the current extension. Earlier prototypes remain
 available in Git history. Run installation and development commands from here.
 
 For session continuity, read [the handoff](docs/HANDOFF.md) and `AGENT.md`.
-The user accepted v10 on 2026-10-28; upcoming features remain proposals.
+The v10 visual baseline was accepted on 2026-10-28. v11 adds basic Weather functionality; further UI polish and other roadmap features remain proposals.
 
 ![Media face rendered in GNOME Shell 46 with fixture data](screenshots/expanded.png)
 
@@ -52,6 +52,12 @@ and [compact playing pill](screenshots/playing-pill.png).
   pairing stays in GNOME Settings. Operations show pending states and inline
   failures. Audio and Bluetooth rows are retained across updates to preserve
   focus. A scroll container keeps controls reachable on short displays.
+- **Weather (v11, opt-in)**: current conditions, feels-like temperature, humidity,
+  wind, and the next four forecast entries. Open-Meteo and wttr.in automatically
+  fall back to each other; choose either as the preferred source. City selection,
+  manual coordinates, Celsius/Fahrenheit, refresh, and a bounded offline cache.
+  Fetches only while Weather is visible, at most every 20 minutes automatically.
+  See [weather setup, sources, and limitations](docs/WEATHER.md).
 - **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
   background opacity (0–100%, default 98%), matte tone (0–100%, default
   60%) that flattens the gradient colors without changing transparency,
@@ -60,6 +66,36 @@ and [compact playing pill](screenshots/playing-pill.png).
   remote-art toggle, clock relocation.
 - Full `disable()` cleanup of timers, signal handlers, D-Bus subscriptions,
   cancellables, and chrome actors; the panel clock is restored.
+
+## Preview locally without installing
+
+```sh
+python3 tests/preview.py        # interactive GNOME window with sample weather
+python3 tests/preview.py --live # actual weather requests; starts with Tehran
+```
+
+This launches a nested GNOME Shell running a temporary copy of the working tree,
+using the actual St/Clutter UI and stylesheet. Weather opens automatically; click,
+scroll, refresh, switch to System, or open preferences to try units and appearance.
+The preview focuses on Weather and System, with media/audio/Bluetooth disabled.
+Sample mode uses fixed temperatures; use `--live` to test real locations/providers.
+City search in preferences still uses the network in either mode.
+
+No installation or logout is needed. The preview has its own session bus, settings,
+and cache and does not modify the installed extension. Close its window or press
+Ctrl+C in the terminal to stop. After source changes, rerun the command to load a
+fresh copy (there is no automatic hot reload). Each run prints its temporary log
+folder and saves `weather.png`. Preview preferences are shared between its Shell
+and preferences window, but do not persist into the next preview run.
+
+For a screenshot without opening a window:
+
+```sh
+python3 tests/preview.py --headless
+```
+
+The nested window validates real rendering and interactions; it cannot establish
+physical monitor, hardware integration, or production-session behavior.
 
 ## Install
 

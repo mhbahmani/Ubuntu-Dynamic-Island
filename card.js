@@ -1,3 +1,4 @@
+import {WeatherView} from './weather-view.js';
 import {HistoryChart} from './charts.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
@@ -41,6 +42,8 @@ export class Card {
         if (settings.get_boolean('enable-metrics')) this._buildMetrics();
         if (settings.get_boolean('enable-audio')) this._buildAudio();
         if (settings.get_boolean('enable-bluetooth')) this._buildBluetooth();
+        if (settings.get_boolean('enable-weather'))
+            this._weatherView = new WeatherView(this._section('WEATHER'), settings, actions);
         this.setPillTitleVisible(settings.get_boolean('pill-show-title'));
         this._empty = column('ubuntu-island-empty');
         this._empty.add_child(label(this._sectionCount ? 'Nothing playing' : 'Your island, your way', 'ubuntu-island-track'));
@@ -83,7 +86,7 @@ export class Card {
         const content = column('ubuntu-island-section');
         box.add_child(content);
         this._body.add_child(box);
-        const id = {'NOW PLAYING': 'media', SYSTEM: 'system', SOUND: 'audio', BLUETOOTH: 'bluetooth'}[title];
+        const id = {'NOW PLAYING': 'media', SYSTEM: 'system', SOUND: 'audio', BLUETOOTH: 'bluetooth', WEATHER: 'weather'}[title];
         const page = {box, header, content, available: true};
         this._pages.set(id, page);
         const setVisible = visible => {
@@ -100,6 +103,7 @@ export class Card {
             ['system', 'org.gnome.SystemMonitor-symbolic', 'System'],
             ['audio', 'audio-volume-high-symbolic', 'Sound'],
             ['bluetooth', 'bluetooth-symbolic', 'Bluetooth'],
+            ['weather', 'weather-clear-symbolic', 'Weather'],
         ];
         for (const [id, glyph, title] of items) {
             if (!this._pages.has(id)) continue;
@@ -148,9 +152,10 @@ export class Card {
             }
         }
         if (this._pageCaption)
-            this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth'}[this._page] ?? '';
+            this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth', weather: 'Weather'}[this._page] ?? '';
         this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : ''}`);
         if (this._empty) this._empty.visible = !this._page;
+        this._actions.pageChanged?.(this._page);
     }
 
     _buildMedia() {

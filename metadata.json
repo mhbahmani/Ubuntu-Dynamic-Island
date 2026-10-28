@@ -1,8 +1,8 @@
 {
   "uuid": "ubuntu-island@mhbahmani.github.io",
   "name": "Ubuntu Island",
-  "description": "Dynamic Island for GNOME Shell 46: media with artwork, CPU/RAM/network meters, audio output and Bluetooth controls",
+  "description": "Dynamic Island for GNOME Shell 46: media with artwork, CPU/RAM/network meters, audio output, Bluetooth controls and weather",
   "shell-version": ["46"],
-  "version": 10,
+  "version": 11,
   "settings-schema": "org.gnome.shell.extensions.ubuntu-island"
 }

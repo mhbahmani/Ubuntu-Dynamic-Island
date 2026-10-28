@@ -99,5 +99,9 @@
       <summary>Fetch remote album art</summary>
       <description>Download HTTP(S) artwork through a bounded, host-checked, disk-cached request.</description>
     </key>
+    <key name="enable-weather" type="b"><default>false</default><summary>Enable Weather</summary></key>
+    <key name="weather-location" type="s"><default>''</default><summary>Confirmed weather location as JSON</summary></key>
+    <key name="weather-units" type="s"><default>'celsius'</default><choices><choice value="celsius"/><choice value="fahrenheit"/></choices><summary>Temperature units</summary></key>
+    <key name="weather-provider" type="s"><default>'open-meteo'</default><choices><choice value="open-meteo"/><choice value="wttr"/></choices><summary>Preferred weather source with automatic fallback</summary></key>
   </schema>
 </schemalist>

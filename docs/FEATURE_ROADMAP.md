@@ -1,6 +1,7 @@
 # Ubuntu Island feature roadmap
 
-Status: proposed, not implemented. Updated 2026-10-27.
+Status: roadmap; basic static Weather implemented in v11 on 2026-10-28. Other
+features and weather visual polish remain proposals. See [WEATHER.md](WEATHER.md).
 
 This plan covers Weather, Commute, Next Appointment (including Google Calendar),
 and Task Progress. The performance budgets below are design targets, not measured

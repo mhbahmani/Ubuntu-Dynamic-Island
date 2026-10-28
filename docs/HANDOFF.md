@@ -1,6 +1,24 @@
 # Session handoff
 
-Updated 2026-10-28. The user accepted the current v10 state. There is no outstanding
+Updated 2026-10-28. v11 adds the requested basic Weather tab on top of the
+accepted v10 visual baseline. Source and build are updated; the user's installed
+extension remains v10. Weather is opt-in in preferences and needs a confirmed
+city or manual coordinates. See [WEATHER.md](WEATHER.md) for providers and setup.
+The new implementation keeps UI styling basic pending user direction.
+
+Local development preview: `python3 tests/preview.py` opens the actual extension
+in a nested GNOME window, initially Weather with sample data. `--live` enables
+real weather; `--headless` saves a screenshot. Uses a private bus, temporary
+installation/settings/cache and a real preferences window; no installation or
+logout. Windowed and headless launch/render paths were verified. Restart preview
+after edits; it does not hot reload. See README for details.
+
+Validation: 52 Node tests, syntax/schema checks, real GTK preferences, GJS cache
+round trip, live GJS/Soup requests to both weather providers and city search, and
+isolated GNOME Shell smoke checks including weather rendering, live units and
+hidden timer cleanup. No physical hardware or long-term performance claim.
+
+The user accepted the previous v10 state. There is no outstanding
 UI repair request. Preserve this baseline; the feature roadmap is a proposal, not
 an instruction to implement everything automatically.
 
@@ -67,8 +85,8 @@ No code tests were rerun for this documentation-only handoff.
 The roadmap contains UX, integrations, performance budgets, acceptance criteria,
 open decisions, and sourced future ideas for:
 
-- Weather: static current/hourly forecast first, then optional condition colors
-  and bounded animations after profiling.
+- Weather: basic static functionality is implemented in v11; condition colors
+  and bounded animations remain future work after profiling.
 - Next Appointment: investigate GNOME Online Accounts/Evolution Data Server for
   Google-backed calendars before adding a separate OAuth integration.
 - Commute: two saved locations, directional ETA and optional departure reminders.

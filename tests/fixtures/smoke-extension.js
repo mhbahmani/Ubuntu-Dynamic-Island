@@ -1,5 +1,6 @@
 // Runs only in the temporary Shell created by tests/smoke.py.
 import UbuntuIsland from './implementation.js';
+import {localTime} from './services/weather-model.js';
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import Shell from 'gi://Shell';
@@ -16,6 +17,7 @@ const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAUL
 
 export default class Smoke extends UbuntuIsland {
     enable() {
+        this.getSettings().set_boolean('enable-weather', true);
         super.enable();
         this._smoke().catch(error => console.error(`[Island Smoke] FAIL ${error.message}: ${error.stack}`));
     }
@@ -100,7 +102,31 @@ export default class Smoke extends UbuntuIsland {
                 'More than one module surface is visible');
             await this._capture(name);
         }
+        let weatherRequests = 0;
+        this._weather.http.get = async () => {
+            weatherRequests++;
+            return {current: {temperature_2m: 18, apparent_temperature: 16,
+                relative_humidity_2m: 42, wind_speed_10m: 12, weather_code: 2}, hourly: {
+                    time: [1, 2, 3, 4].map(i => localTime('Asia/Tehran', Date.now() + i * 3600000)),
+                    temperature_2m: [17, 16, 15, 14], precipitation_probability: [0, 20, 40, 60]}};
+        };
+        this._settings.set_string('weather-location', JSON.stringify({name: 'Tehran, Iran',
+            latitude: 35.6892, longitude: 51.389, timezone: 'Asia/Tehran'}));
+        assert(weatherRequests === 0, 'Hidden Weather fetched data');
+        this._card.selectPage('weather');
+        await delay(100);
+        assert(weatherRequests === 1, 'Visible Weather did not fetch exactly once');
+        assert(this._card._weatherView.current.text.includes('18°C'), 'Weather data failed to render');
+        await this._capture('weather');
+        assert(this._card._weatherView.hours.every(h => h.visible), 'Forecast rows missing');
+        this._settings.set_int('expanded-width', 380);
+        await this._capture('weather-narrow');
+        this._settings.set_int('expanded-width', 440);
+        this._settings.set_string('weather-units', 'fahrenheit');
+        assert(this._card._weatherView.current.text.includes('64°F'), 'Weather units did not update live');
+        this._settings.set_string('weather-units', 'celsius');
         this._card.selectPage('system');
+        assert(!this._weather.controller.timer && !this._weather.controller.active, 'Hidden Weather retained a timer');
         this._island.suspendGrab();
         assert(this._island.expanded && !this._island._grab, 'Preview retained the modal grab');
         for (const theme of ['ocean', 'forest', 'ember', 'graphite']) {
