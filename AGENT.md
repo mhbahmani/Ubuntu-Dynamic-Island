@@ -2,6 +2,9 @@
 
 ## Scope and environment
 
+- Read `docs/HANDOFF.md` when resuming. The user accepted v10 on 2026-10-28;
+  preserve that baseline. Future features remain proposals until requested.
+
 - The repository root is the current extension (v10): entry points and build
   scripts at root, with `services/`, `schemas/`, `tests/`, and `screenshots/`.
   Obsolete prototypes were removed; consult Git history if needed.
@@ -32,7 +35,9 @@
 - Keep load average and used-memory values compact on the CPU/MEMORY heading
   line; omit “load” and “used”, keep the percentage, and preserve accessible labels.
 - Metric names and inline secondary values share one expanding markup label;
-  verify its allocated width at narrow card widths and enlarged text.
+  verify its allocated width at narrow card widths and enlarged text. At larger
+  fonts, move the percentage below only when necessary. Measure against available
+  card width, not an already oversized child; verify percentage bounds too.
 - Opening focuses the surface; Tab then enters the controls. Selected tabs use
   a neutral indicator, never an orange focus/selection ring.
 - Opacity supports 0–100%. Handle zero alpha without dividing by zero; matte

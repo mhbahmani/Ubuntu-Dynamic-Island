@@ -9,6 +9,9 @@ output selection, and Bluetooth device management.
 The repository root contains the current extension. Earlier prototypes remain
 available in Git history. Run installation and development commands from here.
 
+For session continuity, read [the handoff](docs/HANDOFF.md) and `AGENT.md`.
+The user accepted v10 on 2026-10-28; upcoming features remain proposals.
+
 ![Media face rendered in GNOME Shell 46 with fixture data](screenshots/expanded.png)
 
 More fixture renders: [System](screenshots/system.png), [Sound](screenshots/sound.png),
@@ -25,7 +28,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   surfaces and Ricelin’s vermilion accent. Media opens as a compact
   horizontal artwork-and-controls face. A quiet navigation strip switches to
   system, sound, and Bluetooth faces; close and preferences remain available.
-  Surfaces are 98–99% opaque, avoiding the previous monitor-dependent backdrop path.
+  Background opacity defaults to 98% and supports 0–100%, without the previous
+  monitor-dependent backdrop path.
 - Click toggles; **Escape and outside clicks close** via the same modal-grab
   pattern GNOME's own popup menus use (outside presses release input
   immediately so apps receive the next click); optional hover open/close.
@@ -109,7 +113,8 @@ these hardware acceptance checks.
 
 ## Limitations
 
-- The matte surface is deliberately high-opacity; wallpaper blur is not used.
+- Background opacity defaults to 98% but supports 0–100%; wallpaper blur is not
+  used. Matte tone changes gradient colors, not transparency.
 - While open, the island holds an input grab like a native menu: the one
   press that dismisses it is consumed rather than passed to the app.
 - The date-menu relocation uses GNOME 46 private panel boxes
@@ -222,6 +227,10 @@ only the gradient colors and is labelled “Matte tone” in preferences. Existi
 matte preferences remain saved. Navigation uses a dedicated straight marker
 instead of button shadows. Metric names and secondary values share one expanding
 text area so surplus width cannot get stranded in a spacer while labels truncate.
+At enlarged text sizes, percentages move below their headings when necessary to
+fit the card. Validation passed 43 Node tests and native GNOME checks, including
+narrow layouts, 125%/150% text, and rendered background alpha. The user accepted
+the current state on 2026-10-28; hardware coverage limits above still apply.
 
 ## Planned features
 
