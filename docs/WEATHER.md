@@ -5,14 +5,14 @@ is intentionally deferred.
 
 ## Local preview (no installation/logout)
 
-Run `python3 tests/preview.py` from the repository root for an interactive nested
-GNOME window with sample weather, or add `--live` for real weather. It opens the
+Run `make preview` from the repository root for an interactive nested
+GNOME window with sample weather, or use `make preview-live` for real weather. It opens the
 actual Weather tab automatically with an example Tehran location. Preferences
 apply inside the private preview only. Close and rerun after editing code.
 
 ## Setup
 
-1. Install v11 with `./install.sh`, then log out/in on Wayland to load new code.
+1. Install v11 with `make install`, then log out/in on Wayland to load new code.
 2. In Island preferences, enable Weather and disable/re-enable the extension.
 3. Search a city (English or Persian), press Apply, then select **Use** on the
    matching region/country. The location is not guessed from the machine's IP.
@@ -75,14 +75,14 @@ are different: “Fetched” describes retrieval, not guaranteed observation fre
 
 ## Verification
 
-`node --test` covers provider normalization, missing fields, unknown conditions,
+`make test` covers provider normalization, missing fields, unknown conditions,
 units, timezone boundaries, both fallback directions, stale data, backoff,
-quota/auth errors, cancellation and location changes. `tests/smoke.py` exercises
+quota/auth errors, cancellation and location changes. `make smoke` exercises
 native rendering, units, visibility and timer cleanup alongside existing checks.
 GTK preferences checks include coordinate validation. Run the real cache test with:
 
 ```sh
-XDG_CACHE_HOME=$(mktemp -d /tmp/island-weather-cache-XXXXXX) gjs -m tests/weather-native.mjs
+make weather-cache-test
 ```
 
 Live checks confirmed both forecast APIs and geocoding through GJS/Soup. This does

@@ -70,8 +70,8 @@ and [compact playing pill](screenshots/playing-pill.png).
 ## Preview locally without installing
 
 ```sh
-python3 tests/preview.py        # interactive GNOME window with sample weather
-python3 tests/preview.py --live # actual weather requests; starts with Tehran
+make preview       # interactive GNOME window with sample weather
+make preview-live  # actual weather requests; starts with Tehran
 ```
 
 This launches a nested GNOME Shell running a temporary copy of the working tree,
@@ -91,7 +91,7 @@ and preferences window, but do not persist into the next preview run.
 For a screenshot without opening a window:
 
 ```sh
-python3 tests/preview.py --headless
+make preview-headless
 ```
 
 The nested window validates real rendering and interactions; it cannot establish
@@ -100,31 +100,46 @@ physical monitor, hardware integration, or production-session behavior.
 ## Install
 
 ```bash
-./install.sh
+make install
 # Log out and back in (Wayland; do NOT use Alt+F2 'r'), then:
-gnome-extensions enable ubuntu-island@mhbahmani.github.io
+make enable
 ```
 
 `install.sh` compiles the GSettings schema and installs per-user under
-`~/.local/share/gnome-shell/extensions/`. `./build.sh` produces a versioned,
+`~/.local/share/gnome-shell/extensions/`. `make build` produces a versioned,
 installable zip.
 
 ## Verify
 
 ```bash
 gnome-shell --version        # 46.0
-gnome-extensions info ubuntu-island@mhbahmani.github.io
-journalctl --user -b | grep -i 'Ubuntu Island\|ubuntu-island'
+make status
+make logs
 ```
 
 ## Development checks
 
-```bash
-node --test                    # pure-function tests (Node is a dev tool only)
-for f in *.js services/*.js; do node --check "$f"; done
-glib-compile-schemas --strict --dry-run schemas
-python3 tests/smoke.py          # isolated GNOME 46 render + interaction smoke test
+```sh
+make help                # all commands; also the default for plain `make`
+make check               # Node tests, JS/Python syntax, strict schema validation
+make smoke               # isolated GNOME rendering + interaction checks
+make prefs-test          # actual GTK preferences (requires a desktop display)
+make weather-cache-test  # real GJS cache round trip in a temporary directory
+make verify              # all checks above plus building the extension ZIP
 ```
+
+Preview options can be passed with `PREVIEW_ARGS`, for example
+`make preview PREVIEW_ARGS="--duration 15"`. `make prefs`, `make enable`,
+`make disable`, `make status`, and `make logs` operate on the installed extension;
+preview commands operate on a temporary copy. None of the verification targets
+installs the extension. `make install` changes installed files but does not reload
+running Shell code; toggling enable/disable is not a replacement for logout/login
+when that code has changed.
+
+The Makefile wraps the existing scripts; they remain directly runnable. The tools
+required are GNU Make, Python 3, Node.js (development only), GJS, GNOME Shell 46,
+GLib schema tools, `dbus-run-session`, `timeout`, and `zip`. Native GTK checks need
+the Ubuntu GNOME libraries and a working display.
 
 `tests/smoke.py` starts a separate headless Shell with a private session bus,
 runtime directory, and in-memory settings. It uses fixture media/device data,
@@ -133,7 +148,7 @@ outside dismissal, Escape, rapid toggles, and disable cleanup. It leaves logs
 and screenshots in the printed `/tmp/ubuntu-island-smoke-*` directory. It does
 not replace the running desktop or switch physical audio/Bluetooth devices.
 
-v4 verification (2026-10-25): 26 Node regressions passed; all source syntax,
+v11 verification (2026-10-28): 52 Node regressions passed; all source syntax,
 strict schema compilation, ZIP integrity, and the real GNOME 46 headless smoke
 test passed. The smoke includes local artwork decoding and interrupted animated
 toggles. The screenshots above use fixture data and a procedural cover.

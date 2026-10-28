@@ -6,12 +6,19 @@ extension remains v10. Weather is opt-in in preferences and needs a confirmed
 city or manual coordinates. See [WEATHER.md](WEATHER.md) for providers and setup.
 The new implementation keeps UI styling basic pending user direction.
 
-Local development preview: `python3 tests/preview.py` opens the actual extension
-in a nested GNOME window, initially Weather with sample data. `--live` enables
-real weather; `--headless` saves a screenshot. Uses a private bus, temporary
+Local development preview: `make preview` opens the actual extension
+in a nested GNOME window, initially Weather with sample data. `make preview-live` enables
+real weather; `make preview-headless` saves a screenshot. Uses a private bus, temporary
 installation/settings/cache and a real preferences window; no installation or
 logout. Windowed and headless launch/render paths were verified. Restart preview
 after edits; it does not hot reload. See README for details.
+
+Use `make help` for command discovery, `make check` for fast checks, `make verify`
+for native checks and packaging, and `make install` for a backed-up per-user
+installation. Install still needs logout/login to load changed code on Wayland.
+Python bytecode/cache directories and build outputs are ignored. `make verify`
+and `make preview-headless` passed; `make install` and its backup behavior were
+verified against a temporary XDG_DATA_HOME, leaving the real installation untouched.
 
 Validation: 52 Node tests, syntax/schema checks, real GTK preferences, GJS cache
 round trip, live GJS/Soup requests to both weather providers and city search, and

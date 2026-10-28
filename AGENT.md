@@ -5,7 +5,7 @@
 - Read `docs/HANDOFF.md` when resuming. The user accepted v10 on 2026-10-28;
   preserve that baseline. Future features remain proposals until requested.
 
-- The repository root is the current extension (v10): entry points and build
+- The repository root is the current extension (v11): entry points and build
   scripts at root, with `services/`, `schemas/`, `tests/`, and `screenshots/`.
   Obsolete prototypes were removed; consult Git history if needed.
 - Target GNOME Shell 46 on Ubuntu Wayland. See `README.md` for development
@@ -85,12 +85,19 @@ cat ~/.local/share/gnome-shell/extensions/ubuntu-island@mhbahmani.github.io/meta
 From the repository root:
 
 ```sh
-node --test
-for f in *.js services/*.js; do node --check "$f"; done
-glib-compile-schemas --strict --dry-run schemas
-python3 tests/smoke.py
-./build.sh
+make help
+make check
+make prefs-test
+make weather-cache-test
+make smoke
+make build
+# Or all checks and packaging:
+make verify
 ```
+
+`make preview` opens an interactive nested GNOME window with sample Weather;
+`make preview-live` uses live data. Neither installs nor requires logout. Restart
+the preview after source edits. `make preview-headless` saves a screenshot.
 
 The smoke test uses a private headless GNOME session and fixture data. It
 checks rendering, idle media, artwork decoding, repeated pointer hover/clicks,
@@ -98,13 +105,13 @@ checks rendering, idle media, artwork decoding, repeated pointer hover/clicks,
 Artifacts stay in its printed `/tmp/ubuntu-island-smoke-*` directory. Keep
 only README-linked example screenshots in the repository.
 
-v10 passed 43 Node tests, syntax/schema checks, preferences module import, and
-headless GNOME tests. These do not establish physical mixed-monitor rendering,
+v11 passed 52 Node tests, syntax/schema checks, real GTK preferences checks,
+GJS weather-cache checks, packaging, and headless GNOME tests. These do not establish physical mixed-monitor rendering,
 HDMI hotplug/routing, live MPRIS control, Bluetooth, suspend/resume, or fullscreen
 behavior. Run the README hardware acceptance checks before claiming those pass.
 
-`./install.sh` backs up the previous per-user installation. Under Wayland,
-log out and back in to load changed code; never restart Shell with Alt+F2 `r`.
+`make install` (via `install.sh`) backs up the previous per-user installation.
+Under Wayland, log out and back in to load changed code; never restart Shell with Alt+F2 `r`.
 Use `journalctl --user -b` to inspect extension errors.
 
 ## Git hygiene
@@ -117,7 +124,8 @@ Use `journalctl --user -b` to inspect extension errors.
 
 ## Future work
 
-`docs/FEATURE_ROADMAP.md` is a proposal, not implemented functionality. It covers
+`docs/FEATURE_ROADMAP.md` tracks future work. Basic Weather is implemented in v11;
+its remaining polish and the other modules are proposals. The roadmap covers
 Weather, Commute, Calendar appointments, and explicit Task Progress integrations.
 Respect its optional-module lifecycle and performance budgets; verify provider/API
 compatibility before implementation. Do not add the roadmap features without a
