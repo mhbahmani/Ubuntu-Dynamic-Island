@@ -139,3 +139,7 @@ rates, controlled live with eye buttons in Weather/System. Both default off.
 Weather polling follows the visible notch when opted in; its animation remains
 off while collapsed. Native checks cover visibility, polling cancellation, and
 narrow indicator layout.
+
+Preferences now have Appearance, Notch, Modules, and Weather pages with search.
+Native checks cover navigation and bidirectional settings bindings, and the
+window lifecycle fixture opens the real preferences UI.

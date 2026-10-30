@@ -315,3 +315,9 @@ modules to be enabled. Network rates use B/K/M/G units per second (K/M/G are
 binary units) and reuse existing samples. Weather refreshes at the normal
 interval while its indicator is visible. Stale weather is dimmed and described
 as stale to assistive technology. No animation runs in the collapsed notch.
+
+### Preferences tabs
+
+Preferences are grouped into Appearance, Notch, Modules, and Weather tabs, with
+search across settings. The Notch tab controls the music name, weather icon and
+upload/download rates independently; changes apply immediately.

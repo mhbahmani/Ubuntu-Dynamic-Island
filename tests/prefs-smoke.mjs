@@ -23,6 +23,20 @@ function find(widget, title) {
     }
     return null;
 }
+for (const name of ['appearance', 'notch', 'modules', 'weather']) {
+    window.set_visible_page_name(name);
+    if (window.visible_page_name !== name) throw new Error(`Missing preferences tab: ${name}`);
+}
+for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weather icon', 'pill-show-weather'],
+    ['Show upload/download rates', 'pill-show-network']]) {
+    const row = find(window, title);
+    if (!row) throw new Error(`Missing notch control: ${title}`);
+    row.active = true;
+    if (!settings.get_boolean(key)) throw new Error(`${title} did not save`);
+    settings.set_boolean(key, false);
+    if (row.active) throw new Error(`${title} did not follow settings`);
+}
+window.set_visible_page_name('appearance');
 const theme = find(window, 'Color theme');
 const opacity = find(window, 'Background opacity');
 const matte = find(window, 'Matte tone');

@@ -259,6 +259,8 @@ export default class Smoke extends UbuntuIsland {
         for (let i = 0; i < 30 && !this._prefsWindow; i++) await delay(200);
         assert(this._prefsWindow && this._island.expanded && !this._island._grab,
             `Preferences preview: tracked=${Boolean(this._prefsWindow)} expanded=${this._island.expanded} grab=${Boolean(this._island._grab)} windows=${global.get_window_actors().map(a => a.meta_window.get_title()).join(',')}`);
+        await delay(600);
+        await this._capture('preferences-tabs');
         this._openPreferencesLive();
         assert(this._prefsWindow, 'Raising preferences lost its close watcher');
         await new Promise((resolve, reject) => process.wait_check_async(null, (child, result) => {

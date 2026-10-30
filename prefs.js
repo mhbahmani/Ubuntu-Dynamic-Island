@@ -49,12 +49,25 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         modules.add(toggle(settings, 'enable-remote-art', 'Fetch remote album art',
             'Downloads artwork over the network with a bounded, host-checked cache'));
 
-        const page = new Adw.PreferencesPage();
-        page.add(appearance);
-        page.add(hover);
-        page.add(modules);
-        page.add(weatherPreferences(settings, window));
-        window.add(page);
+        const notch = new Adw.PreferencesGroup({title: 'Collapsed notch',
+            description: 'Indicators require their modules to be enabled. Changes apply immediately.'});
+        notch.add(toggle(settings, 'pill-show-title', 'Show music name'));
+        notch.add(toggle(settings, 'pill-show-weather', 'Show weather icon',
+            'Refreshes weather while the collapsed notch is visible'));
+        notch.add(toggle(settings, 'pill-show-network', 'Show upload/download rates',
+            'Uses existing System metrics samples'));
+        const pages = [
+            ['appearance', 'Appearance', 'preferences-desktop-appearance-symbolic', [appearance]],
+            ['notch', 'Notch', 'view-reveal-symbolic', [notch, hover]],
+            ['modules', 'Modules', 'application-x-addon-symbolic', [modules]],
+            ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],
+        ];
+        window.search_enabled = true;
+        for (const [name, title, icon_name, groups] of pages) {
+            const page = new Adw.PreferencesPage({name, title, icon_name});
+            for (const group of groups) page.add(group);
+            window.add(page);
+        }
     }
 }
 
