@@ -5,7 +5,7 @@ import Clutter from 'gi://Clutter';
 import Atk from 'gi://Atk';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
-import {icon, label, row, column, button, pct, setEnabled} from './widgets.js';
+import {icon, label, row, column, button, pct, setEnabled, notchToggle} from './widgets.js';
 import {formatTime, clampFraction} from './services/format.js';
 import {formatCapacity} from './services/proc.js';
 
@@ -291,6 +291,7 @@ export class Card {
         this._tx = label('↑ —', 'ubuntu-island-network-up');
         rates.add_child(this._rx);
         rates.add_child(this._tx);
+        rates.add_child(notchToggle(this._settings, 'pill-show-network', 'network rates'));
         network.add_child(rates);
         this._networkChart = new HistoryChart(true);
         network.add_child(this._networkChart.actor);

@@ -6,7 +6,7 @@ import {parseLocation} from './services/weather-model.js';
 
 export function weatherPreferences(settings, window) {
     const group = new Adw.PreferencesGroup({title: 'Weather',
-        description: 'Opt in below, then select a location. Requests run only while the Weather tab is visible. Coordinates are sent to the selected weather services.'});
+        description: 'Opt in below, then select a location. Requests run while the Weather tab or its enabled notch indicator is visible. Coordinates are sent to the selected weather services.'});
     const enabled = new Adw.SwitchRow({title: 'Enable Weather', subtitle: 'Applies after disabling and re-enabling the extension'});
     settings.bind('enable-weather', enabled, 'active', Gio.SettingsBindFlags.DEFAULT);
     group.add(enabled);

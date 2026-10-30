@@ -56,7 +56,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   wind, and the next four forecast entries. Open-Meteo and wttr.in automatically
   fall back to each other; choose either as the preferred source. City selection,
   manual coordinates, Celsius/Fahrenheit, refresh, and a bounded offline cache.
-  Fetches only while Weather is visible, at most every 20 minutes automatically.
+  Fetches while the Weather tab or its enabled notch indicator is visible, at most every 20 minutes automatically.
   Bundled Meteocons animations sit behind the temperature and horizontal forecast,
   with optional Off/Subtle/Live motion and automatic power-saver/reduced-motion support.
   See [weather setup, sources, and limitations](docs/WEATHER.md).
@@ -306,3 +306,12 @@ the current state on 2026-10-28; hardware coverage limits above still apply.
 
 See [the feature roadmap](docs/FEATURE_ROADMAP.md) for Weather, Commute, Google Calendar
 appointments, Task Progress, performance budgets, and sourced future ideas.
+
+### Notch indicators
+
+Weather and System have eye buttons to show a static weather icon and compact
+upload/download rates in the collapsed notch. Both default off and require their
+modules to be enabled. Network rates use B/K/M/G units per second (K/M/G are
+binary units) and reuse existing samples. Weather refreshes at the normal
+interval while its indicator is visible. Stale weather is dimmed and described
+as stale to assistive technology. No animation runs in the collapsed notch.

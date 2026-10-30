@@ -98,7 +98,9 @@ are different: “Fetched” describes retrieval, not guaranteed observation fre
 
 - Optional service: no network/timers while disabled. First request on viewing.
 - Refresh every 20 minutes while viewed; explicit refresh button. Hidden tabs,
-  collapsed surfaces and disable cancel in-flight work and remove refresh timers.
+  hidden surfaces and disable cancel in-flight work and remove refresh timers.
+  The optional collapsed weather indicator also keeps the normal 20-minute refresh
+  active while visible; it never starts the animated scene.
 - One refresh at a time, sequential provider fallback. Network recovery checks
   freshness only when active. Offline retries do not issue HTTP requests.
 - Exponential retry delay with jitter, capped around 20 minutes. HTTP 401/403/429

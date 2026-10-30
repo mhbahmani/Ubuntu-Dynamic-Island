@@ -59,6 +59,7 @@ export default class UbuntuIsland extends Extension {
             this._settings.get_int('hover-open-delay'),
             this._settings.get_int('hover-close-delay'));
         this._card.actor.connect('notify::mapped', () => this._syncWeather());
+        this._island.actor.connect('notify::mapped', () => this._syncWeather());
         this._watchSettings();
         this._applyAppearance();
 
@@ -82,6 +83,7 @@ export default class UbuntuIsland extends Extension {
                 if (!this._enabled) return;
                 this._states.weather = state;
                 this._card._weatherView?.render(state);
+                this._renderPill();
             });
             this._settingsIds.push(this._settings.connect('changed::weather-units', () =>
                 this._card._weatherView?.render(this._states.weather)));
@@ -89,6 +91,7 @@ export default class UbuntuIsland extends Extension {
 
         this._island.show();
         this._renderPill();
+        this._syncWeather();
         this._system?.start();
         this._media?.start();
         this._bluetooth?.start();
@@ -177,6 +180,8 @@ export default class UbuntuIsland extends Extension {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
         });
+        for (const key of ['pill-show-weather', 'pill-show-network', 'weather-units'])
+            watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
         watch('surface-opacity', () => this._applyAppearance());
         watch('surface-matte', () => this._applyAppearance());
@@ -219,6 +224,10 @@ export default class UbuntuIsland extends Extension {
             expanded: this._island?.expanded ?? false,
             showMetrics: this._settings.get_boolean('enable-metrics'),
             showTitle: this._settings.get_boolean('pill-show-title'),
+            weather: this._states.weather,
+            showWeather: this._settings.get_boolean('pill-show-weather'),
+            showNetwork: this._settings.get_boolean('pill-show-network'),
+            units: this._settings.get_string('weather-units'),
         });
     }
 
@@ -246,7 +255,9 @@ export default class UbuntuIsland extends Extension {
 
     _syncWeather() {
         const active = Boolean(this._island?.expanded && this._card?._page === 'weather' && this._card.actor.mapped);
-        this._weather?.setActive(active);
+        const compact = Boolean(this._island?.actor.mapped && !this._island.expanded &&
+            this._settings.get_boolean('pill-show-weather'));
+        this._weather?.setActive(active || compact);
         this._card?._weatherView?.scene.setActive(active);
     }
 

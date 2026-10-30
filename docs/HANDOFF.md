@@ -133,3 +133,9 @@ GNOME API compatibility when implementing; sources were reviewed on 2026-10-27.
   changes separately by purpose. Never push unless requested.
 - Keep documentation current. Preserve user reference files during cleanup and
   do not restore removed prototype directories.
+
+Collapsed indicators: optional static weather glyph and compact two-line network
+rates, controlled live with eye buttons in Weather/System. Both default off.
+Weather polling follows the visible notch when opted in; its animation remains
+off while collapsed. Native checks cover visibility, polling cancellation, and
+narrow indicator layout.

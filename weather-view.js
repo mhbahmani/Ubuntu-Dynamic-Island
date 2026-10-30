@@ -1,7 +1,7 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {WeatherScene} from './weather-scene.js';
-import {label, row, column, button, setEnabled} from './widgets.js';
+import {label, row, column, button, setEnabled, notchToggle} from './widgets.js';
 import {temperature, parseLocation, localTime} from './services/weather-model.js';
 
 export class WeatherView {
@@ -25,6 +25,7 @@ export class WeatherView {
         this.title = label('Choose a location', 'ubuntu-island-weather-location');
         this.title.x_expand = true;
         heading.add_child(this.title);
+        heading.add_child(notchToggle(settings, 'pill-show-weather', 'weather'));
         this.refresh = button('view-refresh-symbolic', 'Refresh weather', () => actions.weatherRefresh?.(), 14, 'ubuntu-island-weather-action');
         heading.add_child(this.refresh);
         heading.add_child(button('preferences-system-symbolic', 'Configure weather location', () => actions.preferences(), 14, 'ubuntu-island-weather-action'));

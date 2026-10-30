@@ -31,3 +31,19 @@ export function button(name, tooltip, action, size = 18, css = 'ubuntu-island-co
     b.connect('clicked', action);
     return b;
 }
+
+// Shared live visibility control for compact-notch indicators.
+export function notchToggle(settings, key, name) {
+    const control = button('view-reveal-symbolic', '',
+        () => settings.set_boolean(key, !settings.get_boolean(key)), 14, 'ubuntu-island-title-toggle');
+    const sync = () => {
+        const visible = settings.get_boolean(key);
+        control.child.icon_name = visible ? 'view-reveal-symbolic' : 'view-conceal-symbolic';
+        control.set_style_class_name(`ubuntu-island-title-toggle${visible ? '' : ' ubuntu-island-title-hidden'}`);
+        control.accessible_name = `${visible ? 'Hide' : 'Show'} ${name} in the notch`;
+    };
+    const id = settings.connect(`changed::${key}`, sync);
+    control.connect('destroy', () => settings.disconnect(id));
+    sync();
+    return control;
+}
