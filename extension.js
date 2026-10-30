@@ -30,6 +30,7 @@ export default class UbuntuIsland extends Extension {
         this._progressTimer = 0;
         this._settingsIds = [];
         this._layoutSignature = '';
+        this._pillMinimum = -1;
 
         if (this._settings.get_boolean('move-clock')) this._moveCalendar();
 
@@ -180,7 +181,7 @@ export default class UbuntuIsland extends Extension {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
         });
-        for (const key of ['pill-show-weather', 'pill-show-network', 'weather-units'])
+        for (const key of ['pill-show-weather', 'pill-show-network', 'weather-units', 'pill-order'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
         watch('surface-opacity', () => this._applyAppearance());
@@ -228,7 +229,13 @@ export default class UbuntuIsland extends Extension {
             showWeather: this._settings.get_boolean('pill-show-weather'),
             showNetwork: this._settings.get_boolean('pill-show-network'),
             units: this._settings.get_string('weather-units'),
+            order: this._settings.get_strv('pill-order'),
         });
+        const minimum = this._pill.actor._islandMinimumWidth();
+        if (minimum !== this._pillMinimum) {
+            this._pillMinimum = minimum;
+            this._island?.applyDimensions();
+        }
     }
 
     _renderMedia(state) {

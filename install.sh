@@ -13,7 +13,7 @@ if [ -e "$DEST" ]; then
 fi
 mkdir "$DEST"
 cp -R "$SRC/extension.js" "$SRC/island.js" "$SRC/card.js" "$SRC/charts.js" "$SRC/pill.js" "$SRC/widgets.js" \
-      "$SRC/weather-scene.js" "$SRC/weather-view.js" "$SRC/weather-prefs.js" "$SRC/prefs.js" "$SRC/metadata.json" "$SRC/stylesheet.css" "$SRC/services" "$SRC/assets" "$DEST/"
+      "$SRC/weather-scene.js" "$SRC/weather-view.js" "$SRC/weather-prefs.js" "$SRC/notch-prefs.js" "$SRC/prefs.js" "$SRC/metadata.json" "$SRC/stylesheet.css" "$SRC/services" "$SRC/assets" "$DEST/"
 mkdir "$DEST/schemas"
 cp "$SRC"/schemas/*.xml "$DEST/schemas/"
 glib-compile-schemas --strict "$DEST/schemas"

@@ -23,6 +23,7 @@
       <summary>Show the track name in the notch</summary>
       <description>When disabled, the collapsed pill keeps only the play state icon.</description>
     </key>
+    <key name="pill-order" type="as"><default>['media', 'weather', 'network', 'cpu', 'bluetooth']</default><summary>Collapsed indicator order</summary></key>
     <key name="pill-show-weather" type="b"><default>false</default><summary>Show weather in the collapsed notch</summary></key>
     <key name="pill-show-network" type="b"><default>false</default><summary>Show network rates in the collapsed notch</summary></key>
     <key name="pill-width" type="i">

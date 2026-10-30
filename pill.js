@@ -1,7 +1,8 @@
+import {notchOrder} from './services/notch-model.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {weatherSceneKind, temperature} from './services/weather-model.js';
-import {icon, label, row, column} from './widgets.js';
+import {icon, label, row} from './widgets.js';
 
 // Compact notch content shown while collapsed. The St.Button gives keyboard
 // focus semantics and an accessibility name for the toggle action.
@@ -29,27 +30,50 @@ export class Pill {
         this._bluetooth = icon('bluetooth-symbolic', 12);
         this._bluetooth.visible = false;
         this._cpuDot = new St.Widget({style_class: 'ubuntu-island-cpu-dot', y_align: Clutter.ActorAlign.CENTER});
-        content.add_child(this._mediaIcon);
-        content.add_child(this._title);
-        content.add_child(new St.Widget({x_expand: true}));
+        this._media = row('ubuntu-island-pill-media');
+        this._media.add_child(this._mediaIcon);
+        this._media.add_child(this._title);
+        content.add_child(this._media);
         this._weather = icon('weather-few-clouds-symbolic', 14);
         this._weather.visible = false;
+        this._weather.add_style_class_name('ubuntu-island-pill-weather');
+        this._mediaIcon.add_style_class_name('ubuntu-island-pill-music');
         content.add_child(this._weather);
-        this._network = column('ubuntu-island-pill-network');
+        this._network = row('ubuntu-island-pill-network');
         this._network.y_align = Clutter.ActorAlign.CENTER;
         this._down = label('↓ —', 'ubuntu-island-pill-rate', false);
         this._up = label('↑ —', 'ubuntu-island-pill-rate', false);
-        this._network.add_child(this._down);
-        this._network.add_child(this._up);
+        for (const [arrow, rate, color] of [['↓', this._down, 'download'], ['↑', this._up, 'upload']]) {
+            const item = row('ubuntu-island-pill-transfer');
+            item.add_child(label(arrow, `ubuntu-island-pill-arrow ubuntu-island-pill-${color}`));
+            item.add_child(rate);
+            this._network.add_child(item);
+        }
         this._network.visible = false;
         content.add_child(this._network);
         content.add_child(this._cpuDot);
         content.add_child(this._bluetooth);
+        this._items = {media: this._media, weather: this._weather, network: this._network,
+            cpu: this._cpuDot, bluetooth: this._bluetooth};
+        for (const group of Object.values(this._items)) {
+            group.x_expand = true;
+            group.x_align = Clutter.ActorAlign.CENTER;
+        }
+        // The configured width is a minimum. Reserve readable space for all
+        // enabled groups, independent of fluctuating rates and track titles.
+        this.actor._islandMinimumWidth = () => {
+            if (!this.actor.mapped) return 0;
+            const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            const groups = Object.values(this._items).filter(g => g.visible);
+            return groups.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0)
+                + (26 + Math.max(0, groups.length - 1) * 12) * scale;
+        };
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({media, system, bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius'}) {
+    render({media, system, bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = []}) {
         const available = Boolean(media?.available);
+        this._media.visible = available;
         this._mediaIcon.visible = available;
         this._title.visible = available && showTitle;
         this._title.text = available ? String(media.title ?? '') : '';
@@ -73,9 +97,14 @@ export class Pill {
         this._weather.opacity = weather?.stale ? 140 : 255;
         this._network.visible = Boolean(showNetwork && showMetrics && system);
         const compactRate = rate => String(rate ?? '—').replace(/ Ki?B\/s$/, 'K').replace(/ Mi?B\/s$/, 'M').replace(/ Gi?B\/s$/, 'G').replace(/ B\/s$/, 'B');
-        this.actor.get_child().set_style(this._network.visible ? 'spacing: 3px;' : null);
-        this._down.text = `↓ ${compactRate(system?.rx)}`;
-        this._up.text = `↑ ${compactRate(system?.tx)}`;
+        const arranged = notchOrder(order);
+        const key = arranged.join(',');
+        if (key !== this._orderKey) {
+            this._orderKey = key;
+            arranged.forEach((id, index) => this.actor.get_child().set_child_at_index(this._items[id], index));
+        }
+        this._down.text = compactRate(system?.rx);
+        this._up.text = compactRate(system?.tx);
         const description = [expanded ? 'Close Ubuntu Island' : 'Open Ubuntu Island'];
         if (this._weather.visible) description.push(`${weather.stale ? 'Stale weather: ' : ''}${current.condition}, ${temperature(current.temperature, units)}`);
         if (this._network.visible) description.push(`Download ${system.rx}, upload ${system.tx}`);

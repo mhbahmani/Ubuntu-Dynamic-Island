@@ -199,7 +199,12 @@ export default class Smoke extends UbuntuIsland {
         assert(this._weather.controller.active && !scene.timer, 'Collapsed weather lifecycle incorrect');
         assert(this._pill.actor.accessible_name.includes(this._states.system.rx), 'Notch rates did not follow samples');
         this._settings.set_int('pill-width', 150);
+        this._settings.set_strv('pill-order', ['weather', 'network', 'media', 'cpu', 'bluetooth']);
         await this._capture('notch-indicators');
+        assert(this._pill.actor.get_child().get_first_child() === this._pill._weather, 'Notch order did not update live');
+        this._settings.set_boolean('pill-show-title', false);
+        await this._capture('notch-icons');
+        this._settings.set_boolean('pill-show-title', true);
         const [pillX] = this._pill.actor.get_transformed_position();
         const [netX] = this._pill._network.get_transformed_position();
         assert(netX + this._pill._network.width <= pillX + this._pill.actor.width, 'Network indicator overflows notch');

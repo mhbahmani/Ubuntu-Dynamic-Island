@@ -2,6 +2,7 @@
 // Constructs real GTK controls without presenting a window or touching user settings.
 import Gio from 'gi://Gio';
 import Adw from 'gi://Adw';
+import Gtk from 'gi://Gtk';
 
 Gio.Resource.load('/usr/share/gnome-shell/org.gnome.Shell.Extensions.src.gresource')._register();
 const {default: Preferences} = await import('../prefs.js');
@@ -36,6 +37,34 @@ for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weath
     settings.set_boolean(key, false);
     if (row.active) throw new Error(`${title} did not follow settings`);
 }
+function tooltip(widget, text) {
+    if (widget.tooltip_text === text) return widget;
+    for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+        const result = tooltip(child, text);
+        if (result) return result;
+    }
+    return null;
+}
+const music = tooltip(window, 'Music');
+const network = tooltip(window, 'Network');
+if (!music || !network) throw new Error('Order preview missing');
+const controllers = music.observe_controllers();
+let drop;
+for (let i = 0; i < controllers.get_n_items(); i++) {
+    const controller = controllers.get_item(i);
+    if (controller instanceof Gtk.DropTarget) drop = controller;
+}
+const sourceControllers = network.observe_controllers();
+let drag;
+for (let i = 0; i < sourceControllers.get_n_items(); i++) {
+    const controller = sourceControllers.get_item(i);
+    if (controller instanceof Gtk.DragSource) drag = controller;
+}
+if (!drag?.emit('prepare', 0, 0)) throw new Error('Drag source has no payload');
+if (!drop?.emit('drop', 'network', 0, 0)) throw new Error('Order preview rejected drop');
+if (settings.get_strv('pill-order')[0] !== 'network') throw new Error('Drop did not save order');
+tooltip(window, 'Move selected item right').emit('clicked');
+if (settings.get_strv('pill-order')[1] !== 'network') throw new Error('Keyboard move did not save order');
 window.set_visible_page_name('appearance');
 const theme = find(window, 'Color theme');
 const opacity = find(window, 'Background opacity');

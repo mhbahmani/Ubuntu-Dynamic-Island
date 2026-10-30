@@ -119,7 +119,9 @@ export class IslandSurface {
         this._scale = this._themeContext?.scale_factor ?? 1;
         this._collapsedHeight = COLLAPSED_HEIGHT * this._scale;
         this._border = 2 * this._scale;
-        this._collapsedWidth = this._scale * clampRange(this._settings.get_int('pill-width'), 150, 210);
+        this._collapsedWidth = Math.max(
+            this._scale * clampRange(this._settings.get_int('pill-width'), 150, 210),
+            Math.ceil(this._pill._islandMinimumWidth?.() ?? 0) + this._border);
         this._expandedWidth = this._scale * clampRange(this._settings.get_int('expanded-width'), 380, 480);
         if (this.expanded) this.relayout();
         else this._snapCollapsed();
