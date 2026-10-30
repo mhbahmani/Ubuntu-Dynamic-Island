@@ -41,7 +41,9 @@ Each atlas has 48 frames and consumes about 6.75 MiB decoded, excluding driver
 and temporary decoder overhead. Only the selected condition is loaded.
 Timers stop on hiding, scrolling fully out of view, lock, reduced motion, power
 saver, or destruction. Returning to a visible scene starts motion again. Subtle
-stops after four seconds. The weather page is 410px tall; enlarged text can scroll.
+stops after four seconds. The weather page shares the standard 260px island height. Current temperature
+and condition sit side by side, followed by details and the four-hour forecast.
+Freshness and source share the bottom line. Enlarged text can scroll.
 See [asset provenance and regeneration](../assets/weather/README.md) for the MIT
 license, upstream version and optional development dependencies.
 

@@ -98,7 +98,7 @@ logout/login to load changed extension code; do not restart Shell with Alt+F2 `r
 Last native artifacts: `/tmp/ubuntu-island-smoke-jh6431ea`. Temporary logs and
 screenshots may disappear; regenerate with `python3 tests/smoke.py` when needed.
 Build ZIPs and compiled schemas are generated, ignored files, not source to commit.
-Weather redesign checks: 53 Node tests, schema/syntax checks, GTK preferences,
+Weather redesign checks: 54 Node tests, schema/syntax checks, GTK preferences,
 GJS cache integration and isolated native GNOME smoke checks.
 
 ## Planned work, not implemented
@@ -134,7 +134,7 @@ GNOME API compatibility when implementing; sources were reviewed on 2026-10-27.
 - Keep documentation current. Preserve user reference files during cleanup and
   do not restore removed prototype directories.
 
-Collapsed indicators: optional static weather glyph and compact two-line network
+Collapsed indicators: optional static weather glyph and compact single-line network
 rates, controlled live with eye buttons in Weather/System. Both default off.
 Weather polling follows the visible notch when opted in; its animation remains
 off while collapsed. Native checks cover visibility, polling cancellation, and
@@ -143,3 +143,15 @@ narrow indicator layout.
 Preferences now have Appearance, Notch, Modules, and Weather pages with search.
 Native checks cover navigation and bidirectional settings bindings, and the
 window lifecycle fixture opens the real preferences UI.
+
+The notch now distributes enabled groups across its width and grows beyond the
+configured minimum when needed. Network arrows use red for download and green
+for upload; weather and music have restrained color accents. The Notch settings
+page includes a draggable order preview and keyboard move buttons, backed by
+`pill-order`. Packaging includes `notch-prefs.js` and the order model. GTK tests
+exercise drag/drop callbacks and keyboard reordering; native tests cover live
+order changes and readable narrow layouts.
+
+Weather now uses the same 260px height as the other pages. Its current conditions
+share a row; artwork is smaller, and forecast/freshness/credit fit at normal text
+size. Native checks assert stable tab height and credit visibility.

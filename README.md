@@ -320,4 +320,13 @@ as stale to assistive technology. No animation runs in the collapsed notch.
 
 Preferences are grouped into Appearance, Notch, Modules, and Weather tabs, with
 search across settings. The Notch tab controls the music name, weather icon and
-upload/download rates independently; changes apply immediately.
+upload/download rates independently; changes apply immediately. Drag items in the
+Notch order preview to arrange Music, Weather, Network, CPU, and Bluetooth.
+Select an item and use the move buttons for keyboard reordering. Hidden items
+keep their place.
+
+The collapsed width is a minimum: the notch grows to fit enabled groups, with
+single-line rates, red download arrows and green upload arrows. Rate columns
+reserve space so changing traffic does not make the notch jump in width.
+Weather shares the same 260px expanded height as the other tabs, retaining its
+background artwork, four-hour forecast and current conditions.
