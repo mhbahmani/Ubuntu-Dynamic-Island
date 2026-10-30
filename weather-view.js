@@ -30,21 +30,20 @@ export class WeatherView {
         heading.add_child(this.refresh);
         heading.add_child(button('preferences-system-symbolic', 'Configure weather location', () => actions.preferences(), 14, 'ubuntu-island-weather-action'));
         content.add_child(heading);
+        const hero = row('ubuntu-island-weather-hero');
         this.current = label('—', 'ubuntu-island-weather-temperature');
-        content.add_child(this.current);
+        hero.add_child(this.current);
+        const summary = column('ubuntu-island-weather-summary');
+        summary.y_align = Clutter.ActorAlign.CENTER;
         this.condition = label('', 'ubuntu-island-weather-condition');
-        content.add_child(this.condition);
+        summary.add_child(this.condition);
         this.feels = label('', 'ubuntu-island-weather-secondary');
-        content.add_child(this.feels);
-        const divider = new St.Widget({style_class: 'ubuntu-island-weather-divider'});
-        content.add_child(divider);
-        const forecastHeading = row();
-        const next = label('NEXT HOURS', 'ubuntu-island-weather-eyebrow');
-        next.x_expand = true;
-        forecastHeading.add_child(next);
-        this.timezone = label('', 'ubuntu-island-weather-secondary');
-        forecastHeading.add_child(this.timezone);
-        content.add_child(forecastHeading);
+        summary.add_child(this.feels);
+        hero.add_child(summary);
+        content.add_child(hero);
+        this.details = label('', 'ubuntu-island-weather-secondary');
+        content.add_child(this.details);
+        content.add_child(new St.Widget({style_class: 'ubuntu-island-weather-divider'}));
         const forecast = row('ubuntu-island-weather-forecast');
         this.hours = Array.from({length: 4}, () => {
             const cell = column('ubuntu-island-weather-hour');
@@ -60,12 +59,13 @@ export class WeatherView {
             return cell;
         });
         content.add_child(forecast);
-        this.details = label('', 'ubuntu-island-weather-secondary');
-        content.add_child(this.details);
-        this.status = label('', 'ubuntu-island-weather-secondary');
-        content.add_child(this.status);
+        const footer = row('ubuntu-island-weather-footer');
+        this.status = label('', 'ubuntu-island-weather-credit');
+        this.status.x_expand = true;
+        footer.add_child(this.status);
         this.source = label('', 'ubuntu-island-weather-credit');
-        content.add_child(this.source);
+        footer.add_child(this.source);
+        content.add_child(footer);
         this.render({status: 'unconfigured'});
     }
     setViewport(viewport) {
@@ -84,7 +84,7 @@ export class WeatherView {
         this.condition.text = data?.current.condition ?? 'Your weather, at a glance';
         this.feels.text = data ? `Feels like ${temperature(data.current.feelsLike, unit)}` : 'Set a city or coordinates in preferences';
         this.details.text = data ? `Wind  ${data.current.wind ?? '—'} km/h     ·     Humidity  ${data.current.humidity ?? '—'}%` : '';
-        this.timezone.text = location?.timezone.split('/').at(-1).replaceAll('_', ' ') ?? '';
+        this.title.accessible_name = `${this.title.text}, forecast times in ${location?.timezone ?? 'local time'}`;
         const hours = data?.hourly.filter(h => h.time >= localTime(location.timezone)) ?? [];
         this.hours.forEach((actor, i) => {
             const hour = hours[i];
@@ -100,7 +100,7 @@ export class WeatherView {
             : state.error ? `${state.stale ? 'Stale · ' : ''}${state.error}`
             : data ? `${state.stale ? 'Stale · ' : ''}Fetched ${age} min ago${hours.length ? '' : ' · Forecast unavailable'}` : '';
         this.status.accessible_name = this.status.text;
-        this.source.text = data ? `${data.provider === 'wttr' ? 'wttr.in / WorldWeatherOnline' : 'Open-Meteo · CC BY 4.0'} · Art: Meteocons` : 'Artwork: Meteocons / Bas Milius';
+        this.source.text = data ? `${data.provider === 'wttr' ? 'wttr.in / WWO' : 'Open-Meteo · CC BY 4.0'} · Meteocons` : 'Artwork: Meteocons / Bas Milius';
         setEnabled(this.refresh, Boolean(location) && state.status !== 'loading');
     }
 }

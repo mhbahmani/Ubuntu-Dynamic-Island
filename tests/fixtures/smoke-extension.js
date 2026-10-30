@@ -133,8 +133,10 @@ export default class Smoke extends UbuntuIsland {
         this._settings.set_string('weather-location', JSON.stringify({name: 'Tehran, Iran',
             latitude: 35.6892, longitude: 51.389, timezone: 'Asia/Tehran'}));
         assert(weatherRequests === 0, 'Hidden Weather fetched data');
+        const otherPageHeight = this._island.actor.height;
         this._card.selectPage('weather');
         await delay(100);
+        assert(this._island.actor.height === otherPageHeight, 'Weather changed the island height');
         assert(weatherRequests === 1, 'Visible Weather did not fetch exactly once');
         const scene = this._card._weatherView.scene;
         const paint = scene.paint.bind(scene);
@@ -181,6 +183,10 @@ export default class Smoke extends UbuntuIsland {
         this._settings.set_boolean('disable-animations', true);
         assert(this._card._weatherView.current.text.includes('18°C'), 'Weather data failed to render');
         await this._capture('weather');
+        const credit = this._card._weatherView.source;
+        const creditBottom = credit.get_transformed_position()[1] + credit.get_transformed_size()[1];
+        const scroll = this._card._scroll;
+        assert(creditBottom <= scroll.get_transformed_position()[1] + scroll.get_transformed_size()[1], 'Weather credit is below the fold');
         assert(this._card._weatherView.hours.every(h => h.visible), 'Forecast rows missing');
         this._settings.set_int('expanded-width', 380);
         await this._capture('weather-narrow');

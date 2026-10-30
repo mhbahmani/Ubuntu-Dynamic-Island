@@ -31,7 +31,7 @@ export class Card {
         this._scroll = new St.ScrollView({style_class: 'ubuntu-island-scroll', overlay_scrollbars: true, x_expand: true, y_expand: true});
         this._scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
         this.actor.add_child(this._scroll);
-        this.actor._islandPreferredHeight = () => (this._page === 'weather' ? 410 : 260) * St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        this.actor._islandPreferredHeight = () => 260 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
         this._body = column('ubuntu-island-card');
         this._scroll.set_child(this._body);
         this.actor.reactive = true;

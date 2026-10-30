@@ -19,10 +19,10 @@ export class WeatherScene {
         this.frames = 0;
         this.actor = new St.Widget({style_class: 'ubuntu-island-weather-scene weather-clouds',
             layout_manager: new Clutter.BinLayout(), x_expand: true, y_expand: true});
-        this.sprite = new Clutter.Actor({width: 208, height: 208, clip_to_allocation: true,
+        this.sprite = new Clutter.Actor({width: 128, height: 128, clip_to_allocation: true,
             x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.START});
         this.theme = St.ThemeContext.get_for_stage(global.stage);
-        const sizeArtwork = () => { const size = 208 * this.theme.scale_factor; this.sprite.set_size(size, size); };
+        const sizeArtwork = () => { const size = 128 * this.theme.scale_factor; this.sprite.set_size(size, size); this.sprite.translation_y = 10 * this.theme.scale_factor; };
         this.themeId = this.theme.connect('notify::scale-factor', sizeArtwork);
         sizeArtwork();
         this.image = new Clutter.Actor({reactive: false});
