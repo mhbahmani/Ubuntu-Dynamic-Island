@@ -4,9 +4,11 @@ PYTHON ?= python3
 NODE ?= node
 GJS ?= gjs
 PREVIEW_ARGS ?=
+WEATHER_PREVIEWS := preview-sun-day preview-clouds-day preview-rain-day preview-snow-day preview-night preview-clouds-night preview-rain-night preview-snow-night
 UUID := ubuntu-island@mhbahmani.github.io
 
 .PHONY: help preview preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify
+.PHONY: $(WEATHER_PREVIEWS)
 
 help:
 	@printf '%s\n' \
@@ -14,6 +16,12 @@ help:
 	  '  make preview             Interactive sample Weather preview; no installation' \
 	  '  make preview-live        Interactive preview with real weather requests' \
 	  '  make preview-headless    Save a preview screenshot without a window' \
+	  '  make preview-sun-day         Animated sunny weather sample' \
+	  '  make preview-clouds-day      Animated cloudy weather sample' \
+	  '  make preview-rain-day        Animated rainy weather sample' \
+	  '  make preview-snow-day        Animated snowy weather sample' \
+	  '  make preview-night       Animated clear-night weather sample' \
+	  '  make preview-clouds-night / preview-rain-night / preview-snow-night' \
 	  '  make install             Install per-user, backing up the previous version' \
 	  '  make build               Build the versioned extension ZIP' \
 	  '  make enable / disable    Enable or disable the installed extension' \
@@ -37,6 +45,10 @@ preview-live:
 
 preview-headless:
 	$(PYTHON) tests/preview.py --headless $(PREVIEW_ARGS)
+
+# Scene demos bypass power saver only inside the isolated preview.
+$(WEATHER_PREVIEWS): preview-%:
+	$(PYTHON) tests/preview.py --scene $(patsubst %-day,%,$*) --ignore-power-saver $(PREVIEW_ARGS)
 
 install:
 	./install.sh
@@ -63,7 +75,7 @@ test:
 	$(NODE) --test
 
 syntax:
-	@set -e; for file in *.js services/*.js tests/*.mjs tests/fixtures/*.js tests/fixtures/*.mjs; do $(NODE) --check "$$file"; done
+	@set -e; for file in *.js services/*.js scripts/*.mjs tests/*.mjs tests/fixtures/*.js tests/fixtures/*.mjs; do $(NODE) --check "$$file"; done
 	$(PYTHON) -c "import ast, pathlib; [ast.parse(p.read_text(), filename=str(p)) for p in pathlib.Path('tests').glob('*.py')]"
 
 check-schema:

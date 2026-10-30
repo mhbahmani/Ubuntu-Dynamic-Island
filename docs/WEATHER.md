@@ -1,7 +1,7 @@
 # Weather (v11)
 
-Basic static functionality, retaining the v10 visual style. Further UI/UX work
-is intentionally deferred.
+Weather data and a bounded native animated scene, retaining the existing matte
+style. Motion is optional and independent of weather fetching.
 
 ## Local preview (no installation/logout)
 
@@ -9,6 +9,47 @@ Run `make preview` from the repository root for an interactive nested
 GNOME window with sample weather, or use `make preview-live` for real weather. It opens the
 actual Weather tab automatically with an example Tehran location. Preferences
 apply inside the private preview only. Close and rerun after editing code.
+
+## Motion preview
+
+Use `make preview-sun-day`, `make preview-clouds-day`, `make preview-rain-day`,
+`make preview-snow-day`, `make preview-night`, `make preview-clouds-night`,
+`make preview-rain-night`, or `make preview-snow-night` for animated samples. These shortcuts
+bypass power saver inside the preview only and accept `PREVIEW_ARGS` as usual.
+
+```sh
+make preview PREVIEW_ARGS="--scene rain --ignore-power-saver"
+make preview PREVIEW_ARGS="--scene snow --ignore-power-saver"
+make preview PREVIEW_ARGS="--scene sun --motion subtle"
+```
+
+Scenes: sun, clouds, rain, snow, night, clouds-night, rain-night, snow-night. The preview defaults to Live; the extension
+uses Subtle by default. Preferences → Weather motion selects Off (static), Subtle
+(four seconds on entry), or Live (while visible). Night uses Open-Meteo's `is_day`
+for all conditions when available; missing day/night information does not claim astronomical accuracy.
+The sun's small movement is decorative, not a calculated solar trajectory.
+
+The weather surface layers bundled Meteocons artwork behind live text, with a
+large current temperature and four horizontal forecast columns. The layout takes
+inspiration from [Apple Weather](https://support.apple.com/guide/weather-mac/welcome/mac)
+and [CARROT Weather](https://www.meetcarrot.com/weather/presskit.html).
+
+The premade SVG animations are rendered into PNG atlases at development time.
+Runtime selects frames from one texture every 84 ms (under 12 updates/second),
+with no procedural drawing, video, webview, blur or extra weather polling.
+Each atlas has 48 frames and consumes about 6.75 MiB decoded, excluding driver
+and temporary decoder overhead. Only the selected condition is loaded.
+Timers stop on hiding, scrolling fully out of view, lock, reduced motion, power
+saver, or destruction. Returning to a visible scene starts motion again. Subtle
+stops after four seconds. The weather page is 410px tall; enlarged text can scroll.
+See [asset provenance and regeneration](../assets/weather/README.md) for the MIT
+license, upstream version and optional development dependencies.
+
+`--ignore-power-saver` is an explicit preview-only override; it never changes the
+host power profile. No override for reduced motion is provided. Native tests check
+animation lifecycle and report texture-frame selection timings; these exclude compositor/GPU
+cost and are not a host CPU/battery guarantee. High-DPI and laptop profiling remain
+necessary before recommending prolonged Live mode.
 
 ## Setup
 
@@ -70,8 +111,8 @@ are different: “Fetched” describes retrieval, not guaranteed observation fre
   `$XDG_CACHE_HOME/ubuntu-island/weather-v1.json` (normally under `~/.cache`).
   Cache results are matched to the saved location; old locations cannot populate
   a new location. Removing this file clears persisted weather data.
-- Disable/location changes guard against late async results. No weather animations
-  or collapsed-pill integration in this version.
+- Disable/location changes guard against late async results. Animation is limited
+  to the expanded Weather scene; no collapsed-pill animation.
 
 ## Verification
 

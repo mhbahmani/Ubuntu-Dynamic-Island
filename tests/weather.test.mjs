@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {WeatherController, normalize, parseLocation, temperature, localTime, weatherUrl, FRESH_MS} from '../services/weather-model.js';
+import {weatherSceneKind, WeatherController, normalize, parseLocation, temperature, localTime, weatherUrl, FRESH_MS} from '../services/weather-model.js';
 const location = {latitude: 35.6892, longitude: 51.389, timezone: 'Asia/Tehran', name: 'Tehran'};
 const now = Date.parse('2026-10-28T20:45:00Z');
 const open = {current: {temperature_2m: 12, apparent_temperature: null, weather_code: 1234},
@@ -109,4 +109,13 @@ test('offline state makes no network requests', async () => {
     h.controller.setActive(true); await settle();
     assert.equal(count, 0);
     assert.equal(h.controller.state.status, 'offline');
+});
+
+test('weather artwork follows day/night for each condition and preserves missing-data fallback', () => {
+    for (const [condition, day, night] of [['Clear', 'sun', 'night'], ['Partly cloudy', 'clouds', 'clouds-night'],
+        ['Rain', 'rain', 'rain-night'], ['Drizzle', 'rain', 'rain-night'], ['Snow', 'snow', 'snow-night']]) {
+        assert.equal(weatherSceneKind({condition, isDay: true}), day);
+        assert.equal(weatherSceneKind({condition, isDay: false}), night);
+        assert.equal(weatherSceneKind({condition}), day);
+    }
 });

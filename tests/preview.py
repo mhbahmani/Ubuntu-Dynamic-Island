@@ -11,6 +11,9 @@ import tempfile
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--ignore-power-saver', action='store_true', help='Allow animation in this preview even on power saver; does not change the host profile')
+    parser.add_argument('--scene', choices=['sun', 'clouds', 'rain', 'snow', 'night', 'clouds-night', 'rain-night', 'snow-night'], default='clouds', help='Sample weather scene')
+    parser.add_argument('--motion', choices=['off', 'subtle', 'live'], default='live', help='Preview animation mode')
     parser.add_argument('--live', action='store_true', help='Fetch live Tehran weather instead of sample data')
     parser.add_argument('--headless', action='store_true', help='Render without a window; saves weather.png')
     parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
@@ -24,7 +27,7 @@ def main():
     extension.mkdir(parents=True)
     for path in source.glob('*.js'):
         shutil.copy2(path, extension / path.name)
-    for name in ('services', 'schemas'):
+    for name in ('services', 'schemas', 'assets'):
         shutil.copytree(source / name, extension / name)
     for name in ('metadata.json', 'stylesheet.css'):
         shutil.copy2(source / name, extension / name)
@@ -47,6 +50,7 @@ def main():
                        XDG_CONFIG_HOME=str(root / 'config'), XDG_CACHE_HOME=str(root / 'cache'),
                        XDG_DATA_DIRS=f'{root}/share:/usr/local/share:/usr/share', XDG_CURRENT_DESKTOP='GNOME',
                        GSETTINGS_BACKEND='keyfile', ISLAND_PREVIEW_OUTPUT=str(root),
+                       ISLAND_PREVIEW_IGNORE_POWER='1' if args.ignore_power_saver else '0', ISLAND_PREVIEW_SCENE=args.scene, ISLAND_PREVIEW_MOTION=args.motion,
                        ISLAND_PREVIEW_LIVE='1' if args.live else '0')
     command = ['dbus-run-session', '--', 'gnome-shell',
                '--headless' if args.headless else '--nested', '--wayland', '--no-x11',

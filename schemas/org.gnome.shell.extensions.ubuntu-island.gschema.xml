@@ -103,5 +103,6 @@
     <key name="weather-location" type="s"><default>''</default><summary>Confirmed weather location as JSON</summary></key>
     <key name="weather-units" type="s"><default>'celsius'</default><choices><choice value="celsius"/><choice value="fahrenheit"/></choices><summary>Temperature units</summary></key>
     <key name="weather-provider" type="s"><default>'open-meteo'</default><choices><choice value="open-meteo"/><choice value="wttr"/></choices><summary>Preferred weather source with automatic fallback</summary></key>
+    <key name="weather-motion" type="s"><default>'subtle'</default><choices><choice value="off"/><choice value="subtle"/><choice value="live"/></choices><summary>Weather scene motion</summary></key>
   </schema>
 </schemalist>

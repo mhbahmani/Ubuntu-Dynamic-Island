@@ -245,7 +245,9 @@ export default class UbuntuIsland extends Extension {
     }
 
     _syncWeather() {
-        this._weather?.setActive(Boolean(this._island?.expanded && this._card?._page === 'weather' && this._card.actor.mapped));
+        const active = Boolean(this._island?.expanded && this._card?._page === 'weather' && this._card.actor.mapped);
+        this._weather?.setActive(active);
+        this._card?._weatherView?.scene.setActive(active);
     }
 
     _renderSystem(state) {
@@ -337,6 +339,7 @@ export default class UbuntuIsland extends Extension {
         this._weather?.stop();
         this._weather = null;
         this._system = this._media = this._bluetooth = this._audio = this._art = null;
+        this._card?._weatherView?.scene.destroy();
         this._island?.destroy();
         this._island = null;
         this._card = null;

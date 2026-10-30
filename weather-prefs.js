@@ -62,6 +62,7 @@ export function weatherPreferences(settings, window) {
         feedback.title = 'Location saved';
     });
     for (const [key, title, values, names] of [
+        ['weather-motion', 'Weather motion', ['off', 'subtle', 'live'], ['Off — static scene', 'Subtle — four seconds on opening', 'Live — while visible']],
         ['weather-units', 'Temperature units', ['celsius', 'fahrenheit'], ['Celsius', 'Fahrenheit']],
         ['weather-provider', 'Preferred source', ['open-meteo', 'wttr'], ['Open-Meteo → wttr.in fallback', 'wttr.in → Open-Meteo fallback']],
     ]) {

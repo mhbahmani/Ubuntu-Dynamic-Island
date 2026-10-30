@@ -136,6 +136,49 @@ export default class Smoke extends UbuntuIsland {
         this._card.selectPage('weather');
         await delay(100);
         assert(weatherRequests === 1, 'Visible Weather did not fetch exactly once');
+        const scene = this._card._weatherView.scene;
+        const paint = scene.paint.bind(scene);
+        let paintCount = 0, paintTotalUs = 0, paintMaxUs = 0;
+        scene.paint = () => {
+            const started = GLib.get_monotonic_time();
+            paint();
+            const elapsed = GLib.get_monotonic_time() - started;
+            paintCount++; paintTotalUs += elapsed; paintMaxUs = Math.max(paintMaxUs, elapsed);
+        };
+        const desktopMotion = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        desktopMotion.set_boolean('enable-animations', true);
+        scene.isPowerSaving = () => false; // Isolate fixture from the host power profile.
+        this._settings.set_boolean('disable-animations', false);
+        this._settings.set_string('weather-motion', 'live');
+        await delay(200);
+        assert(scene.ready && scene.sprite.width > 0 && scene.image.get_content(), 'Weather atlas failed to load or allocate');
+        assert(scene.timer !== 0, `Visible live weather has no animation timer: active=${scene.active} mapped=${scene.actor.mapped} viewport=${scene.inViewport()} animations=${scene.stSettings.enable_animations} locked=${Main.sessionMode.isLocked} power=${scene.power?.get_cached_property('ActiveProfile')?.deep_unpack()}`);
+        scene.isPowerSaving = () => true;
+        scene.sync();
+        assert(scene.timer === 0, 'Power saver retained weather timer');
+        scene.isPowerSaving = () => false;
+        this._settings.set_string('weather-motion', 'off');
+        assert(scene.timer === 0, 'Off mode retained weather timer');
+        this._settings.set_string('weather-motion', 'subtle');
+        await delay(4300);
+        assert(scene.timer === 0, 'Subtle weather did not settle');
+        assert(scene.phase >= 4, 'Weather animation did not advance');
+        console.log(`[Island Smoke] Weather frame: ${paintCount} frames, mean ${Math.round(paintTotalUs / paintCount)} us, max ${paintMaxUs} us (texture frame selection only)`);
+        this._settings.set_string('weather-motion', 'live');
+        this._settings.set_boolean('disable-animations', true);
+        assert(scene.timer === 0, 'Reduced motion retained weather timer');
+        this._settings.set_boolean('disable-animations', false);
+        const scrollSpace = new St.Widget({height: 600});
+        this._card._weatherView.hours[0].get_parent().get_parent().add_child(scrollSpace);
+        await delay(100);
+        scene.adjustment.value = scene.adjustment.upper - scene.adjustment.page_size;
+        await delay(200);
+        assert(scene.timer === 0, 'Scrolled-out weather retained animation timer');
+        scene.adjustment.value = 0;
+        await delay(200);
+        assert(scene.timer !== 0, 'Scrolling back did not resume live weather');
+        scrollSpace.destroy();
+        this._settings.set_boolean('disable-animations', true);
         assert(this._card._weatherView.current.text.includes('18°C'), 'Weather data failed to render');
         await this._capture('weather');
         assert(this._card._weatherView.hours.every(h => h.visible), 'Forecast rows missing');
@@ -147,6 +190,7 @@ export default class Smoke extends UbuntuIsland {
         this._settings.set_string('weather-units', 'celsius');
         this._card.selectPage('system');
         assert(!this._weather.controller.timer && !this._weather.controller.active, 'Hidden Weather retained a timer');
+        assert(scene.timer === 0, 'Hidden scene retained animation timer');
         this._island.suspendGrab();
         assert(this._island.expanded && !this._island._grab, 'Preview retained the modal grab');
         for (const theme of ['ocean', 'forest', 'ember', 'graphite']) {

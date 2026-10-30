@@ -10,15 +10,19 @@ export default class Preview extends UbuntuIsland {
     enable() {
         const settings = this.getSettings();
         settings.set_boolean('enable-weather', true);
+        settings.set_string('weather-motion', GLib.getenv('ISLAND_PREVIEW_MOTION') || 'live');
         // Focus this preview on Weather and System; no device/player services.
         for (const key of ['enable-media', 'enable-audio', 'enable-bluetooth']) settings.set_boolean(key, false);
         settings.set_string('weather-location', JSON.stringify({name: GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 'Tehran, Iran' : 'Tehran, Iran (sample)',
             latitude: 35.6892, longitude: 51.389, timezone: 'Asia/Tehran'}));
         super.enable();
+        if (GLib.getenv('ISLAND_PREVIEW_IGNORE_POWER') === '1')
+            this._card._weatherView.scene.isPowerSaving = () => false;
         if (GLib.getenv('ISLAND_PREVIEW_LIVE') !== '1') {
             this._weather.http.get = async () => ({
                 current: {temperature_2m: 18, apparent_temperature: 16, relative_humidity_2m: 42,
-                    wind_speed_10m: 12, weather_code: 2},
+                    wind_speed_10m: 12, is_day: GLib.getenv('ISLAND_PREVIEW_SCENE')?.endsWith('night') ? 0 : 1,
+                    weather_code: {sun: 0, clouds: 2, rain: 63, snow: 73, night: 0, 'clouds-night': 2, 'rain-night': 63, 'snow-night': 73}[GLib.getenv('ISLAND_PREVIEW_SCENE')] ?? 2},
                 hourly: {time: [1, 2, 3, 4].map(i => localTime('Asia/Tehran', Date.now() + i * 3600000)),
                     temperature_2m: [17, 16, 15, 14], precipitation_probability: [0, 20, 40, 60]},
                 // wttr fields allow changing preferred source in sample mode too.

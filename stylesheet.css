@@ -173,3 +173,30 @@
 .ubuntu-island-theme-ocean .ubuntu-island-tab-selected .ubuntu-island-tab-marker { background-color: #8acdf6; }
 .ubuntu-island-theme-forest .ubuntu-island-tab-selected .ubuntu-island-tab-marker { background-color: #9bd7b4; }
 .ubuntu-island-theme-ember .ubuntu-island-tab-selected .ubuntu-island-tab-marker { background-color: #ffc19b; }
+
+/* A single atmospheric surface; artwork is a background layer behind real text. */
+.ubuntu-island-card-weather { padding: 0; spacing: 0; }
+.ubuntu-island-weather-section { spacing: 0; }
+.ubuntu-island-weather-surface { border-radius: 19px 19px 0 0; }
+.ubuntu-island-weather-scene { border-radius: 19px 19px 0 0; background-gradient-direction: vertical; background-gradient-start: #28435b; background-gradient-end: #172630; }
+.weather-sun { background-gradient-start: #4a3e35; background-gradient-end: #272b32; }
+.weather-clouds { background-gradient-start: #344e66; background-gradient-end: #1b2b3b; }
+.weather-rain { background-gradient-start: #263d55; background-gradient-end: #14202e; }
+.weather-snow { background-gradient-start: #3b526a; background-gradient-end: #253545; }
+.weather-night { background-gradient-start: #252c4d; background-gradient-end: #131a2b; }
+.ubuntu-island-weather-content { padding: 14px 20px 10px; spacing: 3px; }
+.ubuntu-island-weather-heading { spacing: 8px; }
+.ubuntu-island-weather-location { color: #f2f5fc; font-size: 11pt; font-weight: 600; }
+.ubuntu-island-weather-temperature { color: #ffffff; font-size: 42pt; font-weight: 300; font-feature-settings: "tnum"; }
+.ubuntu-island-weather-condition { color: #ffffff; font-size: 12pt; font-weight: 500; }
+.ubuntu-island-weather-secondary { color: #ced9e8; font-size: 9pt; }
+.ubuntu-island-weather-eyebrow { color: #c5d5e5; font-size: 8pt; letter-spacing: 1px; font-weight: 600; }
+.ubuntu-island-weather-divider { height: 1px; margin: 7px 0 4px; background-color: rgba(220,235,255,0.17); }
+.ubuntu-island-weather-forecast { padding: 5px 0 7px; spacing: 8px; }
+.ubuntu-island-weather-hour { spacing: 4px; }
+.ubuntu-island-weather-hour-temp { color: #ffffff; font-size: 13pt; font-weight: 600; font-feature-settings: "tnum"; }
+.ubuntu-island-weather-rain { color: #a9d8fa; font-size: 8pt; }
+.ubuntu-island-weather-credit { color: #b9c9db; font-size: 8pt; margin-top: 4px; }
+.ubuntu-island-weather-action { padding: 5px; border-radius: 6px; color: #e1eaf5; }
+.ubuntu-island-weather-action:hover, .ubuntu-island-weather-action:focus { background-color: rgba(255,255,255,0.13); color: #ffffff; }
+.ubuntu-island-weather-action:disabled { color: #7e90a5; }

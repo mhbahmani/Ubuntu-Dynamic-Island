@@ -57,6 +57,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   fall back to each other; choose either as the preferred source. City selection,
   manual coordinates, Celsius/Fahrenheit, refresh, and a bounded offline cache.
   Fetches only while Weather is visible, at most every 20 minutes automatically.
+  Bundled Meteocons animations sit behind the temperature and horizontal forecast,
+  with optional Off/Subtle/Live motion and automatic power-saver/reduced-motion support.
   See [weather setup, sources, and limitations](docs/WEATHER.md).
 - **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
   background opacity (0–100%, default 98%), matte tone (0–100%, default
@@ -72,13 +74,30 @@ and [compact playing pill](screenshots/playing-pill.png).
 ```sh
 make preview       # interactive GNOME window with sample weather
 make preview-live  # actual weather requests; starts with Tehran
+make preview PREVIEW_ARGS="--scene rain --ignore-power-saver" # animated demo
+make preview-sun-day    # sunny sample
+make preview-clouds-day # cloudy sample
+make preview-rain-day
+make preview-snow-day
+make preview-night
+make preview-clouds-night
+make preview-rain-night
+make preview-snow-night
 ```
+
+Scene shortcuts bypass power saver only in the preview; reduced motion is still
+respected. Add `PREVIEW_ARGS="--headless"` to save a screenshot instead of opening a window.
 
 This launches a nested GNOME Shell running a temporary copy of the working tree,
 using the actual St/Clutter UI and stylesheet. Weather opens automatically; click,
 scroll, refresh, switch to System, or open preferences to try units and appearance.
 The preview focuses on Weather and System, with media/audio/Bluetooth disabled.
 Sample mode uses fixed temperatures; use `--live` to test real locations/providers.
+Choose `--scene sun|clouds|rain|snow|night|clouds-night|rain-night|snow-night` and `--motion off|subtle|live` through
+`PREVIEW_ARGS`. Preview defaults to Live; normal extension preferences default to
+Subtle (four seconds). Power saver and reduced motion stop animation. The explicit
+`--ignore-power-saver` flag bypasses only the preview scene’s power check and
+does not change the host power profile. Reduced motion is still respected.
 City search in preferences still uses the network in either mode.
 
 No installation or logout is needed. The preview has its own session bus, settings,

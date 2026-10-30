@@ -4,7 +4,15 @@ Updated 2026-10-28. v11 adds the requested basic Weather tab on top of the
 accepted v10 visual baseline. Source and build are updated; the user's installed
 extension remains v10. Weather is opt-in in preferences and needs a confirmed
 city or manual coordinates. See [WEATHER.md](WEATHER.md) for providers and setup.
-The new implementation keeps UI styling basic pending user direction.
+2026-10-29: added a native weather scene with Off/Subtle/Live preferences. Subtle
+is the production default (four seconds); preview defaults to Live. Demo via
+`make preview PREVIEW_ARGS="--scene rain --ignore-power-saver"`; the host was in
+power saver during development, so the explicit preview-only override is useful.
+Normal behavior respects power saver and reduced motion. See WEATHER.md for limits.
+2026-10-30: replaced procedural drawing with licensed Meteocons animation atlases
+behind the text and a horizontal forecast. One selected 6.75 MiB texture, under 12 updates/sec;
+Clouds, rain and snow also have moon artwork and dark night palettes, selected
+from provider day/night data. No weather-animation timer while hidden. No host CPU/battery guarantee yet.
 
 Navigation alignment repair: tab glyphs now share the vertical center of the
 caption and preferences icon. The selection marker is bottom-aligned independently
@@ -90,15 +98,16 @@ logout/login to load changed extension code; do not restart Shell with Alt+F2 `r
 Last native artifacts: `/tmp/ubuntu-island-smoke-jh6431ea`. Temporary logs and
 screenshots may disappear; regenerate with `python3 tests/smoke.py` when needed.
 Build ZIPs and compiled schemas are generated, ignored files, not source to commit.
-No code tests were rerun for this documentation-only handoff.
+Weather redesign checks: 53 Node tests, schema/syntax checks, GTK preferences,
+GJS cache integration and isolated native GNOME smoke checks.
 
 ## Planned work, not implemented
 
 The roadmap contains UX, integrations, performance budgets, acceptance criteria,
 open decisions, and sourced future ideas for:
 
-- Weather: basic static functionality is implemented in v11; condition colors
-  and bounded animations remain future work after profiling.
+- Weather: basic data and bounded atlas animation are implemented; extended
+  laptop CPU/battery profiling and further visual refinement remain.
 - Next Appointment: investigate GNOME Online Accounts/Evolution Data Server for
   Google-backed calendars before adding a separate OAuth integration.
 - Commute: two saved locations, directional ETA and optional departure reminders.

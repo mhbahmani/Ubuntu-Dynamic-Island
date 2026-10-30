@@ -31,7 +31,7 @@ export class Card {
         this._scroll = new St.ScrollView({style_class: 'ubuntu-island-scroll', overlay_scrollbars: true, x_expand: true, y_expand: true});
         this._scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
         this.actor.add_child(this._scroll);
-        this.actor._islandPreferredHeight = () => 260 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        this.actor._islandPreferredHeight = () => (this._page === 'weather' ? 410 : 260) * St.ThemeContext.get_for_stage(global.stage).scale_factor;
         this._body = column('ubuntu-island-card');
         this._scroll.set_child(this._body);
         this.actor.reactive = true;
@@ -44,6 +44,7 @@ export class Card {
         if (settings.get_boolean('enable-bluetooth')) this._buildBluetooth();
         if (settings.get_boolean('enable-weather'))
             this._weatherView = new WeatherView(this._section('WEATHER'), settings, actions);
+        this._weatherView?.setViewport(this._scroll);
         this.setPillTitleVisible(settings.get_boolean('pill-show-title'));
         this._empty = column('ubuntu-island-empty');
         this._empty.add_child(label(this._sectionCount ? 'Nothing playing' : 'Your island, your way', 'ubuntu-island-track'));
@@ -160,7 +161,7 @@ export class Card {
         }
         if (this._pageCaption)
             this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth', weather: 'Weather'}[this._page] ?? '';
-        this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : ''}`);
+        this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : this._page === 'weather' ? ' ubuntu-island-card-weather' : ''}`);
         if (this._empty) this._empty.visible = !this._page;
         this._actions.pageChanged?.(this._page);
     }

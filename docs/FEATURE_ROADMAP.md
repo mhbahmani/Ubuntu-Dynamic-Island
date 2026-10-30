@@ -1,7 +1,7 @@
 # Ubuntu Island feature roadmap
 
-Status: roadmap; basic static Weather implemented in v11 on 2026-10-28. Other
-features and weather visual polish remain proposals. See [WEATHER.md](WEATHER.md).
+Status: roadmap; basic static Weather implemented in v11 on 2026-10-28. Bounded native Weather motion was added on 2026-10-29; broader visual polish and
+other modules remain proposals. See [WEATHER.md](WEATHER.md).
 
 This plan covers Weather, Commute, Next Appointment (including Google Calendar),
 and Task Progress. The performance budgets below are design targets, not measured
@@ -59,7 +59,7 @@ precise commute endpoints need more conservative defaults and a Clear data actio
 | Commute | Fetch on opening if older than 5 minutes; explicit Refresh | Two directional results; no embedded map; cap 128 KiB |
 | Appointment | Subscribe to local calendar changes; deadline-driven UI updates | Next 7 days, at most 200 occurrences; show next event plus three upcoming |
 | Tasks | Producer events; coalesce visible updates to at most once per second | At most 32 active tasks and 20 recent completions |
-| Weather motion | Static when hidden, locked, fullscreen-hidden, or motion-reduced | Live mode at most 12 fps, 12 particles and two cloud layers |
+| Weather motion | Static when hidden, locked, fullscreen-hidden, or motion-reduced | Live mode at most 12 fps, one selected 48-frame atlas (~6.75 MiB decoded) |
 
 No continuous animation in the closed notch. Disabled modules have no timers or
 subscriptions. Background fetching is off by default unless a user enables a

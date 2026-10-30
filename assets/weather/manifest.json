@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "tile": 192,
+  "columns": 8,
+  "frames": 48,
+  "scenes": {
+    "sun": {
+      "duration": 5.625,
+      "source": "clear-day"
+    },
+    "clouds": {
+      "duration": 5.625,
+      "source": "partly-cloudy-day"
+    },
+    "rain": {
+      "duration": 0.7,
+      "source": "rain"
+    },
+    "snow": {
+      "duration": 4,
+      "source": "snow"
+    },
+    "night": {
+      "duration": 10,
+      "source": "clear-night"
+    },
+    "clouds-night": {
+      "duration": 10,
+      "source": "partly-cloudy-night"
+    },
+    "rain-night": {
+      "duration": 0.7,
+      "source": "partly-cloudy-night-rain"
+    },
+    "snow-night": {
+      "duration": 4,
+      "source": "partly-cloudy-night-snow"
+    }
+  }
+}

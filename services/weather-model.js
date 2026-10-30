@@ -37,7 +37,7 @@ export function weatherUrl(provider, location) {
     const {latitude: lat, longitude: lon} = location;
     if (provider === 'wttr') return `https://wttr.in/${lat},${lon}?format=j1`;
     return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
-        '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m' +
+        '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day' +
         '&hourly=temperature_2m,precipitation_probability&forecast_days=2' +
         `&timezone=${encodeURIComponent(location.timezone)}`;
 }
@@ -46,7 +46,7 @@ export function normalize(provider, body, location, now = Date.now()) {
     if (provider === 'open-meteo') {
         const c = body.current ?? {};
         current = {temperature: number(c.temperature_2m), feelsLike: number(c.apparent_temperature),
-            humidity: number(c.relative_humidity_2m), wind: number(c.wind_speed_10m), condition: condition(c.weather_code)};
+            humidity: number(c.relative_humidity_2m), wind: number(c.wind_speed_10m), isDay: c.is_day === 0 ? false : c.is_day === 1 ? true : null, condition: condition(c.weather_code)};
         observedAt = typeof c.time === 'string' ? c.time : null;
         hourly = (body.hourly?.time ?? []).map((time, i) => ({time,
             temperature: number(body.hourly.temperature_2m?.[i]),
@@ -162,4 +162,12 @@ export class WeatherController {
         this.emit(this.state);
     }
     stop() { this.active = false; this.invalidate(); }
+}
+
+// Missing day/night data preserves the existing daytime fallback.
+export function weatherSceneKind(current) {
+    const text = String(current?.condition ?? '').toLowerCase();
+    const base = /snow|sleet|ice/.test(text) ? 'snow' : /rain|drizzle|thunder/.test(text) ? 'rain'
+        : /clear|sunny/.test(text) ? 'sun' : 'clouds';
+    return current?.isDay === false ? (base === 'sun' ? 'night' : `${base}-night`) : base;
 }
