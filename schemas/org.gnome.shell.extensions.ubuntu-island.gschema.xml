@@ -118,5 +118,11 @@
     <key name="pill-arrow-style" type="s"><default>'chevron'</default><choices><choice value="classic"/><choice value="compact"/><choice value="chevron"/></choices><summary>Network arrow shape in the collapsed notch</summary></key>
     <key name="pill-weather-style" type="s"><default>'colorful'</default><choices><choice value="colorful"/><choice value="minimal"/></choices><summary>Weather icon style in the collapsed notch</summary></key>
     <key name="pill-arrow-angle" type="i"><default>80</default><range min="40" max="120"/><summary>Chevron tip angle in degrees</summary></key>
+    <key name="expand-tab" type="s">
+      <default>'last'</default>
+      <choices><choice value="last"/><choice value="media"/><choice value="system"/><choice value="audio"/><choice value="bluetooth"/><choice value="weather"/><choice value="commute"/></choices>
+      <summary>Tab to show when expanding the island</summary>
+      <description>Last keeps the previous tab. An unavailable preferred tab falls back to the last available tab.</description>
+    </key>
   </schema>
 </schemalist>

@@ -104,6 +104,14 @@ if (settings.get_string('color-theme') !== 'ocean') throw new Error('Theme selec
 settings.set_string('color-theme', 'forest');
 if (theme.selected !== 2) throw new Error('Theme selection did not follow settings');
 opacity.adjustment.value = 0;
+const opening = find(window, 'Open on expand');
+if (!opening || opening.selected !== 0 || settings.get_string('expand-tab') !== 'last')
+    throw new Error('Default opening tab is not last used');
+opening.selected = 6;
+if (settings.get_string('expand-tab') !== 'commute') throw new Error('Opening tab did not save');
+settings.set_string('expand-tab', 'audio');
+if (opening.selected !== 3) throw new Error('Opening tab did not follow settings');
+settings.set_string('expand-tab', 'last');
 if (settings.get_int('surface-opacity') !== 0) throw new Error('Opacity did not save');
 settings.set_int('surface-opacity', 100);
 if (opacity.adjustment.value !== 100) throw new Error('Opacity control did not follow settings');

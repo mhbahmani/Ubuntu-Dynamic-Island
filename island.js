@@ -21,9 +21,10 @@ const clampRange = (value, lower, upper) => Math.max(lower, Math.min(upper, valu
 // width/height/opacity tweens instead of a separate popup menu. The opaque
 // surface paints reliably on mixed-scale monitors without backdrop sampling.
 export class IslandSurface {
-    constructor({settings, pill, card, onStateChange}) {
+    constructor({settings, pill, card, onStateChange, onBeforeExpand}) {
         this._settings = settings;
         this._onStateChange = onStateChange;
+        this._onBeforeExpand = onBeforeExpand;
         this.state = IslandState.COLLAPSED;
         this._token = 0; // invalidates stale transition completions on interrupt
         this._hoverOpen = 0;
@@ -141,6 +142,7 @@ export class IslandSurface {
 
     expand() {
         if (this.expanded) return;
+        this._onBeforeExpand?.();
         const token = ++this._token;
         this._setState(IslandState.EXPANDING);
         this._cancelHoverTimers();

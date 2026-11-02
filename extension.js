@@ -60,6 +60,7 @@ export default class UbuntuIsland extends Extension {
             settings: this._settings,
             pill: this._pill.actor,
             card: this._card.actor,
+            onBeforeExpand: () => this._card.selectExpansionPage(),
             onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); },
         });
         this._island.setHoverEnabled(

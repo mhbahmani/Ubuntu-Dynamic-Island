@@ -137,6 +137,15 @@ export class Card {
         this.actor.add_child(navigation);
     }
 
+    selectExpansionPage() {
+        const preferred = this._settings.get_string('expand-tab');
+        if (preferred === 'last') return;
+        // A fixed-tab choice should not be overridden by a player appearing later.
+        this._manualPage = true;
+        // selectPage already preserves the last available page if the target is absent.
+        this.selectPage(preferred);
+    }
+
     selectPage(id) {
         if (!this._pages.get(id)?.available) return;
         this._manualPage = true;

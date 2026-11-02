@@ -117,6 +117,29 @@ export default class Smoke extends UbuntuIsland {
         assert(decoded !== null, 'Local artwork failed to decode');
         this._card.renderArt(cover);
         assert(this._card._page === 'media', 'Media did not select its compact face');
+        this._settings.set_string('expand-tab', 'system');
+        assert(this._card._page === 'media', 'Opening preference changed the already-open tab');
+        this._island.collapse(); this._island.expand();
+        assert(this._card._page === 'system', 'Fixed opening tab was not selected');
+        this._card.selectPage('audio'); this._island.expand();
+        assert(this._card._page === 'audio', 'Repeated expand reset a tab while already open');
+        this._island.collapse(); this._island.expand();
+        assert(this._card._page === 'system', 'Fixed tab did not apply on every opening');
+        this._settings.set_string('expand-tab', 'last');
+        this._card.selectPage('audio'); this._island.collapse(); this._island.expand();
+        assert(this._card._page === 'audio', 'Last-used tab was not preserved');
+        const commutePage = this._card._pages.get('commute');
+        this._card._pages.delete('commute');
+        this._settings.set_string('expand-tab', 'commute');
+        this._island.collapse(); this._island.expand();
+        assert(this._card._page === 'audio', 'Disabled preferred module did not preserve last tab');
+        this._card._pages.set('commute', commutePage);
+        this._settings.set_string('expand-tab', 'media');
+        this._renderMedia({available: false});
+        this._island.collapse(); this._island.expand();
+        assert(this._card._page === 'audio', 'Unavailable media did not preserve last tab');
+        this._settings.set_string('expand-tab', 'last');
+        this._renderMedia(media); this._card.selectPage('media');
         for (const [page, name] of [['system', 'system'], ['audio', 'sound'], ['bluetooth', 'bluetooth']]) {
             this._card.selectPage(page);
             assert([...this._card._pages.values()].filter(item => item.box.visible).length === 1,

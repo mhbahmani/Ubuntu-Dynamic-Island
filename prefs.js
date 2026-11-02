@@ -13,6 +13,16 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         migrateArrowStyle(settings);
 
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
+        const tabs = ['last', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute'];
+        const opening = new Adw.ComboRow({title: 'Open on expand',
+            subtitle: 'Applies on the next opening. Unavailable tabs keep the last available tab.',
+            model: Gtk.StringList.new(['Last used tab', 'Media', 'System', 'Sound', 'Bluetooth', 'Weather', 'Commute'])});
+        const syncOpening = () => { opening.selected = Math.max(0, tabs.indexOf(settings.get_string('expand-tab'))); };
+        syncOpening();
+        opening.connect('notify::selected', () => settings.set_string('expand-tab', tabs[opening.selected]));
+        const openingId = settings.connect('changed::expand-tab', syncOpening);
+        window.connect('close-request', () => { settings.disconnect(openingId); return false; });
+        appearance.add(opening);
         const themes = ['graphite', 'ocean', 'forest', 'ember'];
         const theme = new Adw.ComboRow({title: 'Color theme',
             model: Gtk.StringList.new(['Graphite', 'Ocean', 'Forest', 'Ember']),
