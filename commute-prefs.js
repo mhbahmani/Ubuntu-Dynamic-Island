@@ -7,16 +7,17 @@ import {saveRoutingKey} from './services/commute-keys.js';
 
 export function commutePreferences(settings, window) {
     const group = new Adw.PreferencesGroup({title: 'Driving routes',
-        description: 'Opt in to send endpoints to routing services while Commute is visible. Free public estimates do not include live traffic. Map setup uses OpenStreetMap tiles and address search.'});
+        description: 'Opt in to send endpoints to routing services while the Commute tab or its notch indicator is visible. Free public estimates do not include live traffic. Map setup uses OpenStreetMap tiles and address search.'});
     const enabled = new Adw.SwitchRow({title: 'Enable Commute', subtitle: 'Applies after disabling and re-enabling the extension'});
     settings.bind('enable-commute', enabled, 'active', Gio.SettingsBindFlags.DEFAULT); group.add(enabled);
     const interval = new Adw.SpinRow({title: 'ETA refresh interval', subtitle: 'Minutes · minimum 10 · only while visible',
         adjustment: new Gtk.Adjustment({lower: 10, upper: 120, step_increment: 5, page_increment: 15})});
     settings.bind('commute-interval', interval.adjustment, 'value', Gio.SettingsBindFlags.DEFAULT); group.add(interval);
-    const providers = ['auto', 'fossgis', 'osrm', 'ors', 'graphhopper', 'neshan'];
+    const providers = ['auto', 'fossgis', 'osrm', 'ors', 'graphhopper', 'neshan', 'mapbox'];
     const provider = new Adw.ComboRow({title: 'Preferred routing source', model: Gtk.StringList.new([
         'Automatic — configured keys, then public routing', 'FOSSGIS — public, no key', 'OSRM demo — public, no key',
-        'openrouteservice — free-plan key', 'GraphHopper — free-plan key', 'Neshan — traffic, key required'])});
+        'openrouteservice — free-plan key', 'GraphHopper — free-plan key', 'Neshan — traffic, key required', 'Mapbox — traffic-aware, free-plan token'])});
+    provider.subtitle = 'Traffic-aware ETA: configure Neshan or Mapbox. Public OSRM has no live traffic.';
     const syncProvider = () => { provider.selected = Math.max(0, providers.indexOf(settings.get_string('commute-provider'))); };
     syncProvider(); provider.connect('notify::selected', () => settings.set_string('commute-provider', providers[provider.selected]));
     const providerId = settings.connect('changed::commute-provider', syncProvider); group.add(provider);
@@ -50,7 +51,7 @@ export function commutePreferences(settings, window) {
     };
     const id = settings.connect('changed::commute-routes', render); render();
     const keys = new Adw.PreferencesGroup({title: 'Optional provider keys', description: 'Stored in the desktop keyring. Leave blank to use public routing. A key’s quota and regional availability depend on your provider account.'});
-    for (const provider of ['ors', 'graphhopper', 'neshan']) {
+    for (const provider of ['mapbox', 'neshan', 'ors', 'graphhopper']) {
         const row = new Adw.PasswordEntryRow({title: `${PROVIDER_NAMES[provider]} API key`});
         const save = new Gtk.Button({label: 'Save', valign: Gtk.Align.CENTER});
         const clear = new Gtk.Button({label: 'Remove', valign: Gtk.Align.CENTER});

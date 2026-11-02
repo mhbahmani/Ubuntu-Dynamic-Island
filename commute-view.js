@@ -54,7 +54,7 @@ export class CommuteView {
         this.arrival.text = data ? `${(data.meters / 1000).toFixed(1)} km · Arrive ${new Date(Date.now() + data.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}` : '';
         this.endpoints.text = state.route ? `${state.route.originMode === 'current' ? 'Current location' : state.route.originName} → ${state.route.destinationName}` : 'Choose start and destination on the map in Settings.';
         const age = data ? Math.floor(Math.max(0, Date.now() - data.updatedAt) / 60000) : 0;
-        this.status.text = state.status === 'loading' ? 'Updating driving estimate…' : (state.error ? `${state.stale ? 'Stale estimate · ' : ''}${state.error}` : null) || (data ? `${data.traffic ? 'Live traffic' : 'No live traffic'} · ${state.stale ? 'Stale · ' : ''}Updated ${age} min ago${data.fallback ? ' · Backup source' : ''}` : 'Configure a route to begin');
+        this.status.text = state.status === 'loading' ? 'Updating driving estimate…' : (state.error ? `${state.stale ? 'Stale estimate · ' : ''}${state.error}` : null) || (data ? `${data.traffic ? (data.provider === 'mapbox' ? 'Traffic-aware' : 'Live traffic') : 'No live traffic'} · ${state.stale ? 'Stale · ' : ''}Updated ${age} min ago${data.fallback ? ' · Backup source' : ''}` : 'Configure a route to begin');
         const locationFailure = String(state.errorCode ?? '').startsWith('location-');
         if (locationFailure) this.status.text = state.errorCode === 'location-disabled'
             ? 'Location Services are off.' : 'Location unavailable. Select a start in settings.';
@@ -63,7 +63,7 @@ export class CommuteView {
         this.open.visible = this.fix.visible = !locationFailure;
         if (state.sample) this.status.text = `Sample · ${this.status.text}`;
         this.status.accessible_name = this.status.text;
-        this.credit.text = data ? `${PROVIDER_NAMES[data.provider] ?? data.provider} · © OpenStreetMap${data.traffic ? ' / Neshan' : ''}` : 'Map data © OpenStreetMap contributors';
+        this.credit.text = data ? `${PROVIDER_NAMES[data.provider] ?? data.provider} · © OpenStreetMap${data.provider === 'neshan' ? ' / Neshan' : data.provider === 'mapbox' ? ' / Mapbox' : ''}` : 'Map data © OpenStreetMap contributors';
         setEnabled(this.refresh, Boolean(state.route) && state.status !== 'loading');
         setEnabled(this.swap, state.route?.originMode === 'fixed');
         setEnabled(this.open, Boolean(data));

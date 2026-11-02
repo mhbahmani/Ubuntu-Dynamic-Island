@@ -95,3 +95,25 @@ test('location failure never silently sends the saved pin, explicit recovery wor
     assert.equal(calls, 1); assert.equal(h.controller.state.status, 'ready');
     assert.equal(useSavedStart({...moving, origin: null}), null);
 });
+
+test('Mapbox requests traffic for departure now and normalizes seconds honestly', () => {
+    const request = requestFor('mapbox', route.origin, route.destination, 'token&x');
+    assert.match(request.url, /mapbox\/driving-traffic\/51.33,35.72;51.39,35.68/);
+    assert.match(request.url, /depart_at=now/);
+    assert.match(request.url, /access_token=token%26x/);
+    const data = normalizeRoute('mapbox', {code: 'Ok', routes: [{duration: 1080, distance: 9000, duration_typical: 950}]});
+    assert.equal(data.seconds, 1080); assert.equal(data.traffic, true);
+    assert.equal(normalizeRoute('mapbox', response).traffic, false);
+    assert.throws(() => normalizeRoute('mapbox', {code: 'NoRoute', routes: []}));
+    assert.deepEqual(providerOrder('auto', {mapbox: 'token', ors: 'key'}), ['mapbox', 'ors', 'fossgis', 'osrm']);
+});
+test('Mapbox authorization failure falls back without calling its result traffic-aware', async () => {
+    const h = harness(async url => {
+        if (url.includes('api.mapbox.com')) throw Object.assign(new Error('HTTP error'), {status: 401});
+        return response;
+    });
+    h.controller.keys = async () => ({mapbox: 'invalid'});
+    h.controller.setActive(true); await flush();
+    assert.equal(h.controller.state.data.provider, 'fossgis');
+    assert.equal(h.controller.state.data.fallback, true); assert.equal(h.controller.state.data.traffic, false);
+});

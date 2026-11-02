@@ -1,5 +1,5 @@
-export const PROVIDERS = ['neshan', 'ors', 'graphhopper', 'fossgis', 'osrm'];
-export const PROVIDER_NAMES = {neshan: 'Neshan', ors: 'openrouteservice', graphhopper: 'GraphHopper', fossgis: 'FOSSGIS / OSRM', osrm: 'OSRM demo'};
+export const PROVIDERS = ['neshan', 'mapbox', 'ors', 'graphhopper', 'fossgis', 'osrm'];
+export const PROVIDER_NAMES = {neshan: 'Neshan', mapbox: 'Mapbox', ors: 'openrouteservice', graphhopper: 'GraphHopper', fossgis: 'FOSSGIS / OSRM', osrm: 'OSRM demo'};
 export const intervalMs = minutes => Math.max(10, Math.min(120, Number(minutes) || 15)) * 60000;
 export function point(value) {
     if (!value || typeof value.latitude !== 'number' || typeof value.longitude !== 'number' ||
@@ -40,6 +40,7 @@ export function requestFor(provider, origin, destination, key = '') {
     const xy = p => `${p.longitude},${p.latitude}`;
     const yx = p => `${p.latitude},${p.longitude}`;
     if (provider === 'neshan') return {url: `https://api.neshan.org/v4/direction?type=car&origin=${yx(origin)}&destination=${yx(destination)}&alternative=false`, headers: {'Api-Key': key}};
+    if (provider === 'mapbox') return {url: `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${xy(origin)};${xy(destination)}?depart_at=now&overview=false&steps=false&alternatives=false&access_token=${encodeURIComponent(key)}`, headers: {}};
     if (provider === 'ors') return {url: `https://api.openrouteservice.org/v2/directions/driving-car?start=${xy(origin)}&end=${xy(destination)}`, headers: {Authorization: key}};
     if (provider === 'graphhopper') return {url: `https://graphhopper.com/api/1/route?point=${yx(origin)}&point=${yx(destination)}&profile=car&instructions=false&calc_points=false&key=${encodeURIComponent(key)}`, headers: {}};
     const base = provider === 'fossgis' ? 'https://routing.openstreetmap.de/routed-car' : 'https://router.project-osrm.org';
@@ -57,7 +58,9 @@ export function normalizeRoute(provider, body, now = Date.now()) {
     } else { if (body.code !== 'Ok') throw new Error('No driving route found'); seconds = body.routes?.[0]?.duration; meters = body.routes?.[0]?.distance; }
     if (typeof seconds !== 'number' || !Number.isFinite(seconds) || seconds < 0 || seconds > 7 * 86400 ||
         typeof meters !== 'number' || !Number.isFinite(meters) || meters < 0) throw new Error('No valid driving estimate');
-    return {seconds, meters, provider, traffic: provider === 'neshan', updatedAt: now};
+    const typical = body.routes?.[0]?.duration_typical;
+    const traffic = provider === 'neshan' || (provider === 'mapbox' && Number.isFinite(typical) && typical >= 0);
+    return {seconds, meters, provider, traffic, updatedAt: now};
 }
 
 // Injection keeps lifecycle, fallback and timing testable without GNOME/network.

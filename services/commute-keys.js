@@ -8,7 +8,7 @@ export async function routingKeys(cancellable = new Gio.Cancellable()) {
     try {
         const S = await secret();
         const result = {};
-        await Promise.all(['neshan', 'ors', 'graphhopper'].map(provider => new Promise(resolve => {
+        await Promise.all(['neshan', 'mapbox', 'ors', 'graphhopper'].map(provider => new Promise(resolve => {
             S.password_lookup(schema(S), {provider}, cancellable, (_s, r) => {
                 try { result[provider] = S.password_lookup_finish(r) || ''; } catch { /* Keyring unavailable. */ }
                 resolve();
