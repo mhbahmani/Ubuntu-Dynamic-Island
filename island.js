@@ -33,6 +33,7 @@ export class IslandSurface {
         this._hoverOpenMs = 180;
         this._hoverCloseMs = 350;
         this._layoutSignal = 0;
+        this._dismissIdle = 0;
         this._grab = null;
         this._grabSuspended = false;
 
@@ -106,6 +107,8 @@ export class IslandSurface {
     }
 
     destroy() {
+        if (this._dismissIdle) GLib.Source.remove(this._dismissIdle);
+        this._dismissIdle = 0;
         this._cancelHoverTimers();
         this._releaseGrab();
         if (this._layoutSignal) Main.layoutManager.disconnect(this._layoutSignal);
@@ -263,13 +266,21 @@ export class IslandSurface {
     }
 
     _onCapturedEvent(actor, event) {
+        if (!this.expanded || this._grabSuspended) return Clutter.EVENT_PROPAGATE;
         const type = event.type();
         if (type === Clutter.EventType.BUTTON_PRESS || type === Clutter.EventType.TOUCH_BEGIN) {
             const [x, y] = event.get_coords();
             const [left, top] = actor.get_transformed_position();
             const [width, height] = actor.get_transformed_size();
             if (!containsPoint(x, y, left, top, width, height)) {
-                this.collapse();
+                // Pop the modal only after Clutter finishes dispatching this
+                // press. Changing the grab inside capture mutates its active
+                // event chain and can strand the pointer's implicit grab.
+                if (!this._dismissIdle) this._dismissIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+                    this._dismissIdle = 0;
+                    this.collapse();
+                    return GLib.SOURCE_REMOVE;
+                });
                 return Clutter.EVENT_STOP;
             }
         } else if (type === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {

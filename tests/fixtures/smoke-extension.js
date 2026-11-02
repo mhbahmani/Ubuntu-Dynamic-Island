@@ -405,10 +405,27 @@ export default class Smoke extends UbuntuIsland {
         context.scale_factor = originalScale;
         await delay(200);
 
+        // Exercise a real outside press/release, not just the dismissal callback.
+        pointer.notify_absolute_motion(GLib.get_monotonic_time(), 50, 850);
+        await delay(50);
+        pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
+        await delay(50);
+        pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
+        await delay(250);
+        assert(!this._island.expanded && !this._island._grab, 'Real outside click did not dismiss');
+        const [reopenX, reopenY] = this._pill.actor.get_transformed_position();
+        pointer.notify_absolute_motion(GLib.get_monotonic_time(), reopenX + this._pill.actor.width / 2, reopenY + 12);
+        await delay(50);
+        pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
+        await delay(50);
+        pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
+        await delay(250);
+        assert(this._island.expanded, 'Real notch click could not reopen after outside dismissal');
         this._island._onCapturedEvent(this._island.actor, {
             type: () => Clutter.EventType.BUTTON_PRESS,
             get_coords: () => [0, 850],
         });
+        await delay(50);
         assert(this._island.state === 'collapsed' && !this._island._grab, 'Outside press retained input grab');
         for (let i = 0; i < 30; i++) this._island.toggle();
         assert(this._island.state === 'collapsed' && !this._island._grab, 'Rapid toggle retained input grab');

@@ -28,6 +28,15 @@ Updated 2026-11-02. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 
 ## Validation and limits
 
+Preview input fix: outside-pointer dismissal now defers modal release until the
+press has finished dispatching. Synchronous release reproduced a stalled Shell
+with real pointer events; preview logs also showed Clutter's `press_count`
+assertion at shutdown. Collapsed/suspended surfaces ignore captured dismissal.
+The native smoke now sends actual outside press/release and notch reopen events;
+it passed with no pointer assertion after the fix. Existing synthetic dismissal
+coverage remains. No background polling was added; pending idle work is removed
+on destruction. Recheck windowed preview behavior on the user's desktop too.
+
 The latest implementation passed 73 Node tests plus syntax/schema checks,
 real GTK preference checks, and the native headless GNOME smoke suite. Smoke
 coverage includes opening-tab behavior, unavailable-tab fallback, map editing,

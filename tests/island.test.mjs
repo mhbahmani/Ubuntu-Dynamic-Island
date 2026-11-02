@@ -30,6 +30,9 @@ function harness(animation = 220) {
             options.onComplete?.();
         }
     }
+    const idle = new Map();
+    let nextIdle = 0;
+    const flushIdle = () => { for (const [id, callback] of idle) { idle.delete(id); callback(); } };
     const modal = new Set();
     const Main = {
         layoutManager: {primaryMonitor: {x: -1280, y: 0, width: 1280, height: 900}},
@@ -44,6 +47,9 @@ function harness(animation = 220) {
         Clutter: {BinLayout: class {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0},
             EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2, KEY_PRESS: 3}, KEY_Escape: 27,
             EVENT_STOP: true, EVENT_PROPAGATE: false},
+        GLib: {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false,
+            idle_add: (_, callback) => { idle.set(++nextIdle, callback); return nextIdle; },
+            Source: {remove: id => idle.delete(id)}},
         Shell: {ActionMode: {POPUP: 1}}, Main, containsPoint, console,
     });
     const settings = {get_int: name => ({'pill-width': 170, 'expanded-width': 440, 'animation-duration': animation})[name],
@@ -51,7 +57,7 @@ function harness(animation = 220) {
     const pill = new Actor();
     const card = new Actor();
     const surface = new Surface({settings, pill, card});
-    return {surface, modal, pill, card};
+    return {surface, modal, pill, card, flushIdle};
 }
 
 test('thirty interrupted toggles settle collapsed and release every modal grab', () => {
@@ -78,7 +84,7 @@ test('settings during collapse cancel child fades and settle dimensions', () => 
 });
 
 test('outside click dismisses even when event source is retargeted by the grab', () => {
-    const {surface, modal} = harness(0);
+    const {surface, modal, flushIdle} = harness(0);
     surface.expand();
     assert.equal(surface.state, 'expanded');
     const stopped = surface._onCapturedEvent(surface.actor, {
@@ -86,6 +92,8 @@ test('outside click dismisses even when event source is retargeted by the grab',
         get_source: () => surface.actor,
     });
     assert.equal(stopped, true);
+    assert.equal(modal.size, 1, 'Do not change grabs during press dispatch');
+    flushIdle();
     assert.equal(surface.state, 'collapsed');
     assert.equal(modal.size, 0);
 });
