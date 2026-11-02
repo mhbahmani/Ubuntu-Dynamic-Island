@@ -24,3 +24,10 @@ PLAYWRIGHT_MODULE=/tmp/island-weather-assets/node_modules/playwright/index.mjs n
 Set `CHROME` if Chrome is not at `/usr/bin/google-chrome`. Rendering uses the
 bundled SVGs offline. Runtime changes must keep frame counts and durations in
 `weather-scene.js` consistent with this manifest.
+
+`notch/` contains static full-color SVG derivatives of these same MIT assets.
+Clouds remain pale blue/white beside the yellow sun; rain, snow and night scenes
+retain their own colors. Animation tags are removed and the viewBox is cropped
+for small icons. All cloud-bearing icons share the same viewport and cloud transform. The
+daytime sun is enlarged and the night moon shifted left/up so each remains
+visible. The common cloud is 5% larger than the preceding daytime version. Regenerate with `node scripts/render-notch-icons.mjs`.

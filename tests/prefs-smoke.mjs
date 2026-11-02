@@ -1,3 +1,4 @@
+import {CurrentLocation} from '../services/commute-location.js';
 // Run with GSETTINGS_BACKEND=memory and GNOME's helper typelib/library paths.
 // Constructs real GTK controls without presenting a window or touching user settings.
 import Gio from 'gi://Gio';
@@ -24,7 +25,7 @@ function find(widget, title) {
     }
     return null;
 }
-for (const name of ['appearance', 'notch', 'modules', 'weather']) {
+for (const name of ['appearance', 'notch', 'modules', 'weather', 'commute']) {
     window.set_visible_page_name(name);
     if (window.visible_page_name !== name) throw new Error(`Missing preferences tab: ${name}`);
 }
@@ -66,6 +67,34 @@ if (settings.get_strv('pill-order')[0] !== 'network') throw new Error('Drop did 
 tooltip(window, 'Move selected item right').emit('clicked');
 if (settings.get_strv('pill-order')[1] !== 'network') throw new Error('Keyboard move did not save order');
 window.set_visible_page_name('appearance');
+const interval = find(window, 'ETA refresh interval');
+if (!interval || interval.adjustment.lower !== 10 || interval.adjustment.value !== 15)
+    throw new Error('Commute interval bounds/default incorrect');
+interval.adjustment.value = 20;
+if (settings.get_int('commute-interval') !== 20) throw new Error('Commute interval failed to save');
+settings.set_int('commute-interval', 10);
+if (interval.adjustment.value !== 10) throw new Error('Commute interval failed to update');
+const arrows = find(window, 'Network arrow shape');
+const weatherStyle = find(window, 'Weather icon style');
+if (!arrows || !weatherStyle) throw new Error('Notch style selectors missing');
+arrows.selected = 0;
+if (settings.get_string('pill-arrow-style') !== 'classic') throw new Error('Arrow style did not save');
+settings.set_string('pill-arrow-style', 'chevron');
+if (arrows.selected !== 1) throw new Error('Arrow style did not follow settings');
+const angle = find(window, 'Chevron angle');
+if (!angle || angle.adjustment.lower !== 40 || angle.adjustment.upper !== 120 || angle.adjustment.value !== 80)
+    throw new Error('Chevron angle bounds/default incorrect');
+angle.adjustment.value = 95;
+if (settings.get_int('pill-arrow-angle') !== 95) throw new Error('Chevron angle did not save');
+settings.set_int('pill-arrow-angle', 55);
+if (angle.adjustment.value !== 55) throw new Error('Chevron angle did not follow settings');
+settings.set_string('pill-arrow-style', 'classic');
+if (angle.sensitive) throw new Error('Angle should be disabled for thin arrows');
+settings.set_string('pill-arrow-style', 'chevron');
+weatherStyle.selected = 1;
+if (settings.get_string('pill-weather-style') !== 'minimal') throw new Error('Weather style did not save');
+settings.set_string('pill-weather-style', 'colorful');
+if (weatherStyle.selected !== 0) throw new Error('Weather style did not follow settings');
 const theme = find(window, 'Color theme');
 const opacity = find(window, 'Background opacity');
 const matte = find(window, 'Matte tone');
@@ -92,5 +121,11 @@ const previous = settings.get_string('weather-location');
 manual.text = '91, 0, Bad/Zone';
 manual.emit('apply');
 if (settings.get_string('weather-location') !== previous) throw new Error('Invalid coordinates saved');
+try {
+    await new CurrentLocation().get();
+    throw new Error('Disabled Location Services did not reject');
+} catch (error) {
+    if (error.code !== 'location-disabled') throw error;
+}
 window.close();
 print('Preferences controls and bidirectional settings passed');

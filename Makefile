@@ -7,13 +7,15 @@ PREVIEW_ARGS ?=
 WEATHER_PREVIEWS := preview-sun-day preview-clouds-day preview-rain-day preview-snow-day preview-night preview-clouds-night preview-rain-night preview-snow-night
 UUID := ubuntu-island@mhbahmani.github.io
 
-.PHONY: help preview preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify
+.PHONY: help preview preview-commute preview-commute-map preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify
 .PHONY: $(WEATHER_PREVIEWS)
 
 help:
 	@printf '%s\n' \
 	  'Ubuntu Island development commands' \
 	  '  make preview             Interactive sample Weather preview; no installation' \
+	  '  make preview-commute-map Open the route editor immediately' \
+	  '  make preview-commute     Driving routes with sample estimates; no API key' \
 	  '  make preview-live        Interactive preview with real weather requests' \
 	  '  make preview-headless    Save a preview screenshot without a window' \
 	  '  make preview-sun-day         Animated sunny weather sample' \
@@ -39,6 +41,12 @@ help:
 
 preview:
 	$(PYTHON) tests/preview.py $(PREVIEW_ARGS)
+
+preview-commute:
+	$(PYTHON) tests/preview.py --tab commute $(PREVIEW_ARGS)
+
+preview-commute-map:
+	$(PYTHON) tests/preview.py --tab commute --edit-route $(PREVIEW_ARGS)
 
 preview-live:
 	$(PYTHON) tests/preview.py --live $(PREVIEW_ARGS)

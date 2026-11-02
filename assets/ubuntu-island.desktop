@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Ubuntu Island
+Comment=Weather and commute settings
+Exec=gnome-extensions prefs ubuntu-island@mhbahmani.github.io
+Icon=preferences-system
+NoDisplay=true
+X-Geoclue-Reason=Find the starting point for your selected driving route

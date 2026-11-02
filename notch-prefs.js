@@ -2,7 +2,9 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
 import GObject from 'gi://GObject';
-import {notchOrder} from './services/notch-model.js';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import {notchOrder, ARROW_STYLES, WEATHER_STYLES, arrowSvg, ARROW_ANGLE_MIN, ARROW_ANGLE_MAX} from './services/notch-model.js';
 
 export function notchPreview(settings, window) {
     const group = new Adw.PreferencesGroup({title: 'Notch order',
@@ -57,5 +59,43 @@ export function notchPreview(settings, window) {
     const signal = settings.connect('changed::pill-order', render);
     window.connect('close-request', () => { settings.disconnect(signal); return false; });
     render();
+    return group;
+}
+
+export function notchStyles(settings, window) {
+    const group = new Adw.PreferencesGroup({title: 'Indicator style', description: 'Applies immediately to the collapsed notch. Download stays red; upload stays green.'});
+    const root = Gio.File.new_for_uri(import.meta.url).get_parent();
+    const arrows = [new Gtk.Image({pixel_size: 18}), new Gtk.Image({pixel_size: 18})];
+    const weather = new Gtk.Image({pixel_size: 22});
+    const pair = new Gtk.Box({spacing: 6}); arrows.forEach(icon => pair.append(icon));
+    const bindings = [
+        ['pill-arrow-style', 'Network arrow shape', ARROW_STYLES, ['Thin arrows ↑ ↓', 'Chevrons'], pair],
+        ['pill-weather-style', 'Weather icon style', WEATHER_STYLES, ['Colorful', 'Minimal outline'], weather],
+    ];
+    for (const [key, title, choices, names, preview] of bindings) {
+        const row = new Adw.ComboRow({title, model: Gtk.StringList.new(names)});
+        row.add_prefix(preview);
+        const sync = () => {
+            row.selected = Math.max(0, choices.indexOf(settings.get_string(key)));
+            if (key === 'pill-arrow-style') arrows.forEach((icon, i) => icon.set_from_gicon(new Gio.BytesIcon({bytes: GLib.Bytes.new(new TextEncoder().encode(arrowSvg(choices[row.selected], i ? 'up' : 'down', settings.get_int('pill-arrow-angle'))))})));
+            else if (row.selected === 1) weather.set_from_icon_name('weather-few-clouds-symbolic');
+            else weather.set_from_gicon(new Gio.FileIcon({file: root.resolve_relative_path('assets/weather/notch/clouds.svg')}));
+        };
+        sync();
+        row.connect('notify::selected', () => settings.set_string(key, choices[row.selected]));
+        const id = settings.connect(`changed::${key}`, sync);
+        const angleId = settings.connect('changed::pill-arrow-angle', sync);
+        window.connect('close-request', () => { settings.disconnect(id); settings.disconnect(angleId); return false; });
+        group.add(row);
+        if (key === 'pill-arrow-style') {
+            const angle = new Adw.SpinRow({title: 'Chevron angle', subtitle: 'Degrees · 40–120 · smaller makes a sharper tip',
+                adjustment: new Gtk.Adjustment({lower: ARROW_ANGLE_MIN, upper: ARROW_ANGLE_MAX, step_increment: 1, page_increment: 5})});
+            settings.bind('pill-arrow-angle', angle.adjustment, 'value', Gio.SettingsBindFlags.DEFAULT);
+            const sensitivity = () => { angle.sensitive = settings.get_string('pill-arrow-style') !== 'classic'; };
+            sensitivity(); const sensitivityId = settings.connect('changed::pill-arrow-style', sensitivity);
+            window.connect('close-request', () => { settings.disconnect(sensitivityId); return false; });
+            group.add(angle);
+        }
+    }
     return group;
 }

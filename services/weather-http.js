@@ -5,12 +5,12 @@ import Soup from 'gi://Soup';
 const LIMIT = 256 * 1024;
 // Fixed HTTPS providers, no redirects, bounded streamed bodies and a hard deadline.
 export class WeatherHttp {
-    constructor() {
-        this.session = new Soup.Session({timeout: 12, user_agent: 'ubuntu-island-weather/1'});
+    constructor(userAgent = 'ubuntu-island-weather/1') {
+        this.session = new Soup.Session({timeout: 12, user_agent: userAgent});
         this.requests = new Set();
     }
     cancel() { for (const request of this.requests) request.cancel(); }
-    async get(url) {
+    async get(url, headers = {}) {
         const cancellable = new Gio.Cancellable();
         this.requests.add(cancellable);
         const timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 15000, () => {
@@ -22,6 +22,7 @@ export class WeatherHttp {
         const cancelId = cancellable.connect(() => { expired = true; });
         try {
             const message = Soup.Message.new('GET', url);
+            for (const [name, value] of Object.entries(headers)) message.get_request_headers().replace(name, value);
             message.set_flags(Soup.MessageFlags.NO_REDIRECT);
             stream = await new Promise((resolve, reject) => this.session.send_async(message,
                 GLib.PRIORITY_DEFAULT_IDLE, cancellable, (s, r) => {

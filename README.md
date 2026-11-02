@@ -4,7 +4,7 @@ A native GNOME Shell extension implementing a macOS-style Dynamic Island for
 Ubuntu 24.04-class GNOME Shell **46**, Wayland. The compact pill sits centered
 at the top of the primary monitor and morphs — one single surface, no popup
 window — into an expanded card with media controls, system meters, audio
-output selection, Bluetooth device management, and opt-in weather.
+output selection, Bluetooth device management, and opt-in weather and commute estimates.
 
 The repository root contains the current extension. Earlier prototypes remain
 available in Git history. Run installation and development commands from here.
@@ -60,6 +60,11 @@ and [compact playing pill](screenshots/playing-pill.png).
   Bundled Meteocons animations sit behind the temperature and horizontal forecast,
   with optional Off/Subtle/Live motion and automatic power-saver/reduced-motion support.
   See [weather setup, sources, and limitations](docs/WEATHER.md).
+- **Commute (opt-in)**: saved driving routes with map-selected endpoints, optional
+  current location, ETA/distance/arrival, and provider fallback. Refresh defaults
+  to 15 minutes (minimum 10), only while visible. Public routing works without a
+  key; optional openrouteservice, GraphHopper and Neshan keys add alternatives.
+  See [Commute setup and provider limitations](docs/COMMUTE.md).
 - **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
   background opacity (0–100%, default 98%), matte tone (0–100%, default
   60%) that flattens the gradient colors without changing transparency,
@@ -73,6 +78,8 @@ and [compact playing pill](screenshots/playing-pill.png).
 
 ```sh
 make preview       # interactive GNOME window with sample weather
+make preview-commute # sample driving route; map editor in preferences
+make preview-commute-map # open the map editor immediately
 make preview-live  # actual weather requests; starts with Tehran
 make preview PREVIEW_ARGS="--scene rain --ignore-power-saver" # animated demo
 make preview-sun-day    # sunny sample
@@ -91,7 +98,7 @@ respected. Add `PREVIEW_ARGS="--headless"` to save a screenshot instead of openi
 This launches a nested GNOME Shell running a temporary copy of the working tree,
 using the actual St/Clutter UI and stylesheet. Weather opens automatically; click,
 scroll, refresh, switch to System, or open preferences to try units and appearance.
-The preview focuses on Weather and System, with media/audio/Bluetooth disabled.
+The preview focuses on Weather, Commute and System, with media/audio/Bluetooth disabled.
 Sample mode uses fixed temperatures; use `--live` to test real locations/providers.
 Choose `--scene sun|clouds|rain|snow|night|clouds-night|rain-night|snow-night` and `--motion off|subtle|live` through
 `PREVIEW_ARGS`. Preview defaults to Live; normal extension preferences default to
@@ -318,7 +325,7 @@ as stale to assistive technology. No animation runs in the collapsed notch.
 
 ### Preferences tabs
 
-Preferences are grouped into Appearance, Notch, Modules, and Weather tabs, with
+Preferences are grouped into Appearance, Notch, Modules, Weather, and Commute tabs, with
 search across settings. The Notch tab controls the music name, weather icon and
 upload/download rates independently; changes apply immediately. Drag items in the
 Notch order preview to arrange Music, Weather, Network, CPU, and Bluetooth.
@@ -330,3 +337,12 @@ single-line rates, red download arrows and green upload arrows. Rate columns
 reserve space so changing traffic does not make the notch jump in width.
 Weather shares the same 260px expanded height as the other tabs, retaining its
 background artwork, four-hour forecast and current conditions.
+
+At the top of **Settings → Notch**, **Indicator style** offers **Network arrow shape**
+and **Weather icon style**. Choose thin arrows (↑↓) or chevrons. Type a **Chevron angle** from **40° to 120°**
+(default 80°); smaller angles produce sharper tips. The numeric control applies
+to chevrons, while thin arrows retain their stem.
+All use red for download and green for upload, softened slightly from full saturation. Choose Colorful or
+Minimal outline weather icons independently. The colorful partly-cloudy icon has
+a larger exposed sun; clouds share one size across day/night/rain/snow icons. Weather keeps its single footer settings
+button. The route editor uses a native GTK map to avoid WebKit sandbox crashes.

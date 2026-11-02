@@ -28,7 +28,6 @@ export class WeatherView {
         heading.add_child(notchToggle(settings, 'pill-show-weather', 'weather'));
         this.refresh = button('view-refresh-symbolic', 'Refresh weather', () => actions.weatherRefresh?.(), 14, 'ubuntu-island-weather-action');
         heading.add_child(this.refresh);
-        heading.add_child(button('preferences-system-symbolic', 'Configure weather location', () => actions.preferences(), 14, 'ubuntu-island-weather-action'));
         content.add_child(heading);
         const hero = row('ubuntu-island-weather-hero');
         this.current = label('—', 'ubuntu-island-weather-temperature');

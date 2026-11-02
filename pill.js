@@ -1,4 +1,6 @@
-import {notchOrder} from './services/notch-model.js';
+import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import {notchOrder, arrowSvg, weatherSymbol} from './services/notch-model.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {weatherSceneKind, temperature} from './services/weather-model.js';
@@ -34,20 +36,29 @@ export class Pill {
         this._media.add_child(this._mediaIcon);
         this._media.add_child(this._title);
         content.add_child(this._media);
-        this._weather = icon('weather-few-clouds-symbolic', 14);
+        this._weather = new St.Icon({icon_size: 20});
         this._weather.visible = false;
-        this._weather.add_style_class_name('ubuntu-island-pill-weather');
         this._mediaIcon.add_style_class_name('ubuntu-island-pill-music');
         content.add_child(this._weather);
-        this._network = row('ubuntu-island-pill-network');
+        this._network = new St.Widget({style_class: 'ubuntu-island-pill-network',
+            layout_manager: new Clutter.BinLayout()});
+        const transfers = row('ubuntu-island-pill-transfers');
+        transfers.x_expand = true;
+        transfers.x_align = Clutter.ActorAlign.CENTER;
+        transfers.y_align = Clutter.ActorAlign.CENTER;
+        this._network.add_child(transfers);
         this._network.y_align = Clutter.ActorAlign.CENTER;
         this._down = label('↓ —', 'ubuntu-island-pill-rate', false);
         this._up = label('↑ —', 'ubuntu-island-pill-rate', false);
-        for (const [arrow, rate, color] of [['↓', this._down, 'download'], ['↑', this._up, 'upload']]) {
+        this._arrows = [];
+        for (const [rate, color] of [[this._down, 'download'], [this._up, 'upload']]) {
             const item = row('ubuntu-island-pill-transfer');
-            item.add_child(label(arrow, `ubuntu-island-pill-arrow ubuntu-island-pill-${color}`));
+            const direction = new St.Icon({icon_size: 14});
+            direction.add_style_class_name(`ubuntu-island-pill-${color}`);
+            this._arrows.push(direction);
+            item.add_child(direction);
             item.add_child(rate);
-            this._network.add_child(item);
+            transfers.add_child(item);
         }
         this._network.visible = false;
         content.add_child(this._network);
@@ -71,7 +82,7 @@ export class Pill {
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({media, system, bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = []}) {
+    render({media, system, bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful'}) {
         const available = Boolean(media?.available);
         this._media.visible = available;
         this._mediaIcon.visible = available;
@@ -90,10 +101,28 @@ export class Pill {
         this._weather.visible = Boolean(showWeather && weather?.data?.current);
         const current = weather?.data?.current;
         const kind = weatherSceneKind(current);
-        this._weather.icon_name = ({sun: 'weather-clear-symbolic', night: 'weather-clear-night-symbolic',
-            clouds: 'weather-few-clouds-symbolic', 'clouds-night': 'weather-few-clouds-night-symbolic',
-            rain: 'weather-showers-symbolic', 'rain-night': 'weather-showers-symbolic',
-            snow: 'weather-snow-symbolic', 'snow-night': 'weather-snow-symbolic'})[kind];
+        const weatherKey = `${weatherStyle}:${kind}`;
+        if (weatherKey !== this._weatherKind) {
+            this._weatherKind = weatherKey;
+            if (weatherStyle === 'minimal') {
+                this._weather.gicon = null;
+                this._weather.icon_name = weatherSymbol(kind);
+                this._weather.icon_size = 14;
+                this._weather.add_style_class_name('ubuntu-island-pill-weather');
+            } else {
+                this._weather.remove_style_class_name('ubuntu-island-pill-weather');
+                this._weather.icon_size = 20;
+                const file = Gio.File.new_for_uri(import.meta.url).get_parent().resolve_relative_path(`assets/weather/notch/${kind}.svg`);
+                this._weather.gicon = new Gio.FileIcon({file});
+            }
+        }
+        const arrowKey = `${arrowStyle}:${arrowAngle}`;
+        if (this._arrowStyle !== arrowKey) {
+            this._arrowStyle = arrowKey;
+            this._arrows.forEach((arrow, i) => {
+                arrow.gicon = new Gio.BytesIcon({bytes: GLib.Bytes.new(new TextEncoder().encode(arrowSvg(arrowStyle, i ? 'up' : 'down', arrowAngle)))});
+            });
+        }
         this._weather.opacity = weather?.stale ? 140 : 255;
         this._network.visible = Boolean(showNetwork && showMetrics && system);
         const compactRate = rate => String(rate ?? '—').replace(/ Ki?B\/s$/, 'K').replace(/ Mi?B\/s$/, 'M').replace(/ Gi?B\/s$/, 'G').replace(/ B\/s$/, 'B');

@@ -1,3 +1,5 @@
+import {migrateArrowStyle} from './services/notch-model.js';
+import {CommuteService} from './services/commute.js';
 import {WeatherService} from './services/weather.js';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -26,6 +28,7 @@ export default class UbuntuIsland extends Extension {
     _enable() {
         this._enabled = true;
         this._settings = this.getSettings();
+        migrateArrowStyle(this._settings);
         this._states = {};
         this._progressTimer = 0;
         this._settingsIds = [];
@@ -43,7 +46,11 @@ export default class UbuntuIsland extends Extension {
             selectOutput: id => this._audio?.selectOutput(id),
             btToggle: device => this._bluetooth?.toggle(device),
             btPower: () => this._bluetooth?.setPowered(!this._states.bluetooth?.powered),
-            preferences: () => this._openPreferencesLive(),
+            preferences: page => { if (page) this._settings.set_string('preferences-page', page); this._openPreferencesLive(); },
+            commuteNext: () => this._commute?.next(),
+            commuteSwap: () => this._commute?.swap(),
+            commuteRefresh: () => this._commute?.refresh(),
+            commuteUseSavedStart: () => this._commute?.useSavedStart(),
             togglePillTitle: () => this._togglePillTitle(),
             relayout: () => this._island?.relayout(),
             weatherRefresh: () => this._weather?.refresh(),
@@ -90,6 +97,10 @@ export default class UbuntuIsland extends Extension {
                 this._card._weatherView?.render(this._states.weather)));
         }
 
+        if (this._settings.get_boolean('enable-commute'))
+            this._commute = new CommuteService(this._settings, state => {
+                if (this._enabled) this._card._commuteView?.render(state);
+            });
         this._island.show();
         this._renderPill();
         this._syncWeather();
@@ -181,7 +192,7 @@ export default class UbuntuIsland extends Extension {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
         });
-        for (const key of ['pill-show-weather', 'pill-show-network', 'weather-units', 'pill-order'])
+        for (const key of ['pill-show-weather', 'pill-show-network', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
         watch('surface-opacity', () => this._applyAppearance());
@@ -230,6 +241,9 @@ export default class UbuntuIsland extends Extension {
             showNetwork: this._settings.get_boolean('pill-show-network'),
             units: this._settings.get_string('weather-units'),
             order: this._settings.get_strv('pill-order'),
+            arrowStyle: this._settings.get_string('pill-arrow-style'),
+            arrowAngle: this._settings.get_int('pill-arrow-angle'),
+            weatherStyle: this._settings.get_string('pill-weather-style'),
         });
         const minimum = this._pill.actor._islandMinimumWidth();
         if (minimum !== this._pillMinimum) {
@@ -265,6 +279,7 @@ export default class UbuntuIsland extends Extension {
         const compact = Boolean(this._island?.actor.mapped && !this._island.expanded &&
             this._settings.get_boolean('pill-show-weather'));
         this._weather?.setActive(active || compact);
+        this._commute?.setActive(Boolean(this._island?.expanded && this._card?._page === 'commute' && this._card.actor.mapped));
         this._card?._weatherView?.scene.setActive(active);
     }
 
@@ -354,6 +369,8 @@ export default class UbuntuIsland extends Extension {
         this._bluetooth?.stop();
         this._audio?.stop();
         this._art?.destroy();
+        this._commute?.stop();
+        this._commute = null;
         this._weather?.stop();
         this._weather = null;
         this._system = this._media = this._bluetooth = this._audio = this._art = null;

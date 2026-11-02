@@ -1,4 +1,6 @@
-import {notchPreview} from './notch-prefs.js';
+import {commutePreferences} from './commute-prefs.js';
+import {migrateArrowStyle} from './services/notch-model.js';
+import {notchPreview, notchStyles} from './notch-prefs.js';
 import {weatherPreferences} from './weather-prefs.js';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
@@ -8,6 +10,7 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 export default class UbuntuIslandPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
+        migrateArrowStyle(settings);
 
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
         const themes = ['graphite', 'ocean', 'forest', 'ember'];
@@ -59,9 +62,10 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             'Uses existing System metrics samples'));
         const pages = [
             ['appearance', 'Appearance', 'preferences-desktop-appearance-symbolic', [appearance]],
-            ['notch', 'Notch', 'view-reveal-symbolic', [notchPreview(settings, window), notch, hover]],
+            ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, hover]],
             ['modules', 'Modules', 'application-x-addon-symbolic', [modules]],
             ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],
+            ['commute', 'Commute', 'find-location-symbolic', commutePreferences(settings, window)],
         ];
         window.search_enabled = true;
         for (const [name, title, icon_name, groups] of pages) {
@@ -69,6 +73,8 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             for (const group of groups) page.add(group);
             window.add(page);
         }
+        if (pages.some(p => p[0] === settings.get_string('preferences-page')))
+            window.set_visible_page_name(settings.get_string('preferences-page'));
     }
 }
 

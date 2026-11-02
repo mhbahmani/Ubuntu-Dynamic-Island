@@ -202,16 +202,21 @@
 .ubuntu-island-weather-action:hover, .ubuntu-island-weather-action:focus { background-color: rgba(255,255,255,0.13); color: #ffffff; }
 .ubuntu-island-weather-action:disabled { color: #7e90a5; }
 
-.ubuntu-island-pill-network { spacing: 10px; }
-.ubuntu-island-pill-rate { width: 52px; font-size: 9pt; color: #d1d4dd; font-feature-settings: "tnum"; }
+.ubuntu-island-pill-network { width: 136px; }
+.ubuntu-island-pill-transfers { spacing: 8px; }
+.ubuntu-island-pill-rate { font-size: 9pt; color: #d1d4dd; font-feature-settings: "tnum"; }
 
 .ubuntu-island-pill-transfer { spacing: 4px; }
-.ubuntu-island-pill-arrow { font-size: 10pt; font-weight: 600; }
-.ubuntu-island-pill-download { color: #f18d87; }
-.ubuntu-island-pill-upload { color: #8dd6ad; }
+.ubuntu-island-pill .ubuntu-island-pill-download { color: #ff625a; }
+.ubuntu-island-pill .ubuntu-island-pill-upload { color: #41e58a; }
 .ubuntu-island-pill .ubuntu-island-pill-weather { color: #efca7a; }
 .ubuntu-island-pill .ubuntu-island-pill-music { color: #c2b5ed; }
 
 .ubuntu-island-weather-hero { spacing: 12px; }
 .ubuntu-island-weather-summary { width: 115px; spacing: 3px; }
 .ubuntu-island-weather-footer { spacing: 8px; }
+
+.ubuntu-island-commute { spacing: 4px; }
+.ubuntu-island-commute-eta { font-size: 28pt; font-weight: 500; color: #b6d5f4; }
+.ubuntu-island-commute-link { padding: 5px 9px; border-radius: 6px; color: #b6d5f4; font-size: 9pt; }
+.ubuntu-island-commute-link:hover, .ubuntu-island-commute-link:focus { background-color: rgba(180,210,245,0.12); }

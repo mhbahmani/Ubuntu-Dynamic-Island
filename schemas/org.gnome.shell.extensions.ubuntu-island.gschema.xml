@@ -102,10 +102,21 @@
       <summary>Fetch remote album art</summary>
       <description>Download HTTP(S) artwork through a bounded, host-checked, disk-cached request.</description>
     </key>
+    <key name="enable-commute" type="b"><default>false</default><summary>Enable Commute</summary></key>
+    <key name="commute-routes" type="s"><default>'[]'</default><summary>Saved driving routes</summary></key>
+    <key name="commute-selected" type="s"><default>''</default><summary>Selected driving route</summary></key>
+    <key name="commute-provider" type="s"><default>'auto'</default><choices><choice value="auto"/><choice value="neshan"/><choice value="ors"/><choice value="graphhopper"/><choice value="fossgis"/><choice value="osrm"/></choices><summary>Preferred routing provider</summary></key>
+    <key name="commute-interval" type="i"><default>15</default><range min="10" max="120"/><summary>Driving estimate refresh interval in minutes</summary></key>
+    <key name="commute-fallback" type="b"><default>true</default><summary>Try backup routing providers</summary></key>
+    <key name="commute-keys-revision" type="i"><default>0</default><summary>Credential change notification</summary></key>
+    <key name="preferences-page" type="s"><default>'appearance'</default><summary>Requested settings page</summary></key>
     <key name="enable-weather" type="b"><default>false</default><summary>Enable Weather</summary></key>
     <key name="weather-location" type="s"><default>''</default><summary>Confirmed weather location as JSON</summary></key>
     <key name="weather-units" type="s"><default>'celsius'</default><choices><choice value="celsius"/><choice value="fahrenheit"/></choices><summary>Temperature units</summary></key>
     <key name="weather-provider" type="s"><default>'open-meteo'</default><choices><choice value="open-meteo"/><choice value="wttr"/></choices><summary>Preferred weather source with automatic fallback</summary></key>
     <key name="weather-motion" type="s"><default>'subtle'</default><choices><choice value="off"/><choice value="subtle"/><choice value="live"/></choices><summary>Weather scene motion</summary></key>
+    <key name="pill-arrow-style" type="s"><default>'chevron'</default><choices><choice value="classic"/><choice value="compact"/><choice value="chevron"/></choices><summary>Network arrow shape in the collapsed notch</summary></key>
+    <key name="pill-weather-style" type="s"><default>'colorful'</default><choices><choice value="colorful"/><choice value="minimal"/></choices><summary>Weather icon style in the collapsed notch</summary></key>
+    <key name="pill-arrow-angle" type="i"><default>80</default><range min="40" max="120"/><summary>Chevron tip angle in degrees</summary></key>
   </schema>
 </schemalist>

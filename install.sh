@@ -13,9 +13,12 @@ if [ -e "$DEST" ]; then
 fi
 mkdir "$DEST"
 cp -R "$SRC/extension.js" "$SRC/island.js" "$SRC/card.js" "$SRC/charts.js" "$SRC/pill.js" "$SRC/widgets.js" \
-      "$SRC/weather-scene.js" "$SRC/weather-view.js" "$SRC/weather-prefs.js" "$SRC/notch-prefs.js" "$SRC/prefs.js" "$SRC/metadata.json" "$SRC/stylesheet.css" "$SRC/services" "$SRC/assets" "$DEST/"
+      "$SRC/weather-scene.js" "$SRC/weather-view.js" "$SRC/weather-prefs.js" "$SRC/notch-prefs.js" "$SRC/commute-view.js" "$SRC/commute-prefs.js" "$SRC/commute-map.js" "$SRC/commute-map-view.js" "$SRC/prefs.js" "$SRC/metadata.json" "$SRC/stylesheet.css" "$SRC/services" "$SRC/assets" "$DEST/"
 mkdir "$DEST/schemas"
 cp "$SRC"/schemas/*.xml "$DEST/schemas/"
 glib-compile-schemas --strict "$DEST/schemas"
 printf 'Installed to: %s\n' "$DEST"
 printf 'Under Wayland, log out and back in; then run:\n  gnome-extensions enable %s\n' "$UUID"
+
+mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+cp "$SRC/assets/ubuntu-island.desktop" "${XDG_DATA_HOME:-$HOME/.local/share}/applications/ubuntu-island.desktop"

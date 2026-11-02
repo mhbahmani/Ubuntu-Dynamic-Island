@@ -18,6 +18,7 @@ const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAUL
 export default class Smoke extends UbuntuIsland {
     enable() {
         this.getSettings().set_boolean('enable-weather', true);
+        this.getSettings().set_boolean('enable-commute', true);
         super.enable();
         this._smoke().catch(error => console.error(`[Island Smoke] FAIL ${error.message}: ${error.stack}`));
     }
@@ -194,7 +195,32 @@ export default class Smoke extends UbuntuIsland {
         this._settings.set_string('weather-units', 'fahrenheit');
         assert(this._card._weatherView.current.text.includes('64°F'), 'Weather units did not update live');
         this._settings.set_string('weather-units', 'celsius');
+        let routeCalls = 0;
+        this._commute.controller.keys = async () => ({});
+        this._commute.http.get = async () => { routeCalls++; return {code: 'Ok', routes: [{duration: 1920, distance: 18400}]}; };
+        this._settings.set_string('commute-routes', JSON.stringify([{id: 'test', name: 'Heading home', originMode: 'fixed', originName: 'Work', destinationName: 'Home', origin: {latitude: 35.72, longitude: 51.33}, destination: {latitude: 35.68, longitude: 51.39}}]));
+        assert(routeCalls === 0, 'Hidden Commute fetched');
+        this._card.selectPage('commute');
+        await delay(150);
+        assert(this._card._commuteView.eta.text === '32 min', 'Commute estimate failed to render');
+        assert(this._card._commuteView.status.text.includes('No live traffic'), 'Commute misrepresented traffic');
+        await this._capture('commute');
+        const fixedRoute = JSON.parse(this._settings.get_string('commute-routes'))[0];
+        this._commute.controller.locate = async () => { throw Object.assign(new Error('Location Services are off.'), {code: 'location-disabled'}); };
+        this._commute.controller.lastAttempt = -Infinity;
+        this._settings.set_string('commute-routes', JSON.stringify([{...fixedRoute, name: '', originMode: 'current'}]));
+        await delay(80);
+        assert(this._card._commuteView.name.text === 'Work → Home', 'Unnamed route title missing');
+        assert(this._card._commuteView.savedStart.visible, 'Location failure has no recovery action');
+        assert(this._card._commuteView.status.text === 'Location Services are off.', 'Location error is unclear');
+        await this._capture('commute-location-off');
+        this._commute.controller.lastAttempt = -Infinity;
+        this._card._commuteView.savedStart.emit('clicked', 1);
+        await delay(1300);
+        assert(this._commute.route.originMode === 'fixed' && this._card._commuteView.eta.text === '32 min', 'Saved-start recovery failed');
+        assert(!this._card._commuteView.savedStart.visible, 'Recovery action still shown after success');
         this._card.selectPage('system');
+        assert(!this._commute.controller.active && !this._commute.controller.timer, 'Hidden Commute retained timer');
         assert(!this._weather.controller.timer && !this._weather.controller.active, 'Hidden Weather retained a timer');
         assert(scene.timer === 0, 'Hidden scene retained animation timer');
         this._settings.set_boolean('pill-show-weather', true);
@@ -210,6 +236,29 @@ export default class Smoke extends UbuntuIsland {
         assert(this._pill.actor.get_child().get_first_child() === this._pill._weather, 'Notch order did not update live');
         this._settings.set_boolean('pill-show-title', false);
         await this._capture('notch-icons');
+        for (const shape of ['classic', 'chevron']) {
+            this._settings.set_string('pill-arrow-style', shape);
+            await delay(70);
+            assert(this._pill._arrowStyle === `${shape}:80`, 'Arrow style did not update live');
+            await this._capture(`notch-${shape}`);
+        }
+        for (const angle of [40, 95, 120]) {
+            this._settings.set_int('pill-arrow-angle', angle);
+            await delay(60);
+            assert(this._pill._arrowStyle === `chevron:${angle}`, 'Arrow angle did not update live');
+            await this._capture(`notch-angle-${angle}`);
+        }
+        this._settings.set_int('pill-arrow-angle', 80);
+        this._states.weather.data.current.isDay = false;
+        this._renderPill(); await this._capture('notch-clouds-night');
+        this._states.weather.data.current.isDay = true;
+        this._renderPill();
+        this._settings.set_string('pill-weather-style', 'minimal');
+        await delay(70);
+        assert(this._pill._weather.icon_size === 14 && this._pill._weather.icon_name.includes('symbolic'), 'Minimal weather style missing');
+        await this._capture('notch-minimal-weather');
+        this._settings.set_string('pill-weather-style', 'colorful');
+        assert(this._pill._weather.icon_size === 20, 'Colorful weather style did not restore');
         this._settings.set_boolean('pill-show-title', true);
         const [pillX] = this._pill.actor.get_transformed_position();
         const [netX] = this._pill._network.get_transformed_position();
@@ -272,6 +321,8 @@ export default class Smoke extends UbuntuIsland {
             `Preferences preview: tracked=${Boolean(this._prefsWindow)} expanded=${this._island.expanded} grab=${Boolean(this._island._grab)} windows=${global.get_window_actors().map(a => a.meta_window.get_title()).join(',')}`);
         await delay(600);
         await this._capture('preferences-tabs');
+        await delay(1600);
+        await this._capture('commute-map');
         this._openPreferencesLive();
         assert(this._prefsWindow, 'Raising preferences lost its close watcher');
         await new Promise((resolve, reject) => process.wait_check_async(null, (child, result) => {

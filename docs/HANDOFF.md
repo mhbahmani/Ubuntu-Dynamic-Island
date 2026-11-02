@@ -1,5 +1,44 @@
 # Session handoff
 
+2026-11-01 follow-up: screenshot's Commute failure was GNOME Location Services
+being disabled, not routing. Current-location errors now offer explicit saved-pin
+recovery and a Privacy settings shortcut, with short visible status text. Manual
+source selection switches to fixed mode; Locate me no longer enables tracking.
+Names are optional and displayed as endpoint names when blank. Notch chevrons now
+have a 40–120° numeric angle (default 80), replacing compact/wide presets. Legacy
+compact choices migrate to 60°. All cloudy icons share the same viewport/scale;
+day cloud grew 5% and night moons moved left/up. Host privacy settings unchanged.
+Validation: 70 Node tests, real GTK bindings/location-disabled preflight, native
+Shell smoke (including explicit saved-start recovery), and packaging passed.
+
+2026-11-01 follow-up: arrow HSV saturation reduced by 5%; default chevron angle
+widened by 5° (now about 80°). Colorful partly-cloudy cloud scale increased from
+0.8 to 0.9 while retaining the larger sun. Indicator style is now the first group
+on the Notch settings tab, with explicit arrow-shape/weather-style labels.
+
+2026-11-01: Native GTK route map replaces WebKit after two confirmed preferences
+crashes (`bwrap: setting up uid map: Permission denied`). No sandbox override or
+WebKit package is needed. `make preview-commute-map` opens the editor directly.
+Notch settings now offer thin/compact/chevron arrows and colorful/minimal weather.
+Chevron is default (roughly 15° tighter than 90°); all arrows use saturated red
+and green. The partly-cloudy sun is larger; the Weather header settings button
+was removed. 66 tests, GTK settings bindings and native smoke (including map
+click/drag/save/reopen/cleanup) passed with the ordinary environment. Live Tehran
+tiles also rendered successfully. The older WebKit validation notes below are
+historical. Source changes from both Commute iterations are still uncommitted.
+
+2026-10-31: Commute is implemented as an opt-in tab with map editing, saved routes,
+GeoClue origins, public OSRM and optional key-backed provider fallback. Default
+refresh is 15 minutes, minimum 10, visible only. See [COMMUTE.md](COMMUTE.md).
+`make preview-commute` opens its sample. Weather notch icons are now static
+full-color Meteocons; network chevrons are narrower.
+Validation: 64 Node tests, GTK preferences, schema/syntax, packaging, native
+Shell smoke and a live FOSSGIS Tehran route (12 min / 10 km) passed. The offline
+WebKit map click/drag/save fixture required a test-process-only sandbox override
+because this runner denied bubblewrap user namespaces; production sandboxing
+is unchanged. Real GeoClue permission/accuracy and key-backed accounts remain
+unverified. Generated ZIP removed; user reference `1.png` preserved.
+
 Updated 2026-10-28. v11 adds the requested basic Weather tab on top of the
 accepted v10 visual baseline. Source and build are updated; the user's installed
 extension remains v10. Weather is opt-in in preferences and needs a confirmed

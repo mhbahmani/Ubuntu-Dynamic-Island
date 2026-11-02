@@ -14,6 +14,8 @@ def main():
     parser.add_argument('--ignore-power-saver', action='store_true', help='Allow animation in this preview even on power saver; does not change the host profile')
     parser.add_argument('--scene', choices=['sun', 'clouds', 'rain', 'snow', 'night', 'clouds-night', 'rain-night', 'snow-night'], default='clouds', help='Sample weather scene')
     parser.add_argument('--motion', choices=['off', 'subtle', 'live'], default='live', help='Preview animation mode')
+    parser.add_argument('--edit-route', action='store_true', help='Open the Commute map editor immediately')
+    parser.add_argument('--tab', choices=['weather', 'commute'], default='weather', help='Initial preview tab')
     parser.add_argument('--live', action='store_true', help='Fetch live Tehran weather instead of sample data')
     parser.add_argument('--headless', action='store_true', help='Render without a window; saves weather.png')
     parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
@@ -35,6 +37,9 @@ def main():
     shutil.copy2(source / 'tests/fixtures/local-preview.js', extension / 'extension.js')
     shutil.copy2(source / 'tests/fixtures/local-preferences.mjs', extension / 'local-preferences.mjs')
     subprocess.run(['glib-compile-schemas', '--strict', str(extension / 'schemas')], check=True)
+    apps = root / 'share/applications'
+    apps.mkdir(parents=True)
+    shutil.copy2(source / 'assets/ubuntu-island.desktop', apps / 'ubuntu-island.desktop')
     mode = root / 'share/gnome-shell/modes/island-preview.json'
     mode.parent.mkdir(parents=True)
     mode.write_text(json.dumps({'parentMode': 'user', 'enabledExtensions': [uuid],
@@ -51,13 +56,13 @@ def main():
                        XDG_DATA_DIRS=f'{root}/share:/usr/local/share:/usr/share', XDG_CURRENT_DESKTOP='GNOME',
                        GSETTINGS_BACKEND='keyfile', ISLAND_PREVIEW_OUTPUT=str(root),
                        ISLAND_PREVIEW_IGNORE_POWER='1' if args.ignore_power_saver else '0', ISLAND_PREVIEW_SCENE=args.scene, ISLAND_PREVIEW_MOTION=args.motion,
-                       ISLAND_PREVIEW_LIVE='1' if args.live else '0')
+                       ISLAND_PREVIEW_EDIT_ROUTE='1' if args.edit_route else '0', ISLAND_PREVIEW_TAB=args.tab, ISLAND_PREVIEW_LIVE='1' if args.live else '0')
     command = ['dbus-run-session', '--', 'gnome-shell',
                '--headless' if args.headless else '--nested', '--wayland', '--no-x11',
                '--wayland-display=island-preview', '--mode=island-preview']
     if args.headless:
         command.append('--virtual-monitor=1280x960')
-    print(f"{'Live' if args.live else 'Sample'} weather preview. Logs/screenshots: {root}", flush=True)
+    print(f"{'Live' if args.live else 'Sample'} {args.tab} preview. Logs/screenshots: {root}", flush=True)
     print('Close the preview window or press Ctrl+C to stop. Rerun after editing source.', flush=True)
     with (root / 'runtime.log').open('w') as log:
         process = subprocess.Popen(command, env=environment, stdout=log, stderr=subprocess.STDOUT,
