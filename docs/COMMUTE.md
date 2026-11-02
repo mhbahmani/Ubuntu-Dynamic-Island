@@ -3,7 +3,11 @@
 Commute estimates driving time, distance, and arrival time for saved routes. Enable
 it in **Preferences → Commute**, then disable/re-enable the extension once. Add up
 to 12 named routes. Use the next-route button to cycle, or swap endpoints for a
-fixed route. This first version does not predict the best departure time.
+fixed route. **Settings → Notch → Show Commute ETA** adds the selected route to the
+collapsed notch and its draggable order preview. `~18m` means a baseline estimate
+without live traffic, `18m` is traffic-aware, `!18m` marks a stale estimate,
+`…` means loading, and `—` means unavailable. It hides when no route is configured.
+The notch option is off by default. This first version does not predict the best departure time.
 
 ## Choose endpoints
 
@@ -51,25 +55,27 @@ discover free-key options. Availability and free-plan quotas can change.
 | [OSRM demo](https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server) | Public, no key | No |
 | [openrouteservice](https://openrouteservice.org/) | Optional free-plan account/key | No |
 | [GraphHopper](https://www.graphhopper.com/pricing/) | Optional free-plan account/key; check usage terms | No |
-| [Neshan](https://platform.neshan.org/docs/api/routing-category/routing) | Optional Iranian provider; key required, free tier not assumed | Yes |
+| [Mapbox](https://docs.mapbox.com/api/navigation/directions/) | Optional free-plan access token | Live/typical traffic profile; coverage varies |
+| [Neshan](https://platform.neshan.org/docs/api/routing-category/routing) | Iranian provider; key required, temporary development credit then paid usage | Yes |
 
-Automatic mode tries configured Neshan, openrouteservice and GraphHopper keys,
+Automatic mode tries configured Neshan, Mapbox, openrouteservice and GraphHopper keys,
 then the public hosts. An explicit preference is tried first. Backup sources can
 be disabled. The two public OSRM hosts share FOSSGIS infrastructure: they provide
-endpoint fallback, **not independent outage protection**. Configure an
-openrouteservice or GraphHopper key for an independent backup. Public hosts are
+endpoint fallback, **not independent outage protection**. Configure a Mapbox, openrouteservice or GraphHopper key for an independent backup. Public hosts are
 best-effort services with no uptime guarantee, unsuitable as a production SLA.
 
 The UI shows the provider, whether a backup was used, and **No live traffic** for
 free baseline estimates. These estimates cannot detect a jam or promise the best
 time to head home. Neshan's traffic-aware response is used when a working key is
-configured. No paid account is required for basic use. Key-backed adapters are
+configured. Mapbox uses `driving-traffic` with `depart_at=now`; results are labeled
+**Traffic-aware**, since typical speeds may replace live observations. A response
+without traffic-profile metadata is conservatively shown as a baseline estimate. No paid account is required for basic use. Key-backed adapters are
 covered by fixtures; they have not been exercised with real account credentials.
 
 ## Refresh, performance, and privacy
 
 - Default refresh is **15 minutes**, configurable from **10 to 120 minutes**.
-  Automatic work runs only while the expanded Commute tab is visible. Reopening
+  Automatic work runs only while the expanded Commute tab or its enabled collapsed indicator is visible. Reopening
   reuses a fresh estimate; it resumes refreshing when that estimate expires.
 - Refresh is also available manually. Requests are asynchronous, bounded to
   256 KiB/15 seconds, separated by at least 1.1 seconds, and canceled on hide or
@@ -114,3 +120,37 @@ denied`, then `Failed to fully launch dbus-proxy`). The map now uses native GTK,
 so neither WebKit nor a security-setting override is needed. `make smoke` covers
 opening the editor twice and closing its resources with normal environment
 settings. Restart preferences after installing updated files.
+
+## ETA comparison and provider review (2026-11-02)
+
+A 10-minute baseline versus Google Maps' 18-minute estimate can result from
+traffic, different selected roads, snapping endpoints to different roads, or
+road-speed assumptions. We have not compared that private route at the same time
+with a working traffic-provider key, so traffic is a likely explanation, not a
+verified diagnosis. No arbitrary multiplier is applied to make the values match.
+
+Rechecked the [public-apis directory](https://github.com/public-apis/public-apis)
+and provider documentation:
+
+- **Mapbox** lists Iran in its [traffic coverage](https://docs.mapbox.com/help/dive-deeper/directions/)
+  and currently includes [100,000 Directions requests/month free](https://www.mapbox.com/pricing#navigation).
+  It requires an account/access token. Live observations can fall back to typical
+  conditions; country coverage is not a guarantee for every road. This is the
+  added free-plan candidate for comparison; account/regional access still needs
+  to work for the user. Adapter validation uses fixtures, not a real account.
+- **Neshan** documents [routing with live traffic](https://platform.neshan.org/docs/api/routing-category/routing).
+  Its [platform page](https://platform.neshan.org/) describes paid usage with
+  development credit for up to three months, not a permanent free routing tier.
+  It remains the local traffic-aware option already supported here.
+- **TomTom** has a free allowance but its [coverage table](https://docs.tomtom.com/routing-api/documentation/tomtom-maps/v1/product-information/market-coverage)
+  lists routing without real-time traffic for Iran. It does not address this
+  particular missing-traffic problem, so no extra adapter was added.
+- **openrouteservice** explicitly [does not use live traffic](https://ask.openrouteservice.org/t/what-information-are-used-to-calculate-best-route/4961).
+  It and the existing public OSRM adapters remain baseline fallback options.
+
+To compare: save a Mapbox access token in **Preferences → Commute → Optional
+provider keys**, choose Mapbox as the preferred source and refresh the same route.
+Watch the provider and backup label: a fallback to public routing is still a
+baseline estimate. A 401/403/quota failure falls back only if backups are enabled.
+The token is stored in the desktop keyring. Google Maps' consumer estimate is not
+an API response we can directly reuse.

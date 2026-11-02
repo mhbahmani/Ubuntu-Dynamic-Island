@@ -9,7 +9,11 @@ output selection, Bluetooth device management, and opt-in weather and commute es
 The repository root contains the current extension. Earlier prototypes remain
 available in Git history. Run installation and development commands from here.
 
-For session continuity, read [the handoff](docs/HANDOFF.md) and `AGENT.md`.
+For session continuity, read [the handoff](docs/HANDOFF.md),
+[AGENT.md](AGENT.md), and [CLAUDE.md](CLAUDE.md). Performance and host
+responsiveness take priority over new effects or features. API discovery starts
+with [public-apis](https://github.com/public-apis/public-apis); verify provider
+documentation for current coverage, pricing, and limits.
 The v10 visual baseline was accepted on 2026-10-28. v11 adds basic Weather functionality; further UI polish and other roadmap features remain proposals.
 
 ![Media face rendered in GNOME Shell 46 with fixture data](screenshots/expanded.png)
@@ -63,7 +67,7 @@ and [compact playing pill](screenshots/playing-pill.png).
 - **Commute (opt-in)**: saved driving routes with map-selected endpoints, optional
   current location, ETA/distance/arrival, and provider fallback. Refresh defaults
   to 15 minutes (minimum 10), only while visible. Public routing works without a
-  key; optional openrouteservice, GraphHopper and Neshan keys add alternatives.
+  key; optional Mapbox, openrouteservice, GraphHopper and Neshan keys add alternatives.
   See [Commute setup and provider limitations](docs/COMMUTE.md).
 - **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
   background opacity (0–100%, default 98%), matte tone (0–100%, default
@@ -73,6 +77,13 @@ and [compact playing pill](screenshots/playing-pill.png).
   remote-art toggle, clock relocation.
 - Full `disable()` cleanup of timers, signal handlers, D-Bus subscriptions,
   cancellables, and chrome actors; the panel clock is restored.
+
+In **Settings → Appearance → Open on expand**, keep **Last used tab** (default)
+or choose Media, System, Sound, Bluetooth, Weather, or Commute. A fixed choice
+applies each time you open the island, including hover-open. You can switch tabs
+normally while it stays open. If the chosen tab is unavailable (for example, its
+module is disabled or Media has no player), the island keeps the last available
+tab. Preference changes take effect on the next opening.
 
 ## Preview locally without installing
 
@@ -346,3 +357,10 @@ All use red for download and green for upload, softened slightly from full satur
 Minimal outline weather icons independently. The colorful partly-cloudy icon has
 a larger exposed sun; clouds share one size across day/night/rain/snow icons. Weather keeps its single footer settings
 button. The route editor uses a native GTK map to avoid WebKit sandbox crashes.
+
+Enable **Settings → Notch → Show Commute ETA** to see the selected driving route
+while collapsed. Drag its Commute chip to choose its position. Refresh uses the
+same 15-minute default (minimum 10), only while that indicator or the tab is visible.
+A `~` marks estimates without live traffic; `!` marks a stale result. Mapbox's
+optional traffic-aware profile is now supported; see [the ETA comparison and
+provider review](docs/COMMUTE.md#eta-comparison-and-provider-review-2026-11-02).

@@ -2,18 +2,50 @@
 
 ## Scope and environment
 
-- Read `docs/HANDOFF.md` when resuming. The user accepted v10 on 2026-10-28;
-  preserve that baseline. Future features remain proposals until requested.
+- Read `docs/HANDOFF.md` and `README.md` before changing code. Current user
+  instructions take precedence over historical designs and roadmap proposals.
+- Target GNOME Shell 46 on Ubuntu Wayland. Root entry points use native St/Clutter;
+  preferences use GTK/Adwaita. Weather and Commute are implemented opt-in modules.
+- Keep changes scoped to the request. Do not implement future roadmap features
+  without authorization. Never use sudo or weaken sandbox/privacy protections.
 
-- The repository root is the current extension (v11): entry points and build
-  scripts at root, with `services/`, `schemas/`, `tests/`, and `screenshots/`.
-  Obsolete prototypes were removed; consult Git history if needed.
-- Target GNOME Shell 46 on Ubuntu Wayland. See `README.md` for development
-  and runtime acceptance checks. Later user design requests take precedence.
-- Keep Shell responsive: asynchronous I/O, bounded artwork downloads, no
-  subprocess loops or blocking reads. Never use sudo.
-- Disconnect signals, cancel asynchronous work, release modal grabs, and
-  restore the calendar on disable, including partial enable failures.
+## Performance first
+
+Host responsiveness and resource use take priority over visual effects and extra
+features. This extension runs inside GNOME Shell: blocking it blocks the desktop.
+
+- Use asynchronous Gio/Soup I/O, cancellation, finite timeouts, response-size
+  limits, and generation guards against late results. No synchronous network
+  calls, subprocess polling loops, or unnecessary dependencies.
+- Reuse existing service snapshots, caches, and timers across tabs and notch
+  indicators. Hidden consumers must not keep polling or repainting. Disabled
+  modules must release timers, signals, requests, and location subscriptions.
+- Commute defaults to a 15-minute refresh with a 10-minute minimum. Refresh only
+  while its tab or enabled notch indicator is visible; reuse fresh cached data.
+- Weather motion uses premade assets, at most 12 fps and one selected atlas.
+  Pause when hidden and respect reduced-motion and power-saving settings. Keep
+  collapsed weather icons static. Avoid per-frame allocation and layout work.
+- Disconnect signals, release modal grabs, and restore the calendar on disable,
+  including partial enable failures. Test repeated enable/disable and hidden states.
+- Performance budgets are targets, not measured guarantees. Report what was
+  actually verified, including any untested hardware or live-provider behavior.
+
+## Providers, privacy, and fallbacks
+
+- Use https://github.com/public-apis/public-apis for API discovery. Verify current
+  capabilities, regional coverage, terms, quotas, and pricing in provider-owned
+  documentation before choosing or changing a service. Directory inclusion does
+  not establish that a service is free, reliable, or traffic-aware in Iran.
+- Keep independent provider fallbacks; prefer an Iranian option when suitable.
+  Distinguish keyless access from an account-based free allowance. Do not activate
+  paid services or embed shared credentials. Store API keys in the desktop keyring.
+- Never log API keys, authenticated URLs, or precise private routes. Show baseline
+  ETA and stale data honestly; do not manufacture traffic corrections or claim
+  parity with Google Maps without a real comparison.
+- Current location requires explicit permission. Never enable system location
+  services automatically or silently substitute a saved start for live location.
+- Keep map selection in the native preferences editor, outside Shell. Do not
+  reintroduce WebKit sandbox workarounds. See `docs/COMMUTE.md` and `docs/WEATHER.md`.
 
 ## Design and interaction
 
@@ -105,8 +137,8 @@ checks rendering, idle media, artwork decoding, repeated pointer hover/clicks,
 Artifacts stay in its printed `/tmp/ubuntu-island-smoke-*` directory. Keep
 only README-linked example screenshots in the repository.
 
-v11 passed 52 Node tests, syntax/schema checks, real GTK preferences checks,
-GJS weather-cache checks, packaging, and headless GNOME tests. These do not establish physical mixed-monitor rendering,
+See `docs/HANDOFF.md` for the latest validation record. Automated checks do not
+establish physical mixed-monitor rendering,
 HDMI hotplug/routing, live MPRIS control, Bluetooth, suspend/resume, or fullscreen
 behavior. Run the README hardware acceptance checks before claiming those pass.
 
@@ -116,17 +148,21 @@ Use `journalctl --user -b` to inspect extension errors.
 
 ## Git hygiene
 
-- Use focused commits with short imperative Conventional Commit subjects
-  (`fix(audio): ...`, `feat(ui): ...`, `test: ...`, `docs: ...`).
-- Do not add co-author trailers. Never push or open a PR unless requested.
-- Keep build ZIPs, compiled schemas, caches, and loose diagnostic captures out
-  of commits. Preserve user reference files when cleaning up; archive if needed.
+- Make a separate focused commit for each logical change. Keep commit messages
+  short, human-written in tone, and imperative. Use Conventional Commits such as
+  `fix(weather): balance notch icons`, `feat(ui): choose the opening tab`, and
+  `docs: refresh development guides`. Avoid vague subjects and AI boilerplate.
+- Never add `Co-authored-by` or assistant attribution trailers/messages.
+- When a branch is needed, use a short descriptive name such as
+  `feat/commute-eta`, `fix/notch-spacing`, or `docs/development-guide`.
+- Review staged diffs and run checks appropriate to the change before committing.
+  Preserve unrelated user edits. Never push or open a PR unless requested.
+- Keep build ZIPs, compiled schemas, caches, and loose diagnostic captures out of
+  commits. Remove obsolete generated files when requested, using explicit paths.
+  Preserve user reference screenshots and README-linked assets; avoid broad cleans.
 
 ## Future work
 
-`docs/FEATURE_ROADMAP.md` tracks future work. Basic Weather is implemented in v11;
-its remaining polish and the other modules are proposals. The roadmap covers
-Weather, Commute, Calendar appointments, and explicit Task Progress integrations.
-Respect its optional-module lifecycle and performance budgets; verify provider/API
-compatibility before implementation. Do not add the roadmap features without a
-user implementation request.
+`docs/FEATURE_ROADMAP.md` contains design targets and future proposals. Weather
+and Commute are implemented; Calendar appointments and Task Progress remain
+proposals. Current behavior and user requests override earlier roadmap ideas.

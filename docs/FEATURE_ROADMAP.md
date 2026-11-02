@@ -1,14 +1,16 @@
 # Ubuntu Island feature roadmap
 
-Status: roadmap; basic static Weather implemented in v11 on 2026-10-28. Bounded native Weather motion was added on 2026-10-29; broader visual polish and
-other modules remain proposals. See [WEATHER.md](WEATHER.md).
+Status (2026-11-02): Weather and Commute are implemented. See
+[WEATHER.md](WEATHER.md), [COMMUTE.md](COMMUTE.md), and [HANDOFF.md](HANDOFF.md)
+for current behavior. Calendar appointments and Task Progress remain proposals.
 
-This plan covers Weather, Commute, Next Appointment (including Google Calendar),
-and Task Progress. The performance budgets below are design targets, not measured
-claims. Source links were reviewed on the date above; provider terms and GNOME 46
-API compatibility must be checked again when implementing.
+This document retains design ideas for future work. Existing user-requested
+behavior takes precedence: the notch supports multiple ordered indicators, and
+Commute refresh defaults to 15 minutes with a 10-minute minimum while visible.
+Performance budgets are targets, not measured claims. Verify provider terms and
+GNOME compatibility when implementing any remaining proposal.
 
-## Product direction
+## Proposed product direction
 
 The island should help with things happening now or soon. Prefer actionable,
 contextual information over duplicates of GNOME quick settings. Preserve native
@@ -21,8 +23,9 @@ appointments can appear as small badges; never switch the expanded page while th
 user is interacting with it. Hidden or disabled modules must not create actors,
 network requests, or background loops unnecessarily.
 
-The collapsed notch shows one chosen activity, with a small count if others need
-attention. Suggested priority: a user-pinned activity, then an imminent appointment
+An earlier proposal limited the collapsed notch to one chosen activity, with a small count if others needed
+attention. The implemented notch instead supports user-ordered indicators. For
+future contextual alerts, a suggested priority is: a user-pinned activity, then an imminent appointment
 or commute reminder, then an active task, then media. Weather appears there only
 if explicitly pinned or configured for a relevant alert. Manual selection always
 wins. Do not interrupt typing or automatically open the island.
@@ -56,7 +59,7 @@ precise commute endpoints need more conservative defaults and a Clear data actio
 | Module | Update policy | Bounded data/rendering |
 |---|---|---|
 | Weather | Fetch on first use; refresh after 20 minutes while viewed/pinned | One location, current conditions and 24 hourly entries; response cap 256 KiB |
-| Commute | Fetch on opening if older than 5 minutes; explicit Refresh | Two directional results; no embedded map; cap 128 KiB |
+| Commute | Refresh every 15 minutes while visible (configurable, minimum 10); explicit Refresh | Selected route; native map only in preferences; bounded responses |
 | Appointment | Subscribe to local calendar changes; deadline-driven UI updates | Next 7 days, at most 200 occurrences; show next event plus three upcoming |
 | Tasks | Producer events; coalesce visible updates to at most once per second | At most 32 active tasks and 20 recent completions |
 | Weather motion | Static when hidden, locked, fullscreen-hidden, or motion-reduced | Live mode at most 12 fps, one selected 48-frame atlas (~6.75 MiB decoded) |
