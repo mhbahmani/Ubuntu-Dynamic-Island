@@ -30,4 +30,5 @@ Clouds remain pale blue/white beside the yellow sun; rain, snow and night scenes
 retain their own colors. Animation tags are removed and the viewBox is cropped
 for small icons. All cloud-bearing icons share the same viewport and cloud transform. The
 daytime sun is enlarged and the night moon shifted left/up so each remains
-visible. The common cloud is 5% larger than the preceding daytime version. Regenerate with `node scripts/render-notch-icons.mjs`.
+visible. The common cloud scale is 0.99225 (another 5% increase), centered consistently
+across conditions. The sun is shifted slightly right/down behind the cloud. Regenerate with `node scripts/render-notch-icons.mjs`.

@@ -13,14 +13,14 @@ for (const [name, source] of Object.entries(sources)) {
     const hasCloud = !['sun', 'night'].includes(name);
     if (hasCloud) {
         // One viewport, cloud shape and scale for every cloud-bearing condition.
-        // 0.945 is 5% larger than the previous 0.9 daytime cloud.
+        // Shared cloud grows 5% about its center; keep sun slightly tucked behind it.
         svg = svg.replace('viewBox="6 8 52 48"', 'viewBox="0 4 58 52"');
         svg = svg.replace(/<path\b[^>]*stroke="#e6effc"[^>]*\/>/,
-            '<g data-part="cloud" transform="translate(2.1825 5.06) scale(.945)">$&</g>');
+            '<g data-part="cloud" transform="translate(.694125 3.548) scale(.99225)">$&</g>');
         if (name.endsWith('night')) svg = svg.replace(/<path\b[^>]*stroke="#72b9d5"[^>]*>[\s\S]*?<\/path>/,
             '<g data-part="moon" transform="translate(-3 -2)">$&</g>');
         if (name === 'clouds') svg = svg.replace(/(<circle[\s\S]*?)(<g data-part="cloud")/,
-            '<g transform="translate(-2 -3) translate(19 24) scale(1.28) translate(-19 -24)">$1</g>$2');
+            '<g transform="translate(-1 -2) translate(19 24) scale(1.28) translate(-19 -24)">$1</g>$2');
     }
     writeFileSync(new URL(`notch/${name}.svg`, root), svg);
 }
