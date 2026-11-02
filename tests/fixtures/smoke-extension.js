@@ -259,6 +259,19 @@ export default class Smoke extends UbuntuIsland {
         assert(this._pill.actor.get_child().get_first_child() === this._pill._weather, 'Notch order did not update live');
         this._settings.set_boolean('pill-show-title', false);
         await this._capture('notch-icons');
+        const requestsBeforeNotch = routeCalls;
+        this._settings.set_boolean('pill-show-commute', true);
+        await delay(120);
+        assert(this._pill._commute.visible && this._pill._commuteValue.text === '~32m', 'Commute notch did not show selected estimate');
+        assert(this._commute.controller.active && this._commute.controller.timer, 'Commute notch did not resume refresh');
+        assert(routeCalls === requestsBeforeNotch, 'Fresh Commute cache fetched again for notch');
+        assert(this._pill.actor.accessible_name.includes('no live traffic'), 'Commute notch omitted traffic limitation');
+        await this._capture('notch-commute');
+        this._island.actor.hide();
+        assert(!this._commute.controller.active && !this._commute.controller.timer, 'Hidden notch kept Commute active');
+        this._island.actor.show();
+        this._settings.set_boolean('pill-show-commute', false);
+        assert(!this._pill._commute.visible && !this._commute.controller.timer, 'Disabled Commute notch retained timer');
         for (const shape of ['classic', 'chevron']) {
             this._settings.set_string('pill-arrow-style', shape);
             await delay(70);

@@ -13,9 +13,9 @@ export function notchPreview(settings, window) {
         margin_top: 8, margin_bottom: 12});
     const preview = new Gtk.Box({spacing: 6, halign: Gtk.Align.CENTER});
     preview.add_css_class('linked');
-    const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth'};
+    const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth', commute: 'Commute'};
     const icons = {media: 'audio-x-generic-symbolic', weather: 'weather-clear-symbolic',
-        network: 'network-transmit-receive-symbolic', cpu: 'utilities-system-monitor-symbolic', bluetooth: 'bluetooth-symbolic'};
+        network: 'network-transmit-receive-symbolic', cpu: 'utilities-system-monitor-symbolic', bluetooth: 'bluetooth-symbolic', commute: 'find-location-symbolic'};
     let selected = 'media';
     const controls = new Gtk.Box({spacing: 8, halign: Gtk.Align.CENTER});
     const left = new Gtk.Button({icon_name: 'go-previous-symbolic', tooltip_text: 'Move selected item left'});
@@ -38,7 +38,7 @@ export function notchPreview(settings, window) {
         const order = notchOrder(settings.get_strv('pill-order'));
         order.forEach((id, index) => {
             const chip = new Gtk.ToggleButton({active: selected === id, tooltip_text: names[id]});
-            const content = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 5, margin_start: 7, margin_end: 7, margin_top: 7, margin_bottom: 7});
+            const content = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 5, margin_start: 4, margin_end: 4, margin_top: 7, margin_bottom: 7});
             content.append(new Gtk.Image({icon_name: icons[id], pixel_size: 18}));
             content.append(new Gtk.Label({label: names[id]}));
             chip.set_child(content);

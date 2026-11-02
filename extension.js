@@ -100,7 +100,10 @@ export default class UbuntuIsland extends Extension {
 
         if (this._settings.get_boolean('enable-commute'))
             this._commute = new CommuteService(this._settings, state => {
-                if (this._enabled) this._card._commuteView?.render(state);
+                if (!this._enabled) return;
+                this._states.commute = state;
+                this._card._commuteView?.render(state);
+                this._renderPill();
             });
         this._island.show();
         this._renderPill();
@@ -193,7 +196,7 @@ export default class UbuntuIsland extends Extension {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
         });
-        for (const key of ['pill-show-weather', 'pill-show-network', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
+        for (const key of ['pill-show-weather', 'pill-show-network', 'pill-show-commute', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
         watch('surface-opacity', () => this._applyAppearance());
@@ -240,6 +243,8 @@ export default class UbuntuIsland extends Extension {
             weather: this._states.weather,
             showWeather: this._settings.get_boolean('pill-show-weather'),
             showNetwork: this._settings.get_boolean('pill-show-network'),
+            commute: this._states.commute,
+            showCommute: this._settings.get_boolean('pill-show-commute'),
             units: this._settings.get_string('weather-units'),
             order: this._settings.get_strv('pill-order'),
             arrowStyle: this._settings.get_string('pill-arrow-style'),
@@ -280,7 +285,9 @@ export default class UbuntuIsland extends Extension {
         const compact = Boolean(this._island?.actor.mapped && !this._island.expanded &&
             this._settings.get_boolean('pill-show-weather'));
         this._weather?.setActive(active || compact);
-        this._commute?.setActive(Boolean(this._island?.expanded && this._card?._page === 'commute' && this._card.actor.mapped));
+        this._commute?.setActive(Boolean(this._island?.actor.mapped && (
+            (this._island.expanded && this._card?._page === 'commute' && this._card.actor.mapped) ||
+            (!this._island.expanded && this._settings.get_boolean('pill-show-commute')))));
         this._card?._weatherView?.scene.setActive(active);
     }
 

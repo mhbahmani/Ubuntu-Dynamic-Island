@@ -220,3 +220,5 @@
 .ubuntu-island-commute-eta { font-size: 28pt; font-weight: 500; color: #b6d5f4; }
 .ubuntu-island-commute-link { padding: 5px 9px; border-radius: 6px; color: #b6d5f4; font-size: 9pt; }
 .ubuntu-island-commute-link:hover, .ubuntu-island-commute-link:focus { background-color: rgba(180,210,245,0.12); }
+
+.ubuntu-island-pill-commute { spacing: 4px; color: #b6d5f4; }

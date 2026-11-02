@@ -1,4 +1,4 @@
-export const NOTCH_ITEMS = ['media', 'weather', 'network', 'cpu', 'bluetooth'];
+export const NOTCH_ITEMS = ['media', 'weather', 'network', 'cpu', 'bluetooth', 'commute'];
 
 // Tolerate stale/hand-edited settings while keeping every item exactly once.
 export function notchOrder(value) {
@@ -30,4 +30,15 @@ export function weatherSymbol(kind) {
         clouds: 'weather-few-clouds-symbolic', 'clouds-night': 'weather-few-clouds-night-symbolic',
         rain: 'weather-showers-symbolic', 'rain-night': 'weather-showers-symbolic',
         snow: 'weather-snow-symbolic', 'snow-night': 'weather-snow-symbolic'})[kind] ?? 'weather-few-clouds-symbolic';
+}
+
+export function commuteIndicator(state) {
+    if (!state?.route) return {visible: false, text: '', description: ''};
+    const data = state.data;
+    const stale = Boolean(state.stale || state.status === 'error');
+    const minutes = data ? Math.max(1, Math.round(data.seconds / 60)) : null;
+    return {visible: true,
+        text: minutes !== null ? `${stale ? '!' : data.traffic ? '' : '~'}${minutes}m` : state.status === 'loading' ? '…' : '—',
+        description: `${state.route.name || `${state.route.originName || 'Start'} → ${state.route.destinationName || 'Destination'}`}: ${minutes !== null ? `${minutes} minutes, ${stale ? 'stale estimate, ' : ''}${data.traffic ? 'traffic-aware' : 'no live traffic'}` : state.error || (state.status === 'loading' ? 'updating' : 'estimate unavailable')}`,
+        stale};
 }

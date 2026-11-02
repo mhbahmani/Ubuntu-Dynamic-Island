@@ -1,6 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {notchOrder, arrowSvg, weatherSymbol} from './services/notch-model.js';
+import {notchOrder, arrowSvg, weatherSymbol, commuteIndicator} from './services/notch-model.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {weatherSceneKind, temperature} from './services/weather-model.js';
@@ -62,10 +62,16 @@ export class Pill {
         }
         this._network.visible = false;
         content.add_child(this._network);
+        this._commute = row('ubuntu-island-pill-commute');
+        this._commute.add_child(icon('find-location-symbolic', 13));
+        this._commuteValue = label('—', 'ubuntu-island-pill-rate', false);
+        this._commute.add_child(this._commuteValue);
+        this._commute.visible = false;
+        content.add_child(this._commute);
         content.add_child(this._cpuDot);
         content.add_child(this._bluetooth);
         this._items = {media: this._media, weather: this._weather, network: this._network,
-            cpu: this._cpuDot, bluetooth: this._bluetooth};
+            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute};
         for (const group of Object.values(this._items)) {
             group.x_expand = true;
             group.x_align = Clutter.ActorAlign.CENTER;
@@ -82,7 +88,7 @@ export class Pill {
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({media, system, bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful'}) {
+    render({media, system, bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false}) {
         const available = Boolean(media?.available);
         this._media.visible = available;
         this._mediaIcon.visible = available;
@@ -125,6 +131,10 @@ export class Pill {
         }
         this._weather.opacity = weather?.stale ? 140 : 255;
         this._network.visible = Boolean(showNetwork && showMetrics && system);
+        const commuteState = commuteIndicator(commute);
+        this._commute.visible = showCommute && commuteState.visible;
+        this._commuteValue.text = commuteState.text;
+        this._commute.opacity = commuteState.stale ? 160 : 255;
         const compactRate = rate => String(rate ?? '—').replace(/ Ki?B\/s$/, 'K').replace(/ Mi?B\/s$/, 'M').replace(/ Gi?B\/s$/, 'G').replace(/ B\/s$/, 'B');
         const arranged = notchOrder(order);
         const key = arranged.join(',');
@@ -137,6 +147,7 @@ export class Pill {
         const description = [expanded ? 'Close Ubuntu Island' : 'Open Ubuntu Island'];
         if (this._weather.visible) description.push(`${weather.stale ? 'Stale weather: ' : ''}${current.condition}, ${temperature(current.temperature, units)}`);
         if (this._network.visible) description.push(`Download ${system.rx}, upload ${system.tx}`);
+        if (this._commute.visible) description.push(commuteState.description);
         this.actor.accessible_name = description.join('. ');
     }
 }
