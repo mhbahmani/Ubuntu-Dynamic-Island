@@ -28,7 +28,10 @@ bundled SVGs offline. Runtime changes must keep frame counts and durations in
 `notch/` contains static full-color SVG derivatives of these same MIT assets.
 Clouds remain pale blue/white beside the yellow sun; rain, snow and night scenes
 retain their own colors. Animation tags are removed and the viewBox is cropped
-for small icons. All cloud-bearing icons share the same viewport and cloud transform. The
+for small icons. All cloud-bearing icons share the same cloud transform. The
 daytime sun is enlarged and the night moon shifted left/up so each remains
 visible. The common cloud scale is 0.99225 (another 5% increase), centered consistently
-across conditions. The sun is shifted slightly right/down behind the cloud. Regenerate with `node scripts/render-notch-icons.mjs`.
+across conditions. The sun is shifted slightly right/down behind the cloud. Each
+icon is cropped to a square viewBox centered on its rendered ink, so rain drops
+hanging below the cloud no longer push the icon low inside the notch slot.
+Regenerate with `node scripts/render-notch-icons.mjs`.
