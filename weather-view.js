@@ -99,7 +99,8 @@ export class WeatherView {
             : state.error ? `${state.stale ? 'Stale · ' : ''}${state.error}`
             : data ? `${state.stale ? 'Stale · ' : ''}Fetched ${age} min ago${hours.length ? '' : ' · Forecast unavailable'}` : '';
         this.status.accessible_name = this.status.text;
-        this.source.text = data ? `${data.provider === 'wttr' ? 'wttr.in / WWO' : 'Open-Meteo · CC BY 4.0'} · Meteocons` : 'Artwork: Meteocons / Bas Milius';
+        const credit = {wttr: 'wttr.in / WWO', met: 'MET Norway · CC BY 4.0', 'open-meteo': 'Open-Meteo · CC BY 4.0'}[data?.provider];
+        this.source.text = data ? `${credit} · Meteocons` : 'Artwork: Meteocons / Bas Milius';
         setEnabled(this.refresh, Boolean(location) && state.status !== 'loading');
     }
 }

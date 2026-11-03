@@ -57,7 +57,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   failures. Audio and Bluetooth rows are retained across updates to preserve
   focus. A scroll container keeps controls reachable on short displays.
 - **Weather (v11, opt-in)**: current conditions, feels-like temperature, humidity,
-  wind, and the next four forecast entries. Open-Meteo and wttr.in automatically
+  wind, and the next four forecast entries. Open-Meteo, MET Norway and wttr.in automatically
   fall back to each other; choose either as the preferred source. City selection,
   manual coordinates, Celsius/Fahrenheit, refresh, and a bounded offline cache.
   Fetches while the Weather tab or its enabled notch indicator is visible, at most every 20 minutes automatically.

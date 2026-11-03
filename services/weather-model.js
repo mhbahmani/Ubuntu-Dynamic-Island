@@ -1,6 +1,6 @@
 // Provider-independent weather data; temperatures in Celsius, wind in km/h.
 export const FRESH_MS = 20 * 60 * 1000;
-export const PROVIDERS = ['open-meteo', 'wttr'];
+export const PROVIDERS = ['open-meteo', 'met', 'wttr'];
 export function number(value) {
     return value === null || value === undefined || value === '' || typeof value === 'boolean'
         ? null : Number.isFinite(Number(value)) ? Number(value) : null;
@@ -33,9 +33,24 @@ export function condition(code) {
     if ([95, 96, 99].includes(code)) return 'Thunderstorm';
     return 'Conditions unavailable';
 }
+// met.no symbol words map to the condition vocabulary weatherSceneKind sorts by;
+// the _day/_night/_polartwilight suffix is stripped first.
+export function metCondition(code) {
+    const base = String(code ?? '').replace(/_(?:day|night|polartwilight)$/, '');
+    const exact = {clearsky: 'Clear sky', fair: 'Mostly clear', partlycloudy: 'Partly cloudy',
+        cloudy: 'Overcast', fog: 'Fog'}[base];
+    if (exact) return exact;
+    const kind = ['sleet', 'snow', 'thunder', 'rain', 'drizzle'].find(word => base.includes(word));
+    if (!kind) return 'Conditions unavailable';
+    const name = {sleet: 'Sleet', snow: 'Snow', thunder: 'Thunderstorm', rain: 'Rain', drizzle: 'Drizzle'}[kind];
+    return (base.startsWith('heavy') ? 'Heavy ' : base.startsWith('light') ? 'Light ' : '') +
+        (base.includes('showers') ? `${name} showers` : name);
+}
 export function weatherUrl(provider, location) {
     const {latitude: lat, longitude: lon} = location;
     if (provider === 'wttr') return `https://wttr.in/${lat},${lon}?format=j1`;
+    if (provider === 'met') return 'https://api.met.no/weatherapi/locationforecast/2.0/complete' +
+        `?lat=${lat.toFixed(4)}&lon=${lon.toFixed(4)}`; // met.no answers 403 beyond four decimals
     return `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
         '&current=temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,is_day' +
         '&hourly=temperature_2m,precipitation_probability&forecast_days=2' +
@@ -51,6 +66,26 @@ export function normalize(provider, body, location, now = Date.now()) {
         hourly = (body.hourly?.time ?? []).map((time, i) => ({time,
             temperature: number(body.hourly.temperature_2m?.[i]),
             rain: number(body.hourly.precipitation_probability?.[i])}));
+    } else if (provider === 'met') {
+        // met.no is forecast-only: the entry covering now stands in for current conditions.
+        const series = body.properties?.timeseries ?? [];
+        let entry = null;
+        for (const point of series) {
+            if (Date.parse(point.time) > now) break;
+            entry = point;
+        }
+        const details = entry?.data?.instant?.details ?? {};
+        const symbol = entry?.data?.next_1_hours?.summary?.symbol_code
+            ?? entry?.data?.next_6_hours?.summary?.symbol_code ?? '';
+        current = {temperature: number(details.air_temperature), feelsLike: number(details.apparent_air_temperature),
+            humidity: number(details.relative_humidity),
+            wind: details.wind_speed == null ? null : Math.round(details.wind_speed * 3.6), // m/s to km/h
+            isDay: /_day$/.test(symbol) ? true : /_night$/.test(symbol) ? false : null,
+            condition: metCondition(symbol)};
+        observedAt = entry?.time ?? null; // UTC with offset; never shown as local time
+        hourly = series.filter(point => Number.isFinite(Date.parse(point.time)))
+            .map(point => ({time: localTime(location.timezone, Date.parse(point.time)),
+                temperature: number(point.data?.instant?.details?.air_temperature), rain: null}));
     } else {
         const c = body.current_condition?.[0] ?? {};
         current = {temperature: number(c.temp_C), feelsLike: number(c.FeelsLikeC),

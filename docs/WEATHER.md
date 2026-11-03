@@ -26,7 +26,8 @@ make preview PREVIEW_ARGS="--scene sun --motion subtle"
 Scenes: sun, clouds, rain, snow, night, clouds-night, rain-night, snow-night. The preview defaults to Live; the extension
 uses Subtle by default. Preferences → Weather motion selects Off (static), Subtle
 (four seconds on entry), or Live (while visible). Night uses Open-Meteo's `is_day`
-for all conditions when available; missing day/night information does not claim astronomical accuracy.
+or the MET Norway symbol suffix for all conditions when available; missing
+day/night information does not claim astronomical accuracy.
 The sun's small movement is decorative, not a calculated solar trajectory.
 
 The weather surface layers bundled Meteocons artwork behind live text, with a
@@ -65,34 +66,44 @@ necessary before recommending prolonged Live mode.
 
 No API key is needed. Preferences show the selected location. City search sends
 its query to Open-Meteo geocoding; weather requests send saved coordinates to the
-preferred provider and, on failure, the other provider. Manual coordinates avoid
-a dependency on geocoding availability. No continuous location tracking.
+preferred provider and, on failure, the remaining providers in order. Manual
+coordinates avoid a dependency on geocoding availability. No continuous location
+tracking.
 
 ## Sources and fallback
 
-Verified documentation and live endpoints on 2026-10-28:
+Verified documentation and live endpoints on 2026-10-28 (MET Norway on 2026-11-03):
 
 | Provider | Integration | Result |
 |---|---|---|
 | [Open-Meteo](https://open-meteo.com/en/docs) | Default, global current/hourly forecast | Live Tehran request succeeded through GJS/Soup |
-| [wttr.in](https://github.com/chubin/wttr.in#json-output) | Keyless alternate (`format=j1`, coordinates), WorldWeatherOnline data | Live Tehran request succeeded through GJS/Soup |
+| [MET Norway](https://api.met.no/doc/locationforecast/FAQ) | Keyless backup ([locationforecast 2.0 `complete`](https://api.met.no/weatherapi/locationforecast/2.0/documentation)), User-Agent identification only, CC BY 4.0/NLOD, 20 req/s cap | Live Tehran request succeeded through GJS/Soup (2026-11-03); forecast-only data, so the entry covering "now" stands in for current conditions |
+| [wttr.in](https://github.com/chubin/wttr.in#json-output) | Keyless alternate (`format=j1`, coordinates), WorldWeatherOnline data | Live Tehran request succeeded through GJS/Soup on 2026-10-28; unreachable from this network on 2026-11-03, which motivated the MET Norway backup |
 | [One-API, Iran](https://one-api.ir/2021/04/09/api-%D9%87%D9%88%D8%A7%D8%B4%D9%86%D8%A7%D8%B3%DB%8C-%D9%88-%D9%88%D8%B6%D8%B9%DB%8C%D8%AA-%D8%AC%D9%88%DB%8C/) | Researched, not integrated | Documents coordinate-based current/hourly endpoints; requires a user token |
 | [Sameteo, Iran](https://sameteo.com/products/web-service) | Researched, not integrated | Advertises Iranian weather APIs with account/trial access; no authenticated endpoint validated |
 | [Codebazan, Iran](https://codebazan.ir/%D9%88%D8%A8-%D8%B3%D8%B1%D9%88%DB%8C%D8%B3-%DA%A9%D8%A7%D8%B1%D8%A8%D8%B1%D8%AF%DB%8C-%D8%B3%D8%B1%DB%8C-%D8%B3%D9%88%D9%85/) | Researched, not integrated | Published `api.codebazan.ir/havairan/?unit=metric&city=tehran` returned HTTP 403 from this environment |
 
 Either implemented provider can be preferred; failures, timeouts and malformed
-responses try the other provider. Successful results identify their actual source.
+responses try the remaining providers in order (Open-Meteo → MET Norway → wttr.in
+by default). Successful results identify their actual source.
 These are separate services, not a guarantee of entirely independent upstream
 meteorological data or availability from every Iranian network. The Iranian
 options above are not claimed as working fallback integrations. A future token
 integration should use the desktop secret store, never GSettings or bundled keys.
 
 Open-Meteo's free API is for non-commercial use; its data uses CC BY 4.0.
-See [provider terms](https://open-meteo.com/en/terms). Source attribution is shown
+See [provider terms](https://open-meteo.com/en/terms). MET Norway data is
+CC BY 4.0/NLOD; it needs no key but rejects coordinates beyond four decimals
+(the request URL truncates them) and asks for an identifying User-Agent, which
+the weather HTTP client sends. Source attribution is shown
 in the tab. wttr's forecast is often three-hourly; the UI displays returned times
-and does not invent hourly samples. Rain is precipitation probability, not a
-minute-precise prediction. Both providers are normalized to Celsius and km/h;
-Fahrenheit is a display conversion. Forecast times use the saved location's
+and does not invent hourly samples. MET Norway publishes no precipitation
+probability, so its forecast cells show no rain percentage rather than an
+invented number. Rain is precipitation probability, not a
+minute-precise prediction. All providers are normalized to Celsius and km/h
+(MET Norway wind arrives in m/s and is converted); day/night comes from
+Open-Meteo `is_day` or the MET Norway symbol suffix. Fahrenheit is a display
+conversion. Forecast times use the saved location's
 IANA timezone, including date boundaries. Fetch age and provider observation time
 are different: “Fetched” describes retrieval, not guaranteed observation freshness.
 

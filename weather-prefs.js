@@ -64,7 +64,8 @@ export function weatherPreferences(settings, window) {
     for (const [key, title, values, names] of [
         ['weather-motion', 'Weather motion', ['off', 'subtle', 'live'], ['Off — static scene', 'Subtle — four seconds on opening', 'Live — while visible']],
         ['weather-units', 'Temperature units', ['celsius', 'fahrenheit'], ['Celsius', 'Fahrenheit']],
-        ['weather-provider', 'Preferred source', ['open-meteo', 'wttr'], ['Open-Meteo → wttr.in fallback', 'wttr.in → Open-Meteo fallback']],
+        ['weather-provider', 'Preferred source', ['open-meteo', 'met', 'wttr'],
+            ['Open-Meteo → MET Norway → wttr.in', 'MET Norway → Open-Meteo → wttr.in', 'wttr.in → Open-Meteo → MET Norway']],
     ]) {
         const choice = new Adw.ComboRow({title, model: Gtk.StringList.new(names), selected: Math.max(0, values.indexOf(settings.get_string(key)))});
         choice.connect('notify::selected', () => settings.set_string(key, values[choice.selected]));

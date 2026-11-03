@@ -4,8 +4,9 @@ import Soup from 'gi://Soup';
 
 const LIMIT = 256 * 1024;
 // Fixed HTTPS providers, no redirects, bounded streamed bodies and a hard deadline.
+// met.no serves anonymous clients but asks that the User-Agent identify the app.
 export class WeatherHttp {
-    constructor(userAgent = 'ubuntu-island-weather/1') {
+    constructor(userAgent = 'ubuntu-island-weather/1 (https://github.com/mhbahmani/ubuntu-dynamic-island)') {
         this.session = new Soup.Session({timeout: 12, user_agent: userAgent});
         this.requests = new Set();
     }

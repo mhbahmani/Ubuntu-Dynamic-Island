@@ -113,7 +113,7 @@
     <key name="enable-weather" type="b"><default>false</default><summary>Enable Weather</summary></key>
     <key name="weather-location" type="s"><default>''</default><summary>Confirmed weather location as JSON</summary></key>
     <key name="weather-units" type="s"><default>'celsius'</default><choices><choice value="celsius"/><choice value="fahrenheit"/></choices><summary>Temperature units</summary></key>
-    <key name="weather-provider" type="s"><default>'open-meteo'</default><choices><choice value="open-meteo"/><choice value="wttr"/></choices><summary>Preferred weather source with automatic fallback</summary></key>
+    <key name="weather-provider" type="s"><default>'open-meteo'</default><choices><choice value="open-meteo"/><choice value="met"/><choice value="wttr"/></choices><summary>Preferred weather source with automatic fallback</summary></key>
     <key name="weather-motion" type="s"><default>'subtle'</default><choices><choice value="off"/><choice value="subtle"/><choice value="live"/></choices><summary>Weather scene motion</summary></key>
     <key name="pill-arrow-style" type="s"><default>'chevron'</default><choices><choice value="classic"/><choice value="compact"/><choice value="chevron"/></choices><summary>Network arrow shape in the collapsed notch</summary></key>
     <key name="pill-weather-style" type="s"><default>'colorful'</default><choices><choice value="colorful"/><choice value="minimal"/></choices><summary>Weather icon style in the collapsed notch</summary></key>

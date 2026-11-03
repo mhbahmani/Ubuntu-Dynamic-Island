@@ -33,9 +33,14 @@ export default class Preview extends UbuntuIsland {
                     weather_code: {sun: 0, clouds: 2, rain: 63, snow: 73, night: 0, 'clouds-night': 2, 'rain-night': 63, 'snow-night': 73}[GLib.getenv('ISLAND_PREVIEW_SCENE')] ?? 2},
                 hourly: {time: [1, 2, 3, 4].map(i => localTime('Asia/Tehran', Date.now() + i * 3600000)),
                     temperature_2m: [17, 16, 15, 14], precipitation_probability: [0, 20, 40, 60]},
-                // wttr fields allow changing preferred source in sample mode too.
+                // wttr and MET Norway fields allow changing preferred source in sample mode too.
                 current_condition: [{temp_C: '18', FeelsLikeC: '16', humidity: '42', windspeedKmph: '12',
                     weatherDesc: [{value: 'Partly cloudy (sample)'}]}],
+                properties: {timeseries: [0, 1, 2, 3].map(i => ({time: new Date(Date.now() + i * 3600000).toISOString(),
+                    data: {instant: {details: {air_temperature: 17 - i, apparent_air_temperature: 16 - i,
+                        relative_humidity: 42, wind_speed: 12 / 3.6}},
+                        next_1_hours: {summary: {symbol_code: GLib.getenv('ISLAND_PREVIEW_SCENE')?.endsWith('night')
+                            ? 'partlycloudy_night' : 'partlycloudy_day'}}}}))},
             });
         }
         const emit = this._commute.controller.emit;
