@@ -33,6 +33,7 @@ function harness(animation = 220) {
     const idle = new Map();
     let nextIdle = 0;
     const flushIdle = () => { for (const [id, callback] of idle) { idle.delete(id); callback(); } };
+    const addSource = (...args) => { idle.set(++nextIdle, args[args.length - 1]); return nextIdle; };
     const modal = new Set();
     const Main = {
         layoutManager: {primaryMonitor: {x: -1280, y: 0, width: 1280, height: 900}},
@@ -45,10 +46,11 @@ function harness(animation = 220) {
     const Surface = vm.runInNewContext(`${source}\nIslandSurface`, {
         St: {Widget: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1}},
         Clutter: {BinLayout: class {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0},
-            EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2, KEY_PRESS: 3}, KEY_Escape: 27,
+            EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2, KEY_PRESS: 3, BUTTON_RELEASE: 4,
+                TOUCH_END: 5, TOUCH_CANCEL: 6}, KEY_Escape: 27,
             EVENT_STOP: true, EVENT_PROPAGATE: false},
         GLib: {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false,
-            idle_add: (_, callback) => { idle.set(++nextIdle, callback); return nextIdle; },
+            idle_add: addSource, timeout_add: addSource,
             Source: {remove: id => idle.delete(id)}},
         Shell: {ActionMode: {POPUP: 1}}, Main, containsPoint, console,
     });
@@ -95,6 +97,54 @@ test('outside click dismisses even when event source is retargeted by the grab',
     assert.equal(modal.size, 1, 'Do not change grabs during press dispatch');
     flushIdle();
     assert.equal(surface.state, 'collapsed');
+    assert.equal(modal.size, 0);
+});
+test('escape dismisses through an idle, never synchronously during key dispatch', () => {
+    const {surface, modal, flushIdle} = harness(0);
+    surface.expand();
+    const stopped = surface._onCapturedEvent(surface.actor, {
+        type: () => 3, get_key_symbol: () => 27,
+    });
+    assert.equal(stopped, true);
+    assert.equal(modal.size, 1, 'Do not change grabs during key dispatch');
+    flushIdle();
+    assert.equal(surface.state, 'collapsed');
+    assert.equal(modal.size, 0);
+});
+test('outside press holds the grab until its release has dispatched', () => {
+    const {surface, modal, flushIdle} = harness(0);
+    surface.expand();
+    surface._onCapturedEvent(surface.actor, {type: () => 1, get_coords: () => [10, 850]});
+    assert.equal(surface._dismissArmed, true);
+    assert.equal(modal.size, 1, 'Guard must keep the modal through the pending press');
+    const propagated = surface._onCapturedEvent(surface.actor, {type: () => 4, get_coords: () => [10, 850]});
+    assert.equal(propagated, false);
+    assert.equal(surface._dismissArmed, false, 'Release ends the guard');
+    assert.equal(surface.state, 'expanded', 'Collapse waits until the release leaves dispatch');
+    assert.equal(modal.size, 1);
+    flushIdle();
+    assert.equal(surface.state, 'collapsed');
+    assert.equal(modal.size, 0);
+});
+test('dismissal guard falls back to the cap when no release ever arrives', () => {
+    const {surface, modal, flushIdle} = harness(0);
+    surface.expand();
+    surface._onCapturedEvent(surface.actor, {type: () => 1, get_coords: () => [10, 850]});
+    flushIdle();
+    assert.equal(surface.state, 'collapsed');
+    assert.equal(modal.size, 0);
+});
+test('suspended dismissal leaves the island open and clears the guard', () => {
+    const {surface, modal, flushIdle} = harness(0);
+    surface.expand();
+    surface.suspendGrab();
+    surface._onCapturedEvent(surface.actor, {type: () => 1, get_coords: () => [10, 850]});
+    flushIdle();
+    assert.equal(surface.expanded, true);
+    assert.equal(surface._dismissArmed, false);
+    surface.resumeGrab();
+    assert.equal(modal.size, 1);
+    surface.collapse();
     assert.equal(modal.size, 0);
 });
 

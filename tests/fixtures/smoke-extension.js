@@ -421,8 +421,30 @@ export default class Smoke extends UbuntuIsland {
         pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
         await delay(250);
         assert(this._island.expanded, 'Real notch click could not reopen after outside dismissal');
+        // Escape must also dismiss outside key dispatch, and the notch must
+        // still reopen with a real pointer click afterwards.
+        this._island._onCapturedEvent(this._island.actor, {
+            type: () => Clutter.EventType.KEY_PRESS,
+            get_key_symbol: () => Clutter.KEY_Escape,
+        });
+        await delay(50);
+        assert(!this._island.expanded && !this._island._grab, 'Escape did not dismiss');
+        pointer.notify_absolute_motion(GLib.get_monotonic_time(), reopenX + this._pill.actor.width / 2, reopenY + 12);
+        await delay(50);
+        pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
+        await delay(50);
+        pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
+        await delay(250);
+        assert(this._island.expanded, 'Real notch click could not reopen after Escape dismissal');
+        // The guard holds the grab through a pending dismissing press; the
+        // matching release completes the dismissal.
         this._island._onCapturedEvent(this._island.actor, {
             type: () => Clutter.EventType.BUTTON_PRESS,
+            get_coords: () => [0, 850],
+        });
+        assert(this._island.expanded && this._island._grab, 'Guard dropped the grab mid-press');
+        this._island._onCapturedEvent(this._island.actor, {
+            type: () => Clutter.EventType.BUTTON_RELEASE,
             get_coords: () => [0, 850],
         });
         await delay(50);
@@ -477,6 +499,7 @@ export default class Smoke extends UbuntuIsland {
         this._island._onCapturedEvent(this._island.actor, {
             type: () => Clutter.EventType.KEY_PRESS, get_key_symbol: () => Clutter.KEY_Escape,
         });
+        await delay(50);
         assert(this._island.state === 'collapsed' && !this._island._grab, 'Escape retained input grab');
         this._settings.set_boolean('disable-animations', false);
         for (let i = 0; i < 30; i++) this._island.toggle();

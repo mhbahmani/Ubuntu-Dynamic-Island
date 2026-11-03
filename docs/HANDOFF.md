@@ -28,16 +28,33 @@ Updated 2026-11-02. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 
 ## Validation and limits
 
-Preview input fix: outside-pointer dismissal now defers modal release until the
-press has finished dispatching. Synchronous release reproduced a stalled Shell
-with real pointer events; preview logs also showed Clutter's `press_count`
-assertion at shutdown. Collapsed/suspended surfaces ignore captured dismissal.
-The native smoke now sends actual outside press/release and notch reopen events;
-it passed with no pointer assertion after the fix. Existing synthetic dismissal
-coverage remains. No background polling was added; pending idle work is removed
-on destruction. Recheck windowed preview behavior on the user's desktop too.
+Preview input fix, second round (2026-11-03): the notch-reopen failure returned
+in the windowed preview, and that session's log ended with Clutter's
+`free_pointer_device_entry: assertion failed: (!entry->press_count)` abort.
+Root cause: dismissing on an outside press released the modal while that press
+was still pending (its release arrives up to ~150 ms later). Per
+`clutter-stage.c`, a press builds the pointer emission chain, and a grab
+dismissed mid-press can strand it; every later click then routes through the
+stale chain, so the notch button never receives press/release and the island
+cannot reopen until the entry is freed — which then trips the assertion.
+Dismissal now arms a guard: the modal is released only after the dismissing
+press's release has dispatched (idles run after the current dispatch), with a
+400 ms cap for a release that never arrives; Escape dismisses via the same
+idle path instead of synchronously during key dispatch. Node tests cover the
+guard, cap, Escape and suspended paths; the native smoke now also exercises
+Escape dismissal followed by a real notch click reopen, plus the guard holding
+the grab through a pending press. Verified in the headless private session
+only — recheck the windowed nested preview with a real mouse on the user's
+desktop (the previous idle-only fix passed the smoke yet leaked in that
+environment). No background polling was added; pending guard sources are
+removed on destruction.
 
-The latest implementation passed 73 Node tests plus syntax/schema checks,
+Earlier round (2026-11-02): outside-pointer dismissal deferred modal release
+until the press finished dispatching; synchronous release reproduced a stalled
+Shell with real pointer events. Collapsed/suspended surfaces ignore captured
+dismissal. No pointer assertion appeared in that day's preview logs.
+
+The latest implementation passed 78 Node tests plus syntax/schema checks,
 real GTK preference checks, and the native headless GNOME smoke suite. Smoke
 coverage includes opening-tab behavior, unavailable-tab fallback, map editing,
 Commute notch cache reuse, and hidden timer cleanup. Packaging was verified for

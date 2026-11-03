@@ -14,6 +14,11 @@ export const IslandState = Object.freeze({
 
 const COLLAPSED_HEIGHT = 34;
 const HEIGHT_BUDGET = 0.8; // of the monitor height
+// A dismissing outside press may still be held: releasing the modal grab
+// mid-press strands Clutter's pointer emission chain, so later clicks (the
+// notch reopen click) route through the stale chain and never arrive. Wait
+// for the press's release, capped for a release that never comes.
+const DISMISS_GUARD_MS = 400;
 const clampRange = (value, lower, upper) => Math.max(lower, Math.min(upper, value));
 
 // The island is a single chrome-managed St.Widget surface: the compact pill
@@ -34,6 +39,7 @@ export class IslandSurface {
         this._hoverCloseMs = 350;
         this._layoutSignal = 0;
         this._dismissIdle = 0;
+        this._dismissArmed = false;
         this._grab = null;
         this._grabSuspended = false;
 
@@ -274,17 +280,21 @@ export class IslandSurface {
             const [width, height] = actor.get_transformed_size();
             if (!containsPoint(x, y, left, top, width, height)) {
                 // Pop the modal only after Clutter finishes dispatching this
-                // press. Changing the grab inside capture mutates its active
-                // event chain and can strand the pointer's implicit grab.
-                if (!this._dismissIdle) this._dismissIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    this._dismissIdle = 0;
-                    this.collapse();
-                    return GLib.SOURCE_REMOVE;
-                });
+                // press AND its release. Changing the grab inside capture
+                // mutates the active event chain and can strand the pointer's
+                // implicit grab; the guard timeout also covers a release that
+                // never arrives (button held or lost by the backend).
+                this._armDismissal(DISMISS_GUARD_MS);
                 return Clutter.EVENT_STOP;
             }
+        } else if (type === Clutter.EventType.BUTTON_RELEASE || type === Clutter.EventType.TOUCH_END ||
+                   type === Clutter.EventType.TOUCH_CANCEL) {
+            if (!this._dismissArmed) return Clutter.EVENT_PROPAGATE;
+            // The dismissing press finished; collapse once this release ends dispatch.
+            this._armDismissal(0);
+            return Clutter.EVENT_PROPAGATE;
         } else if (type === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
-            this.collapse();
+            this._armDismissal(0); // key dismissals carry no pending pointer sequence
             return Clutter.EVENT_STOP;
         } else if (type === Clutter.EventType.KEY_PRESS &&
             (event.get_key_symbol() === Clutter.KEY_Tab || event.get_key_symbol() === Clutter.KEY_ISO_Left_Tab)) {
@@ -294,6 +304,25 @@ export class IslandSurface {
             return Clutter.EVENT_STOP;
         }
         return Clutter.EVENT_PROPAGATE;
+    }
+
+    // A positive delay arms the release guard (collapse at the cap); zero
+    // collapses at the next idle, still outside the current input dispatch.
+    _armDismissal(delay) {
+        if (this._dismissIdle) GLib.Source.remove(this._dismissIdle);
+        this._dismissIdle = 0;
+        this._dismissArmed = delay > 0;
+        this._dismissIdle = delay > 0
+            ? GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => this._runDismissal())
+            : GLib.idle_add(GLib.PRIORITY_DEFAULT, () => this._runDismissal());
+        return this._dismissIdle;
+    }
+
+    _runDismissal() {
+        this._dismissIdle = 0;
+        this._dismissArmed = false;
+        if (this.expanded && !this._grabSuspended) this.collapse();
+        return GLib.SOURCE_REMOVE;
     }
 
     _easeSize(width, height, duration, onDone) {
