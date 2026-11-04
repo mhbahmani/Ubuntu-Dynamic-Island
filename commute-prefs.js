@@ -69,6 +69,9 @@ export function commutePreferences(settings, window, dependencies = {}) {
         const all = routesFrom(settings.get_string('commute-routes')); add.sensitive = all.length < 12;
         for (const route of all) {
             const item = new Adw.ActionRow({title: routeTitle(route), subtitle: `${route.originMode === 'current' ? 'Current location' : route.originName} → ${route.destinationName}`, use_markup: false});
+            const selected = settings.get_string('commute-selected') === route.id || (!settings.get_string('commute-selected') && all[0]?.id === route.id);
+            const select = new Gtk.Button({label: selected ? 'Selected' : 'Select', valign: Gtk.Align.CENTER, sensitive: !selected});
+            select.connect('clicked', () => settings.set_string('commute-selected', route.id)); item.add_suffix(select);
             const edit = new Gtk.Button({label: 'Edit', valign: Gtk.Align.CENTER}); edit.connect('clicked', () => open(route)); item.add_suffix(edit);
             const remove = new Gtk.Button({icon_name: 'user-trash-symbolic', tooltip_text: 'Remove route', valign: Gtk.Align.CENTER});
             remove.connect('clicked', () => settings.set_string('commute-routes', JSON.stringify(routesFrom(settings.get_string('commute-routes')).filter(r => r.id !== route.id)))); item.add_suffix(remove);
@@ -76,9 +79,9 @@ export function commutePreferences(settings, window, dependencies = {}) {
         }
     };
     const id = settings.connect('changed::commute-routes', render);
-    render();
+    const selectionId = settings.connect('changed::commute-selected', render); render();
     const keyControls = routingKeyPreferences(settings, window, dependencies);
-    window.connect('close-request', () => { settings.disconnect(id); settings.disconnect(providerId); settings.disconnect(priorityId); return false; });
+    window.connect('close-request', () => { settings.disconnect(id); settings.disconnect(selectionId); settings.disconnect(providerId); settings.disconnect(priorityId); return false; });
     return [group, priority, keyControls];
 }
 

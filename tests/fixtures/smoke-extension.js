@@ -227,6 +227,7 @@ export default class Smoke extends UbuntuIsland {
         await delay(150);
         assert(this._card._commuteView.eta.text === '32 min', 'Commute estimate failed to render');
         assert(this._card._commuteView.status.text.includes('Traffic freshness unverified'), 'Commute misrepresented traffic');
+        assert(this._card._commuteView.name.get_parent().get_n_children() === 2, 'Redundant Commute heading controls remain');
         await this._capture('commute');
         const fixedRoute = JSON.parse(this._settings.get_string('commute-routes'))[0];
         this._commute.controller.locate = async () => { throw Object.assign(new Error('Location Services are off.'), {code: 'location-disabled'}); };

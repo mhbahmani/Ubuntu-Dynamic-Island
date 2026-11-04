@@ -156,6 +156,15 @@ if (!find(window, '1. OSRM demo')) throw new Error('Provider order did not follo
 settings.set_string('commute-provider', 'balad');
 if (routingSource.selected !== 7) throw new Error('Balad selection missing');
 
+settings.set_string('commute-routes', JSON.stringify([
+    {id: 'a', name: 'Route A', origin: {latitude: 35.7, longitude: 51.3}, destination: {latitude: 35.8, longitude: 51.4}},
+    {id: 'b', name: 'Route B', origin: {latitude: 35.7, longitude: 51.3}, destination: {latitude: 35.8, longitude: 51.4}},
+]));
+settings.set_string('commute-selected', 'a');
+buttonLabel(find(window, 'Route B'), 'Select').emit('clicked');
+if (settings.get_string('commute-selected') !== 'b' || !buttonLabel(find(window, 'Route B'), 'Selected'))
+    throw new Error('Saved route selection failed');
+
 // Exercise real GTK controls with injected credentials and validation: never
 // read/write the actual keyring or send account credentials during this test.
 const wait = () => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 20, () => { resolve(); return GLib.SOURCE_REMOVE; }));

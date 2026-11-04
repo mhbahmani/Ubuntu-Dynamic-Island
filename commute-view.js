@@ -12,10 +12,8 @@ export class CommuteView {
         const heading = row();
         this.name = label('Add your first route', 'ubuntu-island-track'); this.name.x_expand = true;
         heading.add_child(this.name);
-        heading.add_child(button('go-next-symbolic', 'Next saved route', () => actions.commuteNext?.(), 14));
         this.swap = button('object-flip-horizontal-symbolic', 'Reverse route', () => actions.commuteSwap?.(), 14);
         heading.add_child(this.swap);
-        heading.add_child(button('preferences-system-symbolic', 'Commute settings', () => actions.preferences('commute'), 14));
         content.add_child(heading);
         const hero = row();
         this.eta = label('—', 'ubuntu-island-commute-eta'); this.eta.x_expand = true;
