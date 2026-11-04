@@ -146,6 +146,16 @@ try {
 } catch (error) {
     if (error.code !== 'location-disabled') throw error;
 }
+// Accessible provider ordering persists and follows external settings changes.
+const moveBalad = tooltip(window, 'Move up: Balad (experimental)');
+if (!moveBalad) throw new Error('Provider priority controls missing');
+moveBalad.emit('clicked');
+if (settings.get_strv('commute-provider-order')[1] !== 'balad') throw new Error('Provider order did not save');
+settings.set_strv('commute-provider-order', ['osrm', 'balad']);
+if (!find(window, '1. OSRM demo')) throw new Error('Provider order did not follow settings');
+settings.set_string('commute-provider', 'balad');
+if (routingSource.selected !== 7) throw new Error('Balad selection missing');
+
 // Exercise real GTK controls with injected credentials and validation: never
 // read/write the actual keyring or send account credentials during this test.
 const wait = () => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 20, () => { resolve(); return GLib.SOURCE_REMOVE; }));

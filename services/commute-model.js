@@ -1,5 +1,5 @@
-export const PROVIDERS = ['neshan', 'mapbox', 'ors', 'graphhopper', 'fossgis', 'osrm'];
-export const PROVIDER_NAMES = {neshan: 'Neshan', mapbox: 'Mapbox', ors: 'openrouteservice', graphhopper: 'GraphHopper', fossgis: 'FOSSGIS / OSRM', osrm: 'OSRM demo'};
+export const PROVIDERS = ['neshan', 'mapbox', 'balad', 'ors', 'graphhopper', 'fossgis', 'osrm'];
+export const PROVIDER_NAMES = {balad: 'Balad (experimental)', neshan: 'Neshan', mapbox: 'Mapbox', ors: 'openrouteservice', graphhopper: 'GraphHopper', fossgis: 'FOSSGIS / OSRM', osrm: 'OSRM demo'};
 export const intervalMs = minutes => Math.max(10, Math.min(120, Number(minutes) || 15)) * 60000;
 export function point(value) {
     if (!value || typeof value.latitude !== 'number' || typeof value.longitude !== 'number' ||
@@ -30,15 +30,21 @@ export function routesFrom(value) {
         });
     } catch { return []; }
 }
-export function providerOrder(preferred, keys = {}, fallback = true) {
-    const usable = id => ['fossgis', 'osrm'].includes(id) || Boolean(keys[id]);
-    const first = PROVIDERS.includes(preferred) ? preferred : PROVIDERS.find(usable);
-    return [...new Set([first, ...(fallback ? PROVIDERS.filter(usable) : [])])].filter(Boolean);
+export const KEYLESS_PROVIDERS = ['balad', 'fossgis', 'osrm'];
+export function providerPriority(value = []) {
+    return [...new Set([...(Array.isArray(value) ? value.filter(id => PROVIDERS.includes(id)) : []), ...PROVIDERS])];
+}
+export function providerOrder(preferred, keys = {}, fallback = true, priority = PROVIDERS) {
+    const order = providerPriority(priority);
+    const usable = id => KEYLESS_PROVIDERS.includes(id) || Boolean(keys[id]);
+    const first = PROVIDERS.includes(preferred) ? preferred : order.find(usable);
+    return [...new Set([first, ...(fallback ? order.filter(usable) : [])])].filter(Boolean);
 }
 export function requestFor(provider, origin, destination, key = '') {
     if (!point(origin) || !point(destination)) throw new Error('Choose valid endpoints');
     const xy = p => `${p.longitude},${p.latitude}`;
     const yx = p => `${p.latitude},${p.longitude}`;
+    if (provider === 'balad') return {url: `https://direction.raah.ir/navigation-v7/directions/v5/mapbox/driving-traffic/${xy(origin)};${xy(destination)}`, headers: {Origin: 'https://balad.ir', Referer: 'https://balad.ir/'}};
     if (provider === 'neshan') return {url: `https://api.neshan.org/v4/direction?type=car&origin=${yx(origin)}&destination=${yx(destination)}&alternative=false`, headers: {'Api-Key': key}};
     if (provider === 'mapbox') return {url: `https://api.mapbox.com/directions/v5/mapbox/driving-traffic/${xy(origin)};${xy(destination)}?depart_at=now&overview=false&steps=false&alternatives=false&access_token=${encodeURIComponent(key)}`, headers: {}};
     if (provider === 'ors') return {url: `https://api.openrouteservice.org/v2/directions/driving-car?start=${xy(origin)}&end=${xy(destination)}`, headers: {Authorization: key}};
@@ -60,7 +66,7 @@ export function normalizeRoute(provider, body, now = Date.now()) {
         typeof meters !== 'number' || !Number.isFinite(meters) || meters < 0) throw new Error('No valid driving estimate');
     const typical = body.routes?.[0]?.duration_typical;
     const traffic = provider === 'neshan' || (provider === 'mapbox' && Number.isFinite(typical) && typical >= 0);
-    return {seconds, meters, provider, traffic, updatedAt: now};
+    return {seconds, meters, provider, traffic, trafficUnverified: provider === 'balad', updatedAt: now};
 }
 
 // Injection keeps lifecycle, fallback and timing testable without GNOME/network.
@@ -70,11 +76,12 @@ export class CommuteController {
         this.state = {status: 'unconfigured'}; this.active = false; this.generation = 0; this.timer = 0;
         this.lastAttempt = -Infinity; this.cache = new Map();
     }
-    configure(route, preferred = 'auto', minutes = 15, fallback = true) {
-        const signature = JSON.stringify([route, preferred, minutes, fallback]);
+    configure(route, preferred = 'auto', minutes = 15, fallback = true, priority = PROVIDERS) {
+        priority = providerPriority(priority);
+        const signature = JSON.stringify([route, preferred, minutes, fallback, priority]);
         if (signature === this.signature) return;
         this.signature = signature; this.invalidate();
-        this.route = route; this.preferred = preferred; this.interval = intervalMs(minutes); this.fallback = fallback;
+        this.route = route; this.preferred = preferred; this.interval = intervalMs(minutes); this.fallback = fallback; this.priority = priority;
         this.state = {status: route ? 'idle' : 'unconfigured'}; this.emit(this.state);
         if (this.active) this.refresh();
     }
@@ -116,10 +123,10 @@ export class CommuteController {
             const keys = await this.keys();
             if (token !== this.generation) return;
             const failures = [];
-            for (const provider of providerOrder(this.preferred, keys, this.fallback)) {
+            for (const provider of providerOrder(this.preferred, keys, this.fallback, this.priority)) {
                 if (token !== this.generation) return;
                 try {
-                    if (!['fossgis', 'osrm'].includes(provider) && !keys[provider]) throw new Error('API key missing');
+                    if (!KEYLESS_PROVIDERS.includes(provider) && !keys[provider]) throw new Error('API key missing');
                     const request = requestFor(provider, origin, this.route.destination, keys[provider]);
                     const body = await this.fetch(request.url, request.headers);
                     if (token !== this.generation) return;

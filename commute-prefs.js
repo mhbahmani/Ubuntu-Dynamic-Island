@@ -2,7 +2,7 @@ import {editRoute} from './commute-map.js';
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
-import {routesFrom, PROVIDER_NAMES, routeTitle} from './services/commute-model.js';
+import {routesFrom, PROVIDER_NAMES, providerPriority, routeTitle} from './services/commute-model.js';
 import {routingKeys, saveRoutingKey} from './services/commute-keys.js';
 
 import {WeatherHttp} from './services/weather-http.js';
@@ -10,22 +10,45 @@ import {validateRoutingKey} from './services/commute-validation.js';
 
 export function commutePreferences(settings, window, dependencies = {}) {
     const group = new Adw.PreferencesGroup({title: 'Driving routes',
-        description: 'Opt in to send endpoints to routing services while the Commute tab or its notch indicator is visible. Free public estimates do not include live traffic. Map setup uses OpenStreetMap tiles and address search.'});
+        description: 'Opt in to send endpoints to routing services while the Commute tab or its notch indicator is visible. OSRM estimates exclude traffic; Balad is an experimental keyless source. Map setup uses OpenStreetMap tiles and address search.'});
     const enabled = new Adw.SwitchRow({title: 'Enable Commute', subtitle: 'Applies after disabling and re-enabling the extension'});
     settings.bind('enable-commute', enabled, 'active', Gio.SettingsBindFlags.DEFAULT); group.add(enabled);
     const interval = new Adw.SpinRow({title: 'ETA refresh interval', subtitle: 'Minutes · minimum 10 · only while visible',
         adjustment: new Gtk.Adjustment({lower: 10, upper: 120, step_increment: 5, page_increment: 15})});
     settings.bind('commute-interval', interval.adjustment, 'value', Gio.SettingsBindFlags.DEFAULT); group.add(interval);
-    const providers = ['auto', 'fossgis', 'osrm', 'ors', 'graphhopper', 'neshan', 'mapbox'];
+    const providers = ['auto', 'fossgis', 'osrm', 'ors', 'graphhopper', 'neshan', 'mapbox', 'balad'];
     const provider = new Adw.ComboRow({title: 'Preferred routing source', model: Gtk.StringList.new([
-        'Automatic — configured keys, then public routing', 'FOSSGIS — public, no key', 'OSRM demo — public, no key',
-        'openrouteservice — free-plan key', 'GraphHopper — free-plan key', 'Neshan — traffic, key required', 'Mapbox — traffic-aware, free-plan token'])});
+        'Automatic — use provider priority', 'FOSSGIS — public, no key', 'OSRM demo — public, no key',
+        'openrouteservice — free-plan key', 'GraphHopper — free-plan key', 'Neshan — traffic, key required', 'Mapbox — traffic-aware, free-plan token', 'Balad — experimental, no key'])});
     provider.subtitle = 'Traffic-aware ETA: configure Neshan or Mapbox. Public OSRM has no live traffic.';
     const syncProvider = () => { provider.selected = Math.max(0, providers.indexOf(settings.get_string('commute-provider'))); };
     syncProvider(); provider.connect('notify::selected', () => settings.set_string('commute-provider', providers[provider.selected]));
     const providerId = settings.connect('changed::commute-provider', syncProvider); group.add(provider);
     const fallback = new Adw.SwitchRow({title: 'Use backup routing sources', subtitle: 'May send endpoints to multiple providers. Public OSRM hosts share infrastructure.'});
     settings.bind('commute-fallback', fallback, 'active', Gio.SettingsBindFlags.DEFAULT); group.add(fallback);
+    const priority = new Adw.PreferencesGroup({title: 'Provider priority',
+        description: 'First to last in Automatic mode; providers without keys are skipped. A preferred source goes first, then this backup order. Balad is unofficial; traffic freshness is unverified.'});
+    const priorityRows = [];
+    const renderPriority = () => {
+        for (const row of priorityRows) priority.remove(row);
+        priorityRows.length = 0;
+        const order = providerPriority(settings.get_strv('commute-provider-order'));
+        order.forEach((name, index) => {
+            const row = new Adw.ActionRow({title: `${index + 1}. ${PROVIDER_NAMES[name]}`});
+            for (const [offset, icon, label] of [[-1, 'go-up-symbolic', 'Move up'], [1, 'go-down-symbolic', 'Move down']]) {
+                const button = new Gtk.Button({icon_name: icon, tooltip_text: `${label}: ${PROVIDER_NAMES[name]}`, valign: Gtk.Align.CENTER,
+                    sensitive: index + offset >= 0 && index + offset < order.length});
+                button.connect('clicked', () => {
+                    const changed = [...order];
+                    [changed[index], changed[index + offset]] = [changed[index + offset], changed[index]];
+                    settings.set_strv('commute-provider-order', changed);
+                });
+                row.add_suffix(button);
+            }
+            priority.add(row); priorityRows.push(row);
+        });
+    };
+    const priorityId = settings.connect('changed::commute-provider-order', renderPriority); renderPriority();
     const addRow = new Adw.ActionRow({title: 'Saved routes', subtitle: 'Set both endpoints on a map. Up to 12 routes.'});
     const add = new Gtk.Button({label: 'Add route on map', valign: Gtk.Align.CENTER}); addRow.add_suffix(add); group.add(addRow);
     const rows = [];
@@ -52,10 +75,11 @@ export function commutePreferences(settings, window, dependencies = {}) {
             group.add(item); rows.push(item);
         }
     };
-    const id = settings.connect('changed::commute-routes', render); render();
+    const id = settings.connect('changed::commute-routes', render);
+    render();
     const keyControls = routingKeyPreferences(settings, window, dependencies);
-    window.connect('close-request', () => { settings.disconnect(id); settings.disconnect(providerId); return false; });
-    return [group, keyControls];
+    window.connect('close-request', () => { settings.disconnect(id); settings.disconnect(providerId); settings.disconnect(priorityId); return false; });
+    return [group, priority, keyControls];
 }
 
 export function routingKeyPreferences(settings, window, dependencies = {}) {

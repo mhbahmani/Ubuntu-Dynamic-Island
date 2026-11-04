@@ -15,7 +15,7 @@ export class CommuteService {
             locate: () => this.location.get(), keys: () => { this.keyCancel = new Gio.Cancellable(); return routingKeys(this.keyCancel); }, emit: state => emit({...state, route: this.route}),
             schedule: (ms, callback) => GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.ceil(ms), () => { callback(); return GLib.SOURCE_REMOVE; }),
             unschedule: id => GLib.Source.remove(id)});
-        this.ids = ['commute-routes', 'commute-selected', 'commute-provider', 'commute-interval', 'commute-fallback', 'commute-keys-revision']
+        this.ids = ['commute-routes', 'commute-selected', 'commute-provider', 'commute-provider-order', 'commute-interval', 'commute-fallback', 'commute-keys-revision']
             .map(key => settings.connect(`changed::${key}`, () => {
                 this.reversed = false;
                 if (key === 'commute-keys-revision') { this.controller.signature = null; this.controller.cache.clear(); }
@@ -39,7 +39,7 @@ export class CommuteService {
             origin: this.route.destination, destination: this.route.origin,
             originName: this.route.destinationName, destinationName: this.route.originName};
         this.controller.configure(this.route, this.settings.get_string('commute-provider'),
-            this.settings.get_int('commute-interval'), this.settings.get_boolean('commute-fallback'));
+            this.settings.get_int('commute-interval'), this.settings.get_boolean('commute-fallback'), this.settings.get_strv('commute-provider-order'));
     }
     next() {
         const i = this.routes.findIndex(r => r.id === this.route?.id);

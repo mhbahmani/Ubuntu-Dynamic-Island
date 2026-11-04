@@ -39,6 +39,6 @@ export function commuteIndicator(state) {
     const minutes = data ? Math.max(1, Math.round(data.seconds / 60)) : null;
     return {visible: true,
         text: minutes !== null ? `${stale ? '!' : data.traffic ? '' : '~'}${minutes}m` : state.status === 'loading' ? '…' : '—',
-        description: `${state.route.name || `${state.route.originName || 'Start'} → ${state.route.destinationName || 'Destination'}`}: ${minutes !== null ? `${minutes} minutes, ${stale ? 'stale estimate, ' : ''}${data.traffic ? 'traffic-aware' : 'no live traffic'}` : state.error || (state.status === 'loading' ? 'updating' : 'estimate unavailable')}`,
+        description: `${state.route.name || `${state.route.originName || 'Start'} → ${state.route.destinationName || 'Destination'}`}: ${minutes !== null ? `${minutes} minutes, ${stale ? 'stale estimate, ' : ''}${data.traffic ? 'traffic-aware' : data.trafficUnverified ? 'traffic freshness unverified' : 'no live traffic'}` : state.error || (state.status === 'loading' ? 'updating' : 'estimate unavailable')}`,
         stale};
 }

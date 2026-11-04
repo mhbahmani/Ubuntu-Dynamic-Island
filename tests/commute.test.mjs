@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {routesFrom, point, intervalMs, providerOrder, requestFor, normalizeRoute, CommuteController} from '../services/commute-model.js';
+import {routesFrom, point, intervalMs, providerPriority, providerOrder, requestFor, normalizeRoute, CommuteController} from '../services/commute-model.js';
 const route = {id: 'home', name: 'Home', originMode: 'fixed', origin: {latitude: 35.72, longitude: 51.33}, destination: {latitude: 35.68, longitude: 51.39}};
 const response = {code: 'Ok', routes: [{duration: 1920, distance: 18400}]};
 test('route input validation rejects malformed endpoints and limits saved routes', () => {
@@ -16,8 +16,8 @@ test('refresh default is 15 minutes and cannot be configured under 10', () => {
     assert.equal(intervalMs(undefined), 900000); assert.equal(intervalMs(1), 600000); assert.equal(intervalMs(20), 1200000);
 });
 test('provider ordering uses configured independent backups and can disable fallback', () => {
-    assert.deepEqual(providerOrder('auto'), ['fossgis', 'osrm']);
-    assert.deepEqual(providerOrder('auto', {ors: 'key'}), ['ors', 'fossgis', 'osrm']);
+    assert.deepEqual(providerOrder('auto'), ['balad', 'fossgis', 'osrm']);
+    assert.deepEqual(providerOrder('auto', {ors: 'key'}), ['balad', 'ors', 'fossgis', 'osrm']);
     assert.deepEqual(providerOrder('graphhopper', {}, false), ['graphhopper']);
 });
 test('provider requests preserve coordinate order and encode keys', () => {
@@ -56,7 +56,7 @@ test('visible-only requests, cache reuse, manual refresh and 15 minute schedulin
 test('failed primary falls back and labels the backup honestly', async () => {
     let calls = 0; const h = harness(async () => { if (++calls === 1) throw Error('offline'); return response; });
     h.controller.setActive(true); await flush();
-    assert.equal(calls, 2); assert.equal(h.controller.state.data.provider, 'osrm');
+    assert.equal(calls, 2); assert.equal(h.controller.state.data.provider, 'fossgis');
     assert.equal(h.controller.state.data.fallback, true); assert.equal(h.controller.state.data.traffic, false);
 });
 test('late response after hiding cannot publish or restart timers', async () => {
@@ -105,7 +105,7 @@ test('Mapbox requests traffic for departure now and normalizes seconds honestly'
     assert.equal(data.seconds, 1080); assert.equal(data.traffic, true);
     assert.equal(normalizeRoute('mapbox', response).traffic, false);
     assert.throws(() => normalizeRoute('mapbox', {code: 'NoRoute', routes: []}));
-    assert.deepEqual(providerOrder('auto', {mapbox: 'token', ors: 'key'}), ['mapbox', 'ors', 'fossgis', 'osrm']);
+    assert.deepEqual(providerOrder('auto', {mapbox: 'token', ors: 'key'}), ['mapbox', 'balad', 'ors', 'fossgis', 'osrm']);
 });
 test('Mapbox authorization failure falls back without calling its result traffic-aware', async () => {
     const h = harness(async url => {
@@ -114,6 +114,30 @@ test('Mapbox authorization failure falls back without calling its result traffic
     });
     h.controller.keys = async () => ({mapbox: 'invalid'});
     h.controller.setActive(true); await flush();
-    assert.equal(h.controller.state.data.provider, 'fossgis');
+    assert.equal(h.controller.state.data.provider, 'balad');
     assert.equal(h.controller.state.data.fallback, true); assert.equal(h.controller.state.data.traffic, false);
+});
+
+test('custom priority is sanitized and used for automatic and preferred fallback', () => {
+    const order = ['osrm', 'balad', 'mapbox', 'osrm', 'unknown'];
+    assert.deepEqual(providerPriority(order), ['osrm', 'balad', 'mapbox', 'neshan', 'ors', 'graphhopper', 'fossgis']);
+    assert.deepEqual(providerOrder('auto', {}, true, order), ['osrm', 'balad', 'fossgis']);
+    assert.deepEqual(providerOrder('balad', {}, true, order), ['balad', 'osrm', 'fossgis']);
+    assert.deepEqual(providerOrder('auto', {}, false, order), ['osrm']);
+});
+test('Balad uses keyless longitude-first routing without claiming verified traffic', () => {
+    const request = requestFor('balad', route.origin, route.destination);
+    assert.match(request.url, /direction.raah.ir.*driving-traffic\/51.33,35.72;51.39,35.68/);
+    assert.equal(request.headers.Origin, 'https://balad.ir');
+    const data = normalizeRoute('balad', response);
+    assert.equal(data.seconds, 1920); assert.equal(data.traffic, false); assert.equal(data.trafficUnverified, true);
+});
+test('changing priority invalidates cache and uses the new first provider', async () => {
+    const calls = []; const h = harness(async url => { calls.push(url); return response; });
+    h.controller.setActive(true); await flush();
+    assert.equal(h.controller.state.data.provider, 'balad');
+    h.advance(6000);
+    h.controller.configure(route, 'auto', 15, true, ['osrm']); await flush();
+    assert.equal(h.controller.state.data.provider, 'osrm');
+    assert.equal(calls.length, 2);
 });

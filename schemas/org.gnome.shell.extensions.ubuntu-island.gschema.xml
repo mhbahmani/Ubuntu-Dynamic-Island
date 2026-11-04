@@ -105,7 +105,8 @@
     <key name="enable-commute" type="b"><default>false</default><summary>Enable Commute</summary></key>
     <key name="commute-routes" type="s"><default>'[]'</default><summary>Saved driving routes</summary></key>
     <key name="commute-selected" type="s"><default>''</default><summary>Selected driving route</summary></key>
-    <key name="commute-provider" type="s"><default>'auto'</default><choices><choice value="auto"/><choice value="neshan"/><choice value="mapbox"/><choice value="ors"/><choice value="graphhopper"/><choice value="fossgis"/><choice value="osrm"/></choices><summary>Preferred routing provider</summary></key>
+    <key name="commute-provider-order" type="as"><default>['neshan', 'mapbox', 'balad', 'ors', 'graphhopper', 'fossgis', 'osrm']</default><summary>Routing provider priority, first to last</summary></key>
+    <key name="commute-provider" type="s"><default>'auto'</default><choices><choice value="auto"/><choice value="neshan"/><choice value="mapbox"/><choice value="balad"/><choice value="ors"/><choice value="graphhopper"/><choice value="fossgis"/><choice value="osrm"/></choices><summary>Preferred routing provider</summary></key>
     <key name="commute-interval" type="i"><default>15</default><range min="10" max="120"/><summary>Driving estimate refresh interval in minutes</summary></key>
     <key name="commute-fallback" type="b"><default>true</default><summary>Try backup routing providers</summary></key>
     <key name="commute-keys-revision" type="i"><default>0</default><summary>Credential change notification</summary></key>

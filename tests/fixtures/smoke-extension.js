@@ -226,7 +226,7 @@ export default class Smoke extends UbuntuIsland {
         this._card.selectPage('commute');
         await delay(150);
         assert(this._card._commuteView.eta.text === '32 min', 'Commute estimate failed to render');
-        assert(this._card._commuteView.status.text.includes('No live traffic'), 'Commute misrepresented traffic');
+        assert(this._card._commuteView.status.text.includes('Traffic freshness unverified'), 'Commute misrepresented traffic');
         await this._capture('commute');
         const fixedRoute = JSON.parse(this._settings.get_string('commute-routes'))[0];
         this._commute.controller.locate = async () => { throw Object.assign(new Error('Location Services are off.'), {code: 'location-disabled'}); };
@@ -265,7 +265,7 @@ export default class Smoke extends UbuntuIsland {
         assert(this._pill._commute.visible && this._pill._commuteValue.text === '~32m', 'Commute notch did not show selected estimate');
         assert(this._commute.controller.active && this._commute.controller.timer, 'Commute notch did not resume refresh');
         assert(routeCalls === requestsBeforeNotch, 'Fresh Commute cache fetched again for notch');
-        assert(this._pill.actor.accessible_name.includes('no live traffic'), 'Commute notch omitted traffic limitation');
+        assert(this._pill.actor.accessible_name.includes('traffic freshness unverified'), 'Commute notch omitted traffic limitation');
         await this._capture('notch-commute');
         this._island.actor.hide();
         assert(!this._commute.controller.active && !this._commute.controller.timer, 'Hidden notch kept Commute active');
