@@ -1,9 +1,19 @@
 # Session handoff
 
-Updated 2026-11-02. Target: GNOME Shell 46 on Ubuntu Wayland. Read
+Updated 2026-11-04. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
 ## Current behavior
+
+- Commute now supports experimental keyless Balad routing. Provider priority is
+  user-configurable with accessible Move up/down controls; Automatic skips keys
+  not configured. An explicit preferred provider still overrides first place.
+- API-key preferences load saved/absent status from the keyring, link account
+  pages, and validate a public test route before saving. Failed validation keeps
+  the existing key. Closing preferences cancels pending HTTP/keyring work.
+- Removed the redundant Commute heading settings and next-route icons as requested.
+  Balad displays traffic freshness as unverified; it does not claim proven live
+  observations. The live native Soup adapter returned a valid Tehran route.
 
 - Weather and Commute are opt-in modules. Weather uses premade day/night animation
   atlases with visibility and motion controls; the collapsed icons are static.
@@ -20,7 +30,7 @@ Updated 2026-11-02. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 - Commute refresh defaults to 15 minutes, minimum 10. Its tab and optional notch
   indicator share cache and lifecycle. Hidden consumers stop refresh timers.
   The notch uses `~` for estimates without live traffic and `!` for stale data.
-- Automatic routing tries configured Neshan and Mapbox before baseline providers
+- Automatic routing tries configured Neshan and Mapbox, then experimental Balad, before baseline providers
   (ORS, GraphHopper, FOSSGIS, OSRM). Keys stay in the desktop keyring. Mapbox uses
   driving-traffic and checks response metadata before labeling traffic support.
   See [COMMUTE.md](COMMUTE.md) for provider evidence and setup; see
@@ -54,11 +64,13 @@ until the press finished dispatching; synchronous release reproduced a stalled
 Shell with real pointer events. Collapsed/suspended surfaces ignore captured
 dismissal. No pointer assertion appeared in that day's preview logs.
 
-The latest implementation passed 78 Node tests plus syntax/schema checks,
+The latest implementation passed 83 Node tests plus syntax/schema checks,
 real GTK preference checks, and the native headless GNOME smoke suite. Smoke
 coverage includes opening-tab behavior, unavailable-tab fallback, map editing,
-Commute notch cache reuse, and hidden timer cleanup. Packaging was verified for
-Commute/Mapbox before the subsequent opening-tab change.
+Commute notch cache reuse, and hidden timer cleanup. Packaging was verified with the Balad adapter and key-validation module.
+GTK checks cover key status, rejected replacements, saving/removal, cancellation
+on close, provider links, and ordering, using injected credentials rather than
+real keyring writes. Live Balad routing also passed through the native HTTP client.
 
 Mapbox request/response handling is fixture-tested; no real account token or
 private-route comparison was available. Do not promise agreement with Google
@@ -84,3 +96,13 @@ with Alt+F2 `r`.
 Keep generated ZIPs, compiled schemas, and analysis caches out of commits. User
 reference images `1.png` and `2.png` are preserved locally and are not release
 assets. Calendar and Task Progress remain proposals, not implemented features.
+
+Preview follow-up: the nested preview now observes its private stage for outside
+clicks and Escape without taking the island modal seat grab. The installed
+extension retains its modal handling. `python3 tests/preview.py --headless
+--check-input --duration 14` checks three actual pointer dismiss/reopen cycles
+and a top-bar date-menu click with animations enabled. Virtual-pointer positions
+do not map reliably in the windowed nested backend, so automated checking requires
+headless mode. Windowed event traces showed reopening after outside dismissal
+with this preview change. Saved Commute routes now expose Select/Selected in
+preferences after removal of the tab's next-route icon.

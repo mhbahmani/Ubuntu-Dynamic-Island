@@ -2,10 +2,10 @@
 
 Commute estimates driving time, distance, and arrival time for saved routes. Enable
 it in **Preferences → Commute**, then disable/re-enable the extension once. Add up
-to 12 named routes. Use the next-route button to cycle, or swap endpoints for a
-fixed route. **Settings → Notch → Show Commute ETA** adds the selected route to the
+to 12 routes with optional names. Use Select beside a saved route in preferences, or swap
+endpoints for a fixed route. **Settings → Notch → Show Commute ETA** adds the selected route to the
 collapsed notch and its draggable order preview. `~18m` means a baseline estimate
-without live traffic, `18m` is traffic-aware, `!18m` marks a stale estimate,
+without confirmed live traffic, `18m` is traffic-aware, `!18m` marks a stale estimate,
 `…` means loading, and `—` means unavailable. It hides when no route is configured.
 The notch option is off by default. This first version does not predict the best departure time.
 
@@ -51,6 +51,7 @@ discover free-key options. Availability and free-plan quotas can change.
 
 | Source | Setup | Live traffic |
 | --- | --- | --- |
+| [Balad](https://balad.ir/) | No key; unofficial experimental endpoint | Traffic-profile endpoint; freshness unverified |
 | [FOSSGIS / OSRM](https://routing.openstreetmap.de/about.html) | Public, no key | No |
 | [OSRM demo](https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server) | Public, no key | No |
 | [openrouteservice](https://openrouteservice.org/) | Optional free-plan account/key | No |
@@ -58,11 +59,39 @@ discover free-key options. Availability and free-plan quotas can change.
 | [Mapbox](https://docs.mapbox.com/api/navigation/directions/) | Optional free-plan access token | Live/typical traffic profile; coverage varies |
 | [Neshan](https://platform.neshan.org/docs/api/routing-category/routing) | Iranian provider; key required, temporary development credit then paid usage | Yes |
 
-Automatic mode tries configured Neshan, Mapbox, openrouteservice and GraphHopper keys,
-then the public hosts. An explicit preference is tried first. Backup sources can
-be disabled. The two public OSRM hosts share FOSSGIS infrastructure: they provide
-endpoint fallback, **not independent outage protection**. Configure a Mapbox, openrouteservice or GraphHopper key for an independent backup. Public hosts are
-best-effort services with no uptime guarantee, unsuitable as a production SLA.
+**Provider priority** lists sources from first to last. Use each row's Move up or
+Move down button to change the order; changes apply live. Automatic mode skips
+key-backed providers without a saved key. The default is Neshan, Mapbox, Balad,
+openrouteservice, GraphHopper, FOSSGIS, then OSRM. An explicit **Preferred routing
+source** is tried first; backups then follow the configured priority. Turning off
+backups uses only the first eligible source. Unknown/duplicate priority entries
+are ignored and omitted providers are appended.
+
+Balad uses the keyless endpoint verified by the standalone probe and is labeled
+experimental. The ETA includes its routing profile's duration, but live-traffic
+freshness has not been established, so the UI says **Traffic freshness unverified**
+and keeps the notch's `~` prefix. Availability, terms and response format may
+change. It uses the existing bounded HTTP client and visibility lifecycle.
+
+Backup sources can be disabled. The two public OSRM hosts share FOSSGIS
+infrastructure: they provide endpoint fallback, **not independent outage
+protection**. Public hosts are best-effort services with no uptime guarantee.
+
+### API key status and validation
+
+Under **Provider API keys**, each provider shows **Key stored**, **No key stored**,
+or a keyring error. Existing secrets are never filled into the input. **Get API
+key** opens that provider's account page. **Validate & save** makes one request for
+a route between public Tehran landmarks (Azadi Tower and Milad Tower), then
+stores the key only if a valid driving estimate is returned. This may consume
+provider quota. No saved private route or current location is used for validation.
+
+A rejected key, denied permissions/region, quota limit, connection error, or
+malformed routing response leaves the previous key unchanged. A stored key is
+not revalidated automatically when preferences opens; its status explicitly says
+it was not tested this session. **Remove** deletes the saved key. Keys remain in
+the desktop keyring, and closing preferences cancels pending validation. Real
+account coverage and future key expiry cannot be guaranteed by this small test.
 
 The UI shows the provider, whether a backup was used, and **No live traffic** for
 free baseline estimates. These estimates cannot detect a jam or promise the best
@@ -154,3 +183,10 @@ Watch the provider and backup label: a fallback to public routing is still a
 baseline estimate. A 401/403/quota failure falls back only if backups are enabled.
 The token is stored in the desktop keyring. Google Maps' consumer estimate is not
 an API response we can directly reuse.
+
+## Keyless provider experiments
+
+Standalone Python probes and observed Balad/OSRM/Waze results are documented in
+[scripts/commute/README.md](../scripts/commute/README.md). Balad returned a usable
+keyless ETA on 2026-11-04; Waze returned HTTP 403. Live traffic freshness remains
+unverified. The Balad adapter is now included in the extension; Waze remains an unsuccessful experiment.
