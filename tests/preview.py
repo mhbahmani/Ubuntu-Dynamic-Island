@@ -16,10 +16,13 @@ def main():
     parser.add_argument('--motion', choices=['off', 'subtle', 'live'], default='live', help='Preview animation mode')
     parser.add_argument('--edit-route', action='store_true', help='Open the Commute map editor immediately')
     parser.add_argument('--tab', choices=['weather', 'commute'], default='weather', help='Initial preview tab')
+    parser.add_argument('--check-input', action='store_true', help='Exercise dismissal, reopening and the top-bar menu')
     parser.add_argument('--live', action='store_true', help='Fetch live Tehran weather instead of sample data')
     parser.add_argument('--headless', action='store_true', help='Render without a window; saves weather.png')
     parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
     args = parser.parse_args()
+    if args.check_input and not args.headless:
+        parser.error('--check-input requires --headless (nested virtual-pointer coordinates differ)')
     if args.duration < 0:
         parser.error('--duration must be nonnegative')
     source = Path(__file__).resolve().parents[1]
@@ -55,6 +58,7 @@ def main():
                        XDG_CONFIG_HOME=str(root / 'config'), XDG_CACHE_HOME=str(root / 'cache'),
                        XDG_DATA_DIRS=f'{root}/share:/usr/local/share:/usr/share', XDG_CURRENT_DESKTOP='GNOME',
                        GSETTINGS_BACKEND='keyfile', ISLAND_PREVIEW_OUTPUT=str(root),
+                       ISLAND_PREVIEW_CHECK_INPUT='1' if args.check_input else '0',
                        ISLAND_PREVIEW_IGNORE_POWER='1' if args.ignore_power_saver else '0', ISLAND_PREVIEW_SCENE=args.scene, ISLAND_PREVIEW_MOTION=args.motion,
                        ISLAND_PREVIEW_EDIT_ROUTE='1' if args.edit_route else '0', ISLAND_PREVIEW_TAB=args.tab, ISLAND_PREVIEW_LIVE='1' if args.live else '0')
     command = ['dbus-run-session', '--', 'gnome-shell',
@@ -84,7 +88,12 @@ def main():
     if not ready:
         print(f'Preview did not initialize. See {root / "runtime.log"}')
         return 1
-    return code if code > 0 else 0
+    if 'Clutter:ERROR' in output or 'Bail out!' in output:
+        print(f'Preview crashed. See {root / "runtime.log"}')
+        return 1
+    if args.check_input and '[Island Preview] INPUT PASS' not in output:
+        return 1
+    return code if code >= 0 else 128 - code
 
 
 if __name__ == '__main__':

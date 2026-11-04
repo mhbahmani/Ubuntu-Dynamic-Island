@@ -3,6 +3,7 @@ import UbuntuIsland from './implementation.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
+import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 
@@ -19,6 +20,25 @@ export default class Preview extends UbuntuIsland {
         settings.set_string('weather-location', JSON.stringify({name: GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 'Tehran, Iran' : 'Tehran, Iran (sample)',
             latitude: 35.6892, longitude: 51.389, timezone: 'Asia/Tehran'}));
         super.enable();
+        // Nested Mutter can lose the physical pointer release across a modal
+        // seat grab. The preview owns a private stage, so observe its events
+        // without taking a modal grab. Installed extension behavior is unchanged.
+        this._island._takeGrab = () => true;
+        this._previewInput = global.stage.connect('captured-event', (_stage, event) => {
+            if (!this._island?.expanded || this._island._grabSuspended) return Clutter.EVENT_PROPAGATE;
+            const type = event.type();
+            if ([Clutter.EventType.BUTTON_PRESS, Clutter.EventType.TOUCH_BEGIN].includes(type)) {
+                const [x, y] = event.get_coords();
+                const [left, top] = this._island.actor.get_transformed_position();
+                const [width, height] = this._island.actor.get_transformed_size();
+                if (x < left || x >= left + width || y < top || y >= top + height)
+                    this._island._armDismissal(0);
+            } else if (type === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
+                this._island._armDismissal(0);
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
         if (GLib.getenv('ISLAND_PREVIEW_IGNORE_POWER') === '1')
             this._card._weatherView.scene.isPowerSaving = () => false;
         if (GLib.getenv('ISLAND_PREVIEW_LIVE') !== '1') {
@@ -55,6 +75,7 @@ export default class Preview extends UbuntuIsland {
             this._card.selectPage(GLib.getenv('ISLAND_PREVIEW_TAB') || 'weather');
             this._island.expand();
             if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') this._openPreferencesLive('commute');
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_INPUT') === '1') this._checkInput().catch(error => console.error(`[Island Preview] INPUT FAIL: ${error.message}`));
             console.log('[Island Preview] READY: Selected tab open; preferences and refresh are interactive');
             this._captureTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 20000 : GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1' ? 8000 : 1500, () => {
                 this._captureTimer = 0;
@@ -63,6 +84,35 @@ export default class Preview extends UbuntuIsland {
             });
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    async _checkInput() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        const click = async (x, y) => {
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(), x, y);
+            await delay(50);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
+            await delay(80);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
+            await delay(400);
+        };
+        await delay(800);
+        for (let i = 0; i < 3; i++) {
+            await click(50, 500);
+            if (this._island.expanded || this._island._grab) throw new Error('Dismissal retained expansion/grab');
+            const pill = this._pill.actor;
+            const [x, y] = pill.get_transformed_position();
+            await click(x + pill.width / 2, y + pill.height / 2);
+            if (!this._island.expanded) throw new Error('Notch could not reopen');
+        }
+        await click(50, 500);
+        const date = Main.panel.statusArea.dateMenu;
+        const [x, y] = date.get_transformed_position();
+        await click(x + date.width / 2, y + date.height / 2);
+        if (!date.menu.isOpen) throw new Error('Top-bar date menu did not respond');
+        date.menu.close();
+        console.log('[Island Preview] INPUT PASS: three dismiss/reopen cycles and top-bar menu');
     }
 
     openPreferences() {
@@ -85,6 +135,8 @@ export default class Preview extends UbuntuIsland {
     }
 
     disable() {
+        if (this._previewInput) global.stage.disconnect(this._previewInput);
+        this._previewInput = 0;
         if (this._previewTimer) GLib.Source.remove(this._previewTimer);
         if (this._captureTimer) GLib.Source.remove(this._captureTimer);
         this._previewTimer = this._captureTimer = 0;
