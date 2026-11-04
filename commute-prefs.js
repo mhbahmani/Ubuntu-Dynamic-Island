@@ -3,9 +3,12 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
 import {routesFrom, PROVIDER_NAMES, routeTitle} from './services/commute-model.js';
-import {saveRoutingKey} from './services/commute-keys.js';
+import {routingKeys, saveRoutingKey} from './services/commute-keys.js';
 
-export function commutePreferences(settings, window) {
+import {WeatherHttp} from './services/weather-http.js';
+import {validateRoutingKey} from './services/commute-validation.js';
+
+export function commutePreferences(settings, window, dependencies = {}) {
     const group = new Adw.PreferencesGroup({title: 'Driving routes',
         description: 'Opt in to send endpoints to routing services while the Commute tab or its notch indicator is visible. Free public estimates do not include live traffic. Map setup uses OpenStreetMap tiles and address search.'});
     const enabled = new Adw.SwitchRow({title: 'Enable Commute', subtitle: 'Applies after disabling and re-enabling the extension'});
@@ -50,21 +53,60 @@ export function commutePreferences(settings, window) {
         }
     };
     const id = settings.connect('changed::commute-routes', render); render();
-    const keys = new Adw.PreferencesGroup({title: 'Optional provider keys', description: 'Stored in the desktop keyring. Leave blank to use public routing. A key’s quota and regional availability depend on your provider account.'});
-    for (const provider of ['mapbox', 'neshan', 'ors', 'graphhopper']) {
-        const row = new Adw.PasswordEntryRow({title: `${PROVIDER_NAMES[provider]} API key`});
-        const save = new Gtk.Button({label: 'Save', valign: Gtk.Align.CENTER});
-        const clear = new Gtk.Button({label: 'Remove', valign: Gtk.Align.CENTER});
-        const store = async value => {
-            save.sensitive = clear.sensitive = false;
-            try { await saveRoutingKey(provider, value); row.text = ''; row.title = `${PROVIDER_NAMES[provider]} key ${value ? 'saved' : 'removed'}`;
-                settings.set_int('commute-keys-revision', settings.get_int('commute-keys-revision') + 1);
-            } catch { row.title = `${PROVIDER_NAMES[provider]}: keyring unavailable`; }
-            finally { save.sensitive = clear.sensitive = true; }
-        };
-        save.connect('clicked', () => { if (row.text.trim()) store(row.text.trim()); }); clear.connect('clicked', () => store(''));
-        row.add_suffix(save); row.add_suffix(clear); keys.add(row);
-    }
+    const keyControls = routingKeyPreferences(settings, window, dependencies);
     window.connect('close-request', () => { settings.disconnect(id); settings.disconnect(providerId); return false; });
-    return [group, keys];
+    return [group, keyControls];
+}
+
+export function routingKeyPreferences(settings, window, dependencies = {}) {
+    const http = dependencies.http ?? new WeatherHttp();
+    const load = dependencies.load ?? (cancel => routingKeys(cancel, true));
+    const store = dependencies.store ?? saveRoutingKey;
+    const validate = dependencies.validate ?? ((provider, value) => validateRoutingKey(provider, value, (url, headers) => http.get(url, headers)));
+    const cancellable = new Gio.Cancellable();
+    let closed = false;
+    const keys = new Adw.PreferencesGroup({title: 'Provider API keys',
+        description: 'Keys stay in the desktop keyring. Validation sends one test route between public Tehran landmarks to the provider; this may consume quota. Invalid or unverified replacements are not saved.'});
+    const urls = {mapbox: 'https://console.mapbox.com/account/access-tokens/', neshan: 'https://platform.neshan.org/panel/',
+        ors: 'https://account.heigit.org/', graphhopper: 'https://graphhopper.com/dashboard/'};
+    const controls = [];
+    for (const provider of ['mapbox', 'neshan', 'ors', 'graphhopper']) {
+        const status = new Adw.ActionRow({title: PROVIDER_NAMES[provider], subtitle: 'Checking keyring…', use_markup: false});
+        status.add_suffix(new Gtk.LinkButton({label: 'Get API key', uri: urls[provider], valign: Gtk.Align.CENTER}));
+        keys.add(status);
+        const row = new Adw.PasswordEntryRow({title: `${PROVIDER_NAMES[provider]} API key`});
+        const save = new Gtk.Button({label: 'Validate & save', valign: Gtk.Align.CENTER, sensitive: false});
+        const clear = new Gtk.Button({label: 'Remove', valign: Gtk.Align.CENTER, sensitive: false});
+        let stored = false, busy = false, loaded = false;
+        const sync = () => { save.sensitive = loaded && !busy && Boolean(row.text.trim()); clear.sensitive = loaded && !busy && stored; row.sensitive = !busy; };
+        const message = text => { status.subtitle = `${stored ? 'Key stored' : 'No key stored'} · ${text}`; };
+        const run = async value => {
+            if (closed || busy || !loaded) return;
+            busy = true; sync(); row.remove_css_class('error');
+            message(value ? 'Validating…' : 'Removing…');
+            let validated = !value;
+            try {
+                if (value) { await validate(provider, value); validated = true; }
+                if (closed) return;
+                await store(provider, value, cancellable);
+                if (closed) return;
+                stored = Boolean(value); row.text = ''; message(value ? 'Routing access verified' : 'Removed');
+                settings.set_int('commute-keys-revision', settings.get_int('commute-keys-revision') + 1);
+            } catch (error) {
+                if (closed) return;
+                row.add_css_class('error');
+                // Validation errors are sanitized by validateRoutingKey.
+                message(validated ? 'Keyring write failed. Try again.' : error.message);
+            } finally { busy = false; if (!closed) sync(); }
+        };
+        row.connect('notify::text', sync);
+        save.connect('clicked', () => run(row.text.trim())); clear.connect('clicked', () => run(''));
+        row.add_suffix(save); row.add_suffix(clear); keys.add(row);
+        controls.push({provider, initialize(value) { stored = Boolean(value); loaded = true; message('Not tested this session'); sync(); },
+            unavailable() { status.subtitle = 'Keyring unavailable. Reopen preferences to retry.'; }});
+    }
+    load(cancellable).then(values => { if (!closed) for (const control of controls) control.initialize(values[control.provider]); })
+        .catch(() => { if (!closed) for (const control of controls) control.unavailable(); });
+    window.connect('close-request', () => { closed = true; cancellable.cancel(); http.cancel(); return false; });
+    return keys;
 }

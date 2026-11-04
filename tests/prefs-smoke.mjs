@@ -2,6 +2,8 @@ import {CurrentLocation} from '../services/commute-location.js';
 // Run with GSETTINGS_BACKEND=memory and GNOME's helper typelib/library paths.
 // Constructs real GTK controls without presenting a window or touching user settings.
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
+import {routingKeyPreferences} from '../commute-prefs.js';
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 
@@ -144,5 +146,41 @@ try {
 } catch (error) {
     if (error.code !== 'location-disabled') throw error;
 }
+// Exercise real GTK controls with injected credentials and validation: never
+// read/write the actual keyring or send account credentials during this test.
+const wait = () => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 20, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+function buttonLabel(widget, text) {
+    if (widget instanceof Gtk.Button && widget.label === text) return widget;
+    for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+        const result = buttonLabel(child, text); if (result) return result;
+    }
+    return null;
+}
+const keyWindow = new Adw.PreferencesWindow();
+const page = new Adw.PreferencesPage(); keyWindow.add(page);
+let value = 'old-key', reject = true, writes = 0, releaseValidation;
+const keyGroup = routingKeyPreferences(settings, keyWindow, {
+    http: {cancel() {}}, load: async () => ({mapbox: value}),
+    store: async (_provider, key) => { value = key; writes++; },
+    validate: async () => { if (reject) throw new Error('Key rejected.'); if (releaseValidation) await releaseValidation; },
+});
+page.add(keyGroup); await wait();
+const entry = find(keyWindow, 'Mapbox API key');
+const keyStatus = find(keyWindow, 'Mapbox');
+if (buttonLabel(keyStatus, 'Get API key')?.uri !== 'https://console.mapbox.com/account/access-tokens/') throw new Error('Provider key link missing');
+const saveKey = buttonLabel(entry, 'Validate & save');
+const removeKey = buttonLabel(entry, 'Remove');
+if (!keyStatus.subtitle.startsWith('Key stored') || !removeKey.sensitive) throw new Error('Stored key not indicated');
+entry.text = 'invalid-key'; saveKey.emit('clicked'); await wait();
+if (writes || value !== 'old-key' || !keyStatus.subtitle.includes('Key rejected')) throw new Error('Rejected replacement changed saved key');
+reject = false; entry.text = 'new-key'; saveKey.emit('clicked'); await wait();
+if (writes !== 1 || value !== 'new-key' || entry.text || !keyStatus.subtitle.includes('verified')) throw new Error('Valid key failed to save');
+removeKey.emit('clicked'); await wait();
+if (value || !keyStatus.subtitle.startsWith('No key stored') || removeKey.sensitive) throw new Error('Key removal status incorrect');
+releaseValidation = new Promise(resolve => { keyWindow._releaseValidation = resolve; });
+entry.text = 'late-key'; saveKey.emit('clicked');
+if (saveKey.sensitive || entry.sensitive) throw new Error('Validation allowed duplicate submissions');
+keyWindow.emit('close-request'); keyWindow._releaseValidation(); await wait();
+if (writes !== 2 || value) throw new Error('Validation saved a key after closing preferences');
 window.close();
 print('Preferences controls and bidirectional settings passed');
