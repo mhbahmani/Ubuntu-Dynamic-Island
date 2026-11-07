@@ -66,3 +66,14 @@ export function commuteIndicator(state) {
         description: `${state.route.name || `${state.route.originName || 'Start'} → ${state.route.destinationName || 'Destination'}`}: ${minutes !== null ? `${minutes} minutes, ${stale ? 'stale estimate, ' : ''}${data.traffic ? 'traffic-aware' : data.trafficUnverified ? 'traffic freshness unverified' : 'no live traffic'}` : state.error || (state.status === 'loading' ? 'updating' : 'estimate unavailable')}`,
         stale};
 }
+
+export const TITLE_MODES = ['fixed', 'scroll', 'fit'];
+export function titleLimit(value) { return Math.max(5, Math.min(40, Math.round(Number(value) || 12))); }
+export function titleText(value, mode, limit) {
+    const text = String(value ?? '');
+    if (mode !== 'fixed') return text;
+    const characters = typeof Intl.Segmenter === 'function'
+        ? [...new Intl.Segmenter(undefined, {granularity: 'grapheme'}).segment(text)].map(part => part.segment)
+        : Array.from(text);
+    return characters.length > titleLimit(limit) ? characters.slice(0, titleLimit(limit)).join('') + '…' : text;
+}

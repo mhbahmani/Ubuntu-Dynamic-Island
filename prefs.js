@@ -82,9 +82,25 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         const offlineId = settings.connect('changed::pill-offline-mode', syncOffline);
         window.connect('close-request', () => { settings.disconnect(offlineId); return false; });
         notch.add(offline);
+        const titles = new Adw.PreferencesGroup({title: 'Music name',
+            description: 'Choose one behavior for the collapsed notch. The full title remains available to screen readers.'});
+        const titleModes = ['fixed', 'scroll', 'fit'];
+        const titleMode = new Adw.ComboRow({title: 'Music name behavior', model: Gtk.StringList.new([
+            'Fixed width · trim', 'Scroll overflowing title', 'Fit width to title']),
+            subtitle: 'Fit mode caps the title at 240 px and the notch at 60% of the monitor (up to 600 px).'});
+        const characters = spin(settings, 'pill-title-characters', 'Title character limit', '5–40 characters · fixed mode only', 5, 40, 1);
+        const syncTitle = () => {
+            titleMode.selected = Math.max(0, titleModes.indexOf(settings.get_string('pill-title-mode')));
+            characters.sensitive = settings.get_string('pill-title-mode') === 'fixed';
+        };
+        titleMode.connect('notify::selected', () => settings.set_string('pill-title-mode', titleModes[titleMode.selected]));
+        syncTitle();
+        const titleModeId = settings.connect('changed::pill-title-mode', syncTitle);
+        window.connect('close-request', () => { settings.disconnect(titleModeId); return false; });
+        titles.add(titleMode); titles.add(characters);
         const pages = [
             ['appearance', 'Appearance', 'preferences-desktop-appearance-symbolic', [appearance]],
-            ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, hover]],
+            ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, titles, hover]],
             ['modules', 'Modules', 'application-x-addon-symbolic', [modules]],
             ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],
             ['commute', 'Commute', 'find-location-symbolic', commutePreferences(settings, window)],

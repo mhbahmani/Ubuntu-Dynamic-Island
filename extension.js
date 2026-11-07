@@ -200,7 +200,7 @@ export default class UbuntuIsland extends Extension {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
         });
-        for (const key of ['pill-show-weather', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
+        for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
         watch('surface-opacity', () => this._applyAppearance());
@@ -246,6 +246,9 @@ export default class UbuntuIsland extends Extension {
             expanded: this._island?.expanded ?? false,
             showMetrics: this._settings.get_boolean('enable-metrics'),
             showTitle: this._settings.get_boolean('pill-show-title'),
+            titleMode: this._settings.get_string('pill-title-mode'),
+            titleCharacters: this._settings.get_int('pill-title-characters'),
+            animations: !this._settings.get_boolean('disable-animations'),
             weather: this._states.weather,
             showWeather: this._settings.get_boolean('pill-show-weather'),
             showNetwork: this._settings.get_boolean('pill-show-network'),

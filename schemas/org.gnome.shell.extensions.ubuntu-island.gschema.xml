@@ -18,6 +18,8 @@
       <summary>Matte tone percentage</summary>
       <description>Flattens the background gradient; opacity independently controls transparency.</description>
     </key>
+    <key name="pill-title-mode" type="s"><default>'fixed'</default><choices><choice value="fixed"/><choice value="scroll"/><choice value="fit"/></choices><summary>Collapsed media title behavior</summary></key>
+    <key name="pill-title-characters" type="i"><default>12</default><range min="5" max="40"/><summary>Character limit for fixed media titles</summary></key>
     <key name="pill-show-title" type="b">
       <default>true</default>
       <summary>Show the track name in the notch</summary>

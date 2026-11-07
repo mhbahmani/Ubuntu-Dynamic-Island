@@ -91,3 +91,12 @@ test('Commute notch distinguishes baseline, traffic, stale and missing estimates
     assert.equal(commuteIndicator({route, status: 'error', error: 'Location off'}).text, '—');
     assert.match(commuteIndicator({route, data}).description, /no live traffic/);
 });
+
+test('media title modes preserve Unicode and bound fixed character limits', async () => {
+    const {titleText, titleLimit} = await import('../services/notch-model.js');
+    assert.equal(titleLimit(1000), 40); assert.equal(titleLimit(1), 5);
+    assert.equal(titleText('abcdefghij', 'fixed', 5), 'abcde…');
+    assert.equal(titleText('abc', 'fixed', 5), 'abc');
+    assert.equal(titleText('👨‍👩‍👦'.repeat(6), 'fixed', 5), '👨‍👩‍👦'.repeat(5) + '…');
+    for (const mode of ['scroll', 'fit']) assert.equal(titleText('A long complete title', mode, 5), 'A long complete title');
+});

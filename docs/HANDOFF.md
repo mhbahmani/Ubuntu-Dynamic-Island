@@ -154,8 +154,36 @@ headless mode. Windowed event traces showed reopening after outside dismissal
 with this preview change. Saved Commute routes now expose Select/Selected in
 preferences after removal of the tab's next-route icon.
 
+Collapsed media titles now offer mutually exclusive fixed/scroll/fit modes in
+Notch preferences. Fixed uses a schema-bounded 5–40 grapheme limit (default 12;
+code-point fallback on runtimes without Intl.Segmenter), plus pixel ellipsis.
+Scroll uses a clipped full-width label and native Clutter translation, with no
+JavaScript frame timer; it stops when expanded, unmapped, hidden by the eye
+toggle, reduced-motion/global animations off, or destroyed. Fit budgets the title
+to 240 logical pixels and subtracts other indicator widths from a notch growth
+budget of min(600 logical pixels, 60% of monitor width). Existing indicators can
+still impose their own minimum widths. Full text remains in accessibility labels
+when the title is shown. `media-title.js` is included in builds.
+
+Title-mode validation: unit/schema/syntax checks, real GTK mode/limit bindings,
+packaging, and native Shell smoke passed. Native checks cover character trimming,
+fit width growth/cap, full-width scroll geometry and movement, pause while
+expanded/hidden, resumption on collapse, and disabled animation cleanup. Fit and
+scroll screenshots were inspected; no physical mixed-monitor claim is made.
+
 Runtime packaging (2026-11-07): install.sh and build.sh now copy all root
 JavaScript runtime modules. The installer regression test uses a temporary
 XDG_DATA_HOME, checks every root module, schema/desktop-file installation, and
 backup preservation on reinstall. Runtime-file update requirements are recorded
 in AGENTS.md and linked from AGENT.md.
+
+Title review (2026-11-07): replaced recursive implicit scroll animations with one
+repeating native keyframe transition, including both end pauses. This fixes the
+remap recursion reproduced when hiding/showing the notch. Scrolling still stops
+while expanded/hidden, when animations are disabled, and on destruction, without
+JavaScript frame timers. Lifecycle tests now cover repeated remaps and cleanup;
+the smoke runner rejects JavaScript errors even if its final assertions pass.
+All 92 Node tests, syntax/schema checks, real GTK preferences, isolated installer
+checks, ZIP contents/integrity and native GNOME smoke passed. The native log had
+no recursion or GObject unref errors. Physical monitor/media-device checks remain
+outside this validation.

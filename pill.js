@@ -1,4 +1,6 @@
 import Gio from 'gi://Gio';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {MediaTitle} from './media-title.js';
 import GLib from 'gi://GLib';
 import {notchOrder, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator} from './services/notch-model.js';
 import St from 'gi://St';
@@ -27,14 +29,14 @@ export class Pill {
         this.actor.set_child(content);
 
         this._mediaIcon = icon('audio-x-generic-symbolic', 14);
-        this._title = label('', 'ubuntu-island-pill-title');
-        this._title.x_expand = true;
+        this._mediaTitle = new MediaTitle();
+        this._title = this._mediaTitle.label;
         this._bluetooth = icon('bluetooth-symbolic', 12);
         this._bluetooth.visible = false;
         this._cpuDot = new St.Widget({style_class: 'ubuntu-island-cpu-dot', y_align: Clutter.ActorAlign.CENTER});
         this._media = row('ubuntu-island-pill-media');
         this._media.add_child(this._mediaIcon);
-        this._media.add_child(this._title);
+        this._media.add_child(this._mediaTitle.actor);
         content.add_child(this._media);
         this._weather = new St.Icon({icon_size: 20});
         this._weather.visible = false;
@@ -88,14 +90,21 @@ export class Pill {
         this.actor._islandMinimumWidth = () => {
             if (!this.actor.mapped) return 0;
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            const others = groups.filter(g => g !== this._media && g.visible);
+            const otherWidth = others.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0) + (52 + others.length * 12) * scale;
+            const monitor = Main.layoutManager.primaryMonitor;
+            const maximum = Math.min(600 * scale, (monitor?.width ?? 1000 * scale) * 0.6);
+            this._mediaTitle.setBudget(Math.max(20 * scale, Math.min(240 * scale, maximum - otherWidth)));
             const visible = groups.filter(g => g.visible);
-            return visible.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0)
+            return visible.reduce((sum, g) => sum + (g === this._media
+                ? 14 * scale + (this._title.visible ? 6 * scale + this._mediaTitle.desiredWidth : 0)
+                : g.get_preferred_width(-1)[1]), 0)
                 + (26 + Math.max(0, visible.length - 1) * 12) * scale;
         };
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false}) {
+    render({media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true}) {
         const connectionState = connectionIndicator(connection, {order, mode: offlineMode,
             network: Boolean(showNetwork && showMetrics), weather: Boolean(showWeather && weather),
             commute: Boolean(showCommute && commute?.route)});
@@ -115,8 +124,7 @@ export class Pill {
         const available = Boolean(media?.available);
         this._media.visible = available;
         this._mediaIcon.visible = available;
-        this._title.visible = available && showTitle;
-        this._title.text = available ? String(media.title ?? '') : '';
+        this._mediaTitle.configure(available ? String(media.title ?? '') : '', titleMode, titleCharacters, available && showTitle, expanded, animations);
         this._mediaIcon.icon_name = available
             ? (media.status === 'Playing' ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic')
             : 'audio-x-generic-symbolic';
@@ -174,6 +182,7 @@ export class Pill {
         this._down.text = compactRate(system?.rx);
         this._up.text = compactRate(system?.tx);
         const description = [expanded ? 'Close Ubuntu Island' : 'Open Ubuntu Island'];
+        if (available && showTitle) description.push(String(media.title ?? ''));
         if (this._connection.visible) description.push(connectionState.description);
         if (this._weather.visible) description.push(`${weather.stale ? 'Stale weather: ' : ''}${current.condition}, ${temperature(current.temperature, units)}`);
         if (this._network.visible) description.push(`Download ${system.rx}, upload ${system.tx}`);

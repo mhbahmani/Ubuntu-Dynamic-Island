@@ -47,7 +47,8 @@ def main():
     log = (root / "runtime.log").read_text()
     results = [line for line in log.splitlines() if "[Island Smoke]" in line]
     print("\n".join(results) or "No smoke results; inspect runtime.log")
-    return 0 if "[Island Smoke] PASS:" in log and "[Island Smoke] FAIL" not in log else 1
+    return 0 if ("[Island Smoke] PASS:" in log and "[Island Smoke] FAIL" not in log
+                 and "JS ERROR" not in log and "g_object_unref: assertion" not in log) else 1
 
 
 if __name__ == "__main__":

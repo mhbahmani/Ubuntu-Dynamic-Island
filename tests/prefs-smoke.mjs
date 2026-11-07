@@ -85,6 +85,16 @@ if (commuteIndicator.active) throw new Error('Commute notch toggle did not follo
 const routingSource = find(window, 'Preferred routing source');
 settings.set_string('commute-provider', 'mapbox');
 if (routingSource.selected !== 6) throw new Error('Mapbox source missing from preferences');
+const titleMode = find(window, 'Music name behavior');
+const titleCharacters = find(window, 'Title character limit');
+if (!titleMode || !titleCharacters || titleMode.selected !== 0 || titleCharacters.adjustment.upper !== 40)
+    throw new Error('Title mode defaults or bounds missing');
+titleMode.selected = 1;
+if (settings.get_string('pill-title-mode') !== 'scroll' || titleCharacters.sensitive) throw new Error('Scrolling mode failed');
+settings.set_string('pill-title-mode', 'fit');
+if (titleMode.selected !== 2) throw new Error('Fit mode binding failed');
+titleMode.selected = 0; titleCharacters.adjustment.value = 20;
+if (!titleCharacters.sensitive || settings.get_int('pill-title-characters') !== 20) throw new Error('Title limit binding failed');
 const arrows = find(window, 'Network arrow shape');
 const offline = find(window, 'When offline');
 if (!offline || offline.selected !== 0) throw new Error('Offline preference missing or default incorrect');
