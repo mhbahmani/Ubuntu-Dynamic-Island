@@ -1,6 +1,6 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {notchOrder, arrowSvg, weatherSymbol, commuteIndicator} from './services/notch-model.js';
+import {notchOrder, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator} from './services/notch-model.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {weatherSceneKind, temperature} from './services/weather-model.js';
@@ -68,11 +68,18 @@ export class Pill {
         this._commute.add_child(this._commuteValue);
         this._commute.visible = false;
         content.add_child(this._commute);
+        this._connection = row('ubuntu-island-pill-connection');
+        this._connection.y_align = Clutter.ActorAlign.CENTER;
+        this._connectionIcon = icon('network-wireless-disabled-symbolic', 16);
+        this._connection.add_child(this._connectionIcon);
+        this._connection.visible = false;
+        content.add_child(this._connection);
         content.add_child(this._cpuDot);
         content.add_child(this._bluetooth);
         this._items = {media: this._media, weather: this._weather, network: this._network,
             cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute};
-        for (const group of Object.values(this._items)) {
+        const groups = [...Object.values(this._items), this._connection];
+        for (const group of groups) {
             group.x_expand = true;
             group.x_align = Clutter.ActorAlign.CENTER;
         }
@@ -81,14 +88,30 @@ export class Pill {
         this.actor._islandMinimumWidth = () => {
             if (!this.actor.mapped) return 0;
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-            const groups = Object.values(this._items).filter(g => g.visible);
-            return groups.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0)
-                + (26 + Math.max(0, groups.length - 1) * 12) * scale;
+            const visible = groups.filter(g => g.visible);
+            return visible.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0)
+                + (26 + Math.max(0, visible.length - 1) * 12) * scale;
         };
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({media, system, bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false}) {
+    render({media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false}) {
+        const connectionState = connectionIndicator(connection, {order, mode: offlineMode,
+            network: Boolean(showNetwork && showMetrics), weather: Boolean(showWeather && weather),
+            commute: Boolean(showCommute && commute?.route)});
+        this._connection.visible = connectionState.visible;
+        const connectionIcon = connectionState.icon ?? 'network-wireless-disabled-symbolic';
+        if (connectionIcon !== this._connectionKind) {
+            this._connectionKind = connectionIcon;
+            if (connectionIcon === 'unplug-symbolic') {
+                const file = Gio.File.new_for_uri(import.meta.url).get_parent().resolve_relative_path('assets/notch/unplug-symbolic.svg');
+                this._connectionIcon.gicon = new Gio.FileIcon({file});
+            } else {
+                this._connectionIcon.gicon = null;
+                this._connectionIcon.icon_name = connectionIcon;
+            }
+        }
+        this._connectionIcon.icon_size = connectionState.edge ? 14 : 16;
         const available = Boolean(media?.available);
         this._media.visible = available;
         this._mediaIcon.visible = available;
@@ -104,7 +127,8 @@ export class Pill {
             : system.cpu < 50 ? 'ubuntu-island-cpu-dot ubuntu-island-dot-low'
             : system.cpu < 85 ? 'ubuntu-island-cpu-dot ubuntu-island-dot-mid'
             : 'ubuntu-island-cpu-dot ubuntu-island-dot-high');
-        this._weather.visible = Boolean(showWeather && weather?.data?.current);
+        this._weather.visible = Boolean(!connectionState.visible && showWeather && weather?.data?.current &&
+            !(connectionState.hideUnavailable && (weather.stale || weather.status === 'offline' || weather.status === 'unavailable')));
         const current = weather?.data?.current;
         const kind = weatherSceneKind(current);
         const weatherKey = `${weatherStyle}:${kind}`;
@@ -130,24 +154,31 @@ export class Pill {
             });
         }
         this._weather.opacity = weather?.stale ? 140 : 255;
-        this._network.visible = Boolean(showNetwork && showMetrics && system);
+        this._network.visible = Boolean(!connectionState.visible && showNetwork && showMetrics && system &&
+            !(connectionState.hideUnavailable && (connection === 'offline' || system.rxBytes == null || system.txBytes == null)));
         const commuteState = commuteIndicator(commute);
-        this._commute.visible = showCommute && commuteState.visible;
+        this._commute.visible = !connectionState.visible && showCommute && commuteState.visible &&
+            !(connectionState.hideUnavailable && (!commute.data || commuteState.stale));
         this._commuteValue.text = commuteState.text;
         this._commute.opacity = commuteState.stale ? 160 : 255;
         const compactRate = rate => String(rate ?? '—').replace(/ Ki?B\/s$/, 'K').replace(/ Mi?B\/s$/, 'M').replace(/ Gi?B\/s$/, 'G').replace(/ B\/s$/, 'B');
         const arranged = notchOrder(order);
-        const key = arranged.join(',');
+        const key = `${arranged.join(',')}:${connectionState.anchor ?? ''}`;
         if (key !== this._orderKey) {
             this._orderKey = key;
-            arranged.forEach((id, index) => this.actor.get_child().set_child_at_index(this._items[id], index));
+            const children = arranged.flatMap(id => id === connectionState.anchor
+                ? [this._connection, this._items[id]] : [this._items[id]]);
+            if (!connectionState.visible) children.push(this._connection);
+            children.forEach((child, index) => this.actor.get_child().set_child_at_index(child, index));
         }
         this._down.text = compactRate(system?.rx);
         this._up.text = compactRate(system?.tx);
         const description = [expanded ? 'Close Ubuntu Island' : 'Open Ubuntu Island'];
+        if (this._connection.visible) description.push(connectionState.description);
         if (this._weather.visible) description.push(`${weather.stale ? 'Stale weather: ' : ''}${current.condition}, ${temperature(current.temperature, units)}`);
         if (this._network.visible) description.push(`Download ${system.rx}, upload ${system.tx}`);
         if (this._commute.visible) description.push(commuteState.description);
         this.actor.accessible_name = description.join('. ');
+        return {connectionEdge: connectionState.edge};
     }
 }

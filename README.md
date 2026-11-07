@@ -334,6 +334,25 @@ binary units) and reuse existing samples. Weather refreshes at the normal
 interval while its indicator is visible. Stale weather is dimmed and described
 as stale to assistive technology. No animation runs in the collapsed notch.
 
+When the system reports a lost connection, the notch combines Weather, Network,
+and Commute into one small amber connection symbol, without a text label or badge
+background. It follows the first enabled indicator's position. Music, CPU, and
+Bluetooth remain visible; normal indicators return when connectivity recovers.
+Screen readers still distinguish Offline, limited internet, and network sign-in.
+Detection uses the system connection monitor without extra polling or requests.
+
+In **Settings → Notch → When offline**, choose:
+
+- **Connection icon** (default): a disconnected Wi-Fi symbol, or a Wi-Fi question
+  mark when network sign-in is required.
+- **Broken edge**: a small unplugged symbol with a split amber underline at the
+  bottom of the collapsed notch. The underline disappears while opening the card.
+- **Hide unavailable indicators**: remove missing or stale weather/commute values
+  and unavailable network rates, keeping fresh cached values and valid local rates.
+
+Changes apply immediately. Previous **Offline badge** preferences migrate to
+**Connection icon**. Expanded tabs retain cached data and recovery controls.
+
 ### Preferences tabs
 
 Preferences are grouped into Appearance, Notch, Modules, Weather, and Commute tabs, with

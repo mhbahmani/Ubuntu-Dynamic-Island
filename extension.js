@@ -1,4 +1,4 @@
-import {migrateArrowStyle} from './services/notch-model.js';
+import {migrateArrowStyle, migrateOfflineMode} from './services/notch-model.js';
 import {CommuteService} from './services/commute.js';
 import {WeatherService} from './services/weather.js';
 import GLib from 'gi://GLib';
@@ -8,6 +8,7 @@ import {IslandSurface} from './island.js';
 import {Pill} from './pill.js';
 import {Card} from './card.js';
 import {SystemMonitor} from './services/system.js';
+import {ConnectivityService} from './services/connectivity.js';
 import {MediaService} from './services/media.js';
 import {BluetoothService} from './services/bluetooth.js';
 import {AudioService} from './services/audio.js';
@@ -29,6 +30,7 @@ export default class UbuntuIsland extends Extension {
         this._enabled = true;
         this._settings = this.getSettings();
         migrateArrowStyle(this._settings);
+        migrateOfflineMode(this._settings);
         this._states = {};
         this._progressTimer = 0;
         this._settingsIds = [];
@@ -105,6 +107,8 @@ export default class UbuntuIsland extends Extension {
                 this._card._commuteView?.render(state);
                 this._renderPill();
             });
+        this._connectivity = new ConnectivityService(state => this._renderConnectivity(state));
+        this._connectivity.start();
         this._island.show();
         this._renderPill();
         this._syncWeather();
@@ -196,7 +200,7 @@ export default class UbuntuIsland extends Extension {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
         });
-        for (const key of ['pill-show-weather', 'pill-show-network', 'pill-show-commute', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
+        for (const key of ['pill-show-weather', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
         watch('surface-opacity', () => this._applyAppearance());
@@ -233,9 +237,11 @@ export default class UbuntuIsland extends Extension {
 
     _renderPill() {
         if (!this._enabled) return;
-        this._pill.render({
+        const presentation = this._pill.render({
             media: this._states.media,
             system: this._states.system,
+            connection: this._states.connection,
+            offlineMode: this._settings.get_string('pill-offline-mode'),
             bluetooth: this._states.bluetooth,
             expanded: this._island?.expanded ?? false,
             showMetrics: this._settings.get_boolean('enable-metrics'),
@@ -251,6 +257,7 @@ export default class UbuntuIsland extends Extension {
             arrowAngle: this._settings.get_int('pill-arrow-angle'),
             weatherStyle: this._settings.get_string('pill-weather-style'),
         });
+        this._island?.setConnectionEdge(presentation.connectionEdge);
         const minimum = this._pill.actor._islandMinimumWidth();
         if (minimum !== this._pillMinimum) {
             this._pillMinimum = minimum;
@@ -295,6 +302,12 @@ export default class UbuntuIsland extends Extension {
         if (!this._enabled) return;
         this._states.system = state;
         this._card.renderSystem(state);
+        this._renderPill();
+    }
+
+    _renderConnectivity(state) {
+        if (!this._enabled) return;
+        this._states.connection = state;
         this._renderPill();
     }
 
@@ -372,6 +385,8 @@ export default class UbuntuIsland extends Extension {
         this._disposePreferencesWatch();
         for (const id of this._settingsIds ?? []) this._settings.disconnect(id);
         this._settingsIds = [];
+        this._connectivity?.stop();
+        this._connectivity = null;
         this._system?.stop();
         this._media?.stop();
         this._bluetooth?.stop();

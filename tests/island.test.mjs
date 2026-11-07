@@ -44,7 +44,7 @@ function harness(animation = 220) {
     const source = readFileSync(new URL('../island.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replaceAll('export ', '');
     const Surface = vm.runInNewContext(`${source}\nIslandSurface`, {
-        St: {Widget: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1}},
+        St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1}},
         Clutter: {BinLayout: class {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0},
             EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2, KEY_PRESS: 3, BUTTON_RELEASE: 4,
                 TOUCH_END: 5, TOUCH_CANCEL: 6}, KEY_Escape: 27,
@@ -70,6 +70,25 @@ test('thirty interrupted toggles settle collapsed and release every modal grab',
     assert.equal(surface.actor.width, 170);
     assert.equal(card.visible, false);
     assert.equal(modal.size, 0);
+});
+
+test('offline edge hides through expansion and collapse transitions, and clears on reconnect', () => {
+    const {surface} = harness();
+    surface.setConnectionEdge(true);
+    assert.equal(surface._connectionEdge.visible, true);
+    surface.expand();
+    assert.equal(surface._connectionEdge.visible, false);
+    surface.actor.finish();
+    surface.setConnectionEdge(true);
+    assert.equal(surface._connectionEdge.visible, false, 'Preference changes must not expose the edge while expanded');
+    surface.collapse();
+    assert.equal(surface._connectionEdge.visible, false);
+    surface.actor.finish();
+    assert.equal(surface._connectionEdge.visible, true);
+    surface.expand();
+    surface.setConnectionEdge(false);
+    surface._snapCollapsed();
+    assert.equal(surface._connectionEdge.visible, false);
 });
 
 test('settings during collapse cancel child fades and settle dimensions', () => {

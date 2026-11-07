@@ -1,5 +1,5 @@
 import {commutePreferences} from './commute-prefs.js';
-import {migrateArrowStyle} from './services/notch-model.js';
+import {migrateArrowStyle, migrateOfflineMode, OFFLINE_MODES} from './services/notch-model.js';
 import {notchPreview, notchStyles} from './notch-prefs.js';
 import {weatherPreferences} from './weather-prefs.js';
 import Adw from 'gi://Adw';
@@ -11,6 +11,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
         const settings = this.getSettings();
         migrateArrowStyle(settings);
+        migrateOfflineMode(settings);
 
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
         const tabs = ['last', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute'];
@@ -72,6 +73,15 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             'Selected route · Refreshes while visible · ~ means no live traffic; ! means stale'));
         notch.add(toggle(settings, 'pill-show-network', 'Show upload/download rates',
             'Uses existing System metrics samples'));
+        const offline = new Adw.ComboRow({title: 'When offline',
+            subtitle: 'Broken edge adds a split amber underline. Hide keeps fresh cached values.',
+            model: Gtk.StringList.new(['Connection icon', 'Broken edge', 'Hide unavailable indicators'])});
+        const syncOffline = () => { offline.selected = Math.max(0, OFFLINE_MODES.indexOf(settings.get_string('pill-offline-mode'))); };
+        syncOffline();
+        offline.connect('notify::selected', () => settings.set_string('pill-offline-mode', OFFLINE_MODES[offline.selected]));
+        const offlineId = settings.connect('changed::pill-offline-mode', syncOffline);
+        window.connect('close-request', () => { settings.disconnect(offlineId); return false; });
+        notch.add(offline);
         const pages = [
             ['appearance', 'Appearance', 'preferences-desktop-appearance-symbolic', [appearance]],
             ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, hover]],

@@ -26,6 +26,12 @@
     <key name="pill-order" type="as"><default>['media', 'weather', 'network', 'cpu', 'bluetooth']</default><summary>Collapsed indicator order</summary></key>
     <key name="pill-show-weather" type="b"><default>false</default><summary>Show weather in the collapsed notch</summary></key>
     <key name="pill-show-network" type="b"><default>false</default><summary>Show network rates in the collapsed notch</summary></key>
+    <key name="pill-offline-mode" type="s">
+      <default>'icon'</default>
+      <choices><choice value="icon"/><choice value="edge"/><choice value="hide"/><choice value="badge"/></choices>
+      <summary>Collapsed notch behavior without internet access</summary>
+      <description>Show a connection icon, an unplugged icon with a broken bottom edge, or hide missing and stale indicators while keeping fresh cached values. Legacy badge values migrate to icon.</description>
+    </key>
     <key name="pill-width" type="i">
       <default>170</default>
       <range min="150" max="210"/>

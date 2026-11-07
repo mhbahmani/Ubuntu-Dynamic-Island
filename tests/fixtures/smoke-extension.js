@@ -1,5 +1,6 @@
 // Runs only in the temporary Shell created by tests/smoke.py.
 import UbuntuIsland from './implementation.js';
+import {ConnectivityService} from './services/connectivity.js';
 import {localTime} from './services/weather-model.js';
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
@@ -60,6 +61,19 @@ export default class Smoke extends UbuntuIsland {
         this._media?.stop();
         this._audio?.stop();
         this._bluetooth?.stop();
+        // Drive connection notifications without changing the host's networking.
+        this._connectivity.stop();
+        const connectionSignals = new Map();
+        let nextConnectionId = 0;
+        const network = {network_available: true, connectivity: Gio.NetworkConnectivity.FULL,
+            connect: (_signal, callback) => { const id = ++nextConnectionId; connectionSignals.set(id, callback); return id; },
+            disconnect: id => connectionSignals.delete(id)};
+        const connect = (available, connectivity) => {
+            network.network_available = available; network.connectivity = connectivity;
+            for (const callback of connectionSignals.values()) callback();
+        };
+        this._connectivity = new ConnectivityService(state => this._renderConnectivity(state), network);
+        this._connectivity.start();
         this._settings.set_boolean('disable-animations', true);
         if (this._media) this._media.positionSec = () => 72;
         for (let i = 0; i < 60; i++) this._renderSystem({
@@ -268,6 +282,104 @@ export default class Smoke extends UbuntuIsland {
         assert(routeCalls === requestsBeforeNotch, 'Fresh Commute cache fetched again for notch');
         assert(this._pill.actor.accessible_name.includes('traffic freshness unverified'), 'Commute notch omitted traffic limitation');
         await this._capture('notch-commute');
+        const onlineSystem = this._states.system;
+        const onlineWeather = this._states.weather;
+        const onlineCommute = this._states.commute;
+        const connectionBounds = () => {
+            const indicator = this._pill._connection;
+            const [x, y] = indicator.get_transformed_position();
+            const [px, py] = this._pill.actor.get_transformed_position();
+            assert(x >= px && x + indicator.width <= px + this._pill.actor.width + 1, 'Connection icon clips horizontally');
+            assert(y >= py && y + indicator.height <= py + this._pill.actor.height + 1, 'Connection icon clips vertically');
+            assert(indicator.get_n_children() === 1 && indicator.get_first_child() instanceof St.Icon, 'Connection indicator contains visible text');
+            assert(indicator.get_theme_node().get_background_color().alpha === 0, 'Connection indicator retained its badge background');
+        };
+        const edgeBounds = () => {
+            const edge = this._island._connectionEdge;
+            const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            const [x, y] = edge.get_transformed_position();
+            const [sx, sy] = this._island.actor.get_transformed_position();
+            assert(Math.abs(x + edge.width / 2 - sx - this._island.actor.width / 2) < 1, 'Broken edge is not centered');
+            assert(y + edge.height <= sy + this._island.actor.height, 'Broken edge escapes the surface');
+            assert(y >= sy + this._island.actor.height - 6 * scale, 'Broken edge is not at the bottom');
+            const [left, right] = edge.get_children();
+            assert(right.x - left.x - left.width >= 8 * scale - 1, 'Broken edge lost its gap');
+            assert(left.height === 2 * scale && right.height === 2 * scale, 'Broken edge did not follow CSS scale');
+        };
+        for (const mode of ['icon', 'edge']) {
+            this._settings.set_string('pill-offline-mode', mode);
+            for (const [available, state, name, description] of [
+                [false, Gio.NetworkConnectivity.LOCAL, 'offline', 'Offline'],
+                [true, Gio.NetworkConnectivity.LIMITED, 'no-internet', 'without full internet'],
+                [true, Gio.NetworkConnectivity.PORTAL, 'sign-in', 'sign-in required'],
+            ]) {
+                connect(available, state);
+                await this._capture(`notch-${mode}-${name}`);
+                assert(this._pill._connection.visible, 'Disconnected icon missing');
+                assert(!this._pill._weather.visible && !this._pill._network.visible && !this._pill._commute.visible, 'Offline style left dependent indicators visible');
+                assert(this._pill._mediaIcon.visible && this._pill._bluetooth.visible && this._pill._cpuDot.visible, 'Offline mode hid local indicators');
+                assert(this._pill.actor.get_child().get_first_child() === this._pill._connection, 'Connection icon lost indicator order');
+                assert(this._pill.actor.accessible_name.includes(description), 'Connection status has no accessible description');
+                assert(this._island._connectionEdge.visible === (mode === 'edge'), 'Offline edge does not follow selected mode');
+                connectionBounds();
+                if (mode === 'edge') edgeBounds();
+            }
+            const interfaceSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+            const initialTextScale = interfaceSettings.get_double('text-scaling-factor');
+            interfaceSettings.set_double('text-scaling-factor', 1.5);
+            await this._capture(`notch-${mode}-large-text`);
+            connectionBounds();
+            interfaceSettings.set_double('text-scaling-factor', initialTextScale);
+            this._island.expand();
+            assert(!this._island._connectionEdge.visible, 'Expanded card retained offline edge');
+            this._island.collapse();
+            assert(this._island._connectionEdge.visible === (mode === 'edge'), 'Collapse did not restore edge mode');
+            connect(true, Gio.NetworkConnectivity.FULL);
+            assert(!this._pill._connection.visible && !this._island._connectionEdge.visible, 'Reconnection retained offline decoration');
+        }
+        this._settings.set_string('pill-offline-mode', 'edge');
+        connect(false, Gio.NetworkConnectivity.LOCAL);
+        const offlineContext = St.ThemeContext.get_for_stage(global.stage);
+        const offlineScale = offlineContext.scale_factor;
+        offlineContext.scale_factor = 2;
+        await this._capture('notch-edge-scaled');
+        connectionBounds();
+        edgeBounds();
+        offlineContext.scale_factor = offlineScale;
+        this._settings.set_string('pill-offline-mode', 'hide');
+        await delay(60);
+        assert(!this._pill._connection.visible && !this._island._connectionEdge.visible && !this._pill._network.visible, 'Hide mode retained a connection icon or disconnected rates');
+        assert(this._pill._weather.visible && this._pill._commute.visible, 'Hide mode removed fresh cached data');
+        this._states.weather = {...onlineWeather, stale: true};
+        this._states.commute = {...onlineCommute, stale: true};
+        this._renderPill();
+        await this._capture('notch-offline-hidden');
+        assert(!this._pill._weather.visible && !this._pill._commute.visible, 'Hide mode retained stale indicators');
+        this._states.weather = {...onlineWeather, data: null};
+        this._states.commute = {...onlineCommute, data: null};
+        this._renderSystem({...onlineSystem, iface: 'No default route', rx: '—', tx: '—', rxBytes: null, txBytes: null});
+        assert(!this._pill._weather.visible && !this._pill._network.visible && !this._pill._commute.visible, 'Hide mode retained missing values');
+        this._settings.set_string('pill-offline-mode', 'icon');
+        assert(this._pill._connection.visible, 'Changing offline mode did not apply immediately');
+        this._states.weather = onlineWeather;
+        this._states.commute = onlineCommute;
+        this._renderSystem(onlineSystem);
+        connect(true, Gio.NetworkConnectivity.FULL);
+        await delay(80);
+        assert(!this._pill._connection.visible && this._pill._weather.visible && this._pill._network.visible && this._pill._commute.visible,
+            'Reconnection did not restore indicators');
+        // Weather-only and Commute-only configurations still show the connection icon.
+        this._settings.set_boolean('pill-show-network', false);
+        this._settings.set_boolean('pill-show-weather', false);
+        connect(false, Gio.NetworkConnectivity.LOCAL);
+        assert(this._pill._connection.visible, 'Commute-only offline icon missing');
+        this._settings.set_boolean('pill-show-commute', false);
+        assert(!this._pill._connection.visible, 'Connection icon appeared with no dependent indicators enabled');
+        this._settings.set_boolean('pill-show-weather', true);
+        assert(this._pill._connection.visible, 'Weather-only offline icon missing');
+        connect(true, Gio.NetworkConnectivity.FULL);
+        this._settings.set_boolean('pill-show-network', true);
+        this._settings.set_boolean('pill-show-commute', true);
         this._island.actor.hide();
         assert(!this._commute.controller.active && !this._commute.controller.timer, 'Hidden notch kept Commute active');
         this._island.actor.show();
@@ -510,6 +622,7 @@ export default class Smoke extends UbuntuIsland {
 
         const saved = this._dateRestore;
         this.disable();
+        assert(connectionSignals.size === 0, 'Disable retained connection notifications');
         if (saved) assert(saved.date.get_parent() === saved.center, 'Calendar parent was not restored');
         assert(!this._island && !this._progressTimer, 'Disable retained actors or progress timer');
         console.log('[Island Smoke] PASS: themes, opacity, bounded charts, hidden redraws, scaled layout, render, idle media, narrow layout, persistent rows, outside press, Escape, rapid toggle, disable');

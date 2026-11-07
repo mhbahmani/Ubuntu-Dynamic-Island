@@ -64,6 +64,16 @@ export class IslandSurface {
         this._sheen.y_align = Clutter.ActorAlign.START;
         this.actor.add_child(this._sheen);
 
+        // Static, CSS-scaled split underline, outside the pill's content layout.
+        this._connectionEdge = new St.BoxLayout({style_class: 'ubuntu-island-connection-edge',
+            x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.END,
+            x_expand: true, y_expand: true,
+            visible: false, reactive: false});
+        for (let i = 0; i < 2; i++)
+            this._connectionEdge.add_child(new St.Widget({style_class: 'ubuntu-island-connection-edge-segment'}));
+        this.actor.add_child(this._connectionEdge);
+        this._connectionEdgeRequested = false;
+
         this._themeContext = St.ThemeContext?.get_for_stage(global.stage) ?? null;
         this.applyDimensions();
 
@@ -97,6 +107,11 @@ export class IslandSurface {
 
     get expanded() {
         return this.state === IslandState.EXPANDED || this.state === IslandState.EXPANDING;
+    }
+
+    setConnectionEdge(active) {
+        this._connectionEdgeRequested = Boolean(active);
+        this._connectionEdge.visible = this._connectionEdgeRequested && this.state === IslandState.COLLAPSED;
     }
 
     show() {
@@ -222,6 +237,7 @@ export class IslandSurface {
 
     _setState(state) {
         this.state = state;
+        this.setConnectionEdge(this._connectionEdgeRequested);
         const open = this.expanded;
         this.actor.set_style_class_name(open
             ? 'ubuntu-island-surface ubuntu-island-surface-open'

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <g fill="#bebebe">
+    <rect x="4" y="11" width="5" height="10" rx="1"/>
+    <path d="M1 15h3v2H1zm8-2h3v2H9zm0 4h3v2H9z"/>
+    <rect x="15" y="3" width="5" height="10" rx="1"/>
+    <path d="M20 7h3v2h-3zm-8-2h3v2h-3zm0 4h3v2h-3z"/>
+  </g>
+</svg>

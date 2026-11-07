@@ -5,6 +5,30 @@ export function notchOrder(value) {
     return [...new Set([...value.filter(id => NOTCH_ITEMS.includes(id)), ...NOTCH_ITEMS])];
 }
 
+export const OFFLINE_MODES = ['icon', 'edge', 'hide'];
+
+export function migrateOfflineMode(settings) {
+    if (settings.get_string('pill-offline-mode') === 'badge')
+        settings.set_string('pill-offline-mode', 'icon');
+}
+
+// Consolidate network-dependent groups at the first enabled group's position.
+// Missing metrics/provider data alone is not evidence of a connection failure.
+export function connectionIndicator(connection, {order = [], network = false, weather = false, commute = false, mode = 'icon'} = {}) {
+    if (!OFFLINE_MODES.includes(mode)) mode = 'icon';
+    const status = {
+        offline: {icon: 'network-wireless-disabled-symbolic', description: 'Offline. No network connection to the internet.'},
+        limited: {icon: 'network-wireless-disabled-symbolic', description: 'Connected to a network without full internet access.'},
+        portal: {icon: 'network-wireless-no-route-symbolic', description: 'Network sign-in required for internet access.'},
+    }[connection];
+    const enabled = {network, weather, commute};
+    const anchor = status && mode !== 'hide' ? notchOrder(order).find(id => enabled[id]) : null;
+    const visible = Boolean(anchor);
+    return {...status, visible, anchor, edge: visible && mode === 'edge',
+        icon: mode === 'edge' ? 'unplug-symbolic' : status?.icon,
+        hideUnavailable: Boolean(status && mode === 'hide')};
+}
+
 export const ARROW_STYLES = ['classic', 'chevron'];
 export const WEATHER_STYLES = ['colorful', 'minimal'];
 export const ARROW_ANGLE_MIN = 40;

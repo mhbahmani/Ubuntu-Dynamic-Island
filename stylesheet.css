@@ -222,3 +222,8 @@
 .ubuntu-island-commute-link:hover, .ubuntu-island-commute-link:focus { background-color: rgba(180,210,245,0.12); }
 
 .ubuntu-island-pill-commute { spacing: 4px; color: #b6d5f4; }
+
+/* Text-free connection status; the edge never participates in content sizing. */
+.ubuntu-island-pill .ubuntu-island-pill-connection StIcon { color: #efca7a; }
+.ubuntu-island-connection-edge { spacing: 8px; margin-bottom: 1px; }
+.ubuntu-island-connection-edge-segment { width: 24px; height: 2px; border-radius: 1px; background-color: #efca7a; }

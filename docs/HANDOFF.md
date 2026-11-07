@@ -1,7 +1,33 @@
 # Session handoff
 
-Updated 2026-11-04. Target: GNOME Shell 46 on Ubuntu Wayland. Read
+Updated 2026-11-06. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
+
+Offline notch update (2026-11-06): a shared Gio.NetworkMonitor subscription
+consolidates enabled network-dependent indicators at the first indicator's ordered
+position. Notch → When offline now offers Connection icon (default), Broken edge,
+and Hide unavailable indicators. Connection icon uses a text-free disconnected
+Wi-Fi symbol; Broken edge pairs an unplugged symbol with two static amber segments
+at the surface's bottom edge, hidden throughout expansion/collapse transitions.
+Neither style has a badge background or text. Offline / limited / sign-in details
+remain in the accessible name. Legacy badge settings migrate to icon; existing
+hide choices are preserved. No additional polling or reachability probes were
+added. Music, CPU and Bluetooth stay visible; online notifications restore the
+usual indicators. Hide keeps fresh weather/commute cache and valid local-network
+rates, removing missing/stale values and disconnected rates. Preferences apply live.
+Expanded module behavior is unchanged.
+
+Offline validation: Node tests, syntax/schema checks, real GTK bidirectional
+preference bindings, temporary-XDG installer regression and ZIP integrity/content
+checks passed. The custom symbolic unplug asset is included by the existing
+recursive assets copies in install.sh, build.sh, smoke and preview. Installer
+and ZIP checks verify it is delivered. Headless GNOME smoke covered both styles
+in all three connection states, ordering, local indicators, 150% text, 200% edge
+scale/geometry, expansion/collapse, hide mode with fresh/stale/missing data,
+reconnection, individual module indicators and signal cleanup. Node checks cover
+the old badge migration and edge visibility during interrupted transitions.
+Screenshots were visually inspected. Physical Wi-Fi/Ethernet disconnect and portal behavior still
+need live hardware validation; the smoke injects monitor notifications.
 
 ## Current behavior
 

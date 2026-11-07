@@ -1,6 +1,57 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {notchOrder, NOTCH_ITEMS} from '../services/notch-model.js';
+import {notchOrder, NOTCH_ITEMS, connectionIndicator, migrateOfflineMode} from '../services/notch-model.js';
+
+test('connection icons keep disconnected, limited and captive portal descriptions accessible', () => {
+    const enabled = {network: true};
+    assert.match(connectionIndicator('offline', enabled).description, /Offline/);
+    assert.match(connectionIndicator('limited', enabled).description, /without full internet/);
+    assert.match(connectionIndicator('portal', enabled).description, /sign-in required/);
+    assert.equal(connectionIndicator('offline', enabled).icon, 'network-wireless-disabled-symbolic');
+    assert.equal(connectionIndicator('portal', enabled).icon, 'network-wireless-no-route-symbolic');
+    for (const state of ['online', undefined, 'unknown'])
+        assert.equal(connectionIndicator(state, enabled).visible, false);
+});
+
+test('connection icons respect enabled indicators, their order and hide preference', () => {
+    assert.equal(connectionIndicator('offline').visible, false);
+    assert.equal(connectionIndicator('offline', {weather: true}).anchor, 'weather');
+    assert.equal(connectionIndicator('limited', {commute: true}).anchor, 'commute');
+    const options = {order: ['commute', 'media', 'weather', 'network'], network: true, weather: true, commute: true};
+    assert.equal(connectionIndicator('offline', options).anchor, 'commute');
+    assert.equal(connectionIndicator('offline', {...options, commute: false}).anchor, 'weather');
+    for (const state of ['offline', 'limited', 'portal']) {
+        const hidden = connectionIndicator(state, {...options, mode: 'hide'});
+        assert.equal(hidden.visible, false);
+        assert.equal(hidden.hideUnavailable, true);
+        assert.equal(hidden.anchor, null);
+    }
+    assert.equal(connectionIndicator('online', {...options, mode: 'hide'}).hideUnavailable, false);
+});
+
+test('broken edge accompanies the unplugged icon only for enabled offline groups', () => {
+    for (const state of ['offline', 'limited', 'portal']) {
+        const icon = connectionIndicator(state, {network: true, mode: 'icon'});
+        const edge = connectionIndicator(state, {network: true, mode: 'edge'});
+        assert.equal(icon.edge, false);
+        assert.equal(edge.edge, true);
+        assert.equal(edge.icon, 'unplug-symbolic');
+        assert.equal(edge.anchor, icon.anchor);
+        assert.equal(edge.description, icon.description);
+        assert.equal(connectionIndicator(state, {mode: 'edge'}).edge, false);
+    }
+    assert.equal(connectionIndicator('online', {network: true, mode: 'edge'}).edge, false);
+});
+
+test('legacy badge preference migrates to icon while edge and hide choices are preserved', () => {
+    for (const initial of ['badge', 'icon', 'edge', 'hide']) {
+        let saved = initial;
+        migrateOfflineMode({get_string: () => saved, set_string: (_key, value) => { saved = value; }});
+        assert.equal(saved, initial === 'badge' ? 'icon' : initial);
+    }
+    assert.equal(connectionIndicator('offline', {network: true, mode: 'badge'}).icon,
+        connectionIndicator('offline', {network: true, mode: 'icon'}).icon);
+});
 
 test('notch order preserves choices and repairs missing or duplicated items', () => {
     assert.deepEqual(notchOrder(['network', 'weather', 'network', 'unknown']),
