@@ -7,16 +7,18 @@ PREVIEW_ARGS ?=
 WEATHER_PREVIEWS := preview-sun-day preview-clouds-day preview-rain-day preview-snow-day preview-night preview-clouds-night preview-rain-night preview-snow-night
 UUID := ubuntu-island@mhbahmani.github.io
 
-.PHONY: help preview preview-commute preview-commute-map preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify
+.PHONY: help preview preview-offline preview-offline-edge preview-commute preview-commute-map preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify
 .PHONY: $(WEATHER_PREVIEWS)
 
 help:
 	@printf '%s\n' \
 	  'Ubuntu Island development commands' \
-	  '  make preview             Interactive sample Weather preview; no installation' \
+	  '  make preview             Full sample preview; all modules and notch data enabled' \
+	  '  make preview-offline     Preview the disconnected icon; host network unchanged' \
+	  '  make preview-offline-edge Preview the split amber edge and unplugged symbol' \
 	  '  make preview-commute-map Open the route editor immediately' \
 	  '  make preview-commute     Driving routes with sample estimates; no API key' \
-	  '  make preview-live        Interactive preview with real weather requests' \
+	  '  make preview-live        Live weather/routes/metrics, sample device controls' \
 	  '  make preview-headless    Save a preview screenshot without a window' \
 	  '  make preview-sun-day         Animated sunny weather sample' \
 	  '  make preview-clouds-day      Animated cloudy weather sample' \
@@ -42,6 +44,12 @@ help:
 preview:
 	$(PYTHON) tests/preview.py $(PREVIEW_ARGS)
 
+preview-offline:
+	$(PYTHON) tests/preview.py --connection offline $(PREVIEW_ARGS)
+
+preview-offline-edge:
+	$(PYTHON) tests/preview.py --connection offline --offline-style edge $(PREVIEW_ARGS)
+
 preview-commute:
 	$(PYTHON) tests/preview.py --tab commute $(PREVIEW_ARGS)
 
@@ -56,7 +64,7 @@ preview-headless:
 
 # Scene demos bypass power saver only inside the isolated preview.
 $(WEATHER_PREVIEWS): preview-%:
-	$(PYTHON) tests/preview.py --scene $(patsubst %-day,%,$*) --ignore-power-saver $(PREVIEW_ARGS)
+	$(PYTHON) tests/preview.py --tab weather --scene $(patsubst %-day,%,$*) --ignore-power-saver $(PREVIEW_ARGS)
 
 install:
 	./install.sh

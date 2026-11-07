@@ -1,7 +1,28 @@
 # Session handoff
 
-Updated 2026-11-06. Target: GNOME Shell 46 on Ubuntu Wayland. Read
+Updated 2026-11-07. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
+
+Full preview (2026-11-07): `make preview` now enables all six modules and all notch
+indicators, starts collapsed, and supplies sample media/artwork, system history,
+audio outputs, Bluetooth devices, Weather and Commute. Sample device controls
+update fixtures rather than real devices. The new development-only preview-data.js
+is explicitly copied by tests/preview.py and is not a production runtime module.
+Provider activation is deferred until sample adapters are ready; sample Weather
+and connection status work without host internet. Live preview uses actual
+Weather/routes/metrics with simulated media/audio/Bluetooth controls. `--tab` opens
+any module; existing Weather scene and Commute shortcuts still open their tab.
+`make preview-offline` / `make preview-offline-edge` and `--connection` /
+`--offline-style` simulate offline states without modifying the host connection.
+`--headless --check-full --duration 14` checks the notch, all tabs and sample controls;
+`--check-input` still checks native dismissal and reopening separately.
+
+Full-preview validation: Node tests and syntax/schema checks passed. Private
+headless preview checks passed for the populated online notch,
+both offline styles, all six tabs and simulated device controls. Native pointer
+input also passed three dismiss/reopen cycles and a top-bar date-menu click.
+Online and offline notch screenshots were inspected. No physical device operations or
+installation were performed; this does not verify live-provider behavior.
 
 Offline notch update (2026-11-06): a shared Gio.NetworkMonitor subscription
 consolidates enabled network-dependent indicators at the first indicator's ordered

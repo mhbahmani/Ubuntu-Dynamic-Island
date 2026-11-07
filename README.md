@@ -88,11 +88,13 @@ tab. Preference changes take effect on the next opening.
 ## Preview locally without installing
 
 ```sh
-make preview       # interactive GNOME window with sample weather
+make preview       # full sample preview, collapsed notch, all modules enabled
+make preview-offline # disconnected Wi-Fi icon with sample local modules
+make preview-offline-edge # unplugged symbol and split amber underline
 make preview-commute # sample driving route; map editor in preferences
 make preview-commute-map # open the map editor immediately
-make preview-live  # actual weather requests; starts with Tehran
-make preview PREVIEW_ARGS="--scene rain --ignore-power-saver" # animated demo
+make preview-live  # live Tehran weather/routes and system metrics; sample devices
+make preview PREVIEW_ARGS="--tab weather --scene rain --ignore-power-saver" # animated demo
 make preview-sun-day    # sunny sample
 make preview-clouds-day # cloudy sample
 make preview-rain-day
@@ -107,12 +109,24 @@ Scene shortcuts bypass power saver only in the preview; reduced motion is still
 respected. Add `PREVIEW_ARGS="--headless"` to save a screenshot instead of opening a window.
 
 This launches a nested GNOME Shell running a temporary copy of the working tree,
-using the actual St/Clutter UI and stylesheet. Weather opens automatically; click,
-scroll, refresh, switch to System, or open preferences to try units and appearance.
-The preview focuses on Weather, Commute and System, with media/audio/Bluetooth disabled.
-Sample mode uses fixed temperatures; use `--live` to test real locations/providers.
+using the actual St/Clutter UI and stylesheet. It starts collapsed with Music,
+Weather, network rates, CPU, Bluetooth and Commute indicators enabled and populated.
+Click the notch to explore all six module tabs and open preferences. Sample playback,
+seek, volume, output selection and Bluetooth controls update simulated data.
+Sample Weather, routing and network status work even when the host is offline.
+Use `--live` for real Weather, routing and system metrics; media/audio/Bluetooth
+controls remain simulated so the preview does not switch real devices.
+Open a particular module immediately with `PREVIEW_ARGS="--tab media"` (or
+`system`, `audio`, `bluetooth`, `weather`, `commute`). Weather scene shortcuts
+continue to open Weather automatically; `make preview-commute` opens Commute.
+
+For offline designs, use the two shortcuts above or pass
+`PREVIEW_ARGS="--connection offline --offline-style icon"`. Connection choices
+are `online`, `offline`, `limited`, `portal`, and `auto` (follow the host); offline
+styles are `icon`, `edge`, and `hide`. These flags simulate the notch state without
+changing the host connection. The style can also be changed in preview preferences.
 Choose `--scene sun|clouds|rain|snow|night|clouds-night|rain-night|snow-night` and `--motion off|subtle|live` through
-`PREVIEW_ARGS`. Preview defaults to Live; normal extension preferences default to
+`PREVIEW_ARGS`. Weather motion defaults to Live in the preview; normal extension preferences default to
 Subtle (four seconds). Power saver and reduced motion stop animation. The explicit
 `--ignore-power-saver` flag bypasses only the preview scene’s power check and
 does not change the host power profile. Reduced motion is still respected.
@@ -122,13 +136,15 @@ No installation or logout is needed. The preview has its own session bus, settin
 and cache and does not modify the installed extension. Close its window or press
 Ctrl+C in the terminal to stop. After source changes, rerun the command to load a
 fresh copy (there is no automatic hot reload). Each run prints its temporary log
-folder and saves `weather.png`. Preview preferences are shared between its Shell
-and preferences window, but do not persist into the next preview run.
+folder and saves `notch.png` (or the selected tab, such as `weather.png`). Preview
+preferences are shared between its Shell and preferences window, but do not
+persist into the next preview run.
 
 For a screenshot without opening a window:
 
 ```sh
 make preview-headless
+make preview PREVIEW_ARGS="--headless --check-full --duration 14" # all tabs and sample controls
 ```
 
 The nested window validates real rendering and interactions; it cannot establish

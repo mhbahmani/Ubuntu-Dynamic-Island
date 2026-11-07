@@ -15,12 +15,19 @@ def main():
     parser.add_argument('--scene', choices=['sun', 'clouds', 'rain', 'snow', 'night', 'clouds-night', 'rain-night', 'snow-night'], default='clouds', help='Sample weather scene')
     parser.add_argument('--motion', choices=['off', 'subtle', 'live'], default='live', help='Preview animation mode')
     parser.add_argument('--edit-route', action='store_true', help='Open the Commute map editor immediately')
-    parser.add_argument('--tab', choices=['weather', 'commute'], default='weather', help='Initial preview tab')
+    parser.add_argument('--tab', choices=['notch', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute'], default='notch', help='Start collapsed (notch, default), or open a module')
+    parser.add_argument('--connection', choices=['auto', 'online', 'offline', 'limited', 'portal'], help='Simulate connection status; defaults to online for samples, auto with --live')
+    parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], default='icon', help='Initial offline notch design; can also change it in preferences')
+    parser.add_argument('--check-full', action='store_true', help='Check populated notch, all tabs and sample device controls (headless sample mode)')
     parser.add_argument('--check-input', action='store_true', help='Exercise dismissal, reopening and the top-bar menu')
-    parser.add_argument('--live', action='store_true', help='Fetch live Tehran weather instead of sample data')
-    parser.add_argument('--headless', action='store_true', help='Render without a window; saves weather.png')
+    parser.add_argument('--live', action='store_true', help='Use live weather, routing and system metrics; media/audio/Bluetooth remain simulated')
+    parser.add_argument('--headless', action='store_true', help='Render without a window; saves notch.png or the selected tab')
     parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
     args = parser.parse_args()
+    if args.edit_route and args.tab == 'notch':
+        args.tab = 'commute'
+    if args.check_full and (not args.headless or args.live or args.tab != 'notch' or args.check_input):
+        parser.error('--check-full requires --headless sample mode with the default notch and without --check-input')
     if args.check_input and not args.headless:
         parser.error('--check-input requires --headless (nested virtual-pointer coordinates differ)')
     if args.duration < 0:
@@ -38,6 +45,7 @@ def main():
         shutil.copy2(source / name, extension / name)
     (extension / 'extension.js').rename(extension / 'implementation.js')
     shutil.copy2(source / 'tests/fixtures/local-preview.js', extension / 'extension.js')
+    shutil.copy2(source / 'tests/fixtures/preview-data.js', extension / 'preview-data.js')
     shutil.copy2(source / 'tests/fixtures/local-preferences.mjs', extension / 'local-preferences.mjs')
     subprocess.run(['glib-compile-schemas', '--strict', str(extension / 'schemas')], check=True)
     apps = root / 'share/applications'
@@ -58,6 +66,9 @@ def main():
                        XDG_CONFIG_HOME=str(root / 'config'), XDG_CACHE_HOME=str(root / 'cache'),
                        XDG_DATA_DIRS=f'{root}/share:/usr/local/share:/usr/share', XDG_CURRENT_DESKTOP='GNOME',
                        GSETTINGS_BACKEND='keyfile', ISLAND_PREVIEW_OUTPUT=str(root),
+                       ISLAND_PREVIEW_CHECK_FULL='1' if args.check_full else '0',
+                       ISLAND_PREVIEW_CONNECTION=args.connection or ('auto' if args.live else 'online'),
+                       ISLAND_PREVIEW_OFFLINE_STYLE=args.offline_style,
                        ISLAND_PREVIEW_CHECK_INPUT='1' if args.check_input else '0',
                        ISLAND_PREVIEW_IGNORE_POWER='1' if args.ignore_power_saver else '0', ISLAND_PREVIEW_SCENE=args.scene, ISLAND_PREVIEW_MOTION=args.motion,
                        ISLAND_PREVIEW_EDIT_ROUTE='1' if args.edit_route else '0', ISLAND_PREVIEW_TAB=args.tab, ISLAND_PREVIEW_LIVE='1' if args.live else '0')
@@ -92,6 +103,8 @@ def main():
         print(f'Preview crashed. See {root / "runtime.log"}')
         return 1
     if args.check_input and '[Island Preview] INPUT PASS' not in output:
+        return 1
+    if args.check_full and ('[Island Preview] FULL PASS' not in output or '[Island Preview] FULL FAIL' in output):
         return 1
     return code if code >= 0 else 128 - code
 

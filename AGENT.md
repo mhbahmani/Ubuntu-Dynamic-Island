@@ -127,7 +127,10 @@ make build
 make verify
 ```
 
-`make preview` opens an interactive nested GNOME window with sample Weather;
+`make preview` opens an interactive nested GNOME window with all modules and
+populated notch indicators, collapsed by default. Sample device controls are
+simulated. `make preview-offline` and `make preview-offline-edge` exercise the
+connection designs without changing the host network;
 `make preview-live` uses live data. Neither installs nor requires logout. Restart
 the preview after source edits. `make preview-headless` saves a screenshot.
 

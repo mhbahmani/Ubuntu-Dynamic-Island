@@ -6,20 +6,33 @@ import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
+import {sampleDevices} from './preview-data.js';
 
 export default class Preview extends UbuntuIsland {
     enable() {
+        this._previewConfigured = false;
         const settings = this.getSettings();
-        settings.set_boolean('enable-weather', true);
-        settings.set_boolean('enable-commute', true);
+        for (const module of ['media', 'metrics', 'audio', 'bluetooth', 'weather', 'commute'])
+            settings.set_boolean(`enable-${module}`, true);
+        for (const indicator of ['title', 'weather', 'network', 'commute'])
+            settings.set_boolean(`pill-show-${indicator}`, true);
+        settings.set_string('pill-offline-mode', GLib.getenv('ISLAND_PREVIEW_OFFLINE_STYLE') || 'icon');
         settings.set_string('commute-routes', JSON.stringify([{id: 'sample', name: 'Heading home (sample)', originMode: 'fixed', originName: 'Work', destinationName: 'Home', origin: {latitude: 35.7219, longitude: 51.3347}, destination: {latitude: 35.6892, longitude: 51.389}}]));
         settings.set_string('commute-selected', 'sample');
         settings.set_string('weather-motion', GLib.getenv('ISLAND_PREVIEW_MOTION') || 'live');
-        // Focus this preview on Weather, Commute and System; no device/player services.
-        for (const key of ['enable-media', 'enable-audio', 'enable-bluetooth']) settings.set_boolean(key, false);
         settings.set_string('weather-location', JSON.stringify({name: GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 'Tehran, Iran' : 'Tehran, Iran (sample)',
             latitude: 35.6892, longitude: 51.389, timezone: 'Asia/Tehran'}));
         super.enable();
+        // Keep provider controllers inactive until the sample adapters are ready.
+        this._weather.setActive(false);
+        this._commute.setActive(false);
+        const sample = GLib.getenv('ISLAND_PREVIEW_LIVE') !== '1';
+        sampleDevices(this, sample);
+        const connection = GLib.getenv('ISLAND_PREVIEW_CONNECTION') || 'online';
+        if (connection !== 'auto') {
+            this._connectivity.stop();
+            this._renderConnectivity(connection);
+        }
         // Nested Mutter can lose the physical pointer release across a modal
         // seat grab. The preview owns a private stage, so observe its events
         // without taking a modal grab. Installed extension behavior is unchanged.
@@ -41,7 +54,8 @@ export default class Preview extends UbuntuIsland {
         });
         if (GLib.getenv('ISLAND_PREVIEW_IGNORE_POWER') === '1')
             this._card._weatherView.scene.isPowerSaving = () => false;
-        if (GLib.getenv('ISLAND_PREVIEW_LIVE') !== '1') {
+        if (sample) {
+            this._weather.controller.online = () => true;
             this._commute.controller.keys = async () => ({});
             this._commute.controller.locate = async () => ({latitude: 35.7219, longitude: 51.3347});
             const emitCommute = this._commute.controller.emit;
@@ -69,14 +83,20 @@ export default class Preview extends UbuntuIsland {
             if (state.status === 'ready') console.log(`[Island Preview] Commute: ${Math.round(state.data.seconds / 60)} min via ${state.data.provider}`);
             if (state.status === 'error') console.warn(`[Island Preview] Commute: ${state.error}`);
         };
+        this._previewConfigured = true;
+        this._syncWeather();
         this._previewTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 2500, () => {
             this._previewTimer = 0;
             Main.overview.hide();
-            this._card.selectPage(GLib.getenv('ISLAND_PREVIEW_TAB') || 'weather');
-            this._island.expand();
+            const tab = GLib.getenv('ISLAND_PREVIEW_TAB') || 'notch';
+            this._card.selectPage(tab === 'notch' ? 'media' : tab);
+            if (tab === 'notch') this._island.collapse();
+            else this._island.expand();
             if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') this._openPreferencesLive('commute');
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_INPUT') === '1') this._checkInput().catch(error => console.error(`[Island Preview] INPUT FAIL: ${error.message}`));
-            console.log('[Island Preview] READY: Selected tab open; preferences and refresh are interactive');
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') this._checkFullPreview().catch(error => console.error(`[Island Preview] FULL FAIL: ${error.message}`));
+            console.log(`[Island Preview] READY: All modules enabled; ${tab === 'notch' ? 'collapsed notch' : tab} visible. Device controls use sample data.`);
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') return GLib.SOURCE_REMOVE;
             this._captureTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 20000 : GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1' ? 8000 : 1500, () => {
                 this._captureTimer = 0;
                 this._capture().catch(error => console.warn(`[Island Preview] Screenshot: ${error.message}`));
@@ -84,6 +104,11 @@ export default class Preview extends UbuntuIsland {
             });
             return GLib.SOURCE_REMOVE;
         });
+    }
+
+    _syncWeather() {
+        // Do not start provider requests before the fixture adapters are ready.
+        if (this._previewConfigured) super._syncWeather();
     }
 
     async _checkInput() {
@@ -97,6 +122,7 @@ export default class Preview extends UbuntuIsland {
             pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
             await delay(400);
         };
+        this._island.expand();
         await delay(800);
         for (let i = 0; i < 3; i++) {
             await click(50, 500);
@@ -115,6 +141,44 @@ export default class Preview extends UbuntuIsland {
         console.log('[Island Preview] INPUT PASS: three dismiss/reopen cycles and top-bar menu');
     }
 
+    async _checkFullPreview() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const assert = (condition, message) => { if (!condition) throw new Error(message); };
+        await delay(500);
+        const pill = this._pill;
+        const connection = GLib.getenv('ISLAND_PREVIEW_CONNECTION') || 'online';
+        assert(!this._island.expanded, 'Default preview must start collapsed');
+        assert(pill._media.visible && pill._cpuDot.visible && pill._bluetooth.visible, 'Local notch indicators missing');
+        if (connection === 'online')
+            assert(pill._weather.visible && pill._network.visible && pill._commute.visible, 'Online notch data missing');
+        else if (connection !== 'auto') {
+            const style = this._settings.get_string('pill-offline-mode');
+            assert(pill._connection.visible === (style !== 'hide'), 'Offline indicator does not match selected style');
+            assert(this._island._connectionEdge.visible === (style === 'edge'), 'Offline edge does not match selected style');
+        }
+        for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute']) {
+            assert(this._card._pages.get(tab)?.available, `${tab} module unavailable`);
+            this._card.selectPage(tab);
+            this._island.expand();
+            await delay(400);
+            await this._capture(`preview-${tab}`);
+        }
+        this._media.command('PlayPause');
+        assert(this._states.media.status === 'Paused', 'Sample playback control failed');
+        this._media.command('PlayPause');
+        this._audio.setVolume(0.35);
+        assert(this._states.audio.volume === 0.35, 'Sample volume control failed');
+        this._audio.selectOutput(2);
+        assert(this._states.audio.outputs[1].active, 'Sample output control failed');
+        this._bluetooth.toggle(this._states.bluetooth.devices[1]);
+        assert(this._states.bluetooth.devices[1].connected, 'Sample Bluetooth control failed');
+        this._card.selectPage('media');
+        this._island.collapse();
+        await delay(400);
+        await this._capture('notch');
+        console.log('[Island Preview] FULL PASS: populated notch, all six tabs, sample media/audio/Bluetooth controls');
+    }
+
     openPreferences() {
         const launcher = new Gio.SubprocessLauncher({flags: Gio.SubprocessFlags.NONE});
         launcher.set_environ(GLib.get_environ());
@@ -124,8 +188,8 @@ export default class Preview extends UbuntuIsland {
         launcher.spawnv(['gjs', '-m', `${this.path}/local-preferences.mjs`]);
     }
 
-    async _capture() {
-        const file = Gio.File.new_for_path(`${GLib.getenv('ISLAND_PREVIEW_OUTPUT')}/${GLib.getenv('ISLAND_PREVIEW_TAB') || 'weather'}.png`);
+    async _capture(name = GLib.getenv('ISLAND_PREVIEW_TAB') || 'notch') {
+        const file = Gio.File.new_for_path(`${GLib.getenv('ISLAND_PREVIEW_OUTPUT')}/${name}.png`);
         const stream = await new Promise((resolve, reject) => file.replace_async(null, false,
             Gio.FileCreateFlags.REPLACE_DESTINATION, GLib.PRIORITY_DEFAULT_IDLE, null, (f, result) => {
                 try { resolve(f.replace_finish(result)); } catch (e) { reject(e); }
@@ -135,6 +199,7 @@ export default class Preview extends UbuntuIsland {
     }
 
     disable() {
+        this._previewConfigured = false;
         if (this._previewInput) global.stage.disconnect(this._previewInput);
         this._previewInput = 0;
         if (this._previewTimer) GLib.Source.remove(this._previewTimer);
