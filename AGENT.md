@@ -104,6 +104,14 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
   GObject property, not CSS. `Clutter.Actor.ease()` is a GJS override.
 - Calendar relocation uses private panel boxes; test other panel extensions.
 
+## Runtime file changes
+
+Follow [AGENTS.md](AGENTS.md) when adding or changing runtime files. Keep
+`install.sh`, `build.sh`, and preview/test copy paths synchronized. Root `.js`
+files are runtime modules and both installation scripts copy them automatically;
+new directories or other assets still need explicit inclusion. Run the installer
+regression test and verify ZIP contents; preview success alone is insufficient.
+
 ## Verification and installation
 
 First compare installed source with the working tree; stale installations can

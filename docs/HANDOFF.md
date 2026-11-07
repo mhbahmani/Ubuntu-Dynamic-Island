@@ -153,3 +153,9 @@ do not map reliably in the windowed nested backend, so automated checking requir
 headless mode. Windowed event traces showed reopening after outside dismissal
 with this preview change. Saved Commute routes now expose Select/Selected in
 preferences after removal of the tab's next-route icon.
+
+Runtime packaging (2026-11-07): install.sh and build.sh now copy all root
+JavaScript runtime modules. The installer regression test uses a temporary
+XDG_DATA_HOME, checks every root module, schema/desktop-file installation, and
+backup preservation on reinstall. Runtime-file update requirements are recorded
+in AGENTS.md and linked from AGENT.md.

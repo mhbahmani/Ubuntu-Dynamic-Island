@@ -12,8 +12,10 @@ if [ -e "$DEST" ]; then
     printf 'Previous installation backed up to: %s\n' "$BAK"
 fi
 mkdir "$DEST"
-cp -R "$SRC/extension.js" "$SRC/island.js" "$SRC/card.js" "$SRC/charts.js" "$SRC/pill.js" "$SRC/widgets.js" \
-      "$SRC/weather-scene.js" "$SRC/weather-view.js" "$SRC/weather-prefs.js" "$SRC/notch-prefs.js" "$SRC/commute-view.js" "$SRC/commute-prefs.js" "$SRC/commute-map.js" "$SRC/commute-map-view.js" "$SRC/prefs.js" "$SRC/metadata.json" "$SRC/stylesheet.css" "$SRC/services" "$SRC/assets" "$DEST/"
+# All root JavaScript files are runtime modules. Keep installation in sync with
+# build.sh as new views/helpers are added.
+cp "$SRC"/*.js "$SRC/metadata.json" "$SRC/stylesheet.css" "$DEST/"
+cp -R "$SRC/services" "$SRC/assets" "$DEST/"
 mkdir "$DEST/schemas"
 cp "$SRC"/schemas/*.xml "$DEST/schemas/"
 glib-compile-schemas --strict "$DEST/schemas"
