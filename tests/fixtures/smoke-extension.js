@@ -275,12 +275,118 @@ export default class Smoke extends UbuntuIsland {
         this._commute.http.get = async () => { routeCalls++; return {code: 'Ok', routes: [{duration: 1920, distance: 18400}]}; };
         this._settings.set_string('commute-routes', JSON.stringify([{id: 'test', name: 'Heading home', originMode: 'fixed', originName: 'Work', destinationName: 'Home', origin: {latitude: 35.72, longitude: 51.33}, destination: {latitude: 35.68, longitude: 51.39}}]));
         assert(routeCalls === 0, 'Hidden Commute fetched');
+        const standardTabHeight = this._island.actor.height;
+        const navigationTop = () => this._card._pageCaption.get_parent().get_transformed_position()[1];
+        const standardNavigationTop = navigationTop();
         this._card.selectPage('commute');
         await delay(150);
-        assert(this._card._commuteView.eta.text === '32 min', 'Commute estimate failed to render');
-        assert(this._card._commuteView.status.text.includes('Traffic freshness unverified'), 'Commute misrepresented traffic');
+        assert(this._card._commuteView.eta.text === '32' && this._card._commuteView.unit.text === 'min', 'Commute estimate failed to render');
+        assert(this._card._commuteView.status.accessible_name.includes('Traffic freshness unverified'), 'Commute misrepresented traffic');
         assert(this._card._commuteView.name.get_parent().get_n_children() === 2, 'Redundant Commute heading controls remain');
         await this._capture('commute');
+        const commute = this._card._commuteView;
+        assert(this._island.actor.height === standardTabHeight, 'Commute height differs from the other tabs');
+        assert(navigationTop() === standardNavigationTop, 'Switching to Commute moved navigation');
+        const readyCommute = this._states.commute;
+        const routePointer = Clutter.get_default_backend().get_default_seat()
+            .create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        const clickRouteActor = async actor => {
+            const [x, y] = actor.get_transformed_position();
+            const [width, height] = actor.get_transformed_size();
+            routePointer.notify_absolute_motion(GLib.get_monotonic_time(), x + width / 2, y + height / 2);
+            await delay(30);
+            routePointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
+            await delay(30);
+            routePointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
+            await delay(80);
+        };
+        const openRoute = commute._openRoute;
+        let routeOpens = 0;
+        // Intercept the launch so native pointer testing never opens a browser.
+        commute._openRoute = () => routeOpens++;
+        try {
+            commute.open.grab_key_focus();
+            commute.render(readyCommute);
+            assert(global.stage.key_focus === commute.open, 'Commute update lost keyboard focus');
+            await clickRouteActor(commute.driving);
+            await clickRouteActor(commute.eta);
+            assert(routeOpens === 0, 'Car or ETA still acts as a hidden route button');
+            await clickRouteActor(commute.open);
+            assert(routeOpens === 1, 'Open route button did not activate');
+            commute.render({...readyCommute, data: null, status: 'loading'});
+            await delay(50);
+            assert(!commute.open.reactive && !commute.open.can_focus, 'Missing estimate left a route action enabled');
+            await clickRouteActor(commute.open);
+            assert(routeOpens === 1, 'Disabled Commute opened a route');
+        } finally {
+            commute._openRoute = openRoute;
+            commute.render(readyCommute);
+            this._island.actor.grab_key_focus();
+            routePointer.notify_absolute_motion(GLib.get_monotonic_time(), 50, 500);
+        }
+        await delay(80);
+        assert(commute.feedback.get_theme_node().get_background_color().alpha === 0,
+            'Commute traffic status has a surrounding box');
+        const checkCommuteBounds = (withinViewport = true) => {
+            const [left, top] = this._card._scroll.get_transformed_position();
+            const [width, height] = this._card._scroll.get_transformed_size();
+            if (withinViewport) {
+                const adjustment = this._card._scroll.get_vscroll_bar().get_adjustment();
+                assert(adjustment.upper - adjustment.lower <= adjustment.page_size + 1,
+                    `Default Commute needs scrolling (${adjustment.upper - adjustment.lower} > ${adjustment.page_size})`);
+            }
+            for (const actor of [commute.eta, commute.unit, commute.arrival, commute.origin,
+                commute.destination, commute.swap, commute.status, commute.freshness, commute.open, commute.credit]) {
+                if (!actor.visible) continue;
+                const [x, y] = actor.get_transformed_position();
+                const [w, h] = actor.get_transformed_size();
+                assert(x >= left && x + w <= left + width + 1,
+                    `Commute content overflows horizontally: ${actor.get_style_class_name()} (${x}, ${w}) outside (${left}, ${width})`);
+                if (withinViewport)
+                    assert(y >= top && y + h <= top + height + 1, 'Commute content is below the fold');
+            }
+        };
+        checkCommuteBounds();
+        this._settings.set_int('expanded-width', 380);
+        await this._capture('commute-narrow');
+        checkCommuteBounds();
+        const commuteText = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const originalCommuteText = commuteText.get_double('text-scaling-factor');
+        commuteText.set_double('text-scaling-factor', 1.5);
+        commute.render({...readyCommute, data: {...readyCommute.data, seconds: 10080 * 60},
+            route: {...readyCommute.route, originName: 'A very long starting address in the city centre',
+                destinationName: 'A very long destination name across the city'}});
+        await this._capture('commute-large-text');
+        checkCommuteBounds(false);
+        assert(commute.summary.vertical, 'Long Commute estimate did not stack at enlarged text');
+        assert(!commute.arrival.clutter_text.get_layout().is_ellipsized(), 'Commute arrival was truncated');
+        assert(this._island.actor.height === standardTabHeight, 'Enlarged Commute resized the tabs');
+        const largeTextNavigationTop = navigationTop();
+        const commuteScroll = this._card._scroll.get_vscroll_bar().get_adjustment();
+        commuteScroll.value = commuteScroll.upper - commuteScroll.page_size;
+        await this._capture('commute-large-text-scrolled');
+        assert(navigationTop() === largeTextNavigationTop, 'Scrolling Commute moved navigation');
+        const creditEdge = commute.credit.get_transformed_position()[1] + commute.credit.get_transformed_size()[1];
+        const viewportEdge = this._card._scroll.get_transformed_position()[1] + this._card._scroll.height;
+        assert(creditEdge <= viewportEdge + 1, 'Commute attribution is unreachable when scrolled');
+        commuteScroll.value = 0;
+        commuteText.set_double('text-scaling-factor', originalCommuteText);
+        this._settings.set_int('expanded-width', 440);
+        commute.render({...readyCommute, status: 'loading'});
+        assert(!commute.refresh.reactive && commute.status.text.includes('Updating'), 'Commute loading state missing');
+        await this._capture('commute-loading');
+        commute.render({...readyCommute, status: 'error', stale: true,
+            error: 'Routing is unavailable. Check your connection and try again.',
+            data: {...readyCommute.data, updatedAt: Date.now() - 30 * 60000}});
+        await this._capture('commute-stale');
+        assert(commute.status.text.includes('Saved estimate') && commute.open.reactive, 'Stale commute lost its estimate or route action');
+        checkCommuteBounds(false);
+        assert(this._island.actor.height === standardTabHeight, 'Commute error resized the tabs');
+        commute.render({});
+        await this._capture('commute-empty');
+        assert(commute.configure.visible && commute.configure.reactive && !commute.summary.visible,
+            'Empty Commute has no setup action');
+        commute.render(readyCommute);
         const fixedRoute = JSON.parse(this._settings.get_string('commute-routes'))[0];
         this._commute.controller.locate = async () => { throw Object.assign(new Error('Location Services are off.'), {code: 'location-disabled'}); };
         this._commute.controller.lastAttempt = -Infinity;
@@ -288,12 +394,13 @@ export default class Smoke extends UbuntuIsland {
         await delay(80);
         assert(this._card._commuteView.name.text === 'Work → Home', 'Unnamed route title missing');
         assert(this._card._commuteView.savedStart.visible, 'Location failure has no recovery action');
+        assert(!commute.open.reactive, 'Location failure left the route action enabled');
         assert(this._card._commuteView.status.text === 'Location Services are off.', 'Location error is unclear');
         await this._capture('commute-location-off');
         this._commute.controller.lastAttempt = -Infinity;
         this._card._commuteView.savedStart.emit('clicked', 1);
         await delay(1300);
-        assert(this._commute.route.originMode === 'fixed' && this._card._commuteView.eta.text === '32 min', 'Saved-start recovery failed');
+        assert(this._commute.route.originMode === 'fixed' && this._card._commuteView.eta.text === '32', 'Saved-start recovery failed');
         assert(!this._card._commuteView.savedStart.visible, 'Recovery action still shown after success');
         this._card.selectPage('system');
         assert(!this._commute.controller.active && !this._commute.controller.timer, 'Hidden Commute retained timer');

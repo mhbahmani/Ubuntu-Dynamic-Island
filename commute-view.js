@@ -1,69 +1,223 @@
 import St from 'gi://St';
 import Gio from 'gi://Gio';
-import {label, row, button, setEnabled} from './widgets.js';
+import Clutter from 'gi://Clutter';
+import Pango from 'gi://Pango';
+import Atk from 'gi://Atk';
+import {label, row, column, icon, button, setEnabled} from './widgets.js';
 import {openLocationSettings} from './services/commute-location.js';
 import {PROVIDER_NAMES, routeTitle, point} from './services/commute-model.js';
 
+function textButton(text, action, primary = false) {
+    const control = new St.Button({label: text, can_focus: true, reactive: true, track_hover: true,
+        style_class: `ubuntu-island-commute-action${primary ? ' ubuntu-island-commute-primary' : ''}`});
+    control.connect('clicked', action);
+    return control;
+}
+
+function endpoint(text, destination = false) {
+    const chip = row(`ubuntu-island-commute-endpoint${destination ? ' ubuntu-island-commute-endpoint-to' : ''}`);
+    chip.add_child(new St.Widget({style_class: `ubuntu-island-commute-stop${destination ? ' ubuntu-island-commute-stop-to' : ''}`,
+        y_align: Clutter.ActorAlign.CENTER}));
+    const name = label(text, destination ? 'ubuntu-island-commute-destination' : 'ubuntu-island-commute-origin');
+    chip.add_child(name);
+    return {chip, name};
+}
+
 export class CommuteView {
     constructor(section, actions) {
+        this._relayout = () => actions.relayout?.();
         section.header.hide();
         const content = section.content;
         content.add_style_class_name('ubuntu-island-commute');
-        const heading = row();
-        this.name = label('Add your first route', 'ubuntu-island-track'); this.name.x_expand = true;
+
+        const heading = row('ubuntu-island-commute-heading');
+        this.name = label('Add your first route', 'ubuntu-island-track');
+        this.name.x_expand = true;
         heading.add_child(this.name);
-        this.swap = button('object-flip-horizontal-symbolic', 'Reverse route', () => actions.commuteSwap?.(), 14);
-        heading.add_child(this.swap);
+        this.refresh = button('view-refresh-symbolic', 'Refresh driving estimate',
+            () => actions.commuteRefresh?.(), 15, 'ubuntu-island-commute-icon-button');
+        heading.add_child(this.refresh);
         content.add_child(heading);
-        const hero = row();
-        this.eta = label('—', 'ubuntu-island-commute-eta'); this.eta.x_expand = true;
-        this.arrival = label('', 'ubuntu-island-muted'); hero.add_child(this.eta); hero.add_child(this.arrival);
-        content.add_child(hero);
-        this.endpoints = label('Choose start and destination on the map in Settings.', 'ubuntu-island-muted'); content.add_child(this.endpoints);
-        this.status = label('', 'ubuntu-island-source'); content.add_child(this.status);
-        const controls = row();
-        this.refresh = button('view-refresh-symbolic', 'Refresh driving estimate', () => actions.commuteRefresh?.(), 15);
-        controls.add_child(this.refresh);
-        const open = new St.Button({label: 'Open route', style_class: 'ubuntu-island-commute-link', can_focus: true});
-        open.connect('clicked', () => {
-            const d = this.state?.data;
-            if (!d) return;
-            Gio.AppInfo.launch_default_for_uri(`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${d.origin.latitude}%2C${d.origin.longitude}%3B${d.destination.latitude}%2C${d.destination.longitude}`, null);
-        });
-        this.open = open; controls.add_child(open);
-        const fix = new St.Button({label: 'Fix map', style_class: 'ubuntu-island-commute-link', can_focus: true});
-        fix.connect('clicked', () => Gio.AppInfo.launch_default_for_uri('https://www.openstreetmap.org/fixthemap', null));
-        controls.add_child(fix); this.fix = fix;
-        this.savedStart = new St.Button({label: 'Use saved start', style_class: 'ubuntu-island-commute-link', can_focus: true});
-        this.savedStart.connect('clicked', () => actions.commuteUseSavedStart?.());
-        controls.add_child(this.savedStart);
-        this.locationSettings = new St.Button({label: 'Location settings', style_class: 'ubuntu-island-commute-link', can_focus: true});
-        this.locationSettings.connect('clicked', () => openLocationSettings());
-        controls.add_child(this.locationSettings);
-        content.add_child(controls);
-        this.credit = label('Map data © OpenStreetMap contributors', 'ubuntu-island-source'); content.add_child(this.credit);
+
+        this.summary = row('ubuntu-island-commute-summary');
+        this.driving = new St.Bin({style_class: 'ubuntu-island-commute-driving', y_align: Clutter.ActorAlign.CENTER,
+            accessible_role: Atk.Role.REDUNDANT_OBJECT,
+            child: new St.Icon({icon_size: 25, gicon: new Gio.FileIcon({file: Gio.File.new_for_uri(import.meta.url)
+                .get_parent().get_child('assets').get_child('commute-driving-symbolic.svg')})})});
+        this.summary.add_child(this.driving);
+        const duration = column('ubuntu-island-commute-duration');
+        this.duration = duration;
+        duration.x_expand = true;
+        const estimate = row('ubuntu-island-commute-estimate');
+        this.eta = label('—', 'ubuntu-island-commute-eta');
+        this.unit = label('min', 'ubuntu-island-commute-unit');
+        this.unit.y_align = Clutter.ActorAlign.END;
+        estimate.add_child(this.eta);
+        estimate.add_child(this.unit);
+        duration.add_child(estimate);
+        this.distance = label('Driving estimate', 'ubuntu-island-commute-distance');
+        this.summary.add_child(duration);
+
+        const arrival = column('ubuntu-island-commute-arrival');
+        arrival.x_align = Clutter.ActorAlign.END;
+        arrival.y_align = Clutter.ActorAlign.CENTER;
+        this.arrival = label('', 'ubuntu-island-commute-time');
+        this.arrival.x_align = Clutter.ActorAlign.END;
+        arrival.add_child(label('EST. ARRIVAL', 'ubuntu-island-commute-eyebrow'));
+        arrival.add_child(this.arrival);
+        arrival.add_child(this.distance);
+        this.arrivalBox = arrival;
+        this.summary.add_child(arrival);
+        content.add_child(this.summary);
+
+        this.journey = row('ubuntu-island-commute-journey');
+        const from = endpoint('Start');
+        const to = endpoint('Destination', true);
+        this.origin = from.name;
+        this.destination = to.name;
+        this.journey.add_child(from.chip);
+        this.journey.add_child(new St.Widget({style_class: 'ubuntu-island-commute-route-line',
+            x_expand: true, y_align: Clutter.ActorAlign.CENTER}));
+        this.journey.add_child(to.chip);
+        this.swap = button('object-flip-horizontal-symbolic', 'Reverse route', () => actions.commuteSwap?.(),
+            15, 'ubuntu-island-commute-icon-button');
+        this.swap.y_align = Clutter.ActorAlign.CENTER;
+        this.journey.add_child(this.swap);
+        content.add_child(this.journey);
+
+        const feedback = row('ubuntu-island-commute-feedback');
+        this.feedback = feedback;
+        this.statusIcon = icon('dialog-information-symbolic', 12);
+        this.statusIcon.y_align = Clutter.ActorAlign.START;
+        feedback.add_child(this.statusIcon);
+        const messages = column('ubuntu-island-commute-messages');
+        this.messages = messages;
+        messages.x_expand = true;
+        this.status = label('', 'ubuntu-island-commute-status', false);
+        this.status.clutter_text.line_wrap = true;
+        this.status.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+        messages.add_child(this.status);
+        this.metadataDivider = label('·', 'ubuntu-island-commute-metadata');
+        this.metadataDivider.accessible_role = Atk.Role.REDUNDANT_OBJECT;
+        messages.add_child(this.metadataDivider);
+        this.freshness = label('', 'ubuntu-island-commute-metadata');
+        messages.add_child(this.freshness);
+        feedback.add_child(messages);
+        content.add_child(feedback);
+
+        this.controls = row('ubuntu-island-commute-actions');
+        this.configure = textButton('Add a route', () => actions.preferences?.('commute'), true);
+        this.controls.add_child(this.configure);
+        this.savedStart = textButton('Use saved start', () => actions.commuteUseSavedStart?.(), true);
+        this.controls.add_child(this.savedStart);
+        this.locationSettings = textButton('Location settings', () => openLocationSettings());
+        this.savedStart.x_align = this.locationSettings.x_align = Clutter.ActorAlign.START;
+        this.controls.add_child(this.locationSettings);
+        this.credit = label('', 'ubuntu-island-commute-credit', false);
+        this.credit.x_expand = true;
+        this.credit.clutter_text.line_wrap = true;
+        this.credit.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+        this.controls.add_child(this.credit);
+        this.fix = button('dialog-question-symbolic', 'Report a map issue', () =>
+            Gio.AppInfo.launch_default_for_uri('https://www.openstreetmap.org/fixthemap', null),
+        13, 'ubuntu-island-commute-icon-button');
+        this.controls.add_child(this.fix);
+        this.open = textButton('Open route', () => this._openRoute(), true);
+        const openFace = row('ubuntu-island-commute-open-face');
+        openFace.add_child(label('Open route', 'ubuntu-island-commute-open-label'));
+        const openIcon = icon('go-next-symbolic', 12);
+        openIcon.accessible_role = Atk.Role.REDUNDANT_OBJECT;
+        openFace.add_child(openIcon);
+        this.open.set_child(openFace);
+        this.controls.add_child(this.open);
+        content.add_child(this.controls);
+        content.connect('style-changed', this._relayout);
         this.render({});
     }
+
+    _openRoute() {
+        const d = this.state?.data;
+        if (!d || !this.open.reactive) return;
+        Gio.AppInfo.launch_default_for_uri(`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${d.origin.latitude}%2C${d.origin.longitude}%3B${d.destination.latitude}%2C${d.destination.longitude}`, null);
+    }
+
+    fit(width) {
+        // Use the card's available width; child minimums may already overflow it.
+        const needed = this.duration.get_preferred_width(-1)[1]
+            + (this.arrivalBox.visible ? this.arrivalBox.get_preferred_width(-1)[1] : 0)
+            + this.driving.get_preferred_width(-1)[1]
+            + 2 * this.summary.get_theme_node().get_length('spacing');
+        this.summary.vertical = needed > width;
+        this.driving.visible = !this.summary.vertical;
+        this.arrivalBox.x_align = this.summary.vertical ? Clutter.ActorAlign.START : Clutter.ActorAlign.END;
+        const messageWidth = this.status.get_preferred_width(-1)[1]
+            + (this.freshness.visible ? this.freshness.get_preferred_width(-1)[1]
+                + this.metadataDivider.get_preferred_width(-1)[1]
+                + 2 * this.messages.get_theme_node().get_length('spacing') : 0);
+        const messageSpace = width - this.feedback.get_theme_node().get_horizontal_padding()
+            - this.statusIcon.get_preferred_width(-1)[1] - this.feedback.get_theme_node().get_length('spacing');
+        this.messages.vertical = messageWidth > messageSpace;
+        this.metadataDivider.visible = this.freshness.visible && !this.messages.vertical;
+    }
+
     render(state) {
         this.state = state;
-        const data = state.data;
-        this.name.text = routeTitle(state.route);
-        this.eta.text = data ? `${Math.max(1, Math.round(data.seconds / 60))} min` : '—';
-        this.arrival.text = data ? `${(data.meters / 1000).toFixed(1)} km · Arrive ${new Date(Date.now() + data.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}` : '';
-        this.endpoints.text = state.route ? `${state.route.originMode === 'current' ? 'Current location' : state.route.originName} → ${state.route.destinationName}` : 'Choose start and destination on the map in Settings.';
-        const age = data ? Math.floor(Math.max(0, Date.now() - data.updatedAt) / 60000) : 0;
-        this.status.text = state.status === 'loading' ? 'Updating driving estimate…' : (state.error ? `${state.stale ? 'Stale estimate · ' : ''}${state.error}` : null) || (data ? `${data.traffic ? (data.provider === 'mapbox' ? 'Traffic-aware' : 'Live traffic') : data.trafficUnverified ? 'Traffic freshness unverified' : 'No live traffic'} · ${state.stale ? 'Stale · ' : ''}Updated ${age} min ago${data.fallback ? ' · Backup source' : ''}` : 'Configure a route to begin');
+        const {data, route} = state;
+        const loading = state.status === 'loading';
         const locationFailure = String(state.errorCode ?? '').startsWith('location-');
+        this.name.text = routeTitle(route);
+        this.name.accessible_name = this.name.text;
+        this.summary.visible = this.journey.visible = Boolean(route);
+        this.eta.text = data ? `${Math.max(1, Math.round(data.seconds / 60))}` : '—';
+        this.eta.accessible_name = data ? `${this.eta.text} minutes${state.stale ? ', saved estimate' : ''}` : 'No estimate available';
+        this.unit.visible = Boolean(data);
+        this.distance.text = data ? `${(data.meters / 1000).toFixed(1)} km` : '';
+        this.arrivalBox.visible = Boolean(data);
+        this.arrival.text = data ? new Date(Date.now() + data.seconds * 1000)
+            .toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : '';
+        this.arrival.accessible_name = `Estimated arrival ${this.arrival.text}`;
+        this.origin.text = route?.originMode === 'current' ? 'Current location' : route?.originName || 'Start';
+        this.destination.text = route?.destinationName || 'Destination';
+        this.origin.accessible_name = `From ${this.origin.text}`;
+        this.destination.accessible_name = `To ${this.destination.text}`;
+
+        const age = data ? Math.floor(Math.max(0, Date.now() - data.updatedAt) / 60000) : 0;
+        const traffic = data?.traffic ? (data.provider === 'mapbox' ? 'Traffic-aware estimate' : 'Live traffic')
+            : data?.trafficUnverified ? 'Traffic unverified' : 'No live traffic';
+        this.status.text = loading ? 'Updating driving estimate…'
+            : state.error ? `${state.stale ? 'Saved estimate · ' : ''}${state.error}`
+            : data ? traffic
+            : route ? 'Your driving estimate will appear here.' : 'Choose your start and destination in Settings.';
         if (locationFailure) this.status.text = state.errorCode === 'location-disabled'
-            ? 'Location Services are off.' : 'Location unavailable. Select a start in settings.';
-        this.savedStart.visible = locationFailure && Boolean(point(state.route?.origin));
+            ? 'Location Services are off.' : 'Location unavailable. Select a start in Settings.';
+        this.freshness.text = [state.sample ? 'Sample' : '', state.stale && !state.error ? 'Saved estimate' : '',
+            data ? age === 0 ? 'Updated just now' : `Updated ${age} min ago` : '',
+            data?.fallback ? 'Backup source' : ''].filter(Boolean).join(' · ');
+        this.freshness.visible = Boolean(this.freshness.text);
+        this.status.accessible_name = [data?.trafficUnverified && !state.error && !loading
+            ? 'Traffic freshness unverified' : this.status.text, this.freshness.text].filter(Boolean).join('. ');
+        this.statusIcon.icon_name = state.error || state.stale ? 'dialog-warning-symbolic'
+            : loading ? 'view-refresh-symbolic' : 'dialog-information-symbolic';
+        this.statusIcon.set_style_class_name(`ubuntu-island-commute-status-icon${state.error || state.stale ? ' ubuntu-island-commute-warning' : ''}`);
+        this.statusIcon.accessible_role = Atk.Role.REDUNDANT_OBJECT;
+        this.feedback.set_style_class_name(`ubuntu-island-commute-feedback${state.error || state.stale
+            ? ' ubuntu-island-commute-feedback-warning' : loading ? ' ubuntu-island-commute-feedback-loading'
+                : data?.traffic ? ' ubuntu-island-commute-feedback-live' : data ? ' ubuntu-island-commute-feedback-estimate' : ''}`);
+        this.savedStart.visible = locationFailure && Boolean(point(route?.origin));
         this.locationSettings.visible = locationFailure;
-        this.open.visible = this.fix.visible = !locationFailure;
-        if (state.sample) this.status.text = `Sample · ${this.status.text}`;
-        this.status.accessible_name = this.status.text;
-        this.credit.text = data ? `${PROVIDER_NAMES[data.provider] ?? data.provider} · © OpenStreetMap${data.provider === 'neshan' ? ' / Neshan' : data.provider === 'mapbox' ? ' / Mapbox' : ''}` : 'Map data © OpenStreetMap contributors';
-        setEnabled(this.refresh, Boolean(state.route) && state.status !== 'loading');
-        setEnabled(this.swap, state.route?.originMode === 'fixed');
-        setEnabled(this.open, Boolean(data));
+        this.controls.vertical = locationFailure;
+        this.open.visible = Boolean(route) && !locationFailure;
+        this.configure.visible = !route;
+        this.fix.visible = Boolean(route) && !locationFailure;
+        this.refresh.visible = Boolean(route);
+        this.credit.text = data ? `${PROVIDER_NAMES[data.provider] ?? data.provider}\n© OpenStreetMap${data.provider === 'neshan' ? ' / Neshan' : data.provider === 'mapbox' ? ' / Mapbox' : ''}` : '© OpenStreetMap contributors';
+        this.credit.accessible_name = this.credit.text;
+        this.refresh.accessible_name = loading ? 'Updating driving estimate' : 'Refresh driving estimate';
+        setEnabled(this.refresh, Boolean(route) && !loading);
+        setEnabled(this.swap, route?.originMode === 'fixed');
+        setEnabled(this.open, Boolean(data) && !locationFailure);
+        this.open.accessible_name = data ? `Open route in OpenStreetMap, ${this.eta.text} minutes, from ${this.origin.text} to ${this.destination.text}`
+            : 'Driving estimate unavailable';
+        this._relayout();
     }
 }

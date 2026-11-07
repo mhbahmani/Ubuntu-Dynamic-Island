@@ -19,6 +19,8 @@ test('installer includes every runtime module and preserves the previous install
         }
         assert.ok(existsSync(join(destination, 'schemas/gschemas.compiled')));
         assert.ok(existsSync(join(destination, 'services/notch-model.js')));
+        assert.equal(readFileSync(join(destination, 'assets/commute-driving-symbolic.svg'), 'utf8'),
+            readFileSync(join(root, 'assets/commute-driving-symbolic.svg'), 'utf8'));
         assert.ok(existsSync(join(temporary, 'applications/ubuntu-island.desktop')));
         execFileSync('sh', [join(root, 'install.sh')], {env});
         const backup = readdirSync(join(temporary, 'gnome-shell/extensions')).find(name => name.includes('.backup.'));

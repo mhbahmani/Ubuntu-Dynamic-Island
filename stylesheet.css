@@ -216,10 +216,53 @@
 .ubuntu-island-weather-summary { width: 115px; spacing: 3px; }
 .ubuntu-island-weather-footer { spacing: 8px; }
 
-.ubuntu-island-commute { spacing: 4px; }
-.ubuntu-island-commute-eta { font-size: 28pt; font-weight: 500; color: #b6d5f4; }
-.ubuntu-island-commute-link { padding: 5px 9px; border-radius: 6px; color: #b6d5f4; font-size: 9pt; }
-.ubuntu-island-commute-link:hover, .ubuntu-island-commute-link:focus { background-color: rgba(180,210,245,0.12); }
+/* Commute: a compact estimate, inline endpoints and quiet provenance. */
+.ubuntu-island-card-commute { padding: 10px 14px 6px; }
+.ubuntu-island-commute { spacing: 3px; }
+.ubuntu-island-commute-heading { spacing: 8px; }
+.ubuntu-island-commute-summary { spacing: 12px; }
+.ubuntu-island-commute-driving { padding: 11px; border-radius: 15px; color: #ffae96; background-gradient-direction: vertical; background-gradient-start: rgba(224,86,59,0.28); background-gradient-end: rgba(224,86,59,0.08); border: 1px solid rgba(240,161,141,0.28); box-shadow: inset 0 1px 0 rgba(255,212,198,0.10); }
+.ubuntu-island-commute-duration { spacing: 0; }
+.ubuntu-island-commute-estimate { spacing: 6px; }
+.ubuntu-island-commute-eta { font-size: 32pt; font-weight: 500; color: #b4d8f6; font-feature-settings: "tnum"; }
+.ubuntu-island-commute-unit { font-size: 12pt; color: #b7bbc5; padding-bottom: 7px; }
+.ubuntu-island-commute-caption { color: #b7bbc5; font-size: 9pt; }
+.ubuntu-island-commute-distance { color: #b4d8f6; font-size: 9pt; }
+.ubuntu-island-commute-arrival { spacing: 1px; padding-left: 14px; border-left: 1px solid rgba(235,239,255,0.12); }
+.ubuntu-island-commute-eyebrow { color: #b7bbc5; font-size: 8pt; font-weight: 600; letter-spacing: 1px; }
+.ubuntu-island-commute-time { color: #eceef2; font-size: 15pt; font-weight: 500; font-feature-settings: "tnum"; }
+.ubuntu-island-commute-journey { spacing: 7px; }
+.ubuntu-island-commute-endpoint { spacing: 7px; padding: 3px 9px; border-radius: 8px; background-color: rgba(117,174,224,0.10); border: 1px solid rgba(180,216,246,0.22); }
+.ubuntu-island-commute-endpoint-to { background-color: rgba(224,86,59,0.14); border-color: rgba(240,161,141,0.28); }
+.ubuntu-island-commute-stop { width: 5px; height: 5px; border: 1px solid #b4d8f6; border-radius: 4px; }
+.ubuntu-island-commute-stop-to { background-color: #ffae96; border-color: #ffae96; }
+.ubuntu-island-commute-route-line { min-width: 12px; height: 2px; border-radius: 1px; background-gradient-direction: horizontal; background-gradient-start: rgba(141,194,237,0.60); background-gradient-end: rgba(240,161,141,0.78); }
+.ubuntu-island-commute-origin { font-size: 10pt; color: #b4d8f6; }
+.ubuntu-island-commute-destination { font-size: 10pt; font-weight: 600; color: #ffbdab; }
+.ubuntu-island-commute-feedback { spacing: 6px; padding: 3px 1px; }
+.ubuntu-island-commute-feedback-estimate .ubuntu-island-commute-status, .ubuntu-island-commute-feedback-estimate StIcon { color: #efca7a; }
+.ubuntu-island-commute-feedback-live .ubuntu-island-commute-status, .ubuntu-island-commute-feedback-live StIcon { color: #90d5b6; }
+.ubuntu-island-commute-feedback-loading .ubuntu-island-commute-status, .ubuntu-island-commute-feedback-loading StIcon { color: #b4d8f6; }
+.ubuntu-island-commute-status-icon { color: #b7bbc5; margin-top: 2px; }
+.ubuntu-island-commute-warning { color: #efca7a; }
+.ubuntu-island-commute-messages { spacing: 6px; }
+.ubuntu-island-commute-status, .ubuntu-island-commute-metadata { color: #b7bbc5; font-size: 8pt; }
+.ubuntu-island-commute-feedback-warning .ubuntu-island-commute-status { color: #e5d5b1; font-size: 9pt; }
+.ubuntu-island-commute-actions { spacing: 6px; padding-top: 3px; }
+.ubuntu-island-commute-open-face { spacing: 8px; }
+.ubuntu-island-commute-open-label { font-size: 9pt; font-weight: 600; }
+.ubuntu-island-commute-action { padding: 4px 10px; border-radius: 7px; color: #d1d4dd; background-color: rgba(235,239,255,0.06); border: 1px solid transparent; font-size: 9pt; font-weight: 500; }
+.ubuntu-island-commute-action:hover { background-color: rgba(235,239,255,0.12); }
+.ubuntu-island-commute-action:active { background-color: rgba(235,239,255,0.18); }
+.ubuntu-island-commute-primary { background-color: #c0442b; color: #f8f9fc; border-color: rgba(255,174,140,0.25); box-shadow: inset 0 1px 0 rgba(255,216,196,0.10); }
+.ubuntu-island-commute-primary:hover { background-color: #d24e33; }
+.ubuntu-island-commute-primary:active { background-color: #a3371f; }
+.ubuntu-island-commute-icon-button { padding: 4px; border: 1px solid rgba(235,239,255,0.08); border-radius: 8px; color: #d1d4dd; background-color: rgba(235,239,255,0.04); }
+.ubuntu-island-commute-icon-button:hover { background-color: rgba(235,239,255,0.09); }
+.ubuntu-island-commute-icon-button:active { background-color: rgba(235,239,255,0.16); }
+.ubuntu-island-commute-action:focus, .ubuntu-island-commute-icon-button:focus { border-color: #b7bbc5; }
+.ubuntu-island-commute-action:disabled, .ubuntu-island-commute-icon-button:disabled { color: #777e8d; background-color: rgba(235,239,255,0.03); border-color: transparent; }
+.ubuntu-island-commute-credit { color: #b7bbc5; font-size: 8pt; }
 
 .ubuntu-island-pill-commute { spacing: 4px; color: #b6d5f4; }
 

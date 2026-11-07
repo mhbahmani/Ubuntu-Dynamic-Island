@@ -3,6 +3,41 @@
 Updated 2026-11-07. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Commute design refresh (2026-11-07): a static coral driving emblem, blue 32pt
+ETA, separate estimated-arrival/distance column, and connected blue/coral
+endpoint chips replace the flat text layout. Open route is an explicit footer
+button; the car and ETA have no click or hover behavior. Provider and map credits
+occupy two small lines on the left, with map reporting and the route button on
+the right. Refresh stays beside the route name.
+
+Traffic status is an unboxed 8pt line: amber for unverified/baseline estimates,
+green only when the provider reports traffic support, and blue while updating.
+Freshness stays neutral; errors use larger 9pt warning text. Status and freshness
+share one line when they fit and stack for long messages/enlarged text. The full
+traffic freshness limitation remains in the accessible name.
+
+Commute shares the other tabs' fixed 260px card height (262px with the surface
+border at 100% scale). Normal fixtures fit without scrolling at 440px and 380px.
+Enlarged text and long errors use the existing scroll area with navigation fixed.
+Empty setup opens Commute preferences; location recovery offers explicit saved
+start and system settings actions. Route activation is disabled without an
+estimate or during location failures, and updates preserve button focus.
+Provider behavior and polling are unchanged. The vector driving emblem is
+`assets/commute-driving-symbolic.svg`; existing recursive asset copies in
+install.sh, build.sh and previews deliver it.
+Visual references: [Maps on Mac](https://support.apple.com/guide/maps/get-directions-mps4d8a6bd2f/3.0/mac/27)
+and [CommuteBar](https://www.commute.bar/), adapted to the existing graphite theme.
+
+Commute validation: all 92 Node tests, syntax/schema checks and native GNOME
+smoke passed. Native checks/screenshots cover 380px width, 150% text with long
+endpoints and the maximum supported duration, loading, stale data, empty setup,
+and saved-start recovery, equal tab heights, fixed navigation across tab changes,
+and reachable attribution when scrolling enlarged text. Native pointer checks
+verify that the car/ETA do not activate routes, that the explicit button works,
+and that disabled activation and focus preservation behave correctly.
+Screenshots were inspected; ZIP integrity and changed
+runtime contents were verified. No installation or live-provider test was done.
+
 Full preview (2026-11-07): `make preview` now enables all six modules and all notch
 indicators, starts collapsed, and supplies sample media/artwork, system history,
 audio outputs, Bluetooth devices, Weather and Commute. Sample device controls
