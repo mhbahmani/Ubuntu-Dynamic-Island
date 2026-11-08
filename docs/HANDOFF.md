@@ -1,7 +1,46 @@
 # Session handoff
 
-Updated 2026-11-07. Target: GNOME Shell 46 on Ubuntu Wayland. Read
+Updated 2026-11-08. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
+
+Music refresh (2026-11-08): square rounded artwork, a static cover-derived tint,
+round vermilion play/pause, full-width seek timeline, and a compact utility row.
+The card remains 260px with navigation outside its scroll view. Normal 440px and
+380px layouts fit; enlarged text can scroll. The tint follows background opacity.
+Artwork is cropped/rounded and its color sampled once per decoded image, not per
+frame; no visualizer or extra repaint timer was added.
+
+The player-name button opens Automatic/pinned selection (including paused apps).
+Shuffle/repeat and Raise follow player capabilities. Quick Sound shares the
+existing mixer, shows current output and links to Sound. ±10-second controls use
+the existing seek operation. Dragging now previews the timestamp immediately;
+progress ticks cannot overwrite it, release seeks once, keyboard changes seek
+immediately, and a track/player change invalidates an in-progress drag.
+
+Lyrics opens on demand via LRCLIB's anonymous API. Requests use the existing
+bounded JSON/Soup transport, with 15-second deadline, cancellation, a 20-record
+session cache, identity guard, spacing and Retry-After backoff. Text is rendered
+as plain text; timed lyrics use the existing one-second media clock. Closing the
+view, switching tabs, collapsing or disabling cancels work. Up next lazily reads
+MPRIS TrackList, caps metadata requests at 20 entries, updates from track-list
+signals, and disconnects while hidden. It labels player order and the shuffle
+limitation; it cannot promise a complete queue. No sleep timer was added.
+The playback clock also stops in the player picker, quick Sound and Up next
+views; playback and timed lyrics share the existing clock while visible.
+
+Runtime additions: media-tools.js, services/artwork-model.js, services/lyrics.js
+and services/lyrics-model.js. Existing root-JS/recursive-services packaging and
+preview copies include them. The installer test now checks every service module.
+make media-test runs a real private D-Bus player for Identity, Shuffle/LoopStatus,
+Raise, SetPosition, track lists, GoTo, signals and hidden cleanup.
+
+Music validation: 98 Node tests, syntax/schema checks, private MPRIS integration,
+isolated installer/backup tests and ZIP content checks. Native Shell checks cover
+actual pointer drag timestamps, release-only seeking, stale-drag cancellation,
+secondary-view controls, focus retention, supported/unsupported actions, 380px
+width, 150% text and hidden media timers. Full sample preview passed. A public
+LRCLIB record was fetched through the real native Soup adapter; this establishes
+endpoint connectivity, not catalog coverage or behavior of real desktop players.
 
 Commute design refresh (2026-11-07): a static coral driving emblem, blue 32pt
 ETA, separate estimated-arrival/distance column, and connected blue/coral

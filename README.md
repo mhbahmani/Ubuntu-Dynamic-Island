@@ -14,7 +14,8 @@ For session continuity, read [the handoff](docs/HANDOFF.md),
 responsiveness take priority over new effects or features. API discovery starts
 with [public-apis](https://github.com/public-apis/public-apis); verify provider
 documentation for current coverage, pricing, and limits.
-The v10 visual baseline was accepted on 2026-10-28. v11 adds basic Weather functionality; further UI polish and other roadmap features remain proposals.
+The v10 visual baseline was accepted on 2026-10-28. v11 includes optional Weather
+and Commute, refreshed music controls, and configurable notch indicators.
 
 ![Media face rendered in GNOME Shell 46 with fixture data](screenshots/expanded.png)
 
@@ -42,7 +43,15 @@ and [compact playing pill](screenshots/playing-pill.png).
   `file://` artwork and **remote HTTPS artwork** through a bounded
   (2 MiB, MIME allowlist, host-validated, DNS-checked, disk-cached) loader.
   **Idle/stopped players and empty registrations are hidden**; paused tracks
-  remain controllable. Seeking uses GNOME's native keyboard-accessible slider.
+  remain controllable. Seeking uses GNOME's native keyboard-accessible slider,
+  with the displayed timestamp following the thumb while dragging.
+  The square cover supplies a subtle static tint; a full-width timeline and round
+  play control fit the same 260px surface as the other modules. The player-name
+  menu selects Automatic or pins a running player, including a paused player.
+  Shuffle/repeat and Open player appear when supported; ±10-second seek buttons
+  are available for seekable tracks. The speaker button provides system volume,
+  mute, current output and a shortcut to Sound (when that module is enabled).
+  Lyrics and Up next open inside the card, with navigation fixed below them.
 - **System**: CPU and RAM percentages plus RX/TX rate for the lowest-metric
   default-route interface (VPN tunnels win), read asynchronously from procfs.
   CPU and memory have fixed 0–100% history charts. Download and upload share
@@ -84,6 +93,22 @@ applies each time you open the island, including hover-open. You can switch tabs
 normally while it stays open. If the chosen tab is unavailable (for example, its
 module is disabled or Media has no player), the island keeps the last available
 tab. Preference changes take effect on the next opening.
+
+Music's **Lyrics** button looks up the current title/artist (plus album and
+length when available) on [LRCLIB](https://lrclib.net/docs). It shows timed lines
+when supplied, or plain lyrics, with a full-text view. Lookup starts only while
+that view is open; results stay in a bounded memory cache for the extension's
+session. Closing the view cancels requests. No account or API key is needed.
+Missing metadata, instrumental tracks, unavailable lyrics and connection failures
+have explicit states. Lyrics availability depends on the provider's catalog.
+
+**Up next** uses the player's optional
+[MPRIS TrackList](https://specifications.freedesktop.org/mpris/latest/Track_List_Interface.html).
+It displays at most 20 shared entries after the current track and can jump to one.
+This is the player's reported list, which may be incomplete or differ from shuffle
+order. Players that do not expose it show an explanation. Player pins last for
+this extension session and return to Automatic when the chosen player disappears
+or stops being eligible.
 
 ## Preview locally without installing
 
@@ -178,6 +203,7 @@ make check               # Node tests, JS/Python syntax, strict schema validatio
 make smoke               # isolated GNOME rendering + interaction checks
 make prefs-test          # actual GTK preferences (requires a desktop display)
 make weather-cache-test  # real GJS cache round trip in a temporary directory
+make media-test          # real MPRIS operations on a private D-Bus session
 make verify              # all checks above plus building the extension ZIP
 ```
 
@@ -244,6 +270,7 @@ ubuntu-dynamic-island/
   extension.js            # lifecycle, service wiring, clock relocation
   island.js               # morphing surface + interaction state machine
   card.js                 # expanded content sections
+  media-tools.js          # player selection, quick sound, lyrics and track-list views
   charts.js               # native drawing actors for bounded history
   pill.js                 # compact pill content
   widgets.js              # shared St widget factories
@@ -253,6 +280,9 @@ ubuntu-dynamic-island/
   schemas/                # GSettings schema (compiled at install)
   services/
     media.js              # MPRIS + progress/seek model
+    lyrics.js             # on-demand lyrics requests, cancellation and session cache
+    lyrics-model.js       # bounded lyric parsing and lookup parameters
+    artwork-model.js      # square cover cropping and rounded alpha edges
     art.js                # bounded artwork loader + cache (Soup 3, async)
     system.js             # procfs sampling on a timer
     proc.js               # pure parsers (Node-tested)

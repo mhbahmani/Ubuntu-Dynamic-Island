@@ -1,3 +1,4 @@
+import {roundedCover} from './artwork-model.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import GdkPixbuf from 'gi://GdkPixbuf';
@@ -219,10 +220,26 @@ class ArtworkRequest {
         const width = pixbuf.get_width();
         const height = pixbuf.get_height();
         if (width <= 0 || height <= 0) return null;
-        const content = St.ImageContent.new_with_preferred_size(width, height);
-        const format = pixbuf.get_has_alpha() ? Cogl.PixelFormat.RGBA_8888 : Cogl.PixelFormat.RGB_888;
+        const rounded = roundedCover(pixbuf.get_pixels(), width, height, pixbuf.get_rowstride(), pixbuf.get_n_channels());
+        const content = St.ImageContent.new_with_preferred_size(rounded.side, rounded.side);
         try {
-            content.set_data(pixbuf.get_pixels(), format, width, height, pixbuf.get_rowstride());
+            content.set_data(rounded.data, Cogl.PixelFormat.RGBA_8888, rounded.side, rounded.side, rounded.side * 4);
+            // Sample a small fixed grid once per decoded cover, never per frame.
+            const pixels = pixbuf.get_pixels();
+            const stride = pixbuf.get_rowstride(), channels = pixbuf.get_n_channels();
+            const sum = [0, 0, 0];
+            let weight = 0;
+            for (let y = 0; y < height; y += Math.max(1, Math.floor(height / 12)))
+                for (let x = 0; x < width; x += Math.max(1, Math.floor(width / 12))) {
+                    const at = y * stride + x * channels;
+                    if (channels === 4 && pixels[at + 3] < 128) continue;
+                    const rgb = [pixels[at], pixels[at + 1], pixels[at + 2]];
+                    const saturation = Math.max(...rgb) - Math.min(...rgb);
+                    const w = 1 + saturation / 32;
+                    rgb.forEach((v, i) => { sum[i] += v * w; });
+                    weight += w;
+                }
+            content._islandAccent = weight ? sum.map(v => Math.round(v / weight)) : null;
             return content;
         } catch (e) {
             console.warn(`[Ubuntu Island] Artwork decode: ${e.message}`);

@@ -1,3 +1,4 @@
+import {LyricsService} from './services/lyrics.js';
 import {migrateArrowStyle, migrateOfflineMode} from './services/notch-model.js';
 import {CommuteService} from './services/commute.js';
 import {WeatherService} from './services/weather.js';
@@ -42,6 +43,12 @@ export default class UbuntuIsland extends Extension {
         this._pill = new Pill(() => this._island?.toggle(), () => this._togglePillTitle());
         this._card = new Card(this._settings, {
             mediaCommand: method => this._media?.command(method),
+            selectPlayer: id => this._media?.select(id),
+            mediaProperty: (key, value) => this._media?.setProperty(key, value),
+            raisePlayer: () => this._media?.raise(),
+            playTrack: id => this._media?.playTrack(id),
+            mediaViewChanged: () => { this._syncMediaViews(); this._syncProgressTimer(); },
+            retryLyrics: () => { this._lyrics?.cancel(); this._syncMediaViews(); },
             seek: seconds => this._media?.seek(seconds),
             setVolume: value => this._audio?.setVolume(value),
             toggleMute: () => this._audio?.toggleMute(),
@@ -56,28 +63,29 @@ export default class UbuntuIsland extends Extension {
             togglePillTitle: () => this._togglePillTitle(),
             relayout: () => this._island?.relayout(),
             weatherRefresh: () => this._weather?.refresh(),
-            pageChanged: () => this._syncWeather(),
+            pageChanged: () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); },
         });
         this._island = new IslandSurface({
             settings: this._settings,
             pill: this._pill.actor,
             card: this._card.actor,
             onBeforeExpand: () => this._card.selectExpansionPage(),
-            onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); },
+            onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); },
         });
         this._island.setHoverEnabled(
             this._settings.get_boolean('hover-open'),
             this._settings.get_int('hover-open-delay'),
             this._settings.get_int('hover-close-delay'));
-        this._card.actor.connect('notify::mapped', () => this._syncWeather());
-        this._island.actor.connect('notify::mapped', () => this._syncWeather());
+        this._card.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); });
+        this._island.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); });
         this._watchSettings();
         this._applyAppearance();
 
         // Model events drive isolated UI updates; no UI code in the services.
         if (this._settings.get_boolean('enable-media')) {
             this._art = new ArtLoader();
-            this._media = new MediaService(state => this._renderMedia(state));
+            this._media = new MediaService(state => this._renderMedia(state), state => this._card?._mediaTools?.renderQueue(state));
+            this._lyrics = new LyricsService(state => this._card?._mediaTools?.renderLyrics(state));
         }
         if (this._settings.get_boolean('enable-metrics')) {
             this._system = new SystemMonitor(
@@ -227,6 +235,7 @@ export default class UbuntuIsland extends Extension {
     }
 
     _applyAppearance() {
+        this._card?.updateMediaTint();
         const theme = this._settings.get_string('color-theme');
         this._island.actor.set_style(surfaceStyle(
             theme,
@@ -272,6 +281,7 @@ export default class UbuntuIsland extends Extension {
         if (!this._enabled) return;
         this._states.media = state;
         this._card.renderMedia(state);
+        this._syncMediaViews();
         this._renderPill();
         const artUrl = state?.available ? String(state.artUrl ?? '') : '';
         const remote = /^https?:/i.test(artUrl);
@@ -288,6 +298,15 @@ export default class UbuntuIsland extends Extension {
         }
         this._layoutIfChanged();
         this._syncProgressTimer();
+    }
+
+    _syncMediaViews() {
+        const active = Boolean(this._enabled && this._card?.actor.mapped && this._island?.expanded &&
+            this._card?._page === 'media' && this._states?.media?.available);
+        const mode = active ? this._card._mediaTools?.mode : null;
+        this._media?.setQueueActive?.(mode === 'queue');
+        if (mode === 'lyrics') this._lyrics?.load(this._states.media);
+        else this._lyrics?.cancel();
     }
 
     _syncWeather() {
@@ -341,10 +360,10 @@ export default class UbuntuIsland extends Extension {
     // One-second UI clock while the card is open and a player is active.
     _syncProgressTimer() {
         if (!this._enabled) return;
-        const needed = Boolean(this._island?.expanded && this._states.media?.available);
+        const needed = Boolean(this._island?.expanded && this._card?.actor.mapped && this._card?._page === 'media' && [null, 'lyrics'].includes(this._card._mediaTools.mode) && this._states.media?.available);
         if (needed && !this._progressTimer) {
             const tick = () => {
-                if (!this._island?.expanded || !this._states.media?.available) {
+                if (!this._island?.expanded || !this._card?.actor.mapped || this._card?._page !== 'media' || ![null, 'lyrics'].includes(this._card._mediaTools.mode) || !this._states.media?.available) {
                     this._progressTimer = 0;
                     return GLib.SOURCE_REMOVE;
                 }
@@ -392,6 +411,8 @@ export default class UbuntuIsland extends Extension {
         this._connectivity = null;
         this._system?.stop();
         this._media?.stop();
+        this._lyrics?.stop();
+        this._lyrics = null;
         this._bluetooth?.stop();
         this._audio?.stop();
         this._art?.destroy();

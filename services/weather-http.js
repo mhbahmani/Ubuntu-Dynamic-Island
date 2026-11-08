@@ -30,10 +30,14 @@ export class WeatherHttp {
                     try { resolve(s.send_finish(r)); } catch (e) { reject(e); }
                 }));
             if (message.get_status() !== 200) {
-                const error = new Error('Weather HTTP error');
+                const error = new Error('Provider HTTP error');
                 error.status = message.get_status();
+                const retry = message.get_response_headers().get_one('Retry-After');
+                error.retryAfterMs = /^\d+$/.test(retry ?? '') ? Number(retry) * 1000 : Math.max(0, Date.parse(retry) - Date.now()) || 0;
                 throw error;
             }
+            const mime = message.get_response_headers().get_content_type()[0];
+            if (!mime?.includes('json')) throw new Error('Expected a JSON response');
             if (message.get_response_headers().get_content_length() > LIMIT) throw new Error('Response too large');
             let size = 0;
             const chunks = [];

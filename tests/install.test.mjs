@@ -18,7 +18,8 @@ test('installer includes every runtime module and preserves the previous install
             assert.equal(readFileSync(join(destination, name), 'utf8'), readFileSync(join(root, name), 'utf8'), name);
         }
         assert.ok(existsSync(join(destination, 'schemas/gschemas.compiled')));
-        assert.ok(existsSync(join(destination, 'services/notch-model.js')));
+        for (const name of readdirSync(join(root, 'services')).filter(name => name.endsWith('.js')))
+            assert.equal(readFileSync(join(destination, 'services', name), 'utf8'), readFileSync(join(root, 'services', name), 'utf8'), name);
         assert.equal(readFileSync(join(destination, 'assets/commute-driving-symbolic.svg'), 'utf8'),
             readFileSync(join(root, 'assets/commute-driving-symbolic.svg'), 'utf8'));
         assert.ok(existsSync(join(temporary, 'applications/ubuntu-island.desktop')));

@@ -1,3 +1,4 @@
+import {MediaTools, textControl} from './media-tools.js';
 import {CommuteView} from './commute-view.js';
 import {WeatherView} from './weather-view.js';
 import {HistoryChart} from './charts.js';
@@ -179,6 +180,7 @@ export class Card {
         if (this._pageCaption)
             this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth', weather: 'Weather', commute: 'Commute'}[this._page] ?? '';
         this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : this._page === 'weather' ? ' ubuntu-island-card-weather' : this._page === 'commute' ? ' ubuntu-island-card-commute' : ''}`);
+        this.updateMediaTint();
         if (this._empty) this._empty.visible = !this._page;
         this._actions.pageChanged?.(this._page);
     }
@@ -186,7 +188,8 @@ export class Card {
     _buildMedia() {
         this._mediaSection = this._section('NOW PLAYING');
         this._mediaSection.header.hide();
-        const content = this._mediaSection.content;
+        const content = column('ubuntu-island-media-main');
+        this._mediaSection.content.add_child(content);
 
         const music = row('ubuntu-island-media-row');
         this._cover = new St.Bin({
@@ -200,6 +203,18 @@ export class Card {
 
         const details = column('ubuntu-island-media-details');
         details.x_expand = true;
+        const sourceRow = row('ubuntu-island-media-source-row');
+        this._source = label('PLAYER', 'ubuntu-island-source');
+        this._playerPicker = new St.Button({style_class: 'ubuntu-island-player-picker', can_focus: true, reactive: true, track_hover: true, x_expand: true});
+        const sourceFace = row('ubuntu-island-media-source-row');
+        sourceFace.x_expand = true;
+        this._source.x_expand = true;
+        sourceFace.add_child(this._source);
+        sourceFace.add_child(icon('pan-down-symbolic', 10));
+        this._playerPicker.set_child(sourceFace);
+        this._playerPicker.connect('clicked', () => this._mediaTools.show('players', this._playerPicker));
+        sourceRow.add_child(this._playerPicker);
+        details.add_child(sourceRow);
         this._track = label('', 'ubuntu-island-track');
         this._artist = label('', 'ubuntu-island-artist');
         const titleRow = row('ubuntu-island-title-row');
@@ -208,9 +223,8 @@ export class Card {
         details.add_child(titleRow);
         details.add_child(this._artist);
         const controls = row('ubuntu-island-transport');
-        this._source = label('PLAYER', 'ubuntu-island-source');
-        this._source.x_expand = true;
-        controls.add_child(this._source);
+        this._shuffle = button('media-playlist-shuffle-symbolic', 'Shuffle', () => this._actions.mediaProperty('Shuffle', !this._mediaState.shuffle), 14, 'ubuntu-island-media-mode');
+        controls.add_child(this._shuffle);
         this._previous = button('media-skip-backward-symbolic', 'Previous track',
             () => this._actions.mediaCommand('Previous'), 16, 'ubuntu-island-ghost');
         this._play = new St.Button({
@@ -224,12 +238,17 @@ export class Card {
         controls.add_child(this._previous);
         controls.add_child(this._play);
         controls.add_child(this._next);
+        this._repeat = button('media-playlist-repeat-symbolic', 'Repeat', () => {
+            const order = ['None', 'Playlist', 'Track'];
+            this._actions.mediaProperty('LoopStatus', order[(order.indexOf(this._mediaState.loopStatus) + 1) % order.length]);
+        }, 14, 'ubuntu-island-media-mode');
+        controls.add_child(this._repeat);
         // Quick control for the collapsed notch: hide the track name and keep
         // just the play state icon (middle-clicking the notch does the same).
         this._pillTitle = button('view-reveal-symbolic',
             'Hide the track name in the notch',
             () => this._actions.togglePillTitle?.(), 14, 'ubuntu-island-title-toggle');
-        titleRow.add_child(this._pillTitle);
+        sourceRow.add_child(this._pillTitle);
         details.add_child(controls);
         music.add_child(details);
         content.add_child(music);
@@ -241,21 +260,55 @@ export class Card {
         this._progressTrack.accessible_name = 'Track position';
         this._updatingProgress = false;
         this._draggingProgress = false;
-        this._progressTrack.connect('drag-begin', () => { this._draggingProgress = true; });
+        this._progressTrack.connect('drag-begin', () => {
+            this._draggingProgress = true;
+            this._seekIdentity = this._mediaIdentity;
+        });
         this._progressTrack.connect('drag-end', () => {
             this._draggingProgress = false;
-            if (this._canSeek && this._lengthSec)
+            if (this._canSeek && this._lengthSec && this._seekIdentity === this._mediaIdentity) {
+                this._elapsed.text = formatTime(this._progressTrack.value * this._lengthSec);
                 this._actions.seek(this._progressTrack.value * this._lengthSec);
+            } else this.renderProgress(this._mediaState?.positionSec);
         });
         this._progressTrack.connect('notify::value', () => {
-            if (!this._updatingProgress && !this._draggingProgress && this._canSeek && this._lengthSec)
-                this._actions.seek(this._progressTrack.value * this._lengthSec);
+            if (this._updatingProgress || !this._canSeek || !this._lengthSec) return;
+            if (this._draggingProgress && this._seekIdentity !== this._mediaIdentity) return;
+            const target = this._progressTrack.value * this._lengthSec;
+            this._elapsed.text = formatTime(target);
+            this._mediaTools?.progress(target);
+            if (!this._draggingProgress) this._actions.seek(target);
         });
         progress.add_child(this._elapsed);
         progress.add_child(this._progressTrack);
         this._total = label('–:––', 'ubuntu-island-time');
         progress.add_child(this._total);
-        details.add_child(progress);
+        content.add_child(progress);
+        const tools = row('ubuntu-island-media-toolbar');
+        const addTool = (glyph, title, mode) => {
+            const control = button(glyph, title, () => this._mediaTools.show(mode, control), 15, 'ubuntu-island-media-mode');
+            tools.add_child(control);
+            return control;
+        };
+        this._lyricsButton = addTool('media-view-subtitles-symbolic', 'Lyrics', 'lyrics');
+        this._queueButton = addTool('view-list-bullet-symbolic', 'Up next', 'queue');
+        this._soundButton = addTool('audio-volume-high-symbolic', 'Volume and sound output', 'sound');
+        this._soundButton.visible = this._settings.get_boolean('enable-audio');
+        tools.add_child(new St.Widget({x_expand: true}));
+        this._seekBack = textControl('−10s', () => this._seekOffset(-10), 'ubuntu-island-media-seek');
+        this._seekForward = textControl('+10s', () => this._seekOffset(10), 'ubuntu-island-media-seek');
+        this._seekBack.x_expand = this._seekForward.x_expand = false;
+        this._seekBack.accessible_name = 'Seek backward ten seconds';
+        this._seekForward.accessible_name = 'Seek forward ten seconds';
+        tools.add_child(this._seekBack);
+        tools.add_child(this._seekForward);
+        this._openPlayer = button('focus-windows-symbolic', 'Open player', () => this._actions.raisePlayer(), 15, 'ubuntu-island-media-mode');
+        tools.add_child(this._openPlayer);
+        content.add_child(tools);
+        this._mediaError = label('', 'ubuntu-island-error');
+        this._mediaError.hide();
+        this._mediaTools = new MediaTools(this, this._mediaSection.content, content, this._actions);
+        this._mediaSection.content.add_child(this._mediaError);
 
         // Hidden until a player shows up.
         this._mediaSection.setVisible(false);
@@ -373,15 +426,37 @@ export class Card {
         if (available && !wasAvailable && !this._manualPage) this._page = 'media';
         // With no player the whole section is gone, not an empty placeholder.
         this._mediaSection.setVisible(available);
-        if (!available) return;
+        if (!available) {
+            if (this._mediaTools?.mode) this._mediaTools.show(null);
+            return;
+        }
+        this._mediaState = state;
+        this._mediaIdentity = `${state.playerId || state.playerName}:${state.trackId || ""}:${state.title}`;
         this._track.text = String(state.title ?? 'Unknown title');
         this._artist.text = String(state.artist ?? '');
         this._artist.visible = Boolean(this._artist.text);
         this._source.text = String(state.playerName || 'Player');
+        if (this._playerPicker) this._playerPicker.accessible_name = `Choose player, ${state.playerName}${state.pinned ? ', pinned' : ', automatic'}`;
+        if (this._shuffle) {
+            this._shuffle.visible = typeof state.shuffle === 'boolean';
+            this._repeat.visible = state.loopStatus != null;
+            this._mediaTools._checked(this._shuffle, state.shuffle);
+            this._mediaTools._checked(this._repeat, state.loopStatus && state.loopStatus !== 'None');
+            this._shuffle.accessible_name = state.shuffle ? 'Turn shuffle off' : 'Turn shuffle on';
+            this._repeat.child.icon_name = state.loopStatus === 'Track' ? 'media-playlist-repeat-song-symbolic' : 'media-playlist-repeat-symbolic';
+            this._repeat.accessible_name = `Repeat: ${{None: 'off', Playlist: 'all', Track: 'one'}[state.loopStatus] || 'unavailable'}`;
+            setEnabled(this._shuffle, state.canControl && !state.pending?.includes('Shuffle'));
+            setEnabled(this._repeat, state.canControl && !state.pending?.includes('LoopStatus'));
+            this._openPlayer.visible = Boolean(state.canRaise);
+            this._seekBack.visible = this._seekForward.visible = Boolean(state.canSeek && state.lengthSec);
+            this._mediaError.text = state.error || '';
+            this._mediaError.visible = Boolean(state.error);
+            this._mediaTools.renderMedia(state);
+        }
         this._play.child.icon_name = state.status === 'Playing'
             ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic';
         this._play.accessible_name = state.status === 'Playing' ? 'Pause' : 'Play';
-        setEnabled(this._play, state.canControl);
+        setEnabled(this._play, state.canPlayPause ?? state.canControl);
         setEnabled(this._previous, state.canPrevious);
         setEnabled(this._next, state.canNext);
         this._canSeek = Boolean(state.canSeek);
@@ -391,18 +466,37 @@ export class Card {
         this.renderProgress(state.positionSec);
     }
 
+    _seekOffset(seconds) {
+        if (!this._canSeek || !this._lengthSec) return;
+        const target = Math.max(0, Math.min(this._lengthSec, this._progressTrack.value * this._lengthSec + seconds));
+        this.renderProgress(target);
+        this._actions.seek(target);
+    }
+
     renderArt(content) {
+        this._mediaAccent = content?._islandAccent;
+        this.updateMediaTint();
         this._cover?.set_child(content
             ? new St.Widget({content, style_class: 'ubuntu-island-artwork',
                 content_gravity: Clutter.ContentGravity.RESIZE_ASPECT})
             : icon('audio-x-generic-symbolic', 28));
     }
 
+    updateMediaTint() {
+        const accent = this._mediaAccent;
+        const rgb = Array.isArray(accent) && accent.length === 3 ? accent.map(v => Math.max(0, Math.min(255, Math.round(v)))) : [120, 135, 158];
+        const alpha = 0.15 * this._settings.get_int('surface-opacity') / 100;
+        this._scroll.set_style(this._page === 'media' ? `border-radius: 19px 19px 0 0; background-gradient-direction: horizontal; background-gradient-start: rgba(${rgb.join(',')},${alpha}); background-gradient-end: rgba(${rgb.join(',')},0);` : '');
+    }
+
     renderProgress(positionSec) {
         if (!this._progressTrack) return;
         const total = this._lengthSec;
         const position = Number.isFinite(positionSec) ? Math.max(0, positionSec) : null;
-        this._elapsed.text = formatTime(position ?? 0);
+        const draggingCurrent = this._draggingProgress && this._seekIdentity === this._mediaIdentity;
+        const displayed = draggingCurrent && total ? this._progressTrack.value * total : position ?? 0;
+        this._elapsed.text = formatTime(displayed);
+        this._mediaTools?.progress(displayed);
         this._total.text = formatTime(total);
         const fraction = total && position != null ? clampFraction(position / total) : 0;
         // Keep the thumb under the pointer while a seek is being dragged.
@@ -446,6 +540,7 @@ export class Card {
     }
 
     renderAudio(state) {
+        this._mediaTools?.renderAudio(state);
         if (!this._slider || !state) return;
         const level = state.muted ? 0 : state.volume;
         this._volume.text = state.available ? `${Math.round(level * 100)}%` : '—';

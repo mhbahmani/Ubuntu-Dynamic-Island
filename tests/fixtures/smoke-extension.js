@@ -1,3 +1,5 @@
+import {formatTime} from './services/format.js';
+import {roundedCover} from './services/artwork-model.js';
 // Runs only in the temporary Shell created by tests/smoke.py.
 import UbuntuIsland from './implementation.js';
 import {ConnectivityService} from './services/connectivity.js';
@@ -49,6 +51,132 @@ export default class Smoke extends UbuntuIsland {
         const preferences = caption.get_parent().get_last_child();
         assert(Math.abs(center(preferences.child) - expected) <= tolerance,
             'Preferences icon is not aligned with the navigation caption');
+    }
+
+    async _checkMediaFeatures(original) {
+        const card = this._card, actions = card._actions, tools = card._mediaTools;
+        const saved = {...actions}, lyrics = this._lyrics;
+        const textSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const textScale = textSettings.get_double('text-scaling-factor');
+        const seeks = [], commands = [];
+        let state = {...original, playerId: 'one', trackId: '/one', shuffle: false, loopStatus: 'None', canRaise: true,
+            players: [{id: 'one', name: 'Music player', status: 'Playing'}, {id: 'two', name: 'Podcast player', status: 'Paused'}]};
+        const render = () => this._renderMedia(state);
+        actions.seek = seconds => { seeks.push(seconds); };
+        actions.selectPlayer = id => { state = {...state, pinned: id}; render(); };
+        actions.mediaProperty = (key, value) => { state = {...state, [key === 'Shuffle' ? 'shuffle' : 'loopStatus']: value}; render(); };
+        actions.raisePlayer = () => commands.push('raise');
+        actions.playTrack = id => commands.push(id);
+        actions.setVolume = value => commands.push(value);
+        this._lyrics = {load() { tools.renderLyrics({synced: true, lines: [
+            {time: 0, text: 'A sample verse'}, {time: 60, text: 'A quiet place to begin'}, {time: 120, text: 'The next sample line'},
+        ]}); }, cancel() {}};
+        const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        try {
+            render();
+            await delay(100);
+            const height = this._island.actor.height;
+            const adjustment = card._scroll.vscroll.adjustment;
+            assert(adjustment.upper <= adjustment.page_size + 1, 'Normal media scrolls');
+            assert(card._cover.width === card._cover.height, 'Cover is not square');
+            card._shuffle.emit('clicked', 1);
+            card._repeat.emit('clicked', 1);
+            assert(state.shuffle && state.loopStatus === 'Playlist', 'Shuffle/repeat controls failed');
+            card._openPlayer.emit('clicked', 1);
+            assert(commands.includes('raise'), 'Open player failed');
+            await this._capture('media-modern');
+            card._playerPicker.emit('clicked', 1);
+            assert(!this._progressTimer, 'Player picker retained hidden playback updates');
+            tools.playerRows.get('two').emit('clicked', 1);
+            assert(state.pinned === 'two', 'Player pin failed');
+            tools.playerRows.get('two').grab_key_focus();
+            const focused = global.stage.get_key_focus();
+            render();
+            assert(global.stage.get_key_focus() === focused, 'Player update replaced focused control');
+            await this._capture('media-players');
+            tools.automatic.emit('clicked', 1);
+            assert(!state.pinned, 'Automatic player selection failed');
+            tools.show(null);
+            card._soundButton.emit('clicked', 1);
+            tools.volume.value = 0.42;
+            assert(commands.includes(0.42), 'Quick volume failed');
+            await this._capture('media-sound');
+            tools.show(null);
+            card._lyricsButton.emit('clicked', 1);
+            tools.progress(72);
+            assert(tools.lyricLines[1].text === 'A quiet place to begin', 'Synced lyric mismatch');
+            await this._capture('media-lyrics');
+            tools.lyricsToggle.emit('clicked', 1);
+            assert(tools.fullLyrics.visible, 'Full lyrics unavailable');
+            tools.show(null);
+            card._queueButton.emit('clicked', 1);
+            assert(!this._progressTimer, 'Queue retained hidden playback updates');
+            tools.renderQueue({message: 'Player order', tracks: [{id: '/two', title: 'Next track', artist: 'Sample artist', canPlay: true}]});
+            tools.queueRows.get('/two').emit('clicked', 1);
+            assert(commands.includes('/two'), 'Queue playback failed');
+            await this._capture('media-queue');
+            tools.show(null);
+            await delay(80);
+            const slider = card._progressTrack;
+            const [x, y] = slider.get_transformed_position(), [width, sliderHeight] = slider.get_transformed_size();
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + width * 0.25, y + sliderHeight / 2);
+            await delay(30);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
+            await delay(40);
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + width * 0.6, y + sliderHeight / 2);
+            await delay(50);
+            assert(card._draggingProgress, 'Pointer did not begin seek drag');
+            assert(card._elapsed.text === formatTime(slider.value * state.lengthSec), 'Time did not follow dragged thumb');
+            card.renderProgress(12);
+            assert(card._elapsed.text === formatTime(slider.value * state.lengthSec), 'Timer overwrote drag preview');
+            assert(seeks.length === 0, 'Dragging flooded the player with seeks');
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
+            await delay(50);
+            assert(seeks.length === 1, 'Release did not seek exactly once');
+            card._seekBack.emit('clicked', 1);
+            assert(seeks.length === 2, 'Ten-second seek failed');
+            slider.emit('drag-begin');
+            state = {...state, trackId: '/changed', positionSec: 0}; render();
+            slider.value = 0.8;
+            slider.emit('drag-end');
+            assert(seeks.length === 2, 'Old drag sought in a new track');
+            this._settings.set_int('expanded-width', 380);
+            await delay(100);
+            assert(adjustment.upper <= adjustment.page_size + 1, 'Narrow media scrolls');
+            const right = this._island.actor.get_transformed_position()[0] + this._island.actor.width;
+            for (const actor of [card._next, card._repeat, card._total, card._openPlayer])
+                assert(actor.get_transformed_position()[0] + actor.width <= right, 'Media control overflows at 380px');
+            await this._capture('media-modern-narrow');
+            textSettings.set_double('text-scaling-factor', 1.5);
+            state = {...state, title: 'A much longer title that must fit with enlarged text', artist: 'A long artist name'}; render();
+            await delay(100);
+            assert(this._island.actor.height === height, 'Media text scaling changed tab height');
+            assert(card._total.get_transformed_position()[0] + card._total.width <= right, 'Enlarged timeline overflows');
+            await this._capture('media-modern-large-text');
+            adjustment.value = adjustment.upper - adjustment.page_size;
+            await this._capture('media-modern-large-text-scrolled');
+            const footerTop = card._pageCaption.get_parent().get_transformed_position()[1];
+            assert(card._openPlayer.get_transformed_position()[1] + card._openPlayer.height <= footerTop + 1, 'Enlarged controls are unreachable');
+            textSettings.set_double('text-scaling-factor', textScale);
+            this._settings.set_int('expanded-width', 440);
+            state = {...state, shuffle: null, loopStatus: null, canRaise: false, canSeek: false}; render();
+            assert(!card._shuffle.visible && !card._repeat.visible && !card._openPlayer.visible && !card._seekBack.visible,
+                'Unsupported controls remain visible');
+            this._card.selectPage('audio');
+            assert(!this._progressTimer, 'Hidden media retained its UI timer');
+            console.log('[Island Smoke] Media PASS: drag timestamps, release seek, track changes, controls, secondary views and sizes');
+        } finally {
+            textSettings.set_double('text-scaling-factor', textScale);
+            this._settings.set_int('expanded-width', 440);
+            tools.show(null);
+            Object.assign(actions, saved);
+            this._lyrics = lyrics;
+            this._renderMedia(original);
+            this._card.selectPage('media');
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(), 50, 500);
+            global.stage.set_key_focus(this._island.actor);
+            await delay(80);
+        }
     }
 
     async _smoke() {
@@ -112,7 +240,7 @@ export default class Smoke extends UbuntuIsland {
                 : [224 - Math.round(y / 8), 211 - Math.round(y / 6), 190 - Math.round(y / 5), 255], offset);
         }
         const cover = St.ImageContent.new_with_preferred_size(160, 160);
-        cover.set_data(pixels, Cogl.PixelFormat.RGBA_8888, 160, 160, 160 * 4);
+        cover.set_data(roundedCover(pixels, 160, 160, 160 * 4, 4).data, Cogl.PixelFormat.RGBA_8888, 160, 160, 160 * 4);
         this._card.renderArt(cover);
         this._card._pillTitle.emit('clicked', 1);
         assert(!this._pill._title.visible && this._pill._mediaIcon.visible, 'Hide title removed the playback icon');
@@ -169,6 +297,7 @@ export default class Smoke extends UbuntuIsland {
         assert(decoded !== null, 'Local artwork failed to decode');
         this._card.renderArt(cover);
         assert(this._card._page === 'media', 'Media did not select its compact face');
+        await this._checkMediaFeatures(media);
         this._settings.set_string('expand-tab', 'system');
         assert(this._card._page === 'media', 'Opening preference changed the already-open tab');
         this._island.collapse(); this._island.expand();

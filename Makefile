@@ -7,7 +7,7 @@ PREVIEW_ARGS ?=
 WEATHER_PREVIEWS := preview-sun-day preview-clouds-day preview-rain-day preview-snow-day preview-night preview-clouds-night preview-rain-night preview-snow-night
 UUID := ubuntu-island@mhbahmani.github.io
 
-.PHONY: help preview preview-offline preview-offline-edge preview-commute preview-commute-map preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify
+.PHONY: help preview preview-offline preview-offline-edge preview-commute preview-commute-map preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify media-test
 .PHONY: $(WEATHER_PREVIEWS)
 
 help:
@@ -34,6 +34,7 @@ help:
 	  '  make check               Node tests, syntax checks and schema validation' \
 	  '  make test                Node tests only' \
 	  '  make smoke               Isolated GNOME rendering and interaction checks' \
+	  '  make media-test          Private D-Bus playback and track-list checks' \
 	  '  make prefs-test          Real GTK preferences checks (requires a display)' \
 	  '  make weather-cache-test  GJS cache integration checks in a temporary folder' \
 	  '  make verify              All checks above plus packaging' \
@@ -111,4 +112,7 @@ weather-cache-test:
 smoke:
 	$(PYTHON) tests/smoke.py
 
-verify: check prefs-test weather-cache-test smoke build
+media-test:
+	dbus-run-session -- $(GJS) -m tests/media-dbus.mjs
+
+verify: check prefs-test weather-cache-test media-test smoke build

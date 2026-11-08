@@ -95,12 +95,71 @@ test('media updates render seek, pause, resume and new tracks without a zero fra
     assert.equal(card._progressTrack.value, 0.7);
 
     card._draggingProgress = true;
+    card._seekIdentity = card._mediaIdentity;
     card._progressTrack.value = 0.8;
     media._sync();
     assert.equal(card._progressTrack.value, 0.8, 'Updates must not move a dragged thumb');
+    assert.equal(card._elapsed.text, '1:20', 'Timer must not overwrite the seek preview');
     card._draggingProgress = false;
     props.Metadata['mpris:trackid'] = '/track/2';
     props.Position = 0;
     media._sync();
     assert.equal(card._progressTrack.value, 0, 'A new track must not retain old progress');
+});
+
+test('manual player selection can pin a paused app and falls back when it disappears', () => {
+    let state;
+    const Media = service('media', 'MediaService', {selectPlayer, mediaTitle, estimatePositionSec,
+        GLib: {get_monotonic_time: () => 0}});
+    const media = new Media(value => { state = value; });
+    const proxy = (title, status) => ({get_cached_property: name => ({
+        Metadata: {'xesam:title': title}, PlaybackStatus: status, CanControl: true,
+    })[name]});
+    media._alive = true;
+    media._proxies.set('playing', proxy('Song', 'Playing'));
+    media._proxies.set('paused', proxy('Podcast', 'Paused'));
+    media._sync();
+    assert.equal(state.playerId, 'playing');
+    media.select('paused');
+    assert.equal(state.playerId, 'paused');
+    assert.equal(state.pinned, 'paused');
+    media.select(null);
+    assert.equal(state.playerId, 'playing');
+    media.select('paused');
+    media._proxies.delete('paused');
+    media._sync();
+    assert.equal(state.playerId, 'playing');
+    assert.equal(state.pinned, null);
+    assert.equal(state.shuffle, null);
+    assert.equal(state.loopStatus, null);
+});
+
+test('failed property changes clear pending state, and unsupported controls never call D-Bus', () => {
+    let state, complete;
+    const calls = [];
+    const Media = service('media', 'MediaService', {selectPlayer, mediaTitle, estimatePositionSec,
+        Gio: {DBusCallFlags: {NONE: 0}}, GLib: {get_monotonic_time: () => 0,
+            Variant: class { constructor(type, value) { this.value = value; } }}});
+    const media = new Media(value => { state = value; });
+    const props = {Metadata: {'xesam:title': 'Song'}, PlaybackStatus: 'Paused', CanControl: true};
+    const proxy = {get_cached_property: name => props[name],
+        call(method, parameters, flags, timeout, cancel, callback) { calls.push(method); complete = () => callback(proxy, {}); },
+        call_finish() { throw new Error('Unsupported'); }};
+    media._alive = true;
+    media._proxies.set('music', proxy);
+    media._sync();
+    media.setProperty('Shuffle', true);
+    media.setProperty('Volume', 0);
+    media.raise();
+    assert.equal(calls.length, 0);
+    props.Shuffle = false;
+    media.setProperty('Shuffle', true);
+    assert.equal(state.pending[0], 'Shuffle');
+    complete();
+    assert.equal(state.pending.length, 0);
+    assert.match(state.error, /unavailable/);
+    assert.equal(state.shuffle, false);
+    props.CanControl = false;
+    media.setProperty('Shuffle', true);
+    assert.equal(calls.length, 1);
 });

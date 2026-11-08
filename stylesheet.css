@@ -42,24 +42,48 @@
 }
 .ubuntu-island-muted { color: #b7bbc5; font-size: 10pt; }
 .ubuntu-island-empty { padding: 16px 4px; spacing: 8px; }
-/* A single media face: artwork edge, quiet metadata, vermilion playback seal. */
-.ubuntu-island-media-row { spacing: 0; }
-.ubuntu-island-cover { width: 112px; height: 140px; margin: 8px 0 8px 8px; border-radius: 12px; background-color: #363940; }
-.ubuntu-island-artwork { width: 112px; height: 140px; }
-.ubuntu-island-media-details { padding: 18px 18px 10px; spacing: 4px; }
+/* Artwork-led media face. Color is sampled once when a cover loads. */
+.ubuntu-island-card-media .ubuntu-island-section-box { border-radius: 19px 19px 0 0; }
+.ubuntu-island-media-main { padding: 12px 14px 6px; spacing: 6px; }
+.ubuntu-island-media-row { spacing: 14px; }
+.ubuntu-island-cover { width: 112px; height: 112px; border-radius: 13px; background-color: rgba(210,220,240,0.07); border: 1px solid rgba(220,230,250,0.13); }
+.ubuntu-island-artwork { width: 112px; height: 112px; }
+.ubuntu-island-media-details { spacing: 3px; }
 .ubuntu-island-track { color: #f8f9fc; font-size: 12pt; font-weight: 600; }
+.ubuntu-island-media-details .ubuntu-island-track { font-size: 13pt; }
 .ubuntu-island-artist { color: #b7bbc5; font-size: 10pt; }
-.ubuntu-island-transport { spacing: 6px; margin-top: 14px; }
+.ubuntu-island-media-source-row { spacing: 5px; }
+.ubuntu-island-player-picker { border-radius: 5px; padding: 2px 4px; color: #bac7d9; }
+.ubuntu-island-player-picker:hover { background-color: rgba(235,239,255,0.08); }
+.ubuntu-island-player-picker .ubuntu-island-source { font-size: 8.5pt; color: #bac7d9; }
+.ubuntu-island-transport { spacing: 2px; margin-top: 4px; }
+.ubuntu-island-transport .ubuntu-island-ghost { padding: 7px; }
 .ubuntu-island-source { color: #b7bbc5; font-size: 9pt; }
 .ubuntu-island-seal {
-    color: #f8f9fc;
-    border-radius: 7px;
-    padding: 8px;
-    background-color: #c0442b;
-    border: 1px solid rgba(255, 154, 100, 0.16);
+    color: #ffffff; border-radius: 20px; padding: 10px;
+    background-color: #c0442b; border: 1px solid rgba(255,190,155,0.28);
 }
 .ubuntu-island-seal:hover { background-color: #d24e33; }
 .ubuntu-island-seal:active { background-color: #a3371f; }
+.ubuntu-island-media-toolbar { spacing: 6px; }
+.ubuntu-island-media-mode { padding: 6px; border-radius: 7px; color: #c3cad8; }
+.ubuntu-island-media-mode:hover, .ubuntu-island-media-seek:hover { background-color: rgba(235,239,255,0.09); }
+.ubuntu-island-media-mode:checked { color: #ffb393; background-color: rgba(224,86,59,0.16); }
+.ubuntu-island-media-mode:disabled { color: #6c717d; }
+.ubuntu-island-media-seek { padding: 5px 6px; font-size: 8.5pt; color: #c3cad8; border-radius: 6px; }
+.ubuntu-island-media-panel { padding: 8px 14px 10px; spacing: 6px; }
+.ubuntu-island-media-panel-heading { spacing: 6px; }
+.ubuntu-island-media-panel-body { spacing: 6px; }
+.ubuntu-island-media-text-button { padding: 8px 10px; border-radius: 8px; color: #dce2ed; font-size: 10pt; text-align: left; background-color: rgba(225,235,255,0.04); }
+.ubuntu-island-media-text-button:hover { background-color: rgba(225,235,255,0.1); }
+.ubuntu-island-media-text-button:checked { background-color: rgba(224,86,59,0.16); color: #ffb393; }
+.ubuntu-island-media-text-button:disabled { color: #888e9c; }
+.ubuntu-island-lyric-current { font-size: 15pt; font-weight: 600; color: #ffe2d2; }
+.ubuntu-island-lyric-context { font-size: 10pt; color: #aeb8c9; }
+.ubuntu-island-lyrics-text { font-size: 11pt; color: #e4e9f1; }
+.ubuntu-island-media-credit { font-size: 8pt; color: #aeb8c9; }
+.ubuntu-island-media-mode:focus, .ubuntu-island-media-text-button:focus,
+.ubuntu-island-media-seek:focus, .ubuntu-island-player-picker:focus { box-shadow: inset 0 0 0 2px #bac7d9; }
 .ubuntu-island-ghost {
     color: #d1d4dd;
     padding: 8px;
