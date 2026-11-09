@@ -438,7 +438,8 @@ export class Card {
             return;
         }
         this._mediaState = state;
-        this._mediaIdentity = `${state.playerId || state.playerName}:${state.trackId || ""}:${state.title}`;
+        this._mediaIdentity = JSON.stringify([state.playerId || state.playerName,
+            state.trackRevision ?? state.trackId ?? '', state.title]);
         this._track.text = String(state.title ?? 'Unknown title');
         this._artist.text = String(state.artist ?? '');
         this._artist.visible = Boolean(this._artist.text);
@@ -467,7 +468,7 @@ export class Card {
         setEnabled(this._previous, state.canPrevious);
         setEnabled(this._next, state.canNext);
         this._canSeek = Boolean(state.canSeek);
-        this._lengthSec = Number(state.lengthSec) > 0 ? Number(state.lengthSec) : null;
+        this._lengthSec = Number.isFinite(state.lengthSec) && state.lengthSec > 0 ? state.lengthSec : null;
         // Render the position from this update, not a zero placeholder that
         // remains visible until the next progress timer tick.
         this.renderProgress(state.positionSec);
@@ -499,15 +500,15 @@ export class Card {
     renderProgress(positionSec) {
         if (!this._progressTrack) return;
         const total = this._lengthSec;
-        const position = Number.isFinite(positionSec) ? Math.max(0, positionSec) : null;
+        const position = Number.isFinite(positionSec) ? Math.max(0, Math.min(total ?? Infinity, positionSec)) : null;
         const draggingCurrent = this._draggingProgress && this._seekIdentity === this._mediaIdentity;
-        const displayed = draggingCurrent && total ? this._progressTrack.value * total : position ?? 0;
+        const displayed = draggingCurrent && total ? clampFraction(this._progressTrack.value) * total : position ?? 0;
         this._elapsed.text = formatTime(displayed);
         this._mediaTools?.progress(displayed);
         this._total.text = formatTime(total);
         const fraction = total && position != null ? clampFraction(position / total) : 0;
         // Keep the thumb under the pointer while a seek is being dragged.
-        if (!this._draggingProgress) {
+        if (!draggingCurrent) {
             this._updatingProgress = true;
             this._progressTrack.value = fraction;
             this._updatingProgress = false;

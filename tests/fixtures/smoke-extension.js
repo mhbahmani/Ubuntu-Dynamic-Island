@@ -144,6 +144,17 @@ export default class Smoke extends UbuntuIsland {
             slider.value = 0.8;
             slider.emit('drag-end');
             assert(seeks.length === 2, 'Old drag sought in a new track');
+            const afterTrack = state;
+            state = {...state, lengthSec:301, positionSec:324}; render();
+            assert(card._elapsed.text === '5:01' && slider.value === 1,
+                'Elapsed time exceeded track duration');
+            await this._capture('media-progress-bounds');
+            state = {...afterTrack, trackRevision:1}; render();
+            slider.emit('drag-begin');
+            state = {...state, trackRevision:2, positionSec:4}; render();
+            slider.emit('drag-end');
+            assert(seeks.length === 2, 'Reused track ID allowed an old drag to seek the new track');
+            assert(card._elapsed.text === '0:04', 'Reused track ID retained the old seek preview');
             this._settings.set_int('expanded-width', 380);
             await delay(100);
             assert(adjustment.upper <= adjustment.page_size + 1, 'Narrow media scrolls');

@@ -3,6 +3,27 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Media seekbar follow-up (2026-11-09): the supplied Telegram screenshot showed
+5:24 elapsed on a 5:01 track after headphone Next. The installed media service
+matched this checkout; read-only MPRIS inspection found Telegram reporting the
+generic `/org/desktop_app/track/0` ID. A regression reproduced the overshoot when
+new-track metadata reused that ID without a Position/Seeked update.
+
+Track identity now also considers URI, title, artist and album. A transition
+resets the old clock and performs the existing bounded asynchronous Position
+read; artwork and duration-only updates do not reset it. Explicit position
+samples win over cached values. Track revisions invalidate stale seek drags and
+failed seeks, including reused IDs. Both the service estimate and visible elapsed
+time clamp to a known duration; unknown-duration streams keep their elapsed time.
+No polling was added.
+
+Validation: 129 Node tests, syntax/schema checks, private D-Bus metadata-only
+Next transitions with reused IDs, native GNOME seek/drag and duration-bound checks,
+and ZIP integrity/source checks passed. The native screenshot now shows 5:01/5:01
+for an injected overrun. No real player was advanced or paused by the tests;
+physical headphone Next still needs user verification after installation/reload.
+This follow-up has not been installed.
+
 Agents prototype (2026-11-09): an opt-in seventh module tracks local Claude Code,
 Codex and OpenCode lifecycle events, with last-reported status/time, bounded session
 rows, dismiss/clear, a static ordered notch indicator and optional notifications.

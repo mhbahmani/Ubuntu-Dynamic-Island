@@ -39,6 +39,8 @@ export class MediaService {
         this._lengthUs = 0;
         this._canSeek = false;
         this._trackId = null;
+        this._trackIdentity = null;
+        this._trackRevision = 0;
     }
 
     start() {
@@ -104,14 +106,12 @@ export class MediaService {
                     proxy._islandSignals = [
                         proxy.connect('g-properties-changed', (p, changed) => {
                             const names = changed.deep_unpack();
-                            if ('Position' in names && this._selected === name) this._rebasePosition(p);
-                            this._sync();
+                            this._sync('Position' in names ? {proxy: p, us: unpack(names.Position)} : null);
                         }),
                         proxy.connect('g-signal', (p, sender, signalName, params) => {
                             if (signalName !== 'Seeked') return;
                             const [position] = params?.deep_unpack?.() ?? [];
-                            if (this._selected === name) this._rebasePosition(p, position);
-                            this._sync();
+                            this._sync({proxy: p, us: position});
                         }),
                     ];
                     this._proxies.set(name, proxy);
@@ -130,7 +130,7 @@ export class MediaService {
     _rebasePosition(proxy, us = null) {
         this._cancelPositionRead();
         const value = us ?? this._prop(proxy, 'Position');
-        this._positionUs = Number.isFinite(value) ? value : 0;
+        this._positionUs = Number.isFinite(value) && value >= 0 ? value : 0;
         this._positionAt = monotonicSec();
     }
 
@@ -161,7 +161,7 @@ export class MediaService {
             });
     }
 
-    _sync() {
+    _sync(positionSample = null) {
         if (!this._alive) return;
         const players = [...this._proxies.entries()].map(([name, proxy]) => {
             const meta = this._prop(proxy, 'Metadata') ?? {};
@@ -185,6 +185,7 @@ export class MediaService {
             this._positionUs = 0;
             this._lengthUs = 0;
             this._trackId = null;
+            this._trackIdentity = null;
             this._canSeek = false;
             this._dropQueue();
             this._onChange({available: false});
@@ -193,7 +194,14 @@ export class MediaService {
         const {name, proxy} = selected;
         const meta = this._prop(proxy, 'Metadata') ?? {};
         const trackId = unpack(meta['mpris:trackid']) ?? null;
-        const changed = name !== this._selected || proxy !== this._positionProxy || trackId !== this._trackId;
+        // Some players reuse a generic track ID (for example /track/0).
+        // Content metadata then supplies the transition signal; late artwork and
+        // duration corrections alone must not restart the playback clock.
+        const identity = JSON.stringify([trackId, unpack(meta['xesam:url']) ?? '',
+            unpack(meta['xesam:title']) ?? '', unpack(meta['xesam:artist']) ?? [],
+            unpack(meta['xesam:album']) ?? '']);
+        const playerChanged = name !== this._selected || proxy !== this._positionProxy;
+        const changed = playerChanged || identity !== this._trackIdentity;
         const status = this._prop(proxy, 'PlaybackStatus') || 'Stopped';
         const playbackChanged = this._playing !== (status === 'Playing');
         if (changed) {
@@ -203,11 +211,15 @@ export class MediaService {
             this._selected = name;
             this._positionProxy = proxy;
             this._trackId = trackId;
-            this._lengthUs = Number(unpack(meta['mpris:length']) ?? 0);
-            this._rebasePosition(proxy);
-        } else {
-            this._lengthUs = Number(unpack(meta['mpris:length']) ?? this._lengthUs);
+            this._trackIdentity = identity;
+            this._trackRevision++;
+            this._seekGeneration++;
+            // The cached Position belongs to the old track. Start from zero
+            // until the event-driven live read (or an explicit sample) arrives.
+            this._rebasePosition(proxy, playerChanged ? null : 0);
         }
+        const length = Number(unpack(meta['mpris:length']) ?? (changed ? 0 : this._lengthUs));
+        this._lengthUs = Number.isFinite(length) && length > 0 ? length : 0;
         // Freeze the estimated position at pause and restart its clock at play.
         // A cached Position is often stale when only PlaybackStatus changes.
         if (!changed && playbackChanged) {
@@ -215,7 +227,9 @@ export class MediaService {
             this._positionAt = monotonicSec();
         }
         this._playing = status === 'Playing';
-        if (changed || playbackChanged) this._refreshPosition(proxy);
+        if (positionSample?.proxy === proxy && Number.isFinite(positionSample.us) && positionSample.us >= 0)
+            this._rebasePosition(proxy, positionSample.us);
+        else if (changed || playbackChanged) this._refreshPosition(proxy);
         const canControl = Boolean(this._prop(proxy, 'CanControl'));
         const artists = unpack(meta['xesam:artist']);
         this._canSeek = canControl && Boolean(this._prop(proxy, 'CanSeek'));
@@ -223,7 +237,7 @@ export class MediaService {
         const playerName = this._prop(root, 'Identity') || name.replace(PREFIX, '').split('.')[0];
         this._onChange({
             available: true,
-            playerName, playerId: name, trackId, pinned: this._preferred,
+            playerName, playerId: name, trackId, trackRevision: this._trackRevision, pinned: this._preferred,
             players: eligible.map(p => ({id: p.name,
                 name: this._prop(this._roots.get(p.name), 'Identity') || p.name.replace(PREFIX, '').split('.')[0],
                 status: p.status})),
@@ -256,7 +270,8 @@ export class MediaService {
 
     // Live position estimate; the UI polls this once per second while expanded.
     positionSec() {
-        return estimatePositionSec(this._positionUs, this._positionAt, monotonicSec(), this._playing);
+        const position = estimatePositionSec(this._positionUs, this._positionAt, monotonicSec(), this._playing);
+        return position != null && this._lengthUs > 0 ? Math.min(position, this._lengthUs / 1e6) : position;
     }
 
     seek(seconds) {

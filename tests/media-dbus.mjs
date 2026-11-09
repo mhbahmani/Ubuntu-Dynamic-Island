@@ -51,13 +51,14 @@ const secondConnection = Gio.DBusConnection.new_for_address_sync(GLib.getenv('DB
     Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, null, null);
 const secondName = 'org.mpris.MediaPlayer2.IslandSecond';
 let secondPosition = 0, secondStatus = 'Paused', positionReads = 0;
+let secondMetadata = metadata('/track/1');
 const secondRoot = wrap(iface, prop('Identity', 's') + prop('CanRaise', 'b') + prop('HasTrackList', 'b'),
     {Identity: 'Second test player', CanRaise: false, HasTrackList: false}, secondConnection);
 const secondPlayer = wrap(`${iface}.Player`,
     ['PlaybackStatus:s', 'Metadata:a{sv}', 'Position:x', 'CanControl:b', 'CanSeek:b', 'CanPlay:b', 'CanPause:b']
         .map(p => prop(...p.split(':'))).join('') + '<method name="PlayPause"/>', {
         get PlaybackStatus() { return secondStatus; },
-        get Metadata() { return metadata('/track/1'); },
+        get Metadata() { return secondMetadata; },
         get Position() { positionReads++; return secondPosition; },
         CanControl: true, CanSeek: true, CanPlay: true, CanPause: true,
         PlayPause() {
@@ -111,9 +112,20 @@ let exitCode = 0;
         const readCount = positionReads;
         for (let i = 0; i < 5; i++) { service.positionSec(); await delay(25); }
         assert(positionReads === readCount, 'Progress clock added D-Bus polling');
+        // Headphone/remote Next: metadata changes while Playing, with the same
+        // generic ID and no Position property notification or Seeked signal.
+        secondPosition = 12e6;
+        secondMetadata = {...metadata('/track/1'),
+            'xesam:title': new GLib.Variant('s', 'Next track from headphones'),
+            'mpris:length': new GLib.Variant('x', 301e6)};
+        secondPlayer.emit_property_changed('Metadata', new GLib.Variant('a{sv}', secondMetadata));
+        await until(() => state.title === 'Next track from headphones' && Math.abs(state.positionSec - 12) < 1,
+            'Same-ID metadata transition retained the old playback clock');
+        assert(positionReads === readCount + 1, 'Track transition did not use exactly one event-driven read');
+        assert(service._prop(service._proxies.get(secondName), 'Position') === 0, 'Track transition modified the cached fixture Position');
         service.select(name);
         await until(() => state.playerId === name && state.positionSec === 90, 'Switching back used the discovery position');
-        print('PASS: native MPRIS discovery, player switching/resume positions, properties, Raise, seek, track list, GoTo and hidden cleanup');
+        print('PASS: native MPRIS discovery, player switching/resume, external next with reused IDs, properties, seek, track list and cleanup');
     } catch (error) { printerr(error.stack); exitCode = 1; }
     finally {
         service.stop();

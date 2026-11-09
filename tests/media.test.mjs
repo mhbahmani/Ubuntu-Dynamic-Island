@@ -112,6 +112,14 @@ test('media updates render seek, pause, resume and new tracks without a zero fra
     props.Position = 0;
     media._sync();
     assert.equal(card._progressTrack.value, 0, 'A new track must not retain old progress');
+
+    card._lengthSec = 301;
+    card.renderProgress(324);
+    assert.equal(card._elapsed.text, '5:01', 'Elapsed text must not exceed the known track length');
+    assert.equal(card._progressTrack.value, 1);
+    card._lengthSec = null;
+    card.renderProgress(324);
+    assert.equal(card._elapsed.text, '5:24', 'Unknown-duration streams must retain their position');
 });
 
 test('manual player selection can pin a paused app and falls back when it disappears', () => {
@@ -176,7 +184,7 @@ test('failed property changes clear pending state, and unsupported controls neve
 
 function positionFixture() {
     let now = 10, state;
-    const reads = [];
+    const reads = [], seeks = [];
     const Media = service('media', 'MediaService', {
         selectPlayer, mediaTitle, estimatePositionSec,
         GLib: {get_monotonic_time: () => now * 1e6},
@@ -191,6 +199,10 @@ function positionFixture() {
             _islandSignals: [],
             get_cached_property: key => props[key],
             call(method, parameters, flags, timeout, cancel, callback) {
+                if (method === 'SetPosition') {
+                    seeks.push({fail() { callback(proxy, new Error('Old seek failed')); }});
+                    return;
+                }
                 if (method !== 'org.freedesktop.DBus.Properties.Get') return;
                 assert.deepEqual(Array.from(parameters.value), ['org.mpris.MediaPlayer2.Player', 'Position']);
                 assert.equal(timeout, 2500);
@@ -208,8 +220,72 @@ function positionFixture() {
     };
     const browser = add('browser', 'Playing', 30);
     const telegram = add('telegram', 'Paused', 0);
-    return {media, browser, telegram, reads, get state() { return state; }, advance(seconds) { now += seconds; }};
+    return {media, browser, telegram, reads, seeks, get state() { return state; }, advance(seconds) { now += seconds; }};
 }
+
+test('external next-track metadata resets a reused track ID without carrying the old position', () => {
+    const f = positionFixture();
+    f.media._sync();
+    f.reads.at(-1).reply(280);
+    const reads = f.reads.length;
+    const revision = f.state.trackRevision;
+    f.advance(44);
+    f.browser.props.Metadata['xesam:title'] = 'Next song from headphones';
+    f.browser.props.Metadata['mpris:length'] = 301e6;
+    // Keep both the track ID and the proxy's discovery-time Position unchanged.
+    f.media._sync();
+    assert.equal(f.state.positionSec, 0, 'New track inherited old progress');
+    assert.notEqual(f.state.trackRevision, revision);
+    assert.equal(f.reads.length, reads + 1, 'Metadata transition did not request the live position');
+    f.reads.at(-1).reply(7);
+    f.advance(2);
+    assert.equal(f.media.positionSec(), 9);
+    f.browser.props.Metadata['mpris:artUrl'] = 'file:///cover-arrived-later.png';
+    f.media._sync();
+    assert.equal(f.media.positionSec(), 9, 'Artwork arrival reset playback');
+    assert.equal(f.reads.length, reads + 1, 'Artwork caused an unnecessary position read');
+});
+
+test('late reads and failed seeks cannot restore the previous track when IDs are reused', () => {
+    const f = positionFixture();
+    f.media._sync();
+    const oldRead = f.reads.at(-1);
+    f.browser.props.Metadata['xesam:url'] = 'file:///next.ogg';
+    f.media._sync();
+    f.reads.at(-1).reply(5);
+    oldRead.reply(250);
+    assert.equal(f.media.positionSec(), 5);
+    f.media.seek(180);
+    f.browser.props.Metadata['xesam:url'] = 'file:///third.ogg';
+    f.media._sync();
+    f.reads.at(-1).reply(2);
+    f.seeks.at(-1).fail();
+    assert.equal(f.media.positionSec(), 2, 'Old seek error restored the previous track position');
+    assert.equal(f.state.error, '');
+});
+
+test('playback estimates stay within known duration without truncating unknown-duration streams', () => {
+    const f = positionFixture();
+    f.media._sync();
+    f.reads.at(-1).reply(290);
+    f.advance(34);
+    assert.equal(f.media.positionSec(), 300);
+    f.browser.props.Metadata['mpris:length'] = 0;
+    f.media._sync();
+    assert.equal(f.media.positionSec(), 324);
+});
+
+test('an explicit position received with new metadata wins over the old cached sample', () => {
+    const f = positionFixture();
+    f.media._sync();
+    const reads = f.reads.length;
+    f.browser.props.Metadata['xesam:title'] = 'New metadata with position';
+    f.media._sync({proxy:f.browser.proxy, us:9e6});
+    assert.equal(f.state.positionSec, 9);
+    assert.equal(f.reads.length, reads, 'An explicit sample should not trigger a redundant read');
+    f.reads.at(-1).reply(240);
+    assert.equal(f.state.positionSec, 9, 'Old read overwrote the explicit position');
+});
 
 test('switching to a paused player and resuming reads its live position instead of cached zero', () => {
     const f = positionFixture();
