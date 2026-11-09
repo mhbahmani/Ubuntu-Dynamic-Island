@@ -96,6 +96,7 @@ and [compact playing pill](screenshots/playing-pill.png).
 - **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
   background opacity (0–100%, default 98%), matte tone (0–100%, default
   60%) that flattens the gradient colors without changing transparency,
+  a Notch order preview that uses smaller icons when labels would overflow,
   widths, animation duration,
   reduced animation, hover behavior, metrics interval, module toggles,
   remote-art toggle, clock relocation.

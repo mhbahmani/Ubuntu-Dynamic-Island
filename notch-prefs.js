@@ -11,11 +11,13 @@ export function notchPreview(settings, window) {
         description: 'Drag items to reorder them. Select an item and use the arrows to move it with the keyboard. Hidden items keep their position.'});
     const box = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 12,
         margin_top: 8, margin_bottom: 12});
-    const preview = new Gtk.Box({spacing: 6, halign: Gtk.Align.CENTER});
-    preview.add_css_class('linked');
+    // Measure both presentations before choosing one. The compact row defines
+    // the minimum width, so adding modules cannot force the settings window wider.
+    const preview = new Adw.Squeezer({halign: Gtk.Align.FILL, homogeneous: false,
+        switch_threshold_policy: Adw.FoldThresholdPolicy.NATURAL, transition_duration: 0});
     const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth', commute: 'Commute', agents: 'Agents'};
     const icons = {media: 'audio-x-generic-symbolic', weather: 'weather-clear-symbolic',
-        network: 'network-transmit-receive-symbolic', cpu: 'utilities-system-monitor-symbolic', bluetooth: 'bluetooth-symbolic', commute: 'find-location-symbolic', agents: 'system-run-symbolic'};
+        network: 'network-transmit-receive-symbolic', cpu: 'org.gnome.SystemMonitor-symbolic', bluetooth: 'bluetooth-symbolic', commute: 'find-location-symbolic', agents: 'system-run-symbolic'};
     let selected = 'media';
     const controls = new Gtk.Box({spacing: 8, halign: Gtk.Align.CENTER});
     const left = new Gtk.Button({icon_name: 'go-previous-symbolic', tooltip_text: 'Move selected item left'});
@@ -33,28 +35,52 @@ export function notchPreview(settings, window) {
     };
     left.connect('clicked', () => move(selected, notchOrder(settings.get_strv('pill-order')).indexOf(selected) - 1));
     right.connect('clicked', () => move(selected, notchOrder(settings.get_strv('pill-order')).indexOf(selected) + 1));
-    const render = () => {
-        while (preview.get_first_child()) preview.remove(preview.get_first_child());
-        const order = notchOrder(settings.get_strv('pill-order'));
-        order.forEach((id, index) => {
+    const variants = [false, true].map(compact => {
+        const strip = new Gtk.Box({spacing: compact ? 2 : 6, halign: Gtk.Align.CENTER});
+        strip.add_css_class('linked');
+        const chips = new Map();
+        for (const id of Object.keys(names)) {
             const chip = new Gtk.ToggleButton({active: selected === id, tooltip_text: names[id]});
-            const content = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 5, margin_start: 4, margin_end: 4, margin_top: 7, margin_bottom: 7});
-            content.append(new Gtk.Image({icon_name: icons[id], pixel_size: 18}));
-            content.append(new Gtk.Label({label: names[id]}));
+            chip.update_property([Gtk.AccessibleProperty.LABEL], [names[id]]);
+            const content = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 5,
+                margin_start: compact ? 0 : 4, margin_end: compact ? 0 : 4,
+                margin_top: compact ? 4 : 7, margin_bottom: compact ? 4 : 7});
+            content.append(new Gtk.Image({icon_name: icons[id], pixel_size: compact ? 14 : 18}));
+            if (!compact) content.append(new Gtk.Label({label: names[id]}));
             chip.set_child(content);
             chip.connect('clicked', () => { selected = id; render(); });
             const drag = new Gtk.DragSource({actions: Gdk.DragAction.MOVE});
             drag.connect('prepare', () => Gdk.ContentProvider.new_for_value(id));
             chip.add_controller(drag);
             const drop = Gtk.DropTarget.new(GObject.TYPE_STRING, Gdk.DragAction.MOVE);
-            drop.connect('drop', (_target, value) => move(value, index));
+            drop.connect('drop', (_target, value) => move(value, notchOrder(settings.get_strv('pill-order')).indexOf(id)));
             chip.add_controller(drop);
-            preview.append(chip);
-        });
+            strip.append(chip); chips.set(id, chip);
+        }
+        preview.add(strip);
+        return {strip, chips};
+    });
+    const render = () => {
+        const order = notchOrder(settings.get_strv('pill-order'));
+        for (const {strip, chips} of variants) {
+            let previous = null;
+            for (const id of order) {
+                const chip = chips.get(id);
+                chip.active = selected === id;
+                strip.reorder_child_after(chip, previous); previous = chip;
+            }
+        }
         caption.label = names[selected];
         left.sensitive = order.indexOf(selected) > 0;
         right.sensitive = order.indexOf(selected) < order.length - 1;
     };
+    let previousStrip = preview.get_visible_child();
+    preview.connect('notify::visible-child', () => {
+        const focus = window.get_focus();
+        if (previousStrip && focus?.is_ancestor(previousStrip))
+            variants.find(variant => variant.strip === preview.get_visible_child())?.chips.get(selected)?.grab_focus();
+        previousStrip = preview.get_visible_child();
+    });
     box.append(preview); box.append(controls); group.add(box);
     const signal = settings.connect('changed::pill-order', render);
     window.connect('close-request', () => { settings.disconnect(signal); return false; });

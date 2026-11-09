@@ -82,6 +82,35 @@ if (!drop?.emit('drop', 'network', 0, 0)) throw new Error('Order preview rejecte
 if (settings.get_strv('pill-order')[0] !== 'network') throw new Error('Drop did not save order');
 tooltip(window, 'Move selected item right').emit('clicked');
 if (settings.get_strv('pill-order')[1] !== 'network') throw new Error('Keyboard move did not save order');
+// Allocate the real adaptive row, including a font size that made the old
+// seven-label strip force the entire preferences window wider.
+const orderPreview = music.get_parent().get_parent();
+if (!(orderPreview instanceof Adw.Squeezer)) throw new Error('Order preview is not adaptive');
+const [minimum, natural] = orderPreview.measure(Gtk.Orientation.HORIZONTAL, -1);
+if (minimum > 300 || minimum >= natural) throw new Error('Order preview still forces a wide window');
+const checkOrderWidth = width => {
+    const fullWidth = orderPreview.measure(Gtk.Orientation.HORIZONTAL, -1)[1];
+    orderPreview.allocate(width, 120, -1, null);
+    const strip = orderPreview.get_visible_child();
+    if (!strip || strip.get_width() > width) throw new Error(`Order preview overflows at ${width}px`);
+    let count = 0;
+    for (let chip = strip.get_first_child(); chip; chip = chip.get_next_sibling()) {
+        count++;
+        const image = chip.get_child().get_first_child();
+        if (image.pixel_size !== (width >= fullWidth ? 18 : 14)) throw new Error('Order icons did not adapt to available space');
+    }
+    if (count !== 7) throw new Error('Compact order preview lost a module');
+};
+for (const width of [900, 560, 360, 300, 900]) checkOrderWidth(width);
+const largeType = new Gtk.CssProvider();
+largeType.load_from_data('* { font-size: 26px; }', -1);
+orderPreview.get_style_context().add_provider(largeType, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
+for (const width of [560, 360, 300]) checkOrderWidth(width);
+const compactNetwork = tooltip(orderPreview.get_visible_child(), 'Network');
+compactNetwork.emit('clicked');
+tooltip(window, 'Move selected item right').emit('clicked');
+if (settings.get_strv('pill-order')[2] !== 'network') throw new Error('Compact order selection or keyboard movement failed');
+orderPreview.get_style_context().remove_provider(largeType);
 window.set_visible_page_name('appearance');
 const interval = find(window, 'ETA refresh interval');
 if (!interval || interval.adjustment.lower !== 10 || interval.adjustment.value !== 15)

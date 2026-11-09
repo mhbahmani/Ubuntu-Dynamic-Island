@@ -18,7 +18,15 @@ The inline concept rendered in local browser checks, but the user's chat preview
 failure could not be reproduced or attributed to a specific client error. The
 native preview and captured PNGs provide a fallback. Use `make preview-agents`.
 
-Validation: 131 Node tests, syntax/schema checks, GTK preferences, private MPRIS tests, the full seven-tab sample preview and native
+The user's `2.png` showed Notch order growing with seven labeled chips. It now
+uses measured native GTK presentations: labeled 18px icons when they fit, compact
+14px icons when they do not. The selected name remains below; accessible names,
+tooltips, drag/drop and arrow controls remain available. Reordering reuses widgets
+instead of rebuilding them. Its minimum measured width fell from 603px to 258px
+at the default test font; GTK allocation checks cover 300–900px and enlarged text.
+
+Validation: 131 Node tests, syntax/schema checks, GTK preferences (including both
+order layouts), private MPRIS tests, the full seven-tab sample preview and native
 Shell smoke passed. Agents checks cover actual keyboard typing/Ctrl+Enter under
 a real modal grab, draft retention and launch errors, Undo after new events,
 window selection/focus/closure, hidden/reduced-motion cleanup, 380px with 150%
