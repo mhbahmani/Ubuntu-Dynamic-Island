@@ -42,6 +42,8 @@ help:
 	  '  make verify              All checks above plus packaging' \
 	  '' \
 	  'Example: make preview PREVIEW_ARGS="--duration 15"' \
+	  'Preview defaults: 1600x1000 at 200%; use PREVIEW_ARGS="--scale 1" for 100%' \
+	  'Custom preview: make preview-agents PREVIEW_ARGS="--size 1920x1080 --scale 2"' \
 	  'After installing changed code on Wayland, log out/in before testing it.'
 
 preview:

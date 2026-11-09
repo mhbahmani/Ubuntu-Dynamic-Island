@@ -4,9 +4,17 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
+
+
+def preview_size(value):
+    match = re.fullmatch(r'(\d{3,4})x(\d{3,4})', value)
+    if not match or not (640 <= int(match[1]) <= 3840 and 480 <= int(match[2]) <= 2160):
+        raise argparse.ArgumentTypeError('use WIDTHxHEIGHT, from 640x480 to 3840x2160')
+    return f'{int(match[1])}x{int(match[2])}'
 
 
 def main():
@@ -22,6 +30,8 @@ def main():
     parser.add_argument('--check-input', action='store_true', help='Exercise dismissal, reopening and the top-bar menu')
     parser.add_argument('--live', action='store_true', help='Use live weather, routing and system metrics; media/audio/Bluetooth remain simulated')
     parser.add_argument('--headless', action='store_true', help='Render without a window; saves notch.png or the selected tab')
+    parser.add_argument('--size', type=preview_size, metavar='WIDTHxHEIGHT', help='Preview resolution (default: 1600x1000 windowed, 1280x960 headless)')
+    parser.add_argument('--scale', type=int, choices=[1, 2], help='Windowed UI scale: 1 = 100%%, 2 = 200%% (default: 2)')
     parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
     args = parser.parse_args()
     if args.edit_route and args.tab == 'notch':
@@ -32,6 +42,13 @@ def main():
         parser.error('--check-input requires --headless (nested virtual-pointer coordinates differ)')
     if args.duration < 0:
         parser.error('--duration must be nonnegative')
+    if args.headless and args.scale is not None:
+        parser.error('--scale applies to windowed previews; headless previews use their normal test scale')
+    scale = args.scale or 2
+    size = args.size or ('1280x960' if args.headless else '1600x1000')
+    width, height = map(int, size.split('x'))
+    if not args.headless and (width < 640 * scale or height < 480 * scale):
+        parser.error(f'--scale {scale} needs at least {640 * scale}x{480 * scale}; increase --size or use --scale 1')
     source = Path(__file__).resolve().parents[1]
     root = Path(tempfile.mkdtemp(prefix='ubuntu-island-preview-'))
     uuid = 'ubuntu-island@mhbahmani.github.io'
@@ -76,8 +93,13 @@ def main():
                '--headless' if args.headless else '--nested', '--wayland', '--no-x11',
                '--wayland-display=island-preview', '--mode=island-preview']
     if args.headless:
-        command.append('--virtual-monitor=1280x960')
-    print(f"{'Live' if args.live else 'Sample'} {args.tab} preview. Logs/screenshots: {root}", flush=True)
+        command.append(f'--virtual-monitor={size}')
+    else:
+        # GNOME 46's nested backend otherwise selects its 800x600 default mode.
+        # This only changes the private child compositor, never the host display.
+        environment['MUTTER_DEBUG_DUMMY_MODE_SPECS'] = size
+        environment['MUTTER_DEBUG_DUMMY_MONITOR_SCALES'] = str(scale)
+    print(f"{'Live' if args.live else 'Sample'} {args.tab} preview ({size}, {100 if args.headless else scale * 100}% UI). Logs/screenshots: {root}", flush=True)
     print('Close the preview window or press Ctrl+C to stop. Rerun after editing source.', flush=True)
     with (root / 'runtime.log').open('w') as log:
         process = subprocess.Popen(command, env=environment, stdout=log, stderr=subprocess.STDOUT,

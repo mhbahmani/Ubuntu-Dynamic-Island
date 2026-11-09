@@ -168,6 +168,15 @@ continue to open Weather automatically; `make preview-commute` opens Commute.
 `make preview-agents` opens sample sessions and a simulated Quick Ask flow.
 Agent configuration changes from preview preferences stay in temporary folders.
 
+The preview window starts at **1600×1000 with 200% UI scaling**, so text, icons
+and controls are larger too. Use `--scale 1` for the original 100% UI. Set the
+window size independently, for example
+`make preview-agents PREVIEW_ARGS="--size 1920x1080 --scale 2"`.
+At 200%, the window must be at least 1280×960. These options work with all
+windowed preview targets. Headless previews keep their 1280×960/100% defaults;
+they accept `--size` but do not use `--scale`. Restart an existing preview to
+apply the changes.
+
 For offline designs, use the two shortcuts above or pass
 `PREVIEW_ARGS="--connection offline --offline-style icon"`. Connection choices
 are `online`, `offline`, `limited`, `portal`, and `auto` (follow the host); offline

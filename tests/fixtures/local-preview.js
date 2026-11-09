@@ -101,7 +101,9 @@ export default class Preview extends UbuntuIsland {
             if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') this._openPreferencesLive('commute');
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_INPUT') === '1') this._checkInput().catch(error => console.error(`[Island Preview] INPUT FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') this._checkFullPreview().catch(error => console.error(`[Island Preview] FULL FAIL: ${error.message}`));
-            console.log(`[Island Preview] READY: All modules enabled; ${tab === 'notch' ? 'collapsed notch' : tab} visible. Device controls use sample data.`);
+            const monitor = Main.layoutManager.primaryMonitor;
+            const uiScale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            console.log(`[Island Preview] READY: ${monitor.width}x${monitor.height}, ${uiScale * 100}% UI; all modules enabled; ${tab === 'notch' ? 'collapsed notch' : tab} visible. Device controls use sample data.`);
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') return GLib.SOURCE_REMOVE;
             this._captureTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 20000 : GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1' ? 8000 : 1500, () => {
                 this._captureTimer = 0;

@@ -3,6 +3,22 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Preview size/scaling (2026-11-09): `1.png` showed the small 800×600 nested Shell
+default; `2.png` showed that enlarging the window alone left text/icons too small.
+Windowed previews now default to **1600×1000 at 200% UI scale**, using the child
+compositor's `MUTTER_DEBUG_DUMMY_MODE_SPECS` and
+`MUTTER_DEBUG_DUMMY_MONITOR_SCALES`; see [GNOME 46's implementation](https://github.com/GNOME/mutter/blob/46.0/src/backends/meta-monitor-manager-dummy.c).
+Use `--size WIDTHxHEIGHT` to choose a resolution or `--scale 1` to return to 100%.
+The size range is 640×480–3840×2160; 200% requires at least 1280×960. Headless
+previews keep their 1280×960/100% defaults, accept `--size` and reject `--scale`.
+The ready log reports actual monitor dimensions and UI scale. Validation covered
+argument rejection, Python/JS syntax, real nested startup at 200%, a visually
+inspected capture of just that window, and a 1600×1000 headless PNG. No host
+display settings or installed runtime files changed. Native logs:
+`/tmp/ubuntu-island-preview-oulv8dha`; 200% window capture:
+`/tmp/island-preview-scale-2.png`; headless PNG:
+`/tmp/ubuntu-island-preview-232g4zk9/agents.png`. Restart previews to apply changes.
+
 Short music titles (2026-11-09): confirmed the installed fixed/trim mode reserved
 `character limit × 7` logical pixels regardless of the displayed title's actual
 width. With the user's 17-character setting this meant a 119px title slot.
