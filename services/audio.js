@@ -11,7 +11,7 @@ export class AudioService {
         this._signals = [];
         this._stream = null;
         this._streamSignals = [];
-        this._outputs = new Map(); // Gvc MixerUIDevice id -> {id, name}
+        this._outputs = new Map(); // Gvc MixerUIDevice id -> device
         this._removedOutputs = new Set();
         this._outputSignals = new Map();
     }
@@ -39,7 +39,7 @@ export class AudioService {
 
     _remember(device) {
         const id = device.get_id();
-        this._outputs.set(id, this._describe(device));
+        this._outputs.set(id, device);
         if (!this._outputSignals.has(id))
             this._outputSignals.set(id, [device, device.connect('notify::port-available', () => this._sync())]);
     }
@@ -51,9 +51,23 @@ export class AudioService {
         this._outputs.delete(id);
     }
 
-    _describe(device) {
+    _describe(device, cards) {
         const parts = [device.get_description(), device.get_origin()].filter(Boolean);
-        return {id: device.get_id(), name: parts.join(' — ') || 'Audio output'};
+        const output = {id: device.get_id(), name: parts.join(' — ') || 'Audio output'};
+        const profiles = device.get_profiles();
+        const music = profiles.length && profiles.every(p => p.n_sources === 0 && /^a2dp[-_]sink(?:[-_]|$)/.test(p.profile));
+        const calls = profiles.length && profiles.every(p => p.n_sources > 0 && /^(headset[-_]head[-_]unit|handsfree[-_]head[-_]unit)(?:[-_]|$)/.test(p.profile));
+        if (!music && !calls) return output;
+        // Gvc's device.card is an opaque pointer in GJS. Match a live stream's
+        // card index, or an unambiguous card+port for an inactive profile. Never
+        // merge devices by their display name alone (two identical headsets).
+        const stream = this._control.get_stream_from_device(device);
+        const candidates = cards.filter(card => stream
+            ? card.get_index() === stream.get_card_index()
+            : card.get_name() === device.get_origin() && card.get_ports().some(p => p.port === device.get_port()));
+        if (candidates.length !== 1) return output;
+        return {...output, group: `bluetooth:${candidates[0].get_id()}`,
+            deviceName: device.get_origin() || 'Bluetooth headphones', mode: music ? 'music' : 'calls'};
     }
 
     _sync() {
@@ -68,7 +82,8 @@ export class AudioService {
                 this._streamSignals.push(sink.connect('notify::is-muted', () => this._sync()));
             }
         }
-        const ready = this._control.get_state() === Gvc.MixerControlState.READY;
+        const mixerState = this._control.get_state();
+        const ready = mixerState === Gvc.MixerControlState.READY;
         // The shared mixer is usually ready before this extension starts, so
         // output-added alone misses built-in devices. Seed existing sinks too.
         if (ready) {
@@ -80,7 +95,9 @@ export class AudioService {
             for (const id of this._outputs.keys()) {
                 if (!this._control.lookup_output_id(id)) this._forget(id);
             }
-        } else {
+        } else if (mixerState !== Gvc.MixerControlState.CONNECTING) {
+            // Inactive Bluetooth modes arrive before READY and have no sink to
+            // seed later. Keep them while the shared mixer is connecting.
             for (const id of this._outputs.keys()) this._forget(id);
             this._removedOutputs.clear();
         }
@@ -91,15 +108,28 @@ export class AudioService {
             const device = this._control.lookup_device_from_stream(sink);
             if (device) activeId = device.get_id();
         }
-        const outputs = [...this._outputs.values()]
-            .filter(output => {
-                const device = this._control.lookup_output_id(output.id);
+        const cards = ready ? this._control.get_cards() : [];
+        const devices = [...this._outputs.values()]
+            .filter(device => {
                 // Registered HDMI connectors are not necessarily connected.
-                return device && (output.id === activeId || !device.has_ports() || device.port_available);
+                return device.get_id() === activeId || !device.has_ports() || device.port_available;
             })
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .slice(0, 8)
+            .map(device => this._describe(device, cards))
             .map(output => ({...output, active: output.id === activeId}));
+        const groups = new Map();
+        for (const output of devices) {
+            if (!output.group) { groups.set(output.id, output); continue; }
+            let group = groups.get(output.group);
+            if (!group) {
+                group = {id: output.group, name: output.deviceName, active: false, modes: []};
+                groups.set(output.group, group);
+            }
+            group.active ||= output.active;
+            group.modes.push({id: output.id, mode: output.mode, active: output.active});
+        }
+        const outputs = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8);
+        for (const output of outputs)
+            output.modes?.sort((a, b) => (a.mode === 'music' ? 0 : 1) - (b.mode === 'music' ? 0 : 1));
         this._onChange({
             available: ready && Boolean(sink),
             volume: Math.max(0, Math.min(1, volume)),

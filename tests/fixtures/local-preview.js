@@ -180,12 +180,44 @@ export default class Preview extends UbuntuIsland {
         assert(this._states.audio.outputs[1].active, 'Sample output control failed');
         this._bluetooth.toggle(this._states.bluetooth.devices[1]);
         assert(this._states.bluetooth.devices[1].connected, 'Sample Bluetooth control failed');
+        await this._checkAudio();
         await this._checkAgents();
         this._card.selectPage('media');
         this._island.collapse();
         await delay(400);
         await this._capture('notch');
         console.log('[Island Preview] FULL PASS: populated notch, all seven tabs, sample controls and Agents interactions');
+    }
+
+    async _checkAudio() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const assert = (condition, message) => { if (!condition) throw new Error(`Audio: ${message}`); };
+        this._card.selectPage('audio');
+        await delay(200);
+        const group = this._card._outputRows.get('bluetooth:sample');
+        const calls = group._modeButtons.get('calls');
+        const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        const [x,y] = calls.get_transformed_position();
+        pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + calls.width / 2, y + calls.height / 2);
+        await delay(50);
+        pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
+        await delay(50);
+        pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
+        await delay(150);
+        assert(calls.has_style_pseudo_class('checked') && /lower audio quality/.test(group._note.text), 'Calls click did not switch mode or explain quality');
+        calls.grab_key_focus();
+        this._audio.setVolume(0.45);
+        assert(this._card._outputRows.get('bluetooth:sample') === group && calls.has_key_focus(), 'Volume update replaced the focused mode');
+        await this._capture('sound-calls');
+        this._audio.selectOutput(2);
+        assert(group._modeButtons.get('music').has_style_pseudo_class('checked') && /mic off/.test(group._note.text), 'Music state was not restored');
+        this._settings.set_int('expanded-width',380);
+        await delay(200);
+        const bounds = this._island.actor.get_transformed_position();
+        assert(group.get_transformed_position()[0] + group.width <= bounds[0] + this._island.actor.width, 'Sound group overflows narrow card');
+        await this._capture('sound-music-narrow');
+        this._settings.set_int('expanded-width',440);
+        console.log('[Island Preview] AUDIO PASS: grouped modes, native click, quality explanation, stable focus and narrow layout');
     }
 
     async _checkAgents() {

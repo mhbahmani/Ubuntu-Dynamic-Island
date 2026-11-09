@@ -51,13 +51,21 @@ export function sampleDevices(preview, sampleMetrics) {
     emitMedia();
     const audio = {available: true, volume: 0.64, muted: false, outputs: [
         {id: 1, name: 'Built-in speakers (sample)', active: true},
-        {id: 2, name: 'HDMI / DisplayPort (sample)', active: false},
+        {id: 'bluetooth:sample', name: 'Studio headphones (sample)', active: false, modes: [
+            {id: 2, mode: 'music', active: false}, {id: 3, mode: 'calls', active: false},
+        ]},
     ]};
     const emitAudio = () => preview._renderAudio({...audio, outputs: audio.outputs.map(output => ({...output}))});
     preview._audio = {
         setVolume(value) { audio.volume = Math.max(0, Math.min(1, value)); emitAudio(); },
         toggleMute() { audio.muted = !audio.muted; emitAudio(); },
-        selectOutput(id) { audio.outputs.forEach(output => { output.active = output.id === id; }); emitAudio(); },
+        selectOutput(id) {
+            audio.outputs.forEach(output => {
+                output.modes?.forEach(mode => { mode.active = mode.id === id; });
+                output.active = output.modes ? output.modes.some(mode => mode.active) : output.id === id;
+            });
+            emitAudio();
+        },
         stop() {},
     };
     emitAudio();

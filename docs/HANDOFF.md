@@ -16,6 +16,41 @@ Native preview checks passed for compact 380px/440px layouts, long-list wheel
 scrolling, offscreen keyboard focus and fixed actions/navigation. Native 200%
 rendering was inspected. These changes have not been installed.
 
+Bluetooth Sound modes (2026-11-09): recognized playback/call outputs share one
+physical device with **Music** and **Calls · mic** buttons and a short quality
+explanation. It uses the existing Gvc mixer and `change_output(device)` action;
+there is no added polling, subprocess, permission or system configuration.
+Grouping uses profile metadata plus a stream's card index or an unambiguous
+card/port match. Identically named devices, wired ports, unknown modes and duplex
+codecs are not guessed. Device rows and mode controls survive volume/status
+updates. Inactive outputs received while Gvc is CONNECTING are retained until
+READY, since they have no sink from which to seed them later. Enabling the
+extension after the shared mixer is already READY still only seeds existing
+sinks; other modes become known through subsequent Gvc output events (for
+example reconnecting the headphones). No private ID scanning is used.
+
+The redundant Sound heading is hidden because navigation already names the tab;
+speaker plus grouped headset controls fit at normal and narrow widths. Music
+uses A2DP playback without the headset mic; Calls exposes the mic using HSP/HFP
+with lower playback quality. Another microphone can be used while keeping Music
+mode. This does not override app microphone selection or WirePlumber's policy.
+See [WirePlumber's profile documentation](https://pipewire.pages.freedesktop.org/wireplumber/daemon/configuration/settings.html).
+
+Combined validation of Agents and Sound: 132 Node tests passed, including physical
+grouping, ambiguous names, startup events, removal and duplex-codec fallback. The full native preview passed
+mode clicks, stable focus, narrow layout, compact Agents geometry, wheel scrolling,
+offscreen keyboard focus and the existing Agents interactions. Read-only Gvc
+inspection grouped the connected WH-1000XM4 into Music/Calls; its live routing
+was not changed, and real profile switching/call quality remains a hardware
+acceptance check. Native 200% window captures of Agents and Sound were inspected.
+The full Shell smoke passed on rerun; the first run failed at the existing Quick
+Ask open-tab shortcut assertion. No Quick Ask behavior code was changed. The
+previously documented headless composer input-focus warnings remain.
+Artifacts: `/tmp/ubuntu-island-preview-jjef_2_d` (full preview),
+`/tmp/ubuntu-island-smoke-_b1o42ac` (passing smoke),
+`/tmp/island-agents-scale2.png` and `/tmp/island-audio-scale2-final.png` (native
+200% windows). These changes have not been installed.
+
 Preview size/scaling (2026-11-09): `1.png` showed the small 800×600 nested Shell
 default; `2.png` showed that enlarging the window alone left text/icons too small.
 Windowed previews now default to **1600×1000 at 200% UI scale**, using the child

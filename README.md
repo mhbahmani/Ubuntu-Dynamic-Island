@@ -75,6 +75,11 @@ and [compact playing pill](screenshots/playing-pill.png).
 - **Audio**: GNOME's shared Gvc mixer, volume slider, mute, and **output
   device selection through `change_output(Gvc.MixerUIDevice)`** (port/profile
   aware), seeded from existing sinks and updated through Gvc output signals.
+  Recognized Bluetooth headphone outputs are grouped under one device with
+  **Music** (high-quality playback, headphone mic off) and **Calls · mic**
+  (headphone mic available, lower playback quality). Only available, identified
+  modes are shown. Using another microphone lets you keep Music mode; merging
+  the controls does not remove the Bluetooth profile trade-off.
 - **Bluetooth**: event-driven BlueZ state (`GetManagedObjects` snapshot +
   `InterfacesAdded/Removed` + per-interface `PropertiesChanged`), paired
   devices with connect/disconnect, Battery1 percentage, adapter power toggle;

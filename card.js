@@ -206,6 +206,7 @@ export class Card {
         if (this._pageCaption)
             this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth', weather: 'Weather', commute: 'Commute', agents: 'Agents'}[this._page] ?? '';
         this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : this._page === 'weather' ? ' ubuntu-island-card-weather' : this._page === 'commute' ? ' ubuntu-island-card-commute' : this._page === 'agents' ? ' ubuntu-island-card-agents' : ''}`);
+        if (this._page === 'audio') this._body.add_style_class_name('ubuntu-island-card-audio');
         if (this._pages.has('agents')) this.actor.add_style_class_name('ubuntu-island-with-agents');
         this.updateMediaTint();
         if (this._empty) this._empty.visible = !this._page;
@@ -406,6 +407,8 @@ export class Card {
 
     _buildAudio() {
         const section = this._section('SOUND');
+        // The fixed navigation already names this tab; use the space for modes.
+        section.header.hide();
         const volumeRow = row('ubuntu-island-volume');
         this._mute = button('audio-volume-high-symbolic', 'Mute or unmute output',
             () => this._actions.toggleMute(), 16, 'ubuntu-island-ghost');
@@ -602,27 +605,65 @@ export class Card {
         for (const [index, output] of outputs.entries()) {
             let item = this._outputRows.get(output.id);
             if (!item) {
-                item = new St.Button({can_focus: true, reactive: true, track_hover: true, x_expand: true});
+                item = output.modes ? column() : new St.Button({can_focus: true, reactive: true, track_hover: true, x_expand: true});
                 const content = row('ubuntu-island-output-row');
                 content.x_expand = true;
-                content.add_child(icon('audio-speakers-symbolic', 16));
+                content.add_child(icon(output.modes ? 'audio-headphones-symbolic' : 'audio-speakers-symbolic', 16));
                 const text = label('', 'ubuntu-island-output-label');
                 text.x_expand = true;
                 content.add_child(text);
                 const check = icon('object-select-symbolic', 16);
                 content.add_child(check);
-                item.set_child(content);
+                if (output.modes) {
+                    item.add_child(content);
+                    item._modes = row('ubuntu-island-output-modes');
+                    item._modeButtons = new Map();
+                    item.add_child(item._modes);
+                    item._note = label('', 'ubuntu-island-output-note', false);
+                    item._note.clutter_text.line_wrap = true;
+                    item.add_child(item._note);
+                } else {
+                    item.set_child(content);
+                    item.connect('clicked', () => this._actions.selectOutput(output.id));
+                }
                 item._name = text;
                 item._check = check;
-                item.connect('clicked', () => this._actions.selectOutput(output.id));
                 this._outputs.add_child(item);
                 this._outputRows.set(output.id, item);
             }
             item.set_style_class_name(
-                `ubuntu-island-output${output.active ? ' ubuntu-island-output-active' : ''}`);
+                `ubuntu-island-output${output.modes ? ' ubuntu-island-output-group' : ''}${output.active ? ' ubuntu-island-output-active' : ''}`);
             item._name.text = String(output.name ?? 'Audio output');
             item._check.opacity = output.active ? 255 : 0;
             item.accessible_name = `${output.active ? 'Active output:' : 'Switch to'} ${output.name}`;
+            if (output.modes) {
+                const modes = new Set(output.modes.map(mode => mode.mode));
+                for (const [mode, control] of item._modeButtons) {
+                    if (!modes.has(mode)) { control.destroy(); item._modeButtons.delete(mode); }
+                }
+                for (const [modeIndex, mode] of output.modes.entries()) {
+                    let control = item._modeButtons.get(mode.mode);
+                    const name = mode.mode === 'music' ? 'Music' : 'Calls · mic';
+                    if (!control) {
+                        control = new St.Button({can_focus: true, reactive: true, track_hover: true, x_expand: true,
+                            style_class: 'ubuntu-island-output-mode'});
+                        control.connect('clicked', () => this._actions.selectOutput(control._outputId));
+                        item._modeButtons.set(mode.mode, control);
+                        item._modes.add_child(control);
+                    }
+                    control._outputId = mode.id;
+                    control.label = `${mode.active ? '✓  ' : ''}${name}`;
+                    if (mode.active) control.add_style_pseudo_class('checked');
+                    else control.remove_style_pseudo_class('checked');
+                    control.accessible_name = `${output.name}, ${name}${mode.active ? ', selected' : ''}. ${mode.mode === 'music' ? 'High quality playback; headphone microphone off' : 'Headphone microphone available; lower playback quality'}`;
+                    if (item._modes.get_child_at_index(modeIndex) !== control)
+                        item._modes.set_child_at_index(control, modeIndex);
+                }
+                item._note.text = output.modes.some(mode => mode.active && mode.mode === 'calls')
+                    ? 'Headphone mic available · lower audio quality'
+                    : output.active ? 'High quality · headphone mic off'
+                    : 'Music for quality · Calls for the headphone mic';
+            }
             if (this._outputs.get_child_at_index(index) !== item)
                 this._outputs.set_child_at_index(item, index);
         }
