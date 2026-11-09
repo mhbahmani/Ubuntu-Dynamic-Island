@@ -24,6 +24,8 @@ test('installer includes every runtime module and preserves the previous install
             assert.equal(readFileSync(join(destination, 'services', name), 'utf8'), readFileSync(join(root, 'services', name), 'utf8'), name);
         assert.equal(readFileSync(join(destination, 'assets/commute-driving-symbolic.svg'), 'utf8'),
             readFileSync(join(root, 'assets/commute-driving-symbolic.svg'), 'utf8'));
+        const agentIcon = 'assets/icons/hicolor/scalable/actions/ubuntu-island-agents-symbolic.svg';
+        assert.equal(readFileSync(join(destination, agentIcon), 'utf8'), readFileSync(join(root, agentIcon), 'utf8'));
         for (const name of readdirSync(join(root, 'assets/agents')))
             assert.equal(readFileSync(join(destination, 'assets/agents', name), 'utf8'), readFileSync(join(root, 'assets/agents', name), 'utf8'), name);
         assert.ok(existsSync(join(temporary, 'applications/ubuntu-island.desktop')));

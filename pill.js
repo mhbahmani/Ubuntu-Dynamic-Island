@@ -1,4 +1,5 @@
 import {agentCounts, agentSummary} from './services/agents-model.js';
+import {agentIcon} from './agent-icon.js';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {MediaTitle} from './media-title.js';
@@ -72,7 +73,7 @@ export class Pill {
         this._commute.visible = false;
         content.add_child(this._commute);
         this._agents = row('ubuntu-island-pill-agents');
-        this._agents.add_child(icon('system-run-symbolic', 13));
+        this._agents.add_child(icon(agentIcon, 13));
         this._agentsText = label('', 'ubuntu-island-pill-rate', false);
         this._agents.add_child(this._agentsText);
         this._agents.visible = false; content.add_child(this._agents);

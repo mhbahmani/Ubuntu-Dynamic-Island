@@ -1,4 +1,5 @@
 import {AgentsView} from './agents-view.js';
+import {agentIcon} from './agent-icon.js';
 import {MediaTools, textControl} from './media-tools.js';
 import {CommuteView} from './commute-view.js';
 import {WeatherView} from './weather-view.js';
@@ -121,7 +122,7 @@ export class Card {
             ['bluetooth', 'bluetooth-symbolic', 'Bluetooth'],
             ['weather', 'weather-clear-symbolic', 'Weather'],
             ['commute', 'find-location-symbolic', 'Commute'],
-            ['agents', 'system-run-symbolic', 'Agents'],
+            ['agents', agentIcon, 'Agents'],
         ];
         for (const [id, glyph, title] of items) {
             if (!this._pages.has(id)) continue;

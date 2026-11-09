@@ -1,4 +1,5 @@
 import {agentsPreferences} from './agents-prefs.js';
+import {AGENT_ICON_NAME, agentIconDirectory} from './agent-icon.js';
 import {commutePreferences} from './commute-prefs.js';
 import {migrateArrowStyle, migrateOfflineMode, OFFLINE_MODES} from './services/notch-model.js';
 import {notchPreview, notchStyles} from './notch-prefs.js';
@@ -10,6 +11,9 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 
 export default class UbuntuIslandPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
+        const iconTheme = Gtk.IconTheme.get_for_display(window.get_display());
+        const iconDirectory = agentIconDirectory.get_path();
+        if (!iconTheme.get_search_path().includes(iconDirectory)) iconTheme.add_search_path(iconDirectory);
         const settings = this.getSettings();
         migrateArrowStyle(settings);
         migrateOfflineMode(settings);
@@ -105,7 +109,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             ['modules', 'Modules', 'application-x-addon-symbolic', [modules]],
             ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],
             ['commute', 'Commute', 'find-location-symbolic', commutePreferences(settings, window)],
-            ['agents', 'Agents', 'system-run-symbolic', agentsPreferences(settings, window, this.path)],
+            ['agents', 'Agents', AGENT_ICON_NAME, agentsPreferences(settings, window, this.path)],
         ];
         window.search_enabled = true;
         for (const [name, title, icon_name, groups] of pages) {

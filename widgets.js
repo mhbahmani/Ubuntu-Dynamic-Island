@@ -3,7 +3,9 @@ import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 
 // Small factory helpers shared by the pill and the expanded card.
-export const icon = (name, size = 17) => new St.Icon({icon_name: name, icon_size: size});
+export const icon = (name, size = 17) => new St.Icon({
+    ...(typeof name === 'string' ? {icon_name: name} : {gicon: name}), icon_size: size,
+});
 export function label(text, css = 'ubuntu-island-muted', ellipsize = true) {
     const actor = new St.Label({text, style_class: css, y_align: Clutter.ActorAlign.CENTER});
     actor.clutter_text.ellipsize = ellipsize ? Pango.EllipsizeMode.END : Pango.EllipsizeMode.NONE;

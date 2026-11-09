@@ -3,6 +3,13 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Agents icon follow-up: replaced the generic gear with a shared outlined robot
+head in the tab, collapsed notch, preferences navigation and both Notch order
+layouts. The SVG lives in the bundled hicolor icon directory so GTK recognizes
+it as symbolic and recolors it for light/dark themes. Shell uses the same file
+through Gio.FileIcon. Existing recursive asset copying covers installation,
+packaging and previews; temporary-XDG installation and ZIP checks passed.
+
 Agents UI redesign (2026-11-09): project-first clickable rows replace Open/X
 buttons. Nine symbolic states, one native animated working arc, stable row order,
 collapsed Recent, explicit window rebinding, menu actions and broker-backed Undo

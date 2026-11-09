@@ -4,6 +4,7 @@ import Gdk from 'gi://Gdk';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import {agentIcon} from './agent-icon.js';
 import {notchOrder, ARROW_STYLES, WEATHER_STYLES, arrowSvg, ARROW_ANGLE_MIN, ARROW_ANGLE_MAX} from './services/notch-model.js';
 
 export function notchPreview(settings, window) {
@@ -17,7 +18,7 @@ export function notchPreview(settings, window) {
         switch_threshold_policy: Adw.FoldThresholdPolicy.NATURAL, transition_duration: 0});
     const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth', commute: 'Commute', agents: 'Agents'};
     const icons = {media: 'audio-x-generic-symbolic', weather: 'weather-clear-symbolic',
-        network: 'network-transmit-receive-symbolic', cpu: 'org.gnome.SystemMonitor-symbolic', bluetooth: 'bluetooth-symbolic', commute: 'find-location-symbolic', agents: 'system-run-symbolic'};
+        network: 'network-transmit-receive-symbolic', cpu: 'org.gnome.SystemMonitor-symbolic', bluetooth: 'bluetooth-symbolic', commute: 'find-location-symbolic'};
     let selected = 'media';
     const controls = new Gtk.Box({spacing: 8, halign: Gtk.Align.CENTER});
     const left = new Gtk.Button({icon_name: 'go-previous-symbolic', tooltip_text: 'Move selected item left'});
@@ -45,7 +46,8 @@ export function notchPreview(settings, window) {
             const content = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 5,
                 margin_start: compact ? 0 : 4, margin_end: compact ? 0 : 4,
                 margin_top: compact ? 4 : 7, margin_bottom: compact ? 4 : 7});
-            content.append(new Gtk.Image({icon_name: icons[id], pixel_size: compact ? 14 : 18}));
+            content.append(new Gtk.Image({...(id === 'agents' ? {gicon: agentIcon} : {icon_name: icons[id]}),
+                pixel_size: compact ? 14 : 18}));
             if (!compact) content.append(new Gtk.Label({label: names[id]}));
             chip.set_child(content);
             chip.connect('clicked', () => { selected = id; render(); });
