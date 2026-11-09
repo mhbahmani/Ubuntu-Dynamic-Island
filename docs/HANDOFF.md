@@ -3,6 +3,43 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Agents prototype (2026-11-09): an opt-in seventh module tracks local Claude Code,
+Codex and OpenCode lifecycle events, with last-reported status/time, bounded session
+rows, dismiss/clear, a static ordered notch indicator and optional notifications.
+Open offers an explicit window chooser and retains the chosen window until it
+closes. It does not claim to select terminal tabs or enumerate arbitrary browser
+conversations. Quick Ask launches a CLI with literal arguments, or copies a prompt
+and opens the selected CLI, desktop app or supported website. Agent authentication
+and permission handling stay with the agent.
+
+The external GJS bridge uses a private Unix socket for events and a stdout pipe
+for coalesced Shell updates. Input limits, timeouts, UID checks, generation guards
+and parent-pipe shutdown bound its work; there is no idle polling or transcript
+collection. GTK preferences provide review/install/remove/check/test controls for
+optional hooks/plugins. Installation preserves unrelated configuration and creates
+backups; invalid JSON and symlink configuration files are rejected. Nothing was
+written to real agent settings or the user's extension installation during this work.
+
+Use `make preview-agents` for sample sessions and simulated Quick Ask. Preview
+setup targets temporary config directories. See [AI_AGENTS.md](AI_AGENTS.md) for
+real setup and limits. The default OpenCode adapter uses V1; V2 is experimental.
+Forced exits or missed events can leave stale reported states. Live authenticated
+provider event sequences and all real terminal launchers remain unverified.
+
+Validation: Node regressions and targeted Agents tests; actual GJS bridge/relay/
+client lifecycle, immediate replacement, malformed/oversized input, configuration
+preservation, dangling-symlink rejection, generated OpenCode V1 events, and literal
+prompt arguments captured by a fake terminal. GTK bindings, full sample preview
+and native GNOME smoke passed. Native checks cover pointer submission, focus
+retention, hidden view updates, narrow/enlarged text, real window selection and
+activation with normal modal-grab release, and disable cleanup. Screenshots were
+inspected. Temporary-XDG installation and ZIP integrity/content checks passed.
+Both packaging scripts and preview/smoke copy paths include `helpers/agents/`.
+
+User direction: keep this prototype as the current checkpoint. A future iteration
+should substantially redesign the Agents UI, improve UX, and test real provider
+functionality. Do not treat the current interface as the final design.
+
 Commute's “Report a map issue” button was removed as requested. Provider credits,
 provider selection and Open route remain, with native Commute smoke coverage.
 

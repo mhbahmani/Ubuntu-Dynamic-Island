@@ -27,10 +27,24 @@ function find(widget, title) {
     }
     return null;
 }
-for (const name of ['appearance', 'notch', 'modules', 'weather', 'commute']) {
+for (const name of ['appearance', 'notch', 'modules', 'weather', 'commute', 'agents']) {
     window.set_visible_page_name(name);
     if (window.visible_page_name !== name) throw new Error(`Missing preferences tab: ${name}`);
 }
+const agentsEnabled = find(window, 'Enable Agents');
+if (!agentsEnabled || settings.get_boolean('enable-agents')) throw new Error('Agents must default off');
+agentsEnabled.active = true;
+if (!settings.get_boolean('enable-agents')) throw new Error('Agents toggle did not save');
+settings.set_boolean('enable-agents', false);
+if (agentsEnabled.active) throw new Error('Agents toggle did not follow settings');
+const destination = find(window, 'Default destination');
+destination.selected = 2;
+if (settings.get_string('agents-destination') !== 'desktop') throw new Error('Desktop destination did not save');
+settings.set_string('agents-destination', 'web');
+if (destination.selected !== 3) throw new Error('Web destination did not follow settings');
+const agentProvider = find(window, 'Default agent');
+agentProvider.selected = 1;
+if (settings.get_string('agents-provider') !== 'codex') throw new Error('Agent selection did not save');
 for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weather icon', 'pill-show-weather'],
     ['Show upload/download rates', 'pill-show-network']]) {
     const row = find(window, title);

@@ -18,6 +18,7 @@ help:
 	  '  make preview-offline-edge Preview the split amber edge and unplugged symbol' \
 	  '  make preview-commute-map Open the route editor immediately' \
 	  '  make preview-commute     Driving routes with sample estimates; no API key' \
+	  '  make preview-agents      Agent sessions and Quick Ask with safe sample data' \
 	  '  make preview-live        Live weather/routes/metrics, sample device controls' \
 	  '  make preview-headless    Save a preview screenshot without a window' \
 	  '  make preview-sun-day         Animated sunny weather sample' \
@@ -35,6 +36,7 @@ help:
 	  '  make test                Node tests only' \
 	  '  make smoke               Isolated GNOME rendering and interaction checks' \
 	  '  make media-test          Private D-Bus playback and track-list checks' \
+	  '  make agents-test         Local broker, hooks, setup and safe launch checks' \
 	  '  make prefs-test          Real GTK preferences checks (requires a display)' \
 	  '  make weather-cache-test  GJS cache integration checks in a temporary folder' \
 	  '  make verify              All checks above plus packaging' \
@@ -92,7 +94,7 @@ test:
 	$(NODE) --test
 
 syntax:
-	@set -e; for file in *.js services/*.js scripts/*.mjs tests/*.mjs tests/fixtures/*.js tests/fixtures/*.mjs; do $(NODE) --check "$$file"; done
+	@set -e; for file in *.js services/*.js helpers/agents/*.js scripts/*.mjs tests/*.mjs tests/fixtures/*.js tests/fixtures/*.mjs; do $(NODE) --check "$$file"; done
 	$(PYTHON) -c "import ast, pathlib; [ast.parse(p.read_text(), filename=str(p)) for p in pathlib.Path('tests').glob('*.py')]"
 
 check-schema:
@@ -116,3 +118,10 @@ media-test:
 	dbus-run-session -- $(GJS) -m tests/media-dbus.mjs
 
 verify: check prefs-test weather-cache-test media-test smoke build
+
+.PHONY: preview-agents agents-test
+preview-agents:
+	$(PYTHON) tests/preview.py --tab agents $(PREVIEW_ARGS)
+
+agents-test:
+	$(NODE) --test tests/agents*.test.mjs

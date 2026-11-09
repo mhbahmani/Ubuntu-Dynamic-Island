@@ -6,15 +6,18 @@ import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
-import {sampleDevices} from './preview-data.js';
+import {sampleDevices, sampleAgents} from './preview-data.js';
 
 export default class Preview extends UbuntuIsland {
     enable() {
         this._previewConfigured = false;
         const settings = this.getSettings();
-        for (const module of ['media', 'metrics', 'audio', 'bluetooth', 'weather', 'commute'])
+        // Setup buttons in the preview must never modify real CLI configuration.
+        for (const provider of ['claude', 'codex', 'opencode'])
+            settings.set_string(`agents-${provider}-config`, `${GLib.getenv('ISLAND_PREVIEW_OUTPUT')}/agent-configs/${provider}`);
+        for (const module of ['media', 'metrics', 'audio', 'bluetooth', 'weather', 'commute', 'agents'])
             settings.set_boolean(`enable-${module}`, true);
-        for (const indicator of ['title', 'weather', 'network', 'commute'])
+        for (const indicator of ['title', 'weather', 'network', 'commute', 'agents'])
             settings.set_boolean(`pill-show-${indicator}`, true);
         settings.set_string('pill-offline-mode', GLib.getenv('ISLAND_PREVIEW_OFFLINE_STYLE') || 'icon');
         settings.set_string('commute-routes', JSON.stringify([{id: 'sample', name: 'Heading home (sample)', originMode: 'fixed', originName: 'Work', destinationName: 'Home', origin: {latitude: 35.7219, longitude: 51.3347}, destination: {latitude: 35.6892, longitude: 51.389}}]));
@@ -28,6 +31,7 @@ export default class Preview extends UbuntuIsland {
         this._commute.setActive(false);
         const sample = GLib.getenv('ISLAND_PREVIEW_LIVE') !== '1';
         sampleDevices(this, sample);
+        sampleAgents(this);
         const connection = GLib.getenv('ISLAND_PREVIEW_CONNECTION') || 'online';
         if (connection !== 'auto') {
             this._connectivity.stop();
@@ -156,7 +160,7 @@ export default class Preview extends UbuntuIsland {
             assert(pill._connection.visible === (style !== 'hide'), 'Offline indicator does not match selected style');
             assert(this._island._connectionEdge.visible === (style === 'edge'), 'Offline edge does not match selected style');
         }
-        for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute']) {
+        for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents']) {
             assert(this._card._pages.get(tab)?.available, `${tab} module unavailable`);
             this._card.selectPage(tab);
             this._island.expand();
@@ -172,11 +176,107 @@ export default class Preview extends UbuntuIsland {
         assert(this._states.audio.outputs[1].active, 'Sample output control failed');
         this._bluetooth.toggle(this._states.bluetooth.devices[1]);
         assert(this._states.bluetooth.devices[1].connected, 'Sample Bluetooth control failed');
+        await this._checkAgents();
         this._card.selectPage('media');
         this._island.collapse();
         await delay(400);
         await this._capture('notch');
-        console.log('[Island Preview] FULL PASS: populated notch, all six tabs, sample media/audio/Bluetooth controls');
+        console.log('[Island Preview] FULL PASS: populated notch, all seven tabs, sample controls and Agents interactions');
+    }
+
+    async _checkAgents() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const assert = (condition, message) => { if (!condition) throw new Error(`Agents: ${message}`); };
+        const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        const click = async actor => {
+            const adjustment = this._card._scroll.vscroll.adjustment;
+            const top = this._card._scroll.get_transformed_position()[1];
+            const bottom = top + this._card._scroll.height;
+            const y = actor.get_transformed_position()[1];
+            if (y + actor.height > bottom || y < top) {
+                adjustment.value = Math.min(adjustment.upper - adjustment.page_size, Math.max(0, adjustment.value + y - top));
+                await delay(100);
+            }
+            const [x, yy] = actor.get_transformed_position();
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + actor.width / 2, yy + actor.height / 2);
+            await delay(50);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
+            await delay(70);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
+            await delay(150);
+        };
+        this._card.selectPage('agents');
+        const view = this._card._agentsView;
+        assert(view.rows.size === 3 && this._pill._agents.visible, 'Sample sessions or counts missing');
+        const initial = this._states.agents;
+        const first = [...view.rows.values()][0];
+        const updated = {...initial, sessions:initial.sessions.map((s,i) => i ? s : {...s,state:'working'})};
+        first.open.grab_key_focus();
+        this._renderAgents(updated);
+        assert([...view.rows.values()][0] === first && first.open.has_key_focus(), 'Status update replaced a row or stole focus');
+        this._card.selectPage('media');
+        await delay(100);
+        const text = first.status.text;
+        this._renderAgents(initial);
+        assert(first.status.text === text, 'Hidden session view repainted');
+        this._card.selectPage('agents');
+        await delay(150);
+        assert(first.status.text.startsWith('Needs approval'), 'Remapped view did not catch up');
+        await click(view.askButton);
+        assert(view.mode === 'ask' && view.prompt.clutter_text.has_key_focus(), 'Quick Ask pointer click failed');
+        view.prompt.text = 'A sample multiline request\nKeep this as one prompt.';
+        await click(view.providerButton);
+        await click(view.options.get_children()[1]);
+        assert(view.provider === 'codex', 'Agent picker did not select Codex');
+        await click(view.destinationButton);
+        await click(view.options.get_children()[2]);
+        assert(view.destination === 'desktop' && !view.folder.visible, 'Desktop destination did not update');
+        this._card._scroll.vscroll.adjustment.value = 0;
+        await delay(100);
+        await this._capture('agents-quick-ask');
+        await click(view.submit);
+        assert(view.mode === 'list' && !view.prompt.text && /Sample request/.test(view.message.text), `Sample submission failed: mode=${view.mode}, prompt=${Boolean(view.prompt.text)}, message=${view.message.text}`);
+        const textSettings = new Gio.Settings({schema_id:'org.gnome.desktop.interface'});
+        const scale = textSettings.get_double('text-scaling-factor');
+        const height = this._island.actor.height;
+        this._settings.set_int('expanded-width',380);
+        textSettings.set_double('text-scaling-factor',1.5);
+        await delay(200);
+        const right = this._island.actor.get_transformed_position()[0] + this._island.actor.width;
+        for (const item of view.rows.values()) assert(item.open.get_transformed_position()[0] + item.open.width <= right, 'Session button overflows at narrow width');
+        assert(this._island.actor.height === height, 'Text scaling changed card height');
+        await this._capture('agents-narrow-large-text');
+        textSettings.set_double('text-scaling-factor',scale);
+        this._settings.set_int('expanded-width',440);
+        view.show('list'); this._card._scroll.vscroll.adjustment.value = 0;
+        await delay(200);
+        await this._capture('agents');
+        // Launch a real GTK window inside this private session and bind it explicitly.
+        this.openPreferences();
+        let window;
+        for (let i = 0; i < 40 && !window; i++) {
+            await delay(100);
+            window = this._agentWindows.all().find(w => w.get_title() === 'Ubuntu Island');
+        }
+        assert(window, 'Window discovery failed');
+        this._island.expand();
+        this._openAgent(first.session);
+        assert(view.mode === 'windows', 'Unbound session did not show a chooser');
+        this._activateAgent(first.session,window);
+        await delay(500);
+        assert(global.display.focus_window === window && !this._island.expanded, `Selected window did not receive focus: focused=${global.display.focus_window?.get_title()}, expanded=${this._island.expanded}, message=${view.message.text}`);
+        assert(this._agentWindows.candidates(first.session)[0] === window, 'Window binding was not retained');
+        window.delete(global.get_current_time());
+        await delay(300);
+        assert(!this._agentWindows.bindings.has(first.session.id), 'Closed window binding leaked');
+        view.show('list');
+        this._island.expand();
+        await this._agents.send({control:'dismiss', id:first.session.id});
+        assert(view.rows.size === 2, 'Dismiss did not update the list');
+        await this._agents.send({control:'clear'});
+        assert(view.rows.size === 0, 'Clear did not update the list');
+        sampleAgents(this);
+        console.log('[Island Preview] AGENTS PASS: pointer input, status/focus, hidden view, narrow text, window activation and cleanup');
     }
 
     openPreferences() {

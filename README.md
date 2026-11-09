@@ -4,7 +4,8 @@ A native GNOME Shell extension implementing a macOS-style Dynamic Island for
 Ubuntu 24.04-class GNOME Shell **46**, Wayland. The compact pill sits centered
 at the top of the primary monitor and morphs — one single surface, no popup
 window — into an expanded card with media controls, system meters, audio
-output selection, Bluetooth device management, and opt-in weather and commute estimates.
+output selection, Bluetooth device management, opt-in weather and commute estimates,
+and an experimental local AI agent tracker.
 
 The repository root contains the current extension. Earlier prototypes remain
 available in Git history. Run installation and development commands from here.
@@ -25,6 +26,11 @@ and [compact playing pill](screenshots/playing-pill.png).
 
 ## What's included
 
+- **Agents (experimental, opt-in)**: local Claude Code/Codex/OpenCode status events,
+  attention counts, window selection/focus, optional notifications, and Quick Ask
+  for CLI/desktop/web destinations. No API keys or account access. Tracking needs
+  optional local hooks/plugins; desktop/web prompts use copy and manual paste.
+  Start with `make preview-agents`; see [setup and limitations](docs/AI_AGENTS.md).
 - **Single-surface morph**: the pill and the card are two children of one
   chrome-managed `St.Widget`, animated with width/height/opacity tweens
   (`COLLAPSED → EXPANDING → EXPANDED → COLLAPSING`), interrupt-safe under
@@ -142,14 +148,16 @@ respected. Add `PREVIEW_ARGS="--headless"` to save a screenshot instead of openi
 This launches a nested GNOME Shell running a temporary copy of the working tree,
 using the actual St/Clutter UI and stylesheet. It starts collapsed with Music,
 Weather, network rates, CPU, Bluetooth and Commute indicators enabled and populated.
-Click the notch to explore all six module tabs and open preferences. Sample playback,
+Click the notch to explore all seven module tabs and open preferences. Sample playback,
 seek, volume, output selection and Bluetooth controls update simulated data.
 Sample Weather, routing and network status work even when the host is offline.
 Use `--live` for real Weather, routing and system metrics; media/audio/Bluetooth
 controls remain simulated so the preview does not switch real devices.
 Open a particular module immediately with `PREVIEW_ARGS="--tab media"` (or
-`system`, `audio`, `bluetooth`, `weather`, `commute`). Weather scene shortcuts
+`system`, `audio`, `bluetooth`, `weather`, `commute`, `agents`). Weather scene shortcuts
 continue to open Weather automatically; `make preview-commute` opens Commute.
+`make preview-agents` opens sample sessions and a simulated Quick Ask flow.
+Agent configuration changes from preview preferences stay in temporary folders.
 
 For offline designs, use the two shortcuts above or pass
 `PREVIEW_ARGS="--connection offline --offline-style icon"`. Connection choices
@@ -175,7 +183,7 @@ For a screenshot without opening a window:
 
 ```sh
 make preview-headless
-make preview PREVIEW_ARGS="--headless --check-full --duration 14" # all tabs and sample controls
+make preview PREVIEW_ARGS="--headless --check-full --duration 30" # all tabs, sample controls, Agents
 ```
 
 The nested window validates real rendering and interactions; it cannot establish
@@ -210,6 +218,7 @@ make smoke               # isolated GNOME rendering + interaction checks
 make prefs-test          # actual GTK preferences (requires a desktop display)
 make weather-cache-test  # real GJS cache round trip in a temporary directory
 make media-test          # real MPRIS operations on a private D-Bus session
+make agents-test         # local IPC, hooks, setup preservation and literal launch arguments
 make verify              # all checks above plus building the extension ZIP
 ```
 
@@ -407,10 +416,10 @@ Changes apply immediately. Previous **Offline badge** preferences migrate to
 
 ### Preferences tabs
 
-Preferences are grouped into Appearance, Notch, Modules, Weather, and Commute tabs, with
+Preferences are grouped into Appearance, Notch, Modules, Weather, Commute and Agents tabs, with
 search across settings. The Notch tab controls the music name, weather icon and
 upload/download rates independently; changes apply immediately. Drag items in the
-Notch order preview to arrange Music, Weather, Network, CPU, and Bluetooth.
+Notch order preview to arrange Music, Weather, Network, CPU, Bluetooth, Commute and Agents.
 Select an item and use the move buttons for keyboard reordering. Hidden items
 keep their place.
 

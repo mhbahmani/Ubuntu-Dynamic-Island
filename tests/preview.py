@@ -15,7 +15,7 @@ def main():
     parser.add_argument('--scene', choices=['sun', 'clouds', 'rain', 'snow', 'night', 'clouds-night', 'rain-night', 'snow-night'], default='clouds', help='Sample weather scene')
     parser.add_argument('--motion', choices=['off', 'subtle', 'live'], default='live', help='Preview animation mode')
     parser.add_argument('--edit-route', action='store_true', help='Open the Commute map editor immediately')
-    parser.add_argument('--tab', choices=['notch', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute'], default='notch', help='Start collapsed (notch, default), or open a module')
+    parser.add_argument('--tab', choices=['notch', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents'], default='notch', help='Start collapsed (notch, default), or open a module')
     parser.add_argument('--connection', choices=['auto', 'online', 'offline', 'limited', 'portal'], help='Simulate connection status; defaults to online for samples, auto with --live')
     parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], default='icon', help='Initial offline notch design; can also change it in preferences')
     parser.add_argument('--check-full', action='store_true', help='Check populated notch, all tabs and sample device controls (headless sample mode)')
@@ -39,7 +39,7 @@ def main():
     extension.mkdir(parents=True)
     for path in source.glob('*.js'):
         shutil.copy2(path, extension / path.name)
-    for name in ('services', 'schemas', 'assets'):
+    for name in ('services', 'schemas', 'assets', 'helpers'):
         shutil.copytree(source / name, extension / name)
     for name in ('metadata.json', 'stylesheet.css'):
         shutil.copy2(source / name, extension / name)
@@ -99,7 +99,7 @@ def main():
     if not ready:
         print(f'Preview did not initialize. See {root / "runtime.log"}')
         return 1
-    if 'Clutter:ERROR' in output or 'Bail out!' in output:
+    if 'Clutter:ERROR' in output or 'Bail out!' in output or 'JS ERROR' in output:
         print(f'Preview crashed. See {root / "runtime.log"}')
         return 1
     if args.check_input and '[Island Preview] INPUT PASS' not in output:

@@ -1,3 +1,4 @@
+import {agentCounts, agentSummary} from './services/agents-model.js';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {MediaTitle} from './media-title.js';
@@ -70,6 +71,11 @@ export class Pill {
         this._commute.add_child(this._commuteValue);
         this._commute.visible = false;
         content.add_child(this._commute);
+        this._agents = row('ubuntu-island-pill-agents');
+        this._agents.add_child(icon('system-run-symbolic', 13));
+        this._agentsText = label('', 'ubuntu-island-pill-rate', false);
+        this._agents.add_child(this._agentsText);
+        this._agents.visible = false; content.add_child(this._agents);
         this._connection = row('ubuntu-island-pill-connection');
         this._connection.y_align = Clutter.ActorAlign.CENTER;
         this._connectionIcon = icon('network-wireless-disabled-symbolic', 16);
@@ -79,7 +85,7 @@ export class Pill {
         content.add_child(this._cpuDot);
         content.add_child(this._bluetooth);
         this._items = {media: this._media, weather: this._weather, network: this._network,
-            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute};
+            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents};
         const groups = [...Object.values(this._items), this._connection];
         for (const group of groups) {
             group.x_expand = true;
@@ -104,7 +110,7 @@ export class Pill {
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true}) {
+    render({agents, showAgents = false, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true}) {
         const connectionState = connectionIndicator(connection, {order, mode: offlineMode,
             network: Boolean(showNetwork && showMetrics), weather: Boolean(showWeather && weather),
             commute: Boolean(showCommute && commute?.route)});
@@ -137,6 +143,10 @@ export class Pill {
             : 'ubuntu-island-cpu-dot ubuntu-island-dot-high');
         this._weather.visible = Boolean(!connectionState.visible && showWeather && weather?.data?.current &&
             !(connectionState.hideUnavailable && (weather.stale || weather.status === 'offline' || weather.status === 'unavailable')));
+        const agentTotals = agentCounts(agents?.sessions);
+        this._agents.visible = Boolean(showAgents && agents?.connected && (agentTotals.working || agentTotals.attention || agentTotals.finished));
+        this._agentsText.text = `${agentTotals.working}${agentTotals.attention ? ` · !${agentTotals.attention}` : agentTotals.finished && !agentTotals.working ? ` · ✓${agentTotals.finished}` : ''}`;
+        this._agents.accessible_name = agentSummary(agents?.sessions);
         const current = weather?.data?.current;
         const kind = weatherSceneKind(current);
         const weatherKey = `${weatherStyle}:${kind}`;
@@ -187,6 +197,7 @@ export class Pill {
         if (this._weather.visible) description.push(`${weather.stale ? 'Stale weather: ' : ''}${current.condition}, ${temperature(current.temperature, units)}`);
         if (this._network.visible) description.push(`Download ${system.rx}, upload ${system.tx}`);
         if (this._commute.visible) description.push(commuteState.description);
+        if (this._agents.visible) description.push(agentSummary(agents?.sessions));
         this.actor.accessible_name = description.join('. ');
         return {connectionEdge: connectionState.edge};
     }

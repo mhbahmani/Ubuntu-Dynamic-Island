@@ -13,9 +13,9 @@ export function notchPreview(settings, window) {
         margin_top: 8, margin_bottom: 12});
     const preview = new Gtk.Box({spacing: 6, halign: Gtk.Align.CENTER});
     preview.add_css_class('linked');
-    const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth', commute: 'Commute'};
+    const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth', commute: 'Commute', agents: 'Agents'};
     const icons = {media: 'audio-x-generic-symbolic', weather: 'weather-clear-symbolic',
-        network: 'network-transmit-receive-symbolic', cpu: 'utilities-system-monitor-symbolic', bluetooth: 'bluetooth-symbolic', commute: 'find-location-symbolic'};
+        network: 'network-transmit-receive-symbolic', cpu: 'utilities-system-monitor-symbolic', bluetooth: 'bluetooth-symbolic', commute: 'find-location-symbolic', agents: 'system-run-symbolic'};
     let selected = 'media';
     const controls = new Gtk.Box({spacing: 8, halign: Gtk.Align.CENTER});
     const left = new Gtk.Button({icon_name: 'go-previous-symbolic', tooltip_text: 'Move selected item left'});

@@ -1,3 +1,4 @@
+import {AgentStore} from './services/agents-model.js';
 import {roundedCover} from './services/artwork-model.js';
 // Development fixtures only. Controls update these snapshots, never real devices.
 import St from 'gi://St';
@@ -89,4 +90,23 @@ export function sampleDevices(preview, sampleMetrics) {
             rxBytes: 1e6 + 8e5 * Math.sin(i / 4), txBytes: 2e5 + 1e5 * Math.sin(i / 3),
         });
     }
+}
+
+
+export function sampleAgents(preview) {
+    preview._agents?.stop();
+    const store = new AgentStore();
+    for (const [provider, session, label, state] of [
+        ['claude','sample-1','ubuntu-island (sample)','approval'],
+        ['codex','sample-2','api-service (sample)','working'],
+        ['opencode','sample-3','docs (sample)','finished'],
+    ]) store.apply({v:1,provider,session,label,state});
+    const emit = () => preview._renderAgents(store.snapshot());
+    preview._agents = {stop() {}, async send(value) {
+        if (value.control === 'clear') store.clear();
+        if (value.control === 'dismiss') store.dismiss(value.id);
+        emit();
+    }};
+    preview._card._actions.agentAsk = () => 'Sample request prepared. Live launches are available in the installed extension.';
+    emit();
 }

@@ -1,3 +1,8 @@
+import {AgentsService} from './services/agents.js';
+import {AgentWindows} from './services/agent-windows.js';
+import {launchAgent, desktopTarget} from './services/agent-launch.js';
+import {AGENTS, AGENT_STATES} from './services/agents-model.js';
+import St from 'gi://St';
 import {LyricsService} from './services/lyrics.js';
 import {migrateArrowStyle, migrateOfflineMode} from './services/notch-model.js';
 import {CommuteService} from './services/commute.js';
@@ -42,6 +47,16 @@ export default class UbuntuIsland extends Extension {
 
         this._pill = new Pill(() => this._island?.toggle(), () => this._togglePillTitle());
         this._card = new Card(this._settings, {
+            agentOpen: session => this._openAgent(session),
+            agentActivate: (session, window) => this._activateAgent(session, window),
+            agentAsk: input => this._askAgent(input),
+            agentHasApp: provider => Boolean(desktopTarget(this._settings, provider)),
+            agentOpenApp: provider => {
+                desktopTarget(this._settings, provider)?.launch([], global.create_app_launch_context(0, -1));
+                this._leaveAgents();
+            },
+            agentClear: () => this._agentControl({control:'clear'}),
+            agentDismiss: id => this._agentControl({control:'dismiss', id}),
             mediaCommand: method => this._media?.command(method),
             selectPlayer: id => this._media?.select(id),
             mediaProperty: (key, value) => this._media?.setProperty(key, value),
@@ -117,6 +132,11 @@ export default class UbuntuIsland extends Extension {
                 this._card._commuteView?.render(state);
                 this._renderPill();
             });
+        if (this._settings.get_boolean('enable-agents')) {
+            this._agentWindows = new AgentWindows();
+            this._agents = new AgentsService(this.path, state => this._renderAgents(state));
+            this._agents.start();
+        }
         this._connectivity = new ConnectivityService(state => this._renderConnectivity(state));
         this._connectivity.start();
         this._island.show();
@@ -210,7 +230,7 @@ export default class UbuntuIsland extends Extension {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
         });
-        for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
+        for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
         watch('surface-opacity', () => this._applyAppearance());
@@ -263,6 +283,8 @@ export default class UbuntuIsland extends Extension {
             weather: this._states.weather,
             showWeather: this._settings.get_boolean('pill-show-weather'),
             showNetwork: this._settings.get_boolean('pill-show-network'),
+            agents: this._states.agents,
+            showAgents: this._settings.get_boolean('pill-show-agents'),
             commute: this._states.commute,
             showCommute: this._settings.get_boolean('pill-show-commute'),
             units: this._settings.get_string('weather-units'),
@@ -380,6 +402,67 @@ export default class UbuntuIsland extends Extension {
         }
     }
 
+    _renderAgents(state) {
+        if (!this._enabled) return;
+        const previous = this._states.agents?.sessions || [];
+        if (this._settings.get_boolean('agents-notify') && !Main.sessionMode.isLocked) {
+            for (const session of state.sessions || []) {
+                const old = previous.find(s => s.id === session.id);
+                if (['approval', 'input', 'finished'].includes(session.state) &&
+                    (!old || old.state !== session.state || old.turn !== session.turn))
+                    Main.notify(`Ubuntu Island · ${AGENT_STATES[session.state]}`, `${AGENTS[session.provider]} · ${session.label}`);
+            }
+        }
+        this._states.agents = state;
+        this._card?._agentsView?.render(state);
+        this._renderPill();
+    }
+
+    _agentControl(value) {
+        this._agents?.send(value).catch(() => {
+            if (this._enabled && this._card?._agentsView) this._card._agentsView.message.text = 'Observer unavailable. Re-enable Agents to reconnect.';
+        });
+    }
+
+    _openAgent(session) {
+        const candidates = this._agentWindows?.candidates(session) || [];
+        if (this._agentWindows?.bindings.has(session.id)) this._activateAgent(session, candidates[0]);
+        else {
+            const others = this._agentWindows?.all().filter(w => !candidates.includes(w)) || [];
+            this._card?._agentsView?.selectWindow(session, [...candidates, ...others]);
+        }
+    }
+
+    _askAgent(input) {
+        const result = launchAgent(this._settings, {...input,
+            copy: text => St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, text)}, global.create_app_launch_context(0, -1));
+        this._leaveAgents();
+        return result;
+    }
+
+    _leaveAgents() {
+        if (this._agentFocus) GLib.Source.remove(this._agentFocus);
+        this._agentFocus = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._agentFocus = 0;
+            if (this._enabled) this._island.collapse();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _activateAgent(session, window) {
+        this._agentWindows?.bind(session, window);
+        // Wait until the click release finishes before releasing the modal grab.
+        if (this._agentFocus) GLib.Source.remove(this._agentFocus);
+        this._agentFocus = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._agentFocus = 0;
+            if (!this._enabled) return GLib.SOURCE_REMOVE;
+            this._island.collapse();
+            try { this._agentWindows.activate(window); }
+            catch (error) { this._card._agentsView.message.text = error.message; }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
     _moveCalendar() {
         // GNOME 46-specific private panel API. Keep calendar/notifications usable.
         const date = Main.panel.statusArea.dateMenu?.container;
@@ -409,6 +492,10 @@ export default class UbuntuIsland extends Extension {
         this._disposePreferencesWatch();
         for (const id of this._settingsIds ?? []) this._settings.disconnect(id);
         this._settingsIds = [];
+        if (this._agentFocus) GLib.Source.remove(this._agentFocus);
+        this._agentFocus = 0;
+        this._agents?.stop(); this._agents = null;
+        this._agentWindows?.stop(); this._agentWindows = null;
         this._connectivity?.stop();
         this._connectivity = null;
         this._system?.stop();

@@ -15,7 +15,7 @@ mkdir "$DEST"
 # All root JavaScript files are runtime modules. Keep installation in sync with
 # build.sh as new views/helpers are added.
 cp "$SRC"/*.js "$SRC/metadata.json" "$SRC/stylesheet.css" "$DEST/"
-cp -R "$SRC/services" "$SRC/assets" "$DEST/"
+cp -R "$SRC/services" "$SRC/assets" "$SRC/helpers" "$DEST/"
 mkdir "$DEST/schemas"
 cp "$SRC"/schemas/*.xml "$DEST/schemas/"
 glib-compile-schemas --strict "$DEST/schemas"

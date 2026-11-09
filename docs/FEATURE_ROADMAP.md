@@ -4,6 +4,15 @@ Status (2026-11-02): Weather and Commute are implemented. See
 [WEATHER.md](WEATHER.md), [COMMUTE.md](COMMUTE.md), and [HANDOFF.md](HANDOFF.md)
 for current behavior. Calendar appointments and Task Progress remain proposals.
 
+[AI agent sessions](AI_AGENTS.md) records the 2026-11-09 experimental prototype,
+test instructions and research for local status, session navigation and Quick Ask.
+The opt-in prototype implements the explicit-producer approach described below;
+its live provider compatibility remains to be established.
+
+Next Agents iteration: redesign the interface, improve setup and Quick Ask UX,
+and exercise real provider sessions, terminal launches and window navigation.
+The current implementation is a prototype checkpoint, not the final UI.
+
 This document retains design ideas for future work. Existing user-requested
 behavior takes precedence: the notch supports multiple ordered indicators, and
 Commute refresh defaults to 15 minutes with a 10-minute minimum while visible.

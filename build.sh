@@ -10,6 +10,7 @@ mkdir -p "$STAGE/schemas"
 # Match install.sh: root JavaScript files are runtime modules.
 cp ./*.js metadata.json stylesheet.css "$STAGE/"
 cp -R services "$STAGE/services"
+cp -R helpers "$STAGE/helpers"
 cp -R assets "$STAGE/assets"
 cp schemas/*.xml "$STAGE/schemas/"
 glib-compile-schemas --strict "$STAGE/schemas"

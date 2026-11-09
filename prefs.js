@@ -1,3 +1,4 @@
+import {agentsPreferences} from './agents-prefs.js';
 import {commutePreferences} from './commute-prefs.js';
 import {migrateArrowStyle, migrateOfflineMode, OFFLINE_MODES} from './services/notch-model.js';
 import {notchPreview, notchStyles} from './notch-prefs.js';
@@ -14,10 +15,10 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         migrateOfflineMode(settings);
 
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
-        const tabs = ['last', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute'];
+        const tabs = ['last', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents'];
         const opening = new Adw.ComboRow({title: 'Open on expand',
             subtitle: 'Applies on the next opening. Unavailable tabs keep the last available tab.',
-            model: Gtk.StringList.new(['Last used tab', 'Media', 'System', 'Sound', 'Bluetooth', 'Weather', 'Commute'])});
+            model: Gtk.StringList.new(['Last used tab', 'Media', 'System', 'Sound', 'Bluetooth', 'Weather', 'Commute', 'Agents'])});
         const syncOpening = () => { opening.selected = Math.max(0, tabs.indexOf(settings.get_string('expand-tab'))); };
         syncOpening();
         opening.connect('notify::selected', () => settings.set_string('expand-tab', tabs[opening.selected]));
@@ -104,6 +105,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             ['modules', 'Modules', 'application-x-addon-symbolic', [modules]],
             ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],
             ['commute', 'Commute', 'find-location-symbolic', commutePreferences(settings, window)],
+            ['agents', 'Agents', 'system-run-symbolic', agentsPreferences(settings, window, this.path)],
         ];
         window.search_enabled = true;
         for (const [name, title, icon_name, groups] of pages) {

@@ -131,9 +131,26 @@
     <key name="pill-show-commute" type="b"><default>false</default><summary>Show selected Commute estimate in the collapsed notch</summary></key>
     <key name="expand-tab" type="s">
       <default>'last'</default>
-      <choices><choice value="last"/><choice value="media"/><choice value="system"/><choice value="audio"/><choice value="bluetooth"/><choice value="weather"/><choice value="commute"/></choices>
+      <choices><choice value="last"/><choice value="media"/><choice value="system"/><choice value="audio"/><choice value="bluetooth"/><choice value="weather"/><choice value="commute"/><choice value="agents"/></choices>
       <summary>Tab to show when expanding the island</summary>
       <description>Last keeps the previous tab. An unavailable preferred tab falls back to the last available tab.</description>
     </key>
+    <key name="enable-agents" type="b"><default>false</default><summary>enable agents</summary></key>
+    <key name="pill-show-agents" type="b"><default>true</default><summary>pill show agents</summary></key>
+    <key name="agents-notify" type="b"><default>false</default><summary>agents notify</summary></key>
+    <key name="agents-provider" type="s"><default>'claude'</default><choices><choice value="claude"/><choice value="codex"/><choice value="opencode"/></choices><summary>agents provider</summary></key>
+    <key name="agents-destination" type="s"><default>'terminal'</default><choices><choice value="terminal"/><choice value="copy-terminal"/><choice value="desktop"/><choice value="web"/></choices><summary>agents destination</summary></key>
+    <key name="agents-terminal" type="s"><default>'gnome-terminal'</default><choices><choice value="gnome-terminal"/><choice value="kgx"/><choice value="kitty"/><choice value="wezterm"/></choices><summary>agents terminal</summary></key>
+    <key name="agents-project" type="s"><default>''</default><summary>agents project</summary></key>
+    <key name="agents-opencode-major" type="s"><default>'1'</default><choices><choice value="1"/><choice value="2"/></choices><summary>agents opencode major</summary></key>
+    <key name="agents-claude-desktop" type="s"><default>''</default><summary>agents claude desktop</summary></key>
+    <key name="agents-claude-config" type="s"><default>''</default><summary>agents claude config</summary></key>
+    <key name="agents-claude-executable" type="s"><default>''</default><summary>agents claude executable</summary></key>
+    <key name="agents-codex-desktop" type="s"><default>''</default><summary>agents codex desktop</summary></key>
+    <key name="agents-codex-config" type="s"><default>''</default><summary>agents codex config</summary></key>
+    <key name="agents-codex-executable" type="s"><default>''</default><summary>agents codex executable</summary></key>
+    <key name="agents-opencode-desktop" type="s"><default>''</default><summary>agents opencode desktop</summary></key>
+    <key name="agents-opencode-config" type="s"><default>''</default><summary>agents opencode config</summary></key>
+    <key name="agents-opencode-executable" type="s"><default>''</default><summary>agents opencode executable</summary></key>
   </schema>
 </schemalist>

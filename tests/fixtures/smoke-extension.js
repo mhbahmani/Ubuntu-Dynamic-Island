@@ -22,6 +22,7 @@ export default class Smoke extends UbuntuIsland {
     enable() {
         this.getSettings().set_boolean('enable-weather', true);
         this.getSettings().set_boolean('enable-commute', true);
+        this.getSettings().set_boolean('enable-agents', true);
         super.enable();
         this._smoke().catch(error => console.error(`[Island Smoke] FAIL ${error.message}: ${error.stack}`));
     }
@@ -207,6 +208,8 @@ export default class Smoke extends UbuntuIsland {
     async _smoke() {
         await delay(3500);
         Main.overview.hide();
+        assert(this._states.agents?.connected, 'Local agent observer did not start in Shell');
+        await this._agents.send({provider:'claude',session:'native-smoke',state:'input',label:'Native smoke'});
         const background = new Gio.Settings({schema_id: 'org.gnome.desktop.background'});
         background.set_string('picture-options', 'none');
         background.set_string('primary-color', '#897c6c');
@@ -808,6 +811,18 @@ export default class Smoke extends UbuntuIsland {
             `Preferences preview: tracked=${Boolean(this._prefsWindow)} expanded=${this._island.expanded} grab=${Boolean(this._island._grab)} windows=${global.get_window_actors().map(a => a.meta_window.get_title()).join(',')}`);
         await delay(600);
         await this._capture('preferences-tabs');
+        const agentSession = this._states.agents.sessions[0];
+        const targetWindow = this._prefsWindow;
+        assert(agentSession?.state === 'input', 'Native agent event did not reach Shell');
+        this._island.resumeGrab();
+        assert(this._island._grab, 'Agent focus check needs a real modal grab');
+        this._activateAgent(agentSession, targetWindow);
+        await delay(350);
+        const focused = global.display.focus_window;
+        assert(!this._island.expanded && !this._island._grab &&
+            (focused === targetWindow || focused?.get_transient_for() === targetWindow),
+        `Agent focus failed: expanded=${this._island.expanded} grab=${Boolean(this._island._grab)} focused=${focused?.get_title()}`);
+        this._island.expand(); this._island.suspendGrab();
         await delay(1600);
         await this._capture('commute-map');
         this._openPreferencesLive();
@@ -959,7 +974,10 @@ export default class Smoke extends UbuntuIsland {
             'Interrupted animations failed to settle');
 
         const saved = this._dateRestore;
+        const agentWindows = this._agentWindows;
         this.disable();
+        assert(agentWindows.windows.size === 0 && !agentWindows.created && !this._agents && !this._agentFocus,
+            'Disable retained agent state or window signals');
         assert(connectionSignals.size === 0, 'Disable retained connection notifications');
         if (saved) assert(saved.date.get_parent() === saved.center, 'Calendar parent was not restored');
         assert(!this._island && !this._progressTimer, 'Disable retained actors or progress timer');
