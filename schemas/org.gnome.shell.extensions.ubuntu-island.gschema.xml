@@ -135,6 +135,7 @@
       <summary>Tab to show when expanding the island</summary>
       <description>Last keeps the previous tab. An unavailable preferred tab falls back to the last available tab.</description>
     </key>
+    <key name="island-quick-ask-shortcut" type="as"><default>[]</default><summary>Keyboard shortcut for the compact Quick Ask prompt</summary></key>
     <key name="enable-agents" type="b"><default>false</default><summary>enable agents</summary></key>
     <key name="pill-show-agents" type="b"><default>true</default><summary>pill show agents</summary></key>
     <key name="agents-notify" type="b"><default>false</default><summary>agents notify</summary></key>

@@ -38,6 +38,7 @@ the provider has loaded its integration.
 | Notch and notifications | Static working/attention/finished counts; reorderable and individually hideable. Optional GNOME notifications default off. No automatic focus stealing or expansion. |
 | Open session | Click a session row, then choose a currently open window once; subsequent clicks focus that window. The row menu can change the binding. Closed windows lose the binding. Process ancestry ranks candidates but never authorizes automatic focus. Terminal tabs/panes inside the window still require manual selection. |
 | Quick Ask | Choose agent, project, and terminal (GNOME Terminal, Console, Kitty, WezTerm). Launches with literal argument arrays and the agent's normal permissions. No shell command interpolation. |
+| Global Quick Ask shortcut | Optional, unset by default. Widens the notch into a focused text box without opening the full card. Enter launches the default target; Escape keeps the draft. Works with tracking disabled. |
 | Copy & open | CLI, chosen installed desktop app, or Claude/Codex website. Copies the prompt for manual paste. OpenCode has no hosted chat destination in this prototype. No typing automation or prompt-bearing browser URLs. |
 | Local setup | Claude `settings.json`, Codex `hooks.json`, OpenCode `plugins/ubuntu-island-status.js`. Preserves unrelated hooks, backs up writes, removes only owned entries. Custom configuration/executable paths are supported. JSONC/invalid JSON is rejected unchanged. |
 
@@ -63,6 +64,25 @@ project folder. An unsent prompt survives Back, Escape and tab switches only in
 memory; launch failures retain the draft and show an inline error. Ctrl+Enter
 submits. Escape first leaves a picker/composer/menu; from the session list it
 closes the island. Desktop/web destinations explicitly use copy and manual paste.
+
+For the compact keyboard flow, open **Preferences → Agents → Quick Ask → Quick
+Ask shortcut** and press an unused combination with Ctrl, Alt or Super (for
+example Super+Alt+Space). Escape cancels shortcut recording; Backspace or
+**Disable shortcut** clears it. Changes apply immediately. Avoid combinations
+already used by the desktop or applications. Set the default agent, destination,
+terminal and project in the same group. An empty project uses your home folder.
+
+The shortcut opens a single-line prompt and focuses it directly. **Enter** starts
+a new CLI session with the message; desktop/web/Copy & open terminal targets copy
+the prompt and still require pasting it into the destination. The target and
+behavior are shown below the entry. **Escape**, the close button or an outside
+click closes the composer while retaining its draft in memory; successful launch
+clears it. Errors keep the entry open. Moving the pointer away does not dismiss
+it. A normal notch opening restores the usual tab. The shortcut is inactive on
+the lock screen, in the overview, while Island's preferences are open, and when
+the notch is hidden by a fullscreen window.
+Disabling the extension removes the keybinding and clears the in-memory draft.
+No hooks or new access permissions are needed for this launch-only flow.
 
 No provider credentials, transcripts, conversation history, screen capture, browser
 extension, accessibility service, model API, or telemetry is used. Hooks do receive

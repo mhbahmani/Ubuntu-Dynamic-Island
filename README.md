@@ -33,6 +33,11 @@ and [compact playing pill](screenshots/playing-pill.png).
   Click a session to return to its window. Status icons, collapsed Recent sessions,
   reversible Hide/Clear finished actions and a fixed Quick Ask bar keep the list
   compact. Drafts survive Back; errors preserve the prompt.
+  Set **Agents → Quick Ask → Quick Ask shortcut** in preferences to widen the
+  notch into a compact text box. Choose an unused combination such as
+  **Super+Alt+Space**, type a message, then press **Enter**. **Escape** closes it
+  and keeps the draft. The shortcut also works with session tracking disabled.
+  It uses your default agent, destination and project folder (home if unset).
   Start with `make preview-agents`; see [setup and limitations](docs/AI_AGENTS.md).
 - **Single-surface morph**: the pill and the card are two children of one
   chrome-managed `St.Widget`, animated with width/height/opacity tweens

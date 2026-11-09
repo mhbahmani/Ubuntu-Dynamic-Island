@@ -188,7 +188,7 @@ export class IslandSurface {
             if (token !== this._token) return;
             this._setState(IslandState.EXPANDED);
             this.relayout();
-            this.actor.grab_key_focus();
+            if (!this._card._islandFocus?.()) this.actor.grab_key_focus();
         });
         this._easeOpacity(this._pill, 0, duration);
         this._easeOpacity(this._card, 255, duration);
@@ -414,7 +414,7 @@ export class IslandSurface {
     }
 
     _hoverLeave() {
-        if (!this._hoverEnabled || this._grabSuspended) return;
+        if (!this._hoverEnabled || this._grabSuspended || this._card._islandKeepOpen?.()) return;
         if (!this.expanded) {
             // Pointer left the pill before the open delay elapsed: stand down.
             this._cancelHoverTimers();
@@ -423,7 +423,7 @@ export class IslandSurface {
         if (this._hoverClose) return;
         this._hoverClose = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this._hoverCloseMs, () => {
             this._hoverClose = 0;
-            if (this._hoverEnabled && this.expanded && !this._pointerInside()) this.collapse();
+            if (this._hoverEnabled && this.expanded && !this._card._islandKeepOpen?.() && !this._pointerInside()) this.collapse();
             return GLib.SOURCE_REMOVE;
         });
     }

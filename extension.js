@@ -3,6 +3,8 @@ import {AgentWindows} from './services/agent-windows.js';
 import {launchAgent, desktopTarget} from './services/agent-launch.js';
 import {AGENTS, AGENT_STATES} from './services/agents-model.js';
 import St from 'gi://St';
+import Meta from 'gi://Meta';
+import Shell from 'gi://Shell';
 import {LyricsService} from './services/lyrics.js';
 import {migrateArrowStyle, migrateOfflineMode} from './services/notch-model.js';
 import {CommuteService} from './services/commute.js';
@@ -21,6 +23,8 @@ import {AudioService} from './services/audio.js';
 import {ArtLoader} from './services/art.js';
 import {surfaceStyle} from './services/appearance.js';
 import {layoutSignature} from './services/presentation.js';
+
+const QUICK_ASK_SHORTCUT = 'island-quick-ask-shortcut';
 
 export default class UbuntuIsland extends Extension {
     enable() {
@@ -50,6 +54,7 @@ export default class UbuntuIsland extends Extension {
             agentOpen: (session, choose) => this._openAgent(session, choose),
             agentActivate: (session, window) => this._activateAgent(session, window),
             agentAsk: input => this._askAgent(input),
+            closeQuickAsk: () => this._leaveAgents(),
             agentHasApp: provider => Boolean(desktopTarget(this._settings, provider)),
             agentOpenApp: provider => {
                 desktopTarget(this._settings, provider)?.launch([], global.create_app_launch_context(0, -1));
@@ -85,8 +90,8 @@ export default class UbuntuIsland extends Extension {
             settings: this._settings,
             pill: this._pill.actor,
             card: this._card.actor,
-            onBeforeExpand: () => this._card.selectExpansionPage(),
-            onEscape: () => this._card._page === 'agents' && this._card._agentsView.handleEscape(),
+            onBeforeExpand: () => { if (!this._card.quickAskOpen) this._card.selectExpansionPage(); },
+            onEscape: () => !this._card.quickAskOpen && this._card._page === 'agents' && this._card._agentsView.handleEscape(),
             onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); },
         });
         this._island.setHoverEnabled(
@@ -96,6 +101,7 @@ export default class UbuntuIsland extends Extension {
         this._card.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); });
         this._island.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); });
         this._watchSettings();
+        this._bindQuickAsk();
         this._applyAppearance();
 
         // Model events drive isolated UI updates; no UI code in the services.
@@ -226,6 +232,7 @@ export default class UbuntuIsland extends Extension {
     _watchSettings() {
         const watch = (key, handler) =>
             this._settingsIds.push(this._settings.connect(`changed::${key}`, handler));
+        watch(QUICK_ASK_SHORTCUT, () => this._bindQuickAsk());
         watch('pill-show-title', () => {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
@@ -254,6 +261,27 @@ export default class UbuntuIsland extends Extension {
 
     _togglePillTitle() {
         this._settings.set_boolean('pill-show-title', !this._settings.get_boolean('pill-show-title'));
+    }
+
+    _bindQuickAsk() {
+        if (this._quickAskBinding) Main.wm.removeKeybinding(QUICK_ASK_SHORTCUT);
+        this._quickAskBinding = false;
+        if (!this._settings.get_strv(QUICK_ASK_SHORTCUT).length) return;
+        const action = Main.wm.addKeybinding(QUICK_ASK_SHORTCUT, this._settings,
+            Meta.KeyBindingFlags.IGNORE_AUTOREPEAT, Shell.ActionMode.NORMAL | Shell.ActionMode.POPUP,
+            () => this._openQuickAsk());
+        this._quickAskBinding = action !== Meta.KeyBindingAction.NONE;
+        if (!this._quickAskBinding)
+            Main.notify('Ubuntu Island', 'Quick Ask shortcut could not be registered. Choose another combination in Agents preferences.');
+    }
+
+    _openQuickAsk() {
+        if (!this._enabled || !this._island?.actor.mapped || this._prefsWatch || Main.sessionMode.isLocked ||
+            (Main.actionMode !== Shell.ActionMode.NORMAL && !this._island?._grab)) return;
+        this._island._cancelHoverTimers();
+        this._card.showQuickAsk();
+        this._island.expand();
+        if (this._island.state === 'expanded') this._card._quickAsk.focus();
     }
 
     _applyAppearance() {
@@ -326,7 +354,7 @@ export default class UbuntuIsland extends Extension {
 
     _syncMediaViews() {
         const active = Boolean(this._enabled && this._card?.actor.mapped && this._island?.expanded &&
-            this._card?._page === 'media' && this._states?.media?.available);
+            !this._card.quickAskOpen && this._card?._page === 'media' && this._states?.media?.available);
         const mode = active ? this._card._mediaTools?.mode : null;
         this._media?.setQueueActive?.(mode === 'queue');
         if (mode === 'lyrics') this._lyrics?.load(this._states.media);
@@ -334,12 +362,12 @@ export default class UbuntuIsland extends Extension {
     }
 
     _syncWeather() {
-        const active = Boolean(this._island?.expanded && this._card?._page === 'weather' && this._card.actor.mapped);
+        const active = Boolean(this._island?.expanded && !this._card?.quickAskOpen && this._card?._page === 'weather' && this._card.actor.mapped);
         const compact = Boolean(this._island?.actor.mapped && !this._island.expanded &&
             this._settings.get_boolean('pill-show-weather'));
         this._weather?.setActive(active || compact);
         this._commute?.setActive(Boolean(this._island?.actor.mapped && (
-            (this._island.expanded && this._card?._page === 'commute' && this._card.actor.mapped) ||
+            (this._island.expanded && !this._card?.quickAskOpen && this._card?._page === 'commute' && this._card.actor.mapped) ||
             (!this._island.expanded && this._settings.get_boolean('pill-show-commute')))));
         this._card?._weatherView?.scene.setActive(active);
     }
@@ -384,10 +412,10 @@ export default class UbuntuIsland extends Extension {
     // One-second UI clock while the card is open and a player is active.
     _syncProgressTimer() {
         if (!this._enabled) return;
-        const needed = Boolean(this._island?.expanded && this._card?.actor.mapped && this._card?._page === 'media' && [null, 'lyrics'].includes(this._card._mediaTools.mode) && this._states.media?.available);
+        const needed = Boolean(this._island?.expanded && !this._card?.quickAskOpen && this._card?.actor.mapped && this._card?._page === 'media' && [null, 'lyrics'].includes(this._card._mediaTools.mode) && this._states.media?.available);
         if (needed && !this._progressTimer) {
             const tick = () => {
-                if (!this._island?.expanded || !this._card?.actor.mapped || this._card?._page !== 'media' || ![null, 'lyrics'].includes(this._card._mediaTools.mode) || !this._states.media?.available) {
+                if (!this._island?.expanded || this._card?.quickAskOpen || !this._card?.actor.mapped || this._card?._page !== 'media' || ![null, 'lyrics'].includes(this._card._mediaTools.mode) || !this._states.media?.available) {
                     this._progressTimer = 0;
                     return GLib.SOURCE_REMOVE;
                 }
@@ -486,6 +514,8 @@ export default class UbuntuIsland extends Extension {
     disable() {
         // Guard against late async callbacks before destroying any actor.
         this._enabled = false;
+        if (this._quickAskBinding) Main.wm.removeKeybinding(QUICK_ASK_SHORTCUT);
+        this._quickAskBinding = false;
         if (this._progressTimer) GLib.Source.remove(this._progressTimer);
         this._progressTimer = 0;
         this._disposePreferencesWatch();

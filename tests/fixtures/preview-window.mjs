@@ -4,6 +4,7 @@ import {editRoute} from '../commute-map.js';
 import Gio from 'gi://Gio';
 import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
+import Gdk from 'gi://Gdk';
 Gio.Resource.load('/usr/share/gnome-shell/org.gnome.Shell.Extensions.src.gresource')._register();
 const {default: Preferences} = await import('../prefs.js');
 const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent();
@@ -15,7 +16,8 @@ Adw.init();
 let finish;
 const finished = new Promise(resolve => { finish = resolve; });
 const window = new Adw.PreferencesWindow({title: 'Ubuntu Island', default_width: 650, default_height: 750});
-new Preferences(metadata).fillPreferencesWindow(window);
+const preferences = new Preferences(metadata);
+preferences.fillPreferencesWindow(window);
 window.set_visible_page_name('notch');
 window.present();
 const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
@@ -51,6 +53,41 @@ const run = async () => {
     if (second.current.active) throw new Error('Manual start still requests device location');
     second.dialog.close();
     print('[Island Smoke] Map editor PASS: click, drag, save, reopen, cleanup');
+    const find = widget => {
+        if (widget.tooltip_text === 'Set Quick Ask shortcut') return widget;
+        for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+            const found = find(child); if (found) return found;
+        }
+        return null;
+    };
+    window.set_visible_page_name('agents');
+    const edit = find(window), settings = preferences.getSettings();
+    const record = async () => {
+        edit.emit('clicked'); await delay(100);
+        const windows = Gtk.Window.get_toplevels();
+        for (let i = 0; i < windows.get_n_items(); i++) {
+            const dialog = windows.get_item(i);
+            if (dialog.title !== 'Set Quick Ask shortcut') continue;
+            const controllers = dialog.observe_controllers();
+            for (let j = 0; j < controllers.get_n_items(); j++) {
+                const controller = controllers.get_item(j);
+                if (controller instanceof Gtk.EventControllerKey) return {dialog, controller};
+            }
+        }
+        throw new Error('Shortcut recorder did not open');
+    };
+    let recorder = await record();
+    recorder.controller.emit('key-pressed', Gdk.KEY_a, 0, 0);
+    if (settings.get_strv('island-quick-ask-shortcut').length) throw new Error('Recorder accepted a bare letter');
+    recorder.controller.emit('key-pressed', Gdk.KEY_space, 0, Gdk.ModifierType.SUPER_MASK | Gdk.ModifierType.ALT_MASK);
+    if (settings.get_strv('island-quick-ask-shortcut').length !== 1) throw new Error('Recorder did not save a valid shortcut');
+    recorder = await record();
+    recorder.controller.emit('key-pressed', Gdk.KEY_Escape, 0, 0);
+    if (settings.get_strv('island-quick-ask-shortcut').length !== 1) throw new Error('Escape changed the shortcut');
+    recorder = await record();
+    recorder.controller.emit('key-pressed', Gdk.KEY_BackSpace, 0, 0);
+    if (settings.get_strv('island-quick-ask-shortcut').length) throw new Error('Recorder did not disable the shortcut');
+    print('[Island Smoke] Shortcut recorder PASS: validation, save, cancel, disable');
     await delay(300);
     window.close(); finish();
 };

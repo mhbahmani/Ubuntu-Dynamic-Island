@@ -5,6 +5,7 @@ import GLib from 'gi://GLib';
 import {AGENTS, TERMINALS} from './services/agents-model.js';
 import {agentExecutable} from './services/agent-launch.js';
 import {runtimePath, encoder, writeBytes} from './helpers/agents/io.js';
+import {quickAskShortcut} from './shortcut-prefs.js';
 
 export function agentsPreferences(settings, window, path) {
     let closed = false;
@@ -31,10 +32,11 @@ export function agentsPreferences(settings, window, path) {
         window.connect('close-request', () => { settings.disconnect(id); return false; }); group.add(row); return row;
     }
     const launch = new Adw.PreferencesGroup({title:'Quick Ask',description:'Use existing agent sign-in and permissions. Desktop and web destinations copy the prompt for you to paste.'});
+    launch.add(quickAskShortcut(settings, window));
     combo(launch,'agents-provider','Default agent',Object.keys(AGENTS),Object.values(AGENTS));
     combo(launch,'agents-destination','Default destination',['terminal','copy-terminal','desktop','web'],['Start in terminal','Copy & open terminal','Copy & open desktop app','Copy & open website']);
     combo(launch,'agents-terminal','Terminal',TERMINALS,['GNOME Terminal','GNOME Console','Kitty','WezTerm']);
-    entry(launch,'agents-project','Default project folder (absolute path)');
+    entry(launch,'agents-project','Default project folder (absolute path)').tooltip_text = 'The keyboard shortcut uses your home folder when this is empty.';
     const groups = [options,launch];
     const apps = Gio.AppInfo.get_all().filter(app => app.get_id() && app.should_show()).sort((a,b)=>a.get_display_name().localeCompare(b.get_display_name()));
     async function setup(action, provider) {

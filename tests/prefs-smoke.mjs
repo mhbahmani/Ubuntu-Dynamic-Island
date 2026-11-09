@@ -45,6 +45,13 @@ if (destination.selected !== 3) throw new Error('Web destination did not follow 
 const agentProvider = find(window, 'Default agent');
 agentProvider.selected = 1;
 if (settings.get_string('agents-provider') !== 'codex') throw new Error('Agent selection did not save');
+const shortcutRow = find(window, 'Quick Ask shortcut');
+if (!shortcutRow || settings.get_strv('island-quick-ask-shortcut').length) throw new Error('Quick Ask shortcut must default disabled');
+const shortcutLabel = shortcutRow.activatable_widget.get_child();
+settings.set_strv('island-quick-ask-shortcut', ['<Super><Alt>space']);
+if (shortcutLabel.accelerator !== '<Super><Alt>space') throw new Error('Shortcut display did not follow settings');
+settings.set_strv('island-quick-ask-shortcut', []);
+if (shortcutLabel.accelerator !== '') throw new Error('Shortcut display did not clear');
 for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weather icon', 'pill-show-weather'],
     ['Show upload/download rates', 'pill-show-network']]) {
     const row = find(window, title);

@@ -216,6 +216,106 @@ export default class Smoke extends UbuntuIsland {
         }
     }
 
+    async _checkQuickAsk() {
+        const key = 'island-quick-ask-shortcut', card = this._card, quick = card._quickAsk;
+        const settings = this._settings, originalAsk = card._actions.agentAsk;
+        const saved = ['agents-provider', 'agents-destination', 'agents-project'].map(name => [name, settings.get_string(name)]);
+        const page = card._page, width = settings.get_int('expanded-width');
+        const hover = settings.get_boolean('hover-open');
+        const context = St.ThemeContext.get_for_stage(global.stage), scale = context.scale_factor;
+        const keyboard = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
+        const chord = async keys => {
+            for (const keyval of keys) keyboard.notify_keyval(GLib.get_monotonic_time(), keyval, Clutter.KeyState.PRESSED);
+            await delay(30);
+            for (const keyval of [...keys].reverse()) keyboard.notify_keyval(GLib.get_monotonic_time(), keyval, Clutter.KeyState.RELEASED);
+            await delay(250);
+        };
+        const hotkey = [Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_space];
+        try {
+            settings.set_strv(key, ['<Super><Alt>space']);
+            settings.set_string('agents-provider', 'codex'); settings.set_string('agents-destination', 'terminal');
+            settings.set_string('agents-project', '');
+            assert(this._quickAskBinding, 'Quick Ask binding was not registered');
+            this._island.collapse(); await delay(250);
+            await chord(hotkey);
+            assert(card.quickAskOpen && quick.actor.mapped && this._island._grab, 'Global shortcut did not open the compact composer');
+            assert(quick.prompt.clutter_text.has_key_focus(), 'Shortcut did not focus the prompt');
+            assert(!card._navigation.mapped && !card._scroll.mapped && !this._progressTimer, 'Compact prompt retained hidden pages or playback updates');
+            assert(this._island.actor.height < 150 * scale, 'Shortcut opened a full-height card');
+            await chord([Clutter.KEY_z]);
+            assert(quick.prompt.text === 'z', 'Compact prompt did not receive real keyboard input');
+            settings.set_boolean('hover-open', true);
+            this._island._hoverLeave();
+            assert(!this._island._hoverClose, 'Typing armed hover dismissal');
+            settings.set_boolean('hover-open', hover);
+            quick.prompt.text = 'Explain the selected project';
+            await this._capture('quick-ask');
+            card._actions.agentAsk = () => { throw new Error('CLI missing. Choose its executable in Agents preferences.'); };
+            await chord([Clutter.KEY_Return]);
+            assert(quick.error.visible && quick.prompt.text === 'Explain the selected project' && this._island.expanded,
+                'Launch failure discarded the prompt or closed the composer');
+            settings.set_int('expanded-width', 380); settings.set_string('agents-destination', 'web');
+            const interfaceSettings = new Gio.Settings({schema_id:'org.gnome.desktop.interface'});
+            const textScale = interfaceSettings.get_double('text-scaling-factor');
+            interfaceSettings.set_double('text-scaling-factor', 1.5); await delay(200);
+            assert(quick.target.text.includes('paste to send'), 'Web destination hid manual-paste behavior');
+            const right = actor => actor.get_transformed_position()[0] + actor.get_transformed_size()[0];
+            const bottom = actor => actor.get_transformed_position()[1] + actor.get_transformed_size()[1];
+            assert(right(quick.send) <= right(card.actor) && quick.prompt.width > 30 * scale, 'Narrow enlarged-text composer overflowed');
+            assert(bottom(quick.error) <= bottom(this._island.actor) && bottom(quick.target) <= bottom(this._island.actor),
+                'Compact error or destination hint is clipped at enlarged text');
+            await this._capture('quick-ask-error-large-text');
+            interfaceSettings.set_double('text-scaling-factor', textScale);
+            settings.set_string('agents-destination', 'terminal'); settings.set_int('expanded-width', width);
+            let request;
+            card._actions.agentAsk = input => { request = input; this._leaveAgents(); };
+            await chord([Clutter.KEY_Return]);
+            assert(request?.provider === 'codex' && request.destination === 'terminal' && request.cwd === GLib.get_home_dir() &&
+                request.prompt === 'Explain the selected project', 'Shortcut did not use the selected agent/destination/project');
+            assert(!this._island.expanded && !this._island._grab && !quick.prompt.text, 'Successful submit retained the modal or draft');
+            await chord(hotkey); quick.prompt.text = 'Keep this draft';
+            await chord([Clutter.KEY_Escape]);
+            assert(!this._island.expanded && quick.prompt.text === 'Keep this draft', 'Escape lost the compact draft');
+            await chord(hotkey);
+            assert(quick.prompt.text === 'Keep this draft' && quick.prompt.clutter_text.has_key_focus(), 'Reopening lost draft or focus');
+            // Outside presses use the same release guard as the full card.
+            const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(), 40, 700); await delay(30);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED); await delay(30);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED); await delay(250);
+            assert(!this._island.expanded && quick.prompt.text === 'Keep this draft', 'Outside dismissal lost the compact draft');
+            await chord(hotkey);
+            context.scale_factor = 2; await delay(200);
+            assert(this._island.actor.height < 300 && quick.prompt.clutter_text.has_key_focus(), 'Scaled compact composer lost its size or focus');
+            await this._capture('quick-ask-scaled');
+            context.scale_factor = scale;
+            await chord([Clutter.KEY_Escape]);
+            settings.set_strv(key, ['<Super><Alt>j']);
+            await chord(hotkey);
+            assert(!this._island.expanded, 'Old shortcut remained active after rebinding');
+            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_j]);
+            assert(card.quickAskOpen, 'New shortcut did not activate immediately');
+            await chord([Clutter.KEY_Escape]);
+            settings.set_strv(key, []);
+            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_j]);
+            assert(!this._island.expanded && !this._quickAskBinding, 'Disabled shortcut still opened the prompt');
+            this._island.expand(); await delay(200);
+            assert(!card.quickAskOpen && card._navigation.mapped && card._page === page && this._island.actor.height >= 260 * scale,
+                'Normal opening did not restore the full card');
+            settings.set_strv(key, ['<Super><Alt>space']);
+            await chord(hotkey);
+            assert(card.quickAskOpen && quick.prompt.clutter_text.has_key_focus(), 'Shortcut did not replace an already open tab');
+            await chord([Clutter.KEY_Escape]); this._island.expand(); await delay(200);
+            console.log('[Island Smoke] Quick Ask PASS: global shortcut, focus, typing, target, launch errors, draft, Enter, Escape, rebind, scaling');
+        } finally {
+            card._actions.agentAsk = originalAsk; quick.prompt.text = '';
+            settings.set_strv(key, []); context.scale_factor = scale;
+            for (const [name, value] of saved) settings.set_string(name, value);
+            settings.set_int('expanded-width', width);
+            settings.set_boolean('hover-open', hover);
+        }
+    }
+
     async _smoke() {
         await delay(3500);
         Main.overview.hide();
@@ -337,6 +437,7 @@ export default class Smoke extends UbuntuIsland {
         this._card.renderArt(cover);
         assert(this._card._page === 'media', 'Media did not select its compact face');
         await this._checkMediaFeatures(media, cover);
+        await this._checkQuickAsk();
         this._settings.set_string('expand-tab', 'system');
         assert(this._card._page === 'media', 'Opening preference changed the already-open tab');
         this._island.collapse(); this._island.expand();
@@ -820,6 +921,8 @@ export default class Smoke extends UbuntuIsland {
         for (let i = 0; i < 30 && !this._prefsWindow; i++) await delay(200);
         assert(this._prefsWindow && this._island.expanded && !this._island._grab,
             `Preferences preview: tracked=${Boolean(this._prefsWindow)} expanded=${this._island.expanded} grab=${Boolean(this._island._grab)} windows=${global.get_window_actors().map(a => a.meta_window.get_title()).join(',')}`);
+        this._openQuickAsk();
+        assert(!this._card.quickAskOpen && !this._island._grab, 'Shortcut stole focus from preferences');
         await delay(600);
         await this._capture('preferences-tabs');
         const agentSession = this._states.agents.sessions[0];
@@ -1020,6 +1123,26 @@ export default class Smoke extends UbuntuIsland {
         assert(connectionSignals.size === 0, 'Disable retained connection notifications');
         if (saved) assert(saved.date.get_parent() === saved.center, 'Calendar parent was not restored');
         assert(!this._island && !this._progressTimer, 'Disable retained actors or progress timer');
+        // The shortcut is independent of tracking and releases its binding/grab
+        // through repeated extension disable/enable, even with the draft open.
+        const settings = this.getSettings();
+        settings.set_boolean('enable-agents', false);
+        settings.set_strv('island-quick-ask-shortcut', ['<Super><Alt>space']);
+        for (let i = 0; i < 2; i++) {
+            super.enable();
+            await delay(100);
+            for (const keyval of [Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_space])
+                keyboard.notify_keyval(GLib.get_monotonic_time(), keyval, Clutter.KeyState.PRESSED);
+            await delay(30);
+            for (const keyval of [Clutter.KEY_space, Clutter.KEY_Alt_L, Clutter.KEY_Super_L])
+                keyboard.notify_keyval(GLib.get_monotonic_time(), keyval, Clutter.KeyState.RELEASED);
+            await delay(300);
+            assert(this._quickAskBinding && this._card.quickAskOpen && !this._agents && !this._card._agentsView,
+                'Quick Ask requires session tracking or lost its binding on re-enable');
+            this.disable();
+            assert(!this._quickAskBinding && !this._island, 'Disable retained Quick Ask binding or actor');
+        }
+        console.log('[Island Smoke] Quick Ask lifecycle PASS: tracking off, repeated enable/disable');
         console.log('[Island Smoke] PASS: themes, opacity, bounded charts, hidden redraws, scaled layout, render, idle media, narrow layout, persistent rows, outside press, Escape, rapid toggle, disable');
     }
 }

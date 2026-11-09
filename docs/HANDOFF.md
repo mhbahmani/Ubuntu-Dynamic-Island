@@ -3,6 +3,33 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Quick Ask keyboard shortcut (2026-11-09): configure **Agents → Quick Ask → Quick
+Ask shortcut** in preferences; the default is unset. The native recorder requires
+Ctrl/Alt/Super and supports Escape to cancel and Backspace to disable. The binding
+updates live and is released on disable. It works with session tracking disabled.
+The existing island surface widens into a compact focused entry, using the saved
+agent/destination/project (home when empty). Enter uses the existing validated
+launcher; desktop/web destinations still copy for manual paste. Escape, outside
+click and Close retain the in-memory draft; success clears it, errors keep it
+open. Normal opening restores the regular card. Hover-close is suspended while
+typing, hidden pages stop their active work, and enlarged text/target changes
+recalculate height with one coalesced idle. The shortcut does not take focus from
+preferences, the lock screen, overview or a hidden fullscreen notch.
+
+Validation: 131 Node tests, syntax/schema checks, GTK preference bindings and
+private GNOME smoke passed. Native checks include actual shortcut keys and typed
+text, Enter, Escape/outside dismissal, launch failure, live rebinding, switching
+from an open tab, 380px/150% text, 200% display scaling, preference recording and
+repeated enable/disable with tracking off. Temporary-XDG installation and ZIP
+integrity/source checks include both new root modules (`quick-ask.js` and
+`shortcut-prefs.js`), already covered by the scripts' root-module glob. Native
+artifacts: `/tmp/ubuntu-island-smoke-tlhwtrqn`. Existing headless Clutter input-focus
+warnings still occur in the full Agents composer; real IME and authenticated
+provider sessions remain unverified. This addition has not been installed.
+
+The preceding media fix, Agents redesign, adaptive Notch order and robot icon
+were committed separately as `e5ee16b`, `1a591fc`, `d943843` and `d8284c4`.
+
 Agents icon follow-up: replaced the generic gear with a shared outlined robot
 head in the tab, collapsed notch, preferences navigation and both Notch order
 layouts. The SVG lives in the bundled hicolor icon directory so GTK recognizes

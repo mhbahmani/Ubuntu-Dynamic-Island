@@ -1,5 +1,6 @@
 import {AgentsView} from './agents-view.js';
 import {agentIcon} from './agent-icon.js';
+import {QuickAsk} from './quick-ask.js';
 import {MediaTools, textControl} from './media-tools.js';
 import {CommuteView} from './commute-view.js';
 import {WeatherView} from './weather-view.js';
@@ -36,10 +37,16 @@ export class Card {
         this._scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
         this.actor.add_child(this._scroll);
         this.actor._islandPreferredHeight = width => {
+            if (this.quickAskOpen) return this._quickAsk.actor.get_preferred_height(width)[1];
             if (this._page === 'commute')
                 this._commuteView.fit(width - this._body.get_theme_node().get_horizontal_padding());
             return 260 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
         };
+        this.actor._islandFocus = () => {
+            if (!this.quickAskOpen) return false;
+            this._quickAsk.focus(); return true;
+        };
+        this.actor._islandKeepOpen = () => this.quickAskOpen;
         this._body = column('ubuntu-island-card');
         this._scroll.set_child(this._body);
         this.actor.reactive = true;
@@ -62,6 +69,8 @@ export class Card {
             this._sectionCount++;
         }
         this.setPillTitleVisible(settings.get_boolean('pill-show-title'));
+        this._quickAsk = new QuickAsk(settings, actions);
+        this._quickAsk.actor.hide(); this.actor.add_child(this._quickAsk.actor);
         this._empty = column('ubuntu-island-empty');
         this._empty.add_child(label(this._sectionCount ? 'Nothing playing' : 'Your island, your way', 'ubuntu-island-track'));
         this._empty.add_child(label(this._sectionCount ? 'Start a track in your music app.' : 'Enable modules in Island preferences.'));
@@ -72,7 +81,10 @@ export class Card {
         // so hover highlights survive into the next expand and read as a
         // second, different selection indicator. Clear them at unmap.
         this.actor.connect('notify::mapped', () => {
-            if (!this.actor.mapped) this._clearHover(this.actor);
+            if (!this.actor.mapped) {
+                this._clearHover(this.actor);
+                if (this.quickAskOpen) { this.quickAskOpen = false; this._syncPages(); }
+            }
         });
     }
 
@@ -115,6 +127,7 @@ export class Card {
 
     _buildNavigation() {
         const navigation = row('ubuntu-island-navigation');
+        this._navigation = navigation;
         const items = [
             ['media', 'audio-x-generic-symbolic', 'Now playing'],
             ['system', 'org.gnome.SystemMonitor-symbolic', 'System'],
@@ -162,6 +175,7 @@ export class Card {
 
     selectPage(id) {
         if (!this._pages.get(id)?.available) return;
+        this.quickAskOpen = false;
         this._manualPage = true;
         this._page = id;
         this._syncPages();
@@ -171,9 +185,11 @@ export class Card {
     _syncPages() {
         if (!this._pages.get(this._page)?.available)
             this._page = [...this._pages].find(([, page]) => page.available)?.[0] ?? null;
-        this._scroll.visible = this._page !== 'agents';
+        this._scroll.visible = !this.quickAskOpen && this._page !== 'agents';
+        if (this._quickAsk) this._quickAsk.actor.visible = Boolean(this.quickAskOpen);
+        if (this._navigation) this._navigation.visible = !this.quickAskOpen;
         for (const [id, page] of this._pages) {
-            page.box.visible = page.available && id === this._page;
+            page.box.visible = !this.quickAskOpen && page.available && id === this._page;
             const tab = this._tabs.get(id);
             if (!tab) continue;
             tab.visible = page.available;
@@ -196,6 +212,11 @@ export class Card {
         if (this._page !== 'media' && this._mediaTools?.mode)
             this._mediaTools.show(null);
         this._actions.pageChanged?.(this._page);
+    }
+
+    showQuickAsk() {
+        this.quickAskOpen = true; this._quickAsk.open(); this._syncPages();
+        this._actions.relayout?.();
     }
 
     _buildMedia() {
