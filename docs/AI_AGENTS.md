@@ -14,7 +14,7 @@ make preview-agents PREVIEW_ARGS='--headless --duration 12'
 # Real local IPC, setup preservation and launch argument checks:
 make agents-test
 # Native input, window focus and narrow-layout checks:
-make preview PREVIEW_ARGS='--headless --check-full --duration 30'
+make preview PREVIEW_ARGS='--headless --check-full --duration 40'
 ```
 
 The preview uses three clearly labelled sample sessions and simulates Quick Ask;
@@ -34,12 +34,35 @@ the provider has loaded its integration.
 
 | Implemented | Behavior and limits |
 |---|---|
-| Session list | Claude Code, Codex and OpenCode event adapters; working, needs approval/input, turn finished, idle, interrupted, error, closed and unknown. Shows the last reported state/time, capped at 32 sessions. Clear/dismiss affect only the tracker. |
+| Session list | Claude Code, Codex and OpenCode event adapters; a distinct icon and text for working, needs approval/input, turn finished, idle, interrupted, error, closed and unknown. Project first, provider and state second; full name and last-report time in the row menu. Capped at 32 sessions, including hidden entries. |
 | Notch and notifications | Static working/attention/finished counts; reorderable and individually hideable. Optional GNOME notifications default off. No automatic focus stealing or expansion. |
-| Open session | Choose a currently open window once; subsequent Open actions focus that window. Closed windows lose the binding. Process ancestry ranks candidates but never authorizes automatic focus. Terminal tabs/panes inside the window still require manual selection. |
+| Open session | Click a session row, then choose a currently open window once; subsequent clicks focus that window. The row menu can change the binding. Closed windows lose the binding. Process ancestry ranks candidates but never authorizes automatic focus. Terminal tabs/panes inside the window still require manual selection. |
 | Quick Ask | Choose agent, project, and terminal (GNOME Terminal, Console, Kitty, WezTerm). Launches with literal argument arrays and the agent's normal permissions. No shell command interpolation. |
 | Copy & open | CLI, chosen installed desktop app, or Claude/Codex website. Copies the prompt for manual paste. OpenCode has no hosted chat destination in this prototype. No typing automation or prompt-bearing browser URLs. |
 | Local setup | Claude `settings.json`, Codex `hooks.json`, OpenCode `plugins/ubuntu-island-status.js`. Preserves unrelated hooks, backs up writes, removes only owned entries. Custom configuration/executable paths are supported. JSONC/invalid JSON is rejected unchanged. |
+
+The fixed 260px card keeps the header, Quick Ask shortcut and navigation outside
+the scrolling session list. Reopening sorts attention states first, then working
+sessions; finished/closed entries sit in collapsed **Recent**. Incoming events
+update the existing rows without moving click targets or keyboard focus. A
+resumed session reveals Recent so a new request cannot remain hidden there.
+Only the header's working arc animates, using a native Clutter transition with
+no JavaScript frame timer. It stops in secondary views, when hidden, when the
+observer disconnects, and under either system or extension reduced motion.
+Row and notch icons remain static.
+
+The header menu contains Agent settings, notch visibility and **Clear finished
+sessions**. The row menu has **Hide from list**. Both offer one batch of **Undo**;
+the broker retains current status while hidden, so Undo never restores an old
+state over a newer event. Clear finished checks the broker's current state and
+does not hide active work. Hidden entries are evicted first at the 32-session
+cap; Undo restores only entries still retained. These actions never stop agents.
+
+Quick Ask remembers the provider/destination and the last successfully launched
+project folder. An unsent prompt survives Back, Escape and tab switches only in
+memory; launch failures retain the draft and show an inline error. Ctrl+Enter
+submits. Escape first leaves a picker/composer/menu; from the session list it
+closes the island. Desktop/web destinations explicitly use copy and manual paste.
 
 No provider credentials, transcripts, conversation history, screen capture, browser
 extension, accessibility service, model API, or telemetry is used. Hooks do receive
@@ -62,7 +85,7 @@ local trust boundary. A crash that leaves the socket behind is reported as an
 unavailable observer; logout clears the runtime directory.
 
 Current limitations: these are last **reported** states, not a process-liveness
-guarantee. Forced termination or lost events can leave stale rows; clear the list
+guarantee. Forced termination or lost events can leave stale rows; hide those rows
 and restart the session. Working means activity, and turn finished does not mean
 the task succeeded. Concurrent same-tool approval requests may be indistinguishable
 when the provider supplies no request ID. There is no universal discovery of all

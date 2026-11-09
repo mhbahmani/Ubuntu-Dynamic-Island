@@ -41,7 +41,7 @@ const run = async () => {
     if (!editor.save.sensitive) throw new Error('Route name is still required');
     if (!near(editor.draft.origin?.latitude, 35.73) || !near(editor.draft.destination?.longitude, 51.39))
         throw new Error('Map click/drag failed to update endpoint coordinates');
-    await delay(2000); // Allow the parent Shell fixture to capture the map window.
+    await delay(3000); // Allow the parent fixture to check the agent composer and capture the map window.
     editor.save.emit('clicked');
     if (!saved || saved.name !== '' || !near(saved.origin.latitude, 35.73)) throw new Error('Map did not save confirmed endpoints');
     if (!map.dead || map.timer) throw new Error('Map resources not cleaned up');

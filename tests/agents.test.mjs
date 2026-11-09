@@ -50,6 +50,35 @@ test('hook installation merges owned handlers and removal preserves other hooks'
     assert.equal(hookEntries('codex','/relay').Interrupt[0].hooks[0].timeout,1);
     assert.throws(()=>mergeAgentHooks({hooks:{Stop:{bad:true}}},'claude','/relay',true));
 });
+test('hide and undo retain live status without resurfacing hidden sessions on events',()=>{
+    const store = new AgentStore(); store.apply(event('working'));
+    const id = store.snapshot().sessions[0].id;
+    store.control({control:'dismiss',id});
+    const undo = store.snapshot().undo;
+    assert.equal(undo.count,1); assert.equal(store.snapshot().sessions.length,0);
+    store.apply(event('input')); assert.equal(store.snapshot().sessions.length,0);
+    store.control({control:'restore',token:undo.token + 1});
+    assert.equal(store.snapshot().sessions.length,0);
+    store.control({control:'restore',token:undo.token});
+    assert.equal(store.snapshot().sessions[0].state,'input'); assert.equal(store.snapshot().undo,null);
+});
+test('clear finished uses current states, leaves active work alone and bounds undo storage',()=>{
+    const store = new AgentStore();
+    for (const state of ['finished','closed','working','input','approval','error']) store.apply(event(state,{session:state}));
+    store.control({control:'clear-finished'});
+    assert.deepEqual(store.snapshot().sessions.map(s=>s.state),['working','input','approval','error']);
+    const token = store.snapshot().undo.token;
+    store.apply(event('working',{session:'finished',start:true}));
+    store.restore(token);
+    assert.equal(store.snapshot().sessions.find(s=>s.session==='finished').state,'working');
+    store.dismiss(store.snapshot().sessions[0].id);
+    const older = store.snapshot().undo.token;
+    store.dismiss(store.snapshot().sessions[0].id);
+    store.restore(older); assert.equal(store.snapshot().sessions.length,4);
+    for (let i=0;i<40;i++) store.apply(event('working',{session:`extra-${i}`}));
+    assert.equal(store.rows.size,32); assert.equal(store.snapshot().undo,null);
+    store.clear(); assert.equal(store.snapshot().undo,null);
+});
 test('launches preserve literal prompts and never weaken provider permissions',()=>{
     const prompt='--help\n$(touch /tmp/nope); `command` "quoted" مرحبا';
     for(const terminal of ['gnome-terminal','kgx','kitty','wezterm']) {

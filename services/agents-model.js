@@ -43,9 +43,29 @@ export function fromAgentHook(provider, raw, extra = {}) {
 }
 
 export class AgentStore {
-    constructor() { this.rows = new Map(); this.dropped = 0; }
-    clear() { this.rows.clear(); this.dropped = 0; }
-    dismiss(id) { this.rows.delete(id); }
+    constructor() { this.rows = new Map(); this.dropped = 0; this.undo = null; this.sequence = 0; }
+    clear() { this.rows.clear(); this.dropped = 0; this.undo = null; }
+    hide(ids) {
+        const rows = ids.map(id => this.rows.get(id)).filter(row => row && !row.hidden);
+        if (!rows.length) return;
+        for (const row of rows) row.hidden = true;
+        this.undo = {token: ++this.sequence, ids: rows.map(row => row.id)};
+    }
+    dismiss(id) { this.hide([id]); }
+    clearFinished() { this.hide([...this.rows.values()].filter(row => ['finished', 'closed'].includes(row.state)).map(row => row.id)); }
+    restore(token) {
+        if (!this.undo || token !== this.undo.token) return;
+        for (const id of this.undo.ids) { const row = this.rows.get(id); if (row) row.hidden = false; }
+        this.undo = null;
+    }
+    control(value) {
+        if (value.control === 'clear') this.clear();
+        else if (value.control === 'dismiss' && typeof value.id === 'string') this.dismiss(value.id);
+        else if (value.control === 'clear-finished') this.clearFinished();
+        else if (value.control === 'restore' && Number.isSafeInteger(value.token)) this.restore(value.token);
+        else return false;
+        return true;
+    }
     apply(input, now = Date.now()) {
         const event = normalizeAgentEvent(input);
         if (!event) return false;
@@ -55,7 +75,8 @@ export class AgentStore {
         if (row && event.turn && row.retired.includes(event.turn)) return false;
         if (!row) {
             if (this.rows.size >= AGENT_LIMIT) {
-                const done = [...this.rows.values()].find(r => ['closed', 'finished', 'idle'].includes(r.state));
+                const rows = [...this.rows.values()];
+                const done = rows.find(r => r.hidden) || rows.find(r => ['closed', 'finished', 'idle'].includes(r.state));
                 if (done) this.rows.delete(done.id);
                 else { this.dropped++; return false; }
             }
@@ -87,8 +108,10 @@ export class AgentStore {
         return true;
     }
     snapshot() {
-        const sessions = [...this.rows.values()].map(({pending, retired, ...row}) => ({...row}));
-        return {v: 1, connected: true, sessions, dropped: this.dropped, counts: agentCounts(sessions)};
+        const sessions = [...this.rows.values()].filter(row => !row.hidden).map(({pending, retired, hidden, ...row}) => ({...row}));
+        const count = this.undo?.ids.filter(id => this.rows.has(id)).length || 0;
+        return {v: 1, connected: true, sessions, dropped: this.dropped, counts: agentCounts(sessions),
+            undo: count ? {token: this.undo.token, count} : null};
     }
 }
 export function agentCounts(rows = []) {

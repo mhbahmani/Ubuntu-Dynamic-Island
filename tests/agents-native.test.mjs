@@ -54,6 +54,16 @@ test('real GJS broker and relay: status, privacy, bounds, clear and shutdown',as
         await send(env.UBUNTU_ISLAND_AGENT_SOCKET,'x'.repeat(6000)).catch(e=>assert.equal(e.code,'ECONNRESET'));
         await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,provider:'codex',session:'approval',state:'approval'});
         await until(()=>snapshots.at(-1).sessions.length===2);
+        const {id,profile} = snapshots.at(-1).sessions.find(s=>s.provider==='claude');
+        await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,control:'dismiss',id});
+        await until(()=>snapshots.at(-1).undo?.count===1);
+        const token = snapshots.at(-1).undo.token;
+        await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,provider:'claude',profile,session:'test',state:'finished'});
+        await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,control:'restore',token});
+        await until(()=>snapshots.at(-1).sessions.some(s=>s.state==='finished'));
+        await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,control:'clear-finished'});
+        await until(()=>snapshots.at(-1).sessions.length===1);
+        assert.equal(snapshots.at(-1).sessions[0].state,'approval');
         await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,control:'clear'});
         await until(()=>snapshots.at(-1).sessions.length===0);
         const exited=once(child,'exit');child.stdin.end();await exited;

@@ -30,6 +30,9 @@ and [compact playing pill](screenshots/playing-pill.png).
   attention counts, window selection/focus, optional notifications, and Quick Ask
   for CLI/desktop/web destinations. No API keys or account access. Tracking needs
   optional local hooks/plugins; desktop/web prompts use copy and manual paste.
+  Click a session to return to its window. Status icons, collapsed Recent sessions,
+  reversible Hide/Clear finished actions and a fixed Quick Ask bar keep the list
+  compact. Drafts survive Back; errors preserve the prompt.
   Start with `make preview-agents`; see [setup and limitations](docs/AI_AGENTS.md).
 - **Single-surface morph**: the pill and the card are two children of one
   chrome-managed `St.Widget`, animated with width/height/opacity tweens

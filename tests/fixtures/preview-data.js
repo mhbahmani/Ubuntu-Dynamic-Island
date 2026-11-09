@@ -103,8 +103,7 @@ export function sampleAgents(preview) {
     ]) store.apply({v:1,provider,session,label,state});
     const emit = () => preview._renderAgents(store.snapshot());
     preview._agents = {stop() {}, async send(value) {
-        if (value.control === 'clear') store.clear();
-        if (value.control === 'dismiss') store.dismiss(value.id);
+        if (!store.control(value)) store.apply(value);
         emit();
     }};
     preview._card._actions.agentAsk = () => 'Sample request prepared. Live launches are available in the installed extension.';

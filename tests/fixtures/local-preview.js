@@ -1,6 +1,7 @@
 // Development-only wrapper; never packaged or installed.
 import UbuntuIsland from './implementation.js';
 import Gio from 'gi://Gio';
+import St from 'gi://St';
 import GLib from 'gi://GLib';
 import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
@@ -51,6 +52,7 @@ export default class Preview extends UbuntuIsland {
                 if (x < left || x >= left + width || y < top || y >= top + height)
                     this._island._armDismissal(0);
             } else if (type === Clutter.EventType.KEY_PRESS && event.get_key_symbol() === Clutter.KEY_Escape) {
+                if (this._island._onEscape?.()) return Clutter.EVENT_STOP;
                 this._island._armDismissal(0);
                 return Clutter.EVENT_STOP;
             }
@@ -189,11 +191,11 @@ export default class Preview extends UbuntuIsland {
         const assert = (condition, message) => { if (!condition) throw new Error(`Agents: ${message}`); };
         const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
         const click = async actor => {
-            const adjustment = this._card._scroll.vscroll.adjustment;
-            const top = this._card._scroll.get_transformed_position()[1];
-            const bottom = top + this._card._scroll.height;
+            const adjustment = view.adjustment;
+            const top = view.scroll.get_transformed_position()[1];
+            const bottom = top + view.scroll.height;
             const y = actor.get_transformed_position()[1];
-            if (y + actor.height > bottom || y < top) {
+            if (view.content.contains(actor) && (y + actor.height > bottom || y < top)) {
                 adjustment.value = Math.min(adjustment.upper - adjustment.page_size, Math.max(0, adjustment.value + y - top));
                 await delay(100);
             }
@@ -210,28 +212,50 @@ export default class Preview extends UbuntuIsland {
         assert(view.rows.size === 3 && this._pill._agents.visible, 'Sample sessions or counts missing');
         const initial = this._states.agents;
         const first = [...view.rows.values()][0];
+        assert(!view.recentList.visible && view.recentButton.visible, 'Recent sessions are not collapsed');
+        const order = view.activeList.get_children();
+        await click(first.open);
+        assert(view.mode === 'windows', 'Clicking a session did not open its window chooser');
+        assert(this._island._onEscape() && view.mode === 'list', 'Escape did not return from the chooser');
         const updated = {...initial, sessions:initial.sessions.map((s,i) => i ? s : {...s,state:'working'})};
         first.open.grab_key_focus();
         this._renderAgents(updated);
         assert([...view.rows.values()][0] === first && first.open.has_key_focus(), 'Status update replaced a row or stole focus');
+        assert(view.activeList.get_children().every((actor,i)=>actor === order[i]), 'Status update reordered click targets');
+        const motionBefore = this._settings.get_boolean('disable-animations');
+        this._settings.set_boolean('disable-animations', true);
+        assert(!view.activity.get_transition('agent-working'), 'Reduced motion retained an animation');
+        this._settings.set_boolean('disable-animations', false);
+        if (view.stSettings.enable_animations) assert(view.activity.get_transition('agent-working'), 'Visible working indicator did not animate');
         this._card.selectPage('media');
         await delay(100);
+        assert(!view.activity.get_transition('agent-working'), 'Hidden Agents view retained its animation');
         const text = first.status.text;
         this._renderAgents(initial);
         assert(first.status.text === text, 'Hidden session view repainted');
         this._card.selectPage('agents');
         await delay(150);
-        assert(first.status.text.startsWith('Needs approval'), 'Remapped view did not catch up');
+        assert(first.status.text.includes('Needs approval'), 'Remapped view did not catch up');
         await click(view.askButton);
         assert(view.mode === 'ask' && view.prompt.clutter_text.has_key_focus(), 'Quick Ask pointer click failed');
+        assert(!view.activity.get_transition('agent-working'), 'Composer retained the list animation');
         view.prompt.text = 'A sample multiline request\nKeep this as one prompt.';
+        this._island._onEscape();
+        assert(view.mode === 'list' && view.prompt.text.includes('multiline'), 'Escape discarded a draft');
+        await click(view.askButton);
         await click(view.providerButton);
         await click(view.options.get_children()[1]);
         assert(view.provider === 'codex', 'Agent picker did not select Codex');
         await click(view.destinationButton);
         await click(view.options.get_children()[2]);
         assert(view.destination === 'desktop' && !view.folder.visible, 'Desktop destination did not update');
-        this._card._scroll.vscroll.adjustment.value = 0;
+        const ask = this._card._actions.agentAsk;
+        this._card._actions.agentAsk = () => { throw new Error('Test app is unavailable'); };
+        await click(view.submit);
+        assert(view.mode === 'ask' && view.prompt.text.includes('multiline') && /unavailable/.test(view.hint.text), 'Launch failure discarded the draft or hid the error');
+        this._card._actions.agentAsk = ask;
+        view._syncEditor();
+        view.adjustment.value = 0;
         await delay(100);
         await this._capture('agents-quick-ask');
         await click(view.submit);
@@ -243,40 +267,69 @@ export default class Preview extends UbuntuIsland {
         textSettings.set_double('text-scaling-factor',1.5);
         await delay(200);
         const right = this._island.actor.get_transformed_position()[0] + this._island.actor.width;
-        for (const item of view.rows.values()) assert(item.open.get_transformed_position()[0] + item.open.width <= right, 'Session button overflows at narrow width');
+        await this._capture('agents-narrow-large-text');
+        for (const item of view.rows.values()) if (item.open.mapped) assert(item.open.get_transformed_position()[0] + item.open.width <= right, `Session button overflows at narrow width: ${item.session.label}, width=${item.open.width}, right=${right}`);
         assert(this._island.actor.height === height, 'Text scaling changed card height');
         await this._capture('agents-narrow-large-text');
         textSettings.set_double('text-scaling-factor',scale);
         this._settings.set_int('expanded-width',440);
-        view.show('list'); this._card._scroll.vscroll.adjustment.value = 0;
+        view.show('list'); view.adjustment.value = 0;
         await delay(200);
         await this._capture('agents');
+        const context = St.ThemeContext.get_for_stage(global.stage), originalScale = context.scale_factor;
+        context.scale_factor = 2;
+        await delay(200);
+        assert(this._island.actor.width === 880, 'Agents layout did not follow 200% display scaling');
+        assert(view.footer.get_transformed_position()[1] + view.footer.height <= this._card._tabs.get('agents').get_parent().get_transformed_position()[1], 'Agents footer overlaps navigation at 200%');
+        await this._capture('agents-scaled');
+        context.scale_factor = originalScale;
+        await delay(200);
+        view.destination = 'terminal'; view.folder.text = '/tmp'; view.prompt.text = 'Remember this project';
+        await click(view.askButton);
+        await click(view.submit);
+        assert(this._settings.get_string('agents-project') === '/tmp', 'Successful launch did not remember the project');
         // Launch a real GTK window inside this private session and bind it explicitly.
+        this._settings.set_string('preferences-page', 'notch');
         this.openPreferences();
         let window;
         for (let i = 0; i < 40 && !window; i++) {
             await delay(100);
-            window = this._agentWindows.all().find(w => w.get_title() === 'Ubuntu Island');
+            window = this._agentWindows.all().find(w => w.get_title() === 'Ubuntu Island' && w.get_compositor_private()?.mapped);
         }
         assert(window, 'Window discovery failed');
+        await delay(600);
+        await this._capture('notch-order-preferences');
         this._island.expand();
         this._openAgent(first.session);
         assert(view.mode === 'windows', 'Unbound session did not show a chooser');
         this._activateAgent(first.session,window);
         await delay(500);
-        assert(global.display.focus_window === window && !this._island.expanded, `Selected window did not receive focus: focused=${global.display.focus_window?.get_title()}, expanded=${this._island.expanded}, message=${view.message.text}`);
+        assert((global.display.focus_window === window || global.display.focus_window?.get_transient_for() === window) && !this._island.expanded, `Selected window did not receive focus: focused=${global.display.focus_window?.get_title()}, expanded=${this._island.expanded}, message=${view.message.text}`);
         assert(this._agentWindows.candidates(first.session)[0] === window, 'Window binding was not retained');
         window.delete(global.get_current_time());
         await delay(300);
         assert(!this._agentWindows.bindings.has(first.session.id), 'Closed window binding leaked');
         view.show('list');
         this._island.expand();
-        await this._agents.send({control:'dismiss', id:first.session.id});
+        await delay(200);
+        await click(first.menu);
+        await click(view.options.get_children()[3]);
         assert(view.rows.size === 2, 'Dismiss did not update the list');
+        const latest = {...first.session, state:'input', start:true};
+        await this._agents.send(latest);
+        assert(view.rows.size === 2 && view.undoRow.visible, 'Hidden event resurfaced a row or lost Undo');
+        await click(view.undoButton);
+        assert(view.rows.size === 3 && view.rows.get(first.session.id).session.state === 'input', 'Undo restored stale status');
+        await click(view.menuButton);
+        await click(view.options.get_first_child());
+        assert(view.rows.size === 2 && [...view.rows.values()].every(item=>!['finished','closed'].includes(item.session.state)), 'Clear finished affected active work');
+        await click(view.undoButton);
+        assert(view.rows.size === 3, 'Clear finished could not be undone');
+        this._settings.set_boolean('disable-animations', motionBefore);
         await this._agents.send({control:'clear'});
         assert(view.rows.size === 0, 'Clear did not update the list');
         sampleAgents(this);
-        console.log('[Island Preview] AGENTS PASS: pointer input, status/focus, hidden view, narrow text, window activation and cleanup');
+        console.log('[Island Preview] AGENTS PASS: rows, menus, draft/errors, Undo with live events, motion cleanup, narrow/scaled layout and window activation');
     }
 
     openPreferences() {

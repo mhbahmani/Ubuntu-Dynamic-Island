@@ -40,11 +40,10 @@ async function accept(connection) {
     try {
         if (connection.get_socket().get_credentials().get_unix_user() !== new Gio.Credentials().get_unix_user()) return;
         const raw = JSON.parse(await readBounded(connection.get_input_stream(), 4096, local));
-        if (raw.v === 1 && raw.control === 'clear') { store.clear(); schedule(); return; }
-        if (raw.v === 1 && raw.control === 'dismiss' && typeof raw.id === 'string') { store.dismiss(raw.id); schedule(); return; }
         const now = GLib.get_monotonic_time();
         if (now - burstAt > 1000000) { burstAt = now; burst = 0; }
         if (++burst > 100) { store.dropped++; schedule(); return; }
+        if (raw.v === 1 && store.control(raw)) { schedule(); return; }
         const dropped = store.dropped;
         if (store.apply(raw) || store.dropped !== dropped) schedule();
     } catch { /* Untrusted input is never logged. */ }

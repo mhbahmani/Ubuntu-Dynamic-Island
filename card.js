@@ -54,8 +54,12 @@ export class Card {
         this._weatherView?.setViewport(this._scroll);
         if (settings.get_boolean('enable-commute'))
             this._commuteView = new CommuteView(this._section('COMMUTE'), actions, this._scroll);
-        if (settings.get_boolean('enable-agents'))
-            this._agentsView = new AgentsView(this._section('AGENTS'), settings, actions);
+        if (settings.get_boolean('enable-agents')) {
+            this._agentsView = new AgentsView(settings, actions);
+            this.actor.add_child(this._agentsView.actor);
+            this._pages.set('agents', {box: this._agentsView.actor, available: true});
+            this._sectionCount++;
+        }
         this.setPillTitleVisible(settings.get_boolean('pill-show-title'));
         this._empty = column('ubuntu-island-empty');
         this._empty.add_child(label(this._sectionCount ? 'Nothing playing' : 'Your island, your way', 'ubuntu-island-track'));
@@ -166,6 +170,7 @@ export class Card {
     _syncPages() {
         if (!this._pages.get(this._page)?.available)
             this._page = [...this._pages].find(([, page]) => page.available)?.[0] ?? null;
+        this._scroll.visible = this._page !== 'agents';
         for (const [id, page] of this._pages) {
             page.box.visible = page.available && id === this._page;
             const tab = this._tabs.get(id);

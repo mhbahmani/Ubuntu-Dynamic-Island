@@ -3,6 +3,37 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Agents UI redesign (2026-11-09): project-first clickable rows replace Open/X
+buttons. Nine symbolic states, one native animated working arc, stable row order,
+collapsed Recent, explicit window rebinding, menu actions and broker-backed Undo
+are implemented. Reopening groups attention before work/history; events preserve
+row actors/focus. Header, Quick Ask and navigation are fixed around the list.
+Quick Ask retains drafts on Back/errors, remembers successful project folders,
+and supports Ctrl+Enter and nested Escape. Animation stops when hidden, in
+secondary views, on disconnect and under reduced motion; there is no JS frame
+loop. Hidden rows count toward the 32-row cap and are evicted first. Undo uses
+live broker data and never cancels or controls an agent.
+
+The inline concept rendered in local browser checks, but the user's chat preview
+failure could not be reproduced or attributed to a specific client error. The
+native preview and captured PNGs provide a fallback. Use `make preview-agents`.
+
+Validation: 131 Node tests, syntax/schema checks, GTK preferences, private MPRIS tests, the full seven-tab sample preview and native
+Shell smoke passed. Agents checks cover actual keyboard typing/Ctrl+Enter under
+a real modal grab, draft retention and launch errors, Undo after new events,
+window selection/focus/closure, hidden/reduced-motion cleanup, 380px with 150%
+text and 200% display scaling. Installer checks use temporary XDG data; ZIP
+integrity and packaged runtime sources were compared with source.
+
+Latest native artifacts: `/tmp/ubuntu-island-preview-4h0k_n1j` and
+`/tmp/ubuntu-island-smoke-k74tqwmw`. Screenshots were inspected; convenient copies
+are under untracked `output/agent-ui/`. Headless GNOME still logs Clutter
+input-focus cursor/surrounding assertions on a populated composer; keyboard text,
+submission and focus checks pass. This warning is not claimed fixed. Real IME
+composition and authenticated provider sessions remain unverified.
+
+These changes have not been installed. User screenshots were excluded from commits.
+
 Media seekbar follow-up (2026-11-09): the supplied Telegram screenshot showed
 5:24 elapsed on a 5:01 track after headphone Next. The installed media service
 matched this checkout; read-only MPRIS inspection found Telegram reporting the
@@ -57,9 +88,9 @@ activation with normal modal-grab release, and disable cleanup. Screenshots were
 inspected. Temporary-XDG installation and ZIP integrity/content checks passed.
 Both packaging scripts and preview/smoke copy paths include `helpers/agents/`.
 
-User direction: keep this prototype as the current checkpoint. A future iteration
-should substantially redesign the Agents UI, improve UX, and test real provider
-functionality. Do not treat the current interface as the final design.
+The original prototype is committed as a checkpoint. The requested UI redesign
+is implemented; real authenticated provider acceptance remains future
+work. No real agent configuration or installed extension was modified.
 
 Commute's “Report a map issue” button was removed as requested. Provider credits,
 provider selection and Open route remain, with native Commute smoke coverage.

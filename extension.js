@@ -47,7 +47,7 @@ export default class UbuntuIsland extends Extension {
 
         this._pill = new Pill(() => this._island?.toggle(), () => this._togglePillTitle());
         this._card = new Card(this._settings, {
-            agentOpen: session => this._openAgent(session),
+            agentOpen: (session, choose) => this._openAgent(session, choose),
             agentActivate: (session, window) => this._activateAgent(session, window),
             agentAsk: input => this._askAgent(input),
             agentHasApp: provider => Boolean(desktopTarget(this._settings, provider)),
@@ -55,8 +55,7 @@ export default class UbuntuIsland extends Extension {
                 desktopTarget(this._settings, provider)?.launch([], global.create_app_launch_context(0, -1));
                 this._leaveAgents();
             },
-            agentClear: () => this._agentControl({control:'clear'}),
-            agentDismiss: id => this._agentControl({control:'dismiss', id}),
+            agentControl: value => this._agentControl(value),
             mediaCommand: method => this._media?.command(method),
             selectPlayer: id => this._media?.select(id),
             mediaProperty: (key, value) => this._media?.setProperty(key, value),
@@ -87,6 +86,7 @@ export default class UbuntuIsland extends Extension {
             pill: this._pill.actor,
             card: this._card.actor,
             onBeforeExpand: () => this._card.selectExpansionPage(),
+            onEscape: () => this._card._page === 'agents' && this._card._agentsView.handleEscape(),
             onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); },
         });
         this._island.setHoverEnabled(
@@ -419,14 +419,13 @@ export default class UbuntuIsland extends Extension {
     }
 
     _agentControl(value) {
-        this._agents?.send(value).catch(() => {
-            if (this._enabled && this._card?._agentsView) this._card._agentsView.message.text = 'Observer unavailable. Re-enable Agents to reconnect.';
-        });
+        if (!this._agents) return Promise.reject(new Error('Observer unavailable. Re-enable Agents to reconnect.'));
+        return this._agents.send(value);
     }
 
-    _openAgent(session) {
+    _openAgent(session, choose = false) {
         const candidates = this._agentWindows?.candidates(session) || [];
-        if (this._agentWindows?.bindings.has(session.id)) this._activateAgent(session, candidates[0]);
+        if (!choose && this._agentWindows?.bindings.has(session.id)) this._activateAgent(session, candidates[0]);
         else {
             const others = this._agentWindows?.all().filter(w => !candidates.includes(w)) || [];
             this._card?._agentsView?.selectWindow(session, [...candidates, ...others]);
