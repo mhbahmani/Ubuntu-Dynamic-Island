@@ -3,6 +3,24 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Navigation icon clarity (2026-11-09): the user's `1.png` shows the tab footer.
+These are symbolic SVGs from the icon theme, not PNG artwork. Most use a 16px
+design grid, but tabs requested 15px and preferences 14px. Navigation now uses
+16px consistently; native allocations sit on whole pixels and become 32px at
+200% scale. A simple bundled sliders SVG replaces the intricate themed settings
+gear. Tab labels, focus/selection states and hit areas remain available.
+The new SVG is under the existing recursive `assets/` copy in installation,
+build and previews. The temporary-XDG installer test now verifies every bundled
+action icon, and ZIP integrity/source comparisons passed. Full native preview
+checks passed, including the narrow/enlarged-text layout and previous Agents and
+Sound interactions. Diagnostic captures: `/tmp/ubuntu-island-preview-9jn07mxq`.
+Native 200% rendering was also inspected with the user's Yaru-dark icon theme in
+an isolated preview; capture: `/tmp/island-icons-scale2.png`. Temporary geometry
+logging and theme overrides were removed after verification.
+The Node media harness also stubs the module-level SVG initialization; the native
+preview and packaging checks cover the real asset.
+These changes have not been installed.
+
 Agents overflow (2026-11-09): the common Agents fixture needed
 8px of unnecessary scrolling. Reduced redundant spacing without reducing fonts;
 two active sessions and collapsed Recent now fit at 380px and 440px. Long lists

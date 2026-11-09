@@ -6,6 +6,7 @@ import {CommuteView} from './commute-view.js';
 import {WeatherView} from './weather-view.js';
 import {HistoryChart} from './charts.js';
 import St from 'gi://St';
+import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import Atk from 'gi://Atk';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
@@ -13,6 +14,12 @@ import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 import {icon, label, row, column, button, pct, setEnabled, notchToggle} from './widgets.js';
 import {formatTime, clampFraction} from './services/format.js';
 import {formatCapacity} from './services/proc.js';
+
+// Symbolic theme artwork uses a 16px grid. Keep the native size and an even
+// allocation so its strokes do not land on half-pixels at 100% scale.
+const NAVIGATION_ICON_SIZE = 16;
+const settingsIcon = new Gio.FileIcon({file: Gio.File.new_for_uri(import.meta.url).get_parent()
+    .resolve_relative_path('assets/icons/hicolor/scalable/actions/ubuntu-island-settings-symbolic.svg')});
 
 // Expanded island content, split into sections. Each section renders its own
 // empty state, tolerates a missing service snapshot (module disabled or
@@ -139,12 +146,12 @@ export class Card {
         ];
         for (const [id, glyph, title] of items) {
             if (!this._pages.has(id)) continue;
-            const tab = button(glyph, title, () => this.selectPage(id), 15, 'ubuntu-island-tab');
+            const tab = button(glyph, title, () => this.selectPage(id), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab');
             // Keep the glyph centered on the same axis as the caption and
             // preferences icon; the selection marker must not shift it upward.
             const face = new St.Widget({style_class: 'ubuntu-island-tab-face',
                 layout_manager: new Clutter.BinLayout()});
-            const glyphActor = icon(glyph, 15);
+            const glyphActor = icon(glyph, NAVIGATION_ICON_SIZE);
             glyphActor.x_align = Clutter.ActorAlign.CENTER;
             glyphActor.y_align = Clutter.ActorAlign.CENTER;
             face.add_child(glyphActor);
@@ -159,8 +166,8 @@ export class Card {
         this._pageCaption = label('', 'ubuntu-island-source');
         navigation.add_child(this._pageCaption);
         navigation.add_child(spacer);
-        navigation.add_child(button('emblem-system-symbolic', 'Island preferences',
-            () => this._actions.preferences(), 14, 'ubuntu-island-tab'));
+        navigation.add_child(button(settingsIcon, 'Island preferences',
+            () => this._actions.preferences(), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab'));
         this.actor.add_child(navigation);
     }
 

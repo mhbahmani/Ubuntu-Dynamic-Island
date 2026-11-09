@@ -49,10 +49,15 @@ test('media position freezes on pause, resumes without jumping, and ignores idle
 });
 
 test('media updates render seek, pause, resume and new tracks without a zero frame', () => {
-    const source = readFileSync(new URL('../card.js', import.meta.url), 'utf8')
+    const cardUrl = new URL('../card.js', import.meta.url);
+    const source = readFileSync(cardUrl, 'utf8')
+        .replaceAll('import.meta.url', JSON.stringify(cardUrl.href))
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
+    // Navigation's SVG is initialized at module load; keep its GI boundary fake.
+    const iconFile = {get_parent() { return this; }, resolve_relative_path() { return this; }};
     const Card = vm.runInNewContext(`${source}\nCard`, {
         formatTime, clampFraction, setEnabled() {},
+        Gio: {File: {new_for_uri: () => iconFile}, FileIcon: class {}},
     });
     const card = Object.create(Card.prototype);
     Object.assign(card, {
