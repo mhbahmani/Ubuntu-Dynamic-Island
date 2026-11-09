@@ -59,7 +59,13 @@ export class HistoryChart {
                     for (const point of points.slice(1)) cr.lineTo(...point);
                     cr.setSourceRGBA(...colors[seriesIndex], 0.95);
                     cr.setLineWidth(1.5 * scale);
-                    cr.stroke();
+                    if (points.length === 1) {
+                        // A fresh history has one point, which Cairo cannot
+                        // stroke as a line. Make the first valid sample visible.
+                        cr.newPath();
+                        cr.arc(points[0][0], points[0][1], 1.5 * scale, 0, 2 * Math.PI);
+                        cr.fill();
+                    } else cr.stroke();
                     points.length = 0;
                 };
                 for (let i = 0; i < history.count; i++) {

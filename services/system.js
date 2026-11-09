@@ -2,7 +2,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {parseCpu, cpuPercent, memoryUsage, parseLoadAvg, countCores, networkBytes, defaultInterface, formatRate} from './proc.js';
 
-// Reads four tiny procfs files at a configurable cadence. Avoid heavier
+// Reads small procfs snapshots at a configurable cadence. Avoid heavier
 // operations in GNOME Shell.
 function read(path, cancellable) {
     return new Promise((resolve, reject) => {
@@ -27,11 +27,13 @@ export class SystemMonitor {
         this._iface = null;
         this._alive = false;
         this._busy = false;
+        this._generation = 0;
     }
 
     start() {
+        if (this._alive) return;
         this._alive = true;
-        this._cancellable = new Gio.Cancellable();
+        this._previousCpu = this._previousNetwork = null;
         this._tick();
         this._timer = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, this._interval, () => {
             this._tick();
@@ -42,21 +44,37 @@ export class SystemMonitor {
     async _tick() {
         if (!this._alive || this._busy) return;
         this._busy = true;
+        const generation = ++this._generation;
+        const cancel = new Gio.Cancellable();
+        let deadline = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1500, () => {
+            deadline = 0;
+            cancel.cancel();
+            return GLib.SOURCE_REMOVE;
+        });
+        this._cancelRead = () => {
+            if (deadline) GLib.Source.remove(deadline);
+            deadline = 0;
+            cancel.cancel();
+        };
         try {
-            const [stat, meminfo, route, network, loadavg] = await Promise.all(
-                ['/proc/stat', '/proc/meminfo', '/proc/net/route', '/proc/net/dev', '/proc/loadavg']
-                    .map(path => read(path, this._cancellable)));
-            if (!this._alive) return;
-            const cpu = parseCpu(stat);
-            const cpuValue = cpuPercent(this._previousCpu, cpu);
+            const results = await Promise.allSettled(
+                ['/proc/stat', '/proc/meminfo', '/proc/net/route', '/proc/net/dev', '/proc/loadavg', '/proc/net/ipv6_route']
+                    .map(path => read(path, cancel)));
+            if (!this._alive || generation !== this._generation) return;
+            // A missing route table must not discard healthy CPU/RAM samples.
+            const [stat, meminfo, route, network, loadavg, route6] = results.map(result =>
+                result.status === 'fulfilled' ? result.value : '');
+            let cpu = null;
+            try { cpu = parseCpu(stat); } catch { /* Only this sample is missing. */ }
+            const cpuValue = cpu ? cpuPercent(this._previousCpu, cpu) : null;
             this._previousCpu = cpu;
-            this._cores = this._cores || countCores(stat) || 1;
+            this._cores = this._cores || countCores(stat);
             // Load as a share of logical cores keeps the 0–100 chart scale honest.
             const loadAvg = parseLoadAvg(loadavg);
             const loadPercent = loadAvg == null
-                ? null : Math.max(0, Math.min(100, 100 * loadAvg / this._cores));
+                ? null : Math.max(0, Math.min(100, 100 * loadAvg / Math.max(1, this._cores)));
             const usage = memoryUsage(meminfo);
-            const iface = defaultInterface(route);
+            const iface = defaultInterface(route, route6);
             if (iface !== this._iface) this._previousNetwork = null; // counters are per interface
             this._iface = iface;
             const now = GLib.get_monotonic_time() / 1e6;
@@ -82,18 +100,25 @@ export class SystemMonitor {
                 rx, tx, rxBytes, txBytes,
             });
         } catch (e) {
-            if (!this._alive) return;
+            if (!this._alive || generation !== this._generation) return;
             console.warn(`[Ubuntu Island] Metrics: ${e.message}`);
             this._onChange({cpu: null, memory: null, memoryUsed: null, loadAvg: null, loadPercent: null,
                 iface: 'Unavailable', rx: '—', tx: '—'});
         } finally {
-            this._busy = false;
+            if (deadline) GLib.Source.remove(deadline);
+            if (generation === this._generation) {
+                this._busy = false;
+                this._cancelRead = null;
+            }
         }
     }
 
     stop() {
         this._alive = false;
-        this._cancellable?.cancel();
+        this._generation++;
+        this._busy = false;
+        this._cancelRead?.();
+        this._cancelRead = null;
         if (this._timer) GLib.Source.remove(this._timer);
         this._timer = 0;
     }

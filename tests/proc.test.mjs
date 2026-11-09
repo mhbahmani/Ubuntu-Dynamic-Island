@@ -8,6 +8,18 @@ test('CPU counter delta, not cumulative percentage', () => {
     assert.equal(Math.round(cpuPercent(first, last)), 40);
     assert.equal(cpuPercent(null, first), null);
 });
+test('guest CPU time is already counted and invalid samples are rejected', () => {
+    assert.deepEqual(parseCpu('cpu 100 20 30 400 50 6 7 8 80 10'), {idle: 450, total: 621});
+    assert.throws(() => parseCpu('cpu 1 2 broken 4'));
+});
+test('IPv6 defaults work without an IPv4 route and reject defaults are ignored', () => {
+    const zeros = '0'.repeat(32);
+    const route = (iface, metric, flags = '00000003') => `${zeros} 00 ${zeros} 00 ${zeros} ${metric} 0 0 ${flags} ${iface}`;
+    const routes = [route('lo', '00000000', '00200200'), route('wlan0', '00000400'),
+        route('eth0', '00000100'), route('down', '00000000', '00000002')].join('\n');
+    assert.equal(defaultInterface('', routes), 'eth0');
+    assert.equal(defaultInterface('', route('lo', '00000000', '00200200')), null);
+});
 test('MemAvailable is used rather than MemFree', () => {
     assert.equal(memoryPercent('MemTotal: 1000 kB\nMemAvailable: 375 kB\n'), 62.5);
 });

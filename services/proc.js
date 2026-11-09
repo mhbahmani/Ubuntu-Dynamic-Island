@@ -3,7 +3,10 @@
 export function parseCpu(text) {
     const row = text.split('\n').find(line => /^cpu\s/.test(line));
     if (!row) throw new Error('Missing aggregate CPU row');
-    const numbers = row.trim().split(/\s+/).slice(1).map(Number);
+    // guest/guest_nice are already included in user/nice; do not count twice.
+    const numbers = row.trim().split(/\s+/).slice(1, 9).map(Number);
+    if (numbers.length < 4 || numbers.some(value => !Number.isFinite(value) || value < 0))
+        throw new Error('Invalid aggregate CPU counters');
     const idle = (numbers[3] ?? 0) + (numbers[4] ?? 0);
     const total = numbers.reduce((sum, item) => sum + item, 0);
     return {idle, total};
@@ -68,7 +71,7 @@ export function networkBytes(text, iface) {
 // Picks the default-route interface with the lowest routing metric, so VPN
 // tunnels (tun0/wg0 usually at 0) win over the physical link. Rows missing a
 // metric column rank last, keeping the classic "first default route" behavior.
-export function defaultInterface(text) {
+export function defaultInterface(text, ipv6 = '') {
     let best = null;
     for (const row of text.split('\n').slice(1)) {
         const fields = row.trim().split(/\s+/);
@@ -77,6 +80,16 @@ export function defaultInterface(text) {
         if (!Number.isFinite(flags) || !(flags & 1)) continue; // interface must be up
         const metric = fields.length > 6 ? Number(fields[6]) : Number.POSITIVE_INFINITY;
         if (!best || metric < best.metric) best = {iface: fields[0], metric};
+    }
+    // IPv6-only connections have no IPv4 default. Ignore the kernel's reject
+    // defaults (including lo) and choose the lowest-metric usable IPv6 route.
+    if (!best) for (const row of ipv6.trim().split('\n')) {
+        const fields = row.trim().split(/\s+/);
+        if (fields.length !== 10 || !/^0{32}$/.test(fields[0]) || fields[1] !== '00' ||
+            !/^0{32}$/.test(fields[2]) || fields[3] !== '00' || fields[9] === 'lo') continue;
+        const flags = parseInt(fields[8], 16), metric = parseInt(fields[5], 16);
+        if (!(flags & 1) || (flags & 0x200) || !Number.isFinite(metric)) continue;
+        if (!best || metric < best.metric) best = {iface: fields[9], metric};
     }
     return best ? best.iface : null;
 }

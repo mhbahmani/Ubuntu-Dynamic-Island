@@ -54,6 +54,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   Lyrics and Up next open inside the card, with navigation fixed below them.
 - **System**: CPU and RAM percentages plus RX/TX rate for the lowest-metric
   default-route interface (VPN tunnels win), read asynchronously from procfs.
+  IPv6 defaults are used when no IPv4 default exists; failed reads leave gaps
+  only in the affected metrics and have a bounded timeout.
   CPU and memory have fixed 0–100% history charts. Download and upload share
   a mirrored chart (download above, upload below), with an automatic shared scale.
 - **Audio**: GNOME's shared Gvc mixer, volume slider, mute, and **output
