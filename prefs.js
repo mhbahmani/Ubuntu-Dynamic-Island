@@ -75,7 +75,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         notch.add(toggle(settings, 'pill-show-weather', 'Show weather icon',
             'Refreshes weather while the collapsed notch is visible'));
         notch.add(toggle(settings, 'pill-show-commute', 'Show Commute ETA',
-            'Selected route · Refreshes while visible · ~ means no live traffic; ! means stale'));
+            'Selected route · Refreshes while visible · ! means stale'));
         notch.add(toggle(settings, 'pill-show-network', 'Show upload/download rates',
             'Uses existing System metrics samples'));
         const offline = new Adw.ComboRow({title: 'When offline',

@@ -749,7 +749,7 @@ export default class Smoke extends UbuntuIsland {
         const requestsBeforeNotch = routeCalls;
         this._settings.set_boolean('pill-show-commute', true);
         await delay(120);
-        assert(this._pill._commute.visible && this._pill._commuteValue.text === '~32m', 'Commute notch did not show selected estimate');
+        assert(this._pill._commute.visible && this._pill._commuteValue.text === '32m', 'Commute notch did not show selected estimate');
         assert(this._commute.controller.active && this._commute.controller.timer, 'Commute notch did not resume refresh');
         assert(routeCalls === requestsBeforeNotch, 'Fresh Commute cache fetched again for notch');
         assert(this._pill.actor.accessible_name.includes('traffic freshness unverified'), 'Commute notch omitted traffic limitation');

@@ -84,7 +84,7 @@ test('Commute notch distinguishes baseline, traffic, stale and missing estimates
     const {commuteIndicator} = await import('../services/notch-model.js');
     const route = {name: 'Home'}, data = {seconds: 1080, traffic: false};
     assert.equal(commuteIndicator({}).visible, false);
-    assert.equal(commuteIndicator({route, data}).text, '~18m');
+    assert.equal(commuteIndicator({route, data}).text, '18m');
     assert.equal(commuteIndicator({route, data: {...data, traffic: true}}).text, '18m');
     assert.equal(commuteIndicator({route, data, status: 'error'}).text, '!18m');
     assert.equal(commuteIndicator({route, status: 'loading'}).text, '…');

@@ -4,9 +4,10 @@ Commute estimates driving time, distance, and arrival time for saved routes. Ena
 it in **Preferences → Commute**, then disable/re-enable the extension once. Add up
 to 12 routes with optional names. Use Select beside a saved route in preferences, or swap
 endpoints for a fixed route. **Settings → Notch → Show Commute ETA** adds the selected route to the
-collapsed notch and its draggable order preview. `~18m` means a baseline estimate
-without confirmed live traffic, `18m` is traffic-aware, `!18m` marks a stale estimate,
+collapsed notch and its draggable order preview. `18m` shows the estimate,
+and `!18m` marks a stale estimate;
 `…` means loading, and `—` means unavailable. It hides when no route is configured.
+Traffic status is shown in the Commute tab and the notch's accessible description.
 The notch option is off by default. This first version does not predict the best departure time.
 
 ## Choose endpoints
@@ -93,8 +94,8 @@ environment; URL construction and live setting changes are covered by tests.
 
 Balad uses the keyless endpoint verified by the standalone probe and is labeled
 experimental. The ETA includes its routing profile's duration, but live-traffic
-freshness has not been established, so the UI says **Traffic freshness unverified**
-and keeps the notch's `~` prefix. Availability, terms and response format may
+freshness has not been established, so the Commute tab says **Traffic freshness unverified**.
+Availability, terms and response format may
 change. It uses the existing bounded HTTP client and visibility lifecycle.
 
 Backup sources can be disabled. The two public OSRM hosts share FOSSGIS
