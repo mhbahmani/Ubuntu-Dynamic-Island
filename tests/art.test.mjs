@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {roundedCover} from '../services/artwork-model.js';
 
 // Evaluate the real service classes with GI boundaries replaced by fakes.
 // No Shell session, D-Bus changes, or developer-machine hardware is required.
@@ -54,4 +55,33 @@ test('cancelled artwork cannot update the current cover', () => {
     result = 'unchanged';
     pending[0]();
     assert.equal(result, 'unchanged');
+});
+
+test('weather atlases retain their rectangular pixels while media covers stay square', () => {
+    const width = 16, height = 12, stride = width * 4;
+    const pixels = new Uint8Array(stride * height).fill(255);
+    const pixbuf = {
+        get_width: () => width, get_height: () => height,
+        get_pixels: () => pixels, get_rowstride: () => stride,
+        get_n_channels: () => 4, get_has_alpha: () => true,
+    };
+    const Request = service('art', 'ArtworkRequest', {
+        roundedCover, Cogl: {PixelFormat: {RGBA_8888: 'rgba'}},
+        St: {ImageContent: {new_with_preferred_size: (w, h) => ({
+            width: w, height: h,
+            set_data(data, format, width, height, rowstride) {
+                Object.assign(this, {data, format, width, height, rowstride});
+            },
+        })}},
+    });
+    const atlas = new Request(false)._toContent(pixbuf);
+    assert.equal(atlas.width, width);
+    assert.equal(atlas.height, height);
+    assert.equal(atlas.rowstride, stride);
+    assert.equal(atlas.data, pixels, 'No crop, corner masking or pixel copy for atlases');
+    const cover = new Request()._toContent(pixbuf);
+    assert.equal(cover.width, height);
+    assert.equal(cover.height, height);
+    assert.ok(cover.data[3] < 255, 'Album covers retain rounded corners');
+    assert.notEqual(cover.data, pixels);
 });

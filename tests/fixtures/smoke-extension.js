@@ -359,6 +359,9 @@ export default class Smoke extends UbuntuIsland {
         this._settings.set_string('weather-motion', 'live');
         await delay(200);
         assert(scene.ready && scene.sprite.width > 0 && scene.image.get_content(), 'Weather atlas failed to load or allocate');
+        const [hasSize, atlasWidth, atlasHeight] = scene.image.get_content().get_preferred_size();
+        assert(hasSize && atlasWidth === 1536 && atlasHeight === 1152,
+            `Weather atlas was cropped: ${atlasWidth} × ${atlasHeight}`);
         assert(scene.timer !== 0, `Visible live weather has no animation timer: active=${scene.active} mapped=${scene.actor.mapped} viewport=${scene.inViewport()} animations=${scene.stSettings.enable_animations} locked=${Main.sessionMode.isLocked} power=${scene.power?.get_cached_property('ActiveProfile')?.deep_unpack()}`);
         scene.isPowerSaving = () => true;
         scene.sync();

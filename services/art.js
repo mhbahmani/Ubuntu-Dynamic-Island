@@ -17,9 +17,9 @@ const CACHE_LIMIT = 24;
 // disk-cached Soup request. Nothing here blocks the Shell main loop, requests
 // are cancelled on track change, and SVG is never accepted (active content).
 export class ArtLoader {
-    load(uri, sizePx, onContent) {
+    load(uri, sizePx, onContent, {cover = true} = {}) {
         this.cancel();
-        const request = new ArtworkRequest();
+        const request = new ArtworkRequest(cover);
         this._request = request;
         request.load(uri, sizePx, content => {
             if (this._request === request) onContent(content);
@@ -37,7 +37,8 @@ export class ArtLoader {
 // Each request owns its cancellable. A callback from an old track can never
 // start work with the new track's cancellable or replace its cover.
 class ArtworkRequest {
-    constructor() {
+    constructor(cover = true) {
+        this._cover = cover;
         this._session = null;
         this._cancellable = null;
         this._trustedHosts = new Set(); // hostnames whose DNS answers proved safe
@@ -220,6 +221,15 @@ class ArtworkRequest {
         const width = pixbuf.get_width();
         const height = pixbuf.get_height();
         if (width <= 0 || height <= 0) return null;
+        // Sprite atlases must retain every pixel and their rectangular geometry.
+        // Album-cover cropping shifts tile boundaries and exposes adjacent frames.
+        if (!this._cover) {
+            const content = St.ImageContent.new_with_preferred_size(width, height);
+            content.set_data(pixbuf.get_pixels(), pixbuf.get_has_alpha()
+                ? Cogl.PixelFormat.RGBA_8888 : Cogl.PixelFormat.RGB_888,
+            width, height, pixbuf.get_rowstride());
+            return content;
+        }
         const rounded = roundedCover(pixbuf.get_pixels(), width, height, pixbuf.get_rowstride(), pixbuf.get_n_channels());
         const content = St.ImageContent.new_with_preferred_size(rounded.side, rounded.side);
         try {

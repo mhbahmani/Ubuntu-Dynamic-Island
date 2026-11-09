@@ -89,7 +89,7 @@ export class WeatherScene {
                 this.image.set_content(content);
                 this.paint();
                 this.sync();
-            });
+            }, {cover: false});
             this.sync();
         }
     }
