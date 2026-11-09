@@ -53,7 +53,7 @@ export default class Smoke extends UbuntuIsland {
             'Preferences icon is not aligned with the navigation caption');
     }
 
-    async _checkMediaFeatures(original) {
+    async _checkMediaFeatures(original, cover) {
         const card = this._card, actions = card._actions, tools = card._mediaTools;
         const saved = {...actions}, lyrics = this._lyrics;
         const textSettings = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
@@ -61,7 +61,10 @@ export default class Smoke extends UbuntuIsland {
         const seeks = [], commands = [];
         let state = {...original, playerId: 'one', trackId: '/one', shuffle: false, loopStatus: 'None', canRaise: true,
             players: [{id: 'one', name: 'Music player', status: 'Playing'}, {id: 'two', name: 'Podcast player', status: 'Paused'}]};
-        const render = () => this._renderMedia(state);
+        const render = () => {
+            this._renderMedia(state);
+            card.renderArt(cover);
+        };
         actions.seek = seconds => { seeks.push(seconds); };
         actions.selectPlayer = id => { state = {...state, pinned: id}; render(); };
         actions.mediaProperty = (key, value) => { state = {...state, [key === 'Shuffle' ? 'shuffle' : 'loopStatus']: value}; render(); };
@@ -147,6 +150,14 @@ export default class Smoke extends UbuntuIsland {
             for (const actor of [card._next, card._repeat, card._total, card._openPlayer])
                 assert(actor.get_transformed_position()[0] + actor.width <= right, 'Media control overflows at 380px');
             await this._capture('media-modern-narrow');
+            textSettings.set_double('text-scaling-factor', 1.25);
+            for (const width of [440, 380]) {
+                this._settings.set_int('expanded-width', width);
+                await delay(100);
+                assert(adjustment.upper <= adjustment.page_size + 1,
+                    `Media scrolls at ${width}px with 125% text`);
+            }
+            await this._capture('media-modern-medium-text');
             textSettings.set_double('text-scaling-factor', 1.5);
             state = {...state, title: 'A much longer title that must fit with enlarged text', artist: 'A long artist name'}; render();
             await delay(100);
@@ -297,7 +308,7 @@ export default class Smoke extends UbuntuIsland {
         assert(decoded !== null, 'Local artwork failed to decode');
         this._card.renderArt(cover);
         assert(this._card._page === 'media', 'Media did not select its compact face');
-        await this._checkMediaFeatures(media);
+        await this._checkMediaFeatures(media, cover);
         this._settings.set_string('expand-tab', 'system');
         assert(this._card._page === 'media', 'Opening preference changed the already-open tab');
         this._island.collapse(); this._island.expand();
