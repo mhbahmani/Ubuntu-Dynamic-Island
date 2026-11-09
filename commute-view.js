@@ -126,10 +126,6 @@ export class CommuteView {
         this.credit.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
         source.add_child(this.credit);
         this.controls.add_child(source);
-        this.fix = button('dialog-question-symbolic', 'Report a map issue', () =>
-            Gio.AppInfo.launch_default_for_uri('https://www.openstreetmap.org/fixthemap', null),
-        13, 'ubuntu-island-commute-icon-button');
-        this.controls.add_child(this.fix);
         this.open = textButton('Open route', () => this._openRoute(), true);
         const openFace = row('ubuntu-island-commute-open-face');
         openFace.add_child(label('Open route', 'ubuntu-island-commute-open-label'));
@@ -251,7 +247,6 @@ export class CommuteView {
         this.controls.vertical = locationFailure;
         this.open.visible = Boolean(route) && !locationFailure;
         this.configure.visible = !route;
-        this.fix.visible = Boolean(route) && !locationFailure;
         this.refresh.visible = Boolean(route);
         const preferred = state.preferred ?? 'auto';
         const providerName = id => id === 'auto' ? 'Automatic' : PROVIDER_NAMES[id] ?? id;

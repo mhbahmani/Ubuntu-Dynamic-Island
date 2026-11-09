@@ -3,6 +3,9 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Commute's “Report a map issue” button was removed as requested. Provider credits,
+provider selection and Open route remain, with native Commute smoke coverage.
+
 Music state follow-up (2026-11-09): selecting a player, changing tracks and
 pausing/resuming now read Position asynchronously with a 2.5-second timeout.
 The MPRIS Position cache can remain at discovery time because it does not emit
