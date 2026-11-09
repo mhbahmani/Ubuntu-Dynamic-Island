@@ -10,7 +10,12 @@ import {estimatePositionSec, formatTime, clampFraction} from '../services/format
 function service(file, name, dependencies) {
     const source = readFileSync(new URL(`../services/${file}.js`, import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
-    return vm.runInNewContext(`${source}\n${name}`, {...dependencies, console});
+    return vm.runInNewContext(`${source}\n${name}`, {...dependencies, console,
+        Gio: {DBusCallFlags: {NONE: 0}, Cancellable: class {
+            cancel() { this.cancelled = true; }
+        }, ...dependencies.Gio},
+        GLib: {Variant: class { constructor(type, value) { this.value = value; } }, ...dependencies.GLib},
+    });
 }
 
 test('media position freezes on pause, resumes without jumping, and ignores idle registrations', () => {
@@ -24,7 +29,7 @@ test('media position freezes on pause, resumes without jumping, and ignores idle
         Metadata: {'xesam:title': 'Song', 'xesam:artist': 'Artist', 'mpris:trackid': '/track/1', 'mpris:length': 100e6},
         CanControl: true, CanSeek: true};
     media._alive = true;
-    media._proxies.set('music', {get_cached_property: name => props[name]});
+    media._proxies.set('music', {get_cached_property: name => props[name], call() {}});
     media._sync();
     assert.equal(state.artist, 'Artist');
     now = 15;
@@ -70,7 +75,9 @@ test('media updates render seek, pause, resume and new tracks without a zero fra
         Metadata: {'xesam:title': 'Song', 'mpris:trackid': '/track/1', 'mpris:length': 100e6},
         CanControl: true, CanSeek: true};
     const proxy = {get_cached_property: name => props[name],
-        call: (method, params) => calls.push([method, Array.from(params.value)])};
+        call: (method, params) => {
+            if (method === 'SetPosition') calls.push([method, Array.from(params.value)]);
+        }};
     media._alive = true;
     media._proxies.set('music', proxy);
     media._sync();
@@ -114,7 +121,7 @@ test('manual player selection can pin a paused app and falls back when it disapp
     const media = new Media(value => { state = value; });
     const proxy = (title, status) => ({get_cached_property: name => ({
         Metadata: {'xesam:title': title}, PlaybackStatus: status, CanControl: true,
-    })[name]});
+    })[name], call() {}});
     media._alive = true;
     media._proxies.set('playing', proxy('Song', 'Playing'));
     media._proxies.set('paused', proxy('Podcast', 'Paused'));
@@ -143,7 +150,10 @@ test('failed property changes clear pending state, and unsupported controls neve
     const media = new Media(value => { state = value; });
     const props = {Metadata: {'xesam:title': 'Song'}, PlaybackStatus: 'Paused', CanControl: true};
     const proxy = {get_cached_property: name => props[name],
-        call(method, parameters, flags, timeout, cancel, callback) { calls.push(method); complete = () => callback(proxy, {}); },
+        call(method, parameters, flags, timeout, cancel, callback) {
+            if (method === 'org.freedesktop.DBus.Properties.Get') return;
+            calls.push(method); complete = () => callback(proxy, {});
+        },
         call_finish() { throw new Error('Unsupported'); }};
     media._alive = true;
     media._proxies.set('music', proxy);
@@ -162,4 +172,116 @@ test('failed property changes clear pending state, and unsupported controls neve
     props.CanControl = false;
     media.setProperty('Shuffle', true);
     assert.equal(calls.length, 1);
+});
+
+function positionFixture() {
+    let now = 10, state;
+    const reads = [];
+    const Media = service('media', 'MediaService', {
+        selectPlayer, mediaTitle, estimatePositionSec,
+        GLib: {get_monotonic_time: () => now * 1e6},
+    });
+    const media = new Media(value => { state = value; });
+    media._alive = true;
+    const add = (name, status, position) => {
+        const props = {PlaybackStatus: status, Position: position * 1e6,
+            Metadata: {'xesam:title': name, 'mpris:trackid': '/track/1', 'mpris:length': 300e6},
+            CanControl: true, CanSeek: true};
+        const proxy = {
+            _islandSignals: [],
+            get_cached_property: key => props[key],
+            call(method, parameters, flags, timeout, cancel, callback) {
+                if (method !== 'org.freedesktop.DBus.Properties.Get') return;
+                assert.deepEqual(Array.from(parameters.value), ['org.mpris.MediaPlayer2.Player', 'Position']);
+                assert.equal(timeout, 2500);
+                reads.push({name, cancel, reply(seconds) {
+                    callback(proxy, seconds instanceof Error ? seconds : seconds * 1e6);
+                }});
+            },
+            call_finish(result) {
+                if (result instanceof Error) throw result;
+                return {deep_unpack: () => [{deep_unpack: () => result}]};
+            },
+        };
+        media._proxies.set(name, proxy);
+        return {props, proxy};
+    };
+    const browser = add('browser', 'Playing', 30);
+    const telegram = add('telegram', 'Paused', 0);
+    return {media, browser, telegram, reads, get state() { return state; }, advance(seconds) { now += seconds; }};
+}
+
+test('switching to a paused player and resuming reads its live position instead of cached zero', () => {
+    const f = positionFixture();
+    f.media._sync();
+    f.reads.at(-1).reply(45);
+    f.media.select('telegram');
+    assert.equal(f.reads.at(-1).name, 'telegram');
+    f.reads.at(-1).reply(82);
+    assert.equal(f.state.positionSec, 82);
+    f.advance(5);
+    assert.equal(f.media.positionSec(), 82);
+    f.telegram.props.PlaybackStatus = 'Playing';
+    f.media._sync();
+    assert.equal(f.state.positionSec, 82, 'Resume must retain progress while fetching');
+    f.reads.at(-1).reply(96);
+    f.advance(3);
+    assert.equal(f.media.positionSec(), 99);
+    assert.equal(f.telegram.props.Position, 0, 'Fixture must keep the D-Bus cache stale');
+    const count = f.reads.length;
+    f.media._sync();
+    f.media.positionSec();
+    assert.equal(f.reads.length, count, 'Progress ticks and unrelated updates must not poll D-Bus');
+    f.media.select('browser');
+    f.reads.at(-1).reply(140);
+    assert.equal(f.state.positionSec, 140);
+});
+
+test('late position replies cannot overwrite a newer selection, track, or seek', () => {
+    const f = positionFixture();
+    f.media._sync();
+    const first = f.reads.at(-1);
+    f.media.select('telegram');
+    const second = f.reads.at(-1);
+    f.media.select('browser');
+    f.reads.at(-1).reply(50);
+    first.reply(1); second.reply(2);
+    assert.equal(f.state.positionSec, 50, 'Switching away and back must invalidate the first request');
+    assert.ok(first.cancel.cancelled && second.cancel.cancelled);
+
+    f.browser.props.PlaybackStatus = 'Paused';
+    f.media._sync();
+    const beforeTrack = f.reads.at(-1);
+    f.browser.props.Metadata['mpris:trackid'] = '/track/2';
+    f.media._sync();
+    const beforeSeek = f.reads.at(-1);
+    f.media.seek(120);
+    beforeTrack.reply(3); beforeSeek.reply(4);
+    assert.equal(f.state.positionSec, 120, 'Old reads must not undo a seek');
+    assert.ok(beforeTrack.cancel.cancelled && beforeSeek.cancel.cancelled);
+
+    f.browser.props.PlaybackStatus = 'Playing';
+    f.media._sync();
+    const beforeSignal = f.reads.at(-1);
+    f.media._rebasePosition(f.browser.proxy, 150e6); // Seeked
+    f.media._sync();
+    beforeSignal.reply(5);
+    assert.equal(f.state.positionSec, 150, 'Seeked must win over an outstanding read');
+});
+
+test('failed position reads preserve the estimate and stop cancels outstanding reads', () => {
+    const f = positionFixture();
+    f.media._sync();
+    f.reads.at(-1).reply(new Error('Position unavailable'));
+    f.advance(2);
+    assert.equal(f.media.positionSec(), 32);
+    f.media.select('telegram');
+    f.reads.at(-1).reply(-1);
+    assert.equal(f.media.positionSec(), 0, 'Invalid position must not enter the clock');
+    f.media.select('browser');
+    const pending = f.reads.at(-1), state = f.state;
+    f.media.stop();
+    pending.reply(200);
+    assert.ok(pending.cancel.cancelled);
+    assert.equal(f.state, state, 'Stopped service must not publish late replies');
 });

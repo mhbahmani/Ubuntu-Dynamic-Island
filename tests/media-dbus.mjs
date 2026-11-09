@@ -14,9 +14,9 @@ const path = '/org/mpris/MediaPlayer2';
 const name = 'org.mpris.MediaPlayer2.IslandTest';
 const iface = 'org.mpris.MediaPlayer2';
 const prop = (name, type, access = 'read') => `<property name="${name}" type="${type}" access="${access}"/>`;
-const wrap = (name, members, object) => {
+const wrap = (name, members, object, connection = Gio.DBus.session) => {
     const exported = Gio.DBusExportedObject.wrapJSObject(`<node><interface name="${name}">${members}</interface></node>`, object);
-    exported.export(Gio.DBus.session, path);
+    exported.export(connection, path);
     return exported;
 };
 const metadata = id => ({'mpris:trackid': new GLib.Variant('o', id), 'mpris:length': new GLib.Variant('x', 240e6),
@@ -46,6 +46,27 @@ const list = wrap(`${iface}.TrackList`, prop('Tracks', 'ao') +
         GoTo(id) { goto = id; },
     });
 const owner = Gio.bus_own_name_on_connection(Gio.DBus.session, name, Gio.BusNameOwnerFlags.NONE, null, null);
+// A separate connection gives the second player its own object at the MPRIS path.
+const secondConnection = Gio.DBusConnection.new_for_address_sync(GLib.getenv('DBUS_SESSION_BUS_ADDRESS'),
+    Gio.DBusConnectionFlags.AUTHENTICATION_CLIENT | Gio.DBusConnectionFlags.MESSAGE_BUS_CONNECTION, null, null);
+const secondName = 'org.mpris.MediaPlayer2.IslandSecond';
+let secondPosition = 0, secondStatus = 'Paused', positionReads = 0;
+const secondRoot = wrap(iface, prop('Identity', 's') + prop('CanRaise', 'b') + prop('HasTrackList', 'b'),
+    {Identity: 'Second test player', CanRaise: false, HasTrackList: false}, secondConnection);
+const secondPlayer = wrap(`${iface}.Player`,
+    ['PlaybackStatus:s', 'Metadata:a{sv}', 'Position:x', 'CanControl:b', 'CanSeek:b', 'CanPlay:b', 'CanPause:b']
+        .map(p => prop(...p.split(':'))).join('') + '<method name="PlayPause"/>', {
+        get PlaybackStatus() { return secondStatus; },
+        get Metadata() { return metadata('/track/1'); },
+        get Position() { positionReads++; return secondPosition; },
+        CanControl: true, CanSeek: true, CanPlay: true, CanPause: true,
+        PlayPause() {
+            secondPosition = 96e6;
+            secondStatus = 'Playing';
+            secondPlayer.emit_property_changed('PlaybackStatus', new GLib.Variant('s', secondStatus));
+        },
+    }, secondConnection);
+const secondOwner = Gio.bus_own_name_on_connection(secondConnection, secondName, Gio.BusNameOwnerFlags.NONE, null, null);
 let state, queue;
 const service = new MediaService(value => { state = value; }, value => { queue = value; });
 const mainLoop = new GLib.MainLoop(null, false);
@@ -53,6 +74,8 @@ let exitCode = 0;
 (async () => {
     try {
         service.start();
+        await until(() => state?.players?.length === 2, 'Both players did not load');
+        service.select(name);
         await until(() => state?.canRaise, 'Root interface did not load');
         assert(state.playerName === 'Island test player', 'Identity not used');
         assert(state.shuffle === false && state.loopStatus === 'None', 'Optional playback properties missing');
@@ -77,11 +100,26 @@ let exitCode = 0;
         list.emit_signal('TrackListReplaced', new GLib.Variant('(aoo)', [tracks, current]));
         await delay(80);
         assert(queueReads === reads, 'Hidden queue kept requesting');
-        print('PASS: native MPRIS discovery, properties, Raise, seek, track list, GoTo and hidden cleanup');
+        // Position deliberately changes without PropertiesChanged or Seeked.
+        secondPosition = 82e6;
+        assert(service._prop(service._proxies.get(secondName), 'Position') === 0, 'Second fixture cache is not stale');
+        service.select(secondName);
+        await until(() => state.playerId === secondName && state.positionSec === 82, 'Selected player retained cached zero');
+        service.command('PlayPause');
+        await until(() => state.status === 'Playing' && Math.abs(state.positionSec - 96) < 1,
+            'Resume did not read the real playback position');
+        const readCount = positionReads;
+        for (let i = 0; i < 5; i++) { service.positionSec(); await delay(25); }
+        assert(positionReads === readCount, 'Progress clock added D-Bus polling');
+        service.select(name);
+        await until(() => state.playerId === name && state.positionSec === 90, 'Switching back used the discovery position');
+        print('PASS: native MPRIS discovery, player switching/resume positions, properties, Raise, seek, track list, GoTo and hidden cleanup');
     } catch (error) { printerr(error.stack); exitCode = 1; }
     finally {
         service.stop();
         root.unexport(); player.unexport(); list.unexport(); Gio.bus_unown_name(owner);
+        secondRoot.unexport(); secondPlayer.unexport(); Gio.bus_unown_name(secondOwner);
+        secondConnection.close_sync(null);
         mainLoop.quit();
     }
 })();

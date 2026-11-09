@@ -20,6 +20,9 @@ export class MediaService {
         this._preferred = null;
         this._queueGeneration = 0;
         this._seekGeneration = 0;
+        this._positionGeneration = 0;
+        this._positionCancel = null;
+        this._positionProxy = null;
         this._pending = new Set();
         this._error = '';
         this._proxies = new Map();
@@ -125,9 +128,37 @@ export class MediaService {
     }
 
     _rebasePosition(proxy, us = null) {
+        this._cancelPositionRead();
         const value = us ?? this._prop(proxy, 'Position');
         this._positionUs = Number.isFinite(value) ? value : 0;
         this._positionAt = monotonicSec();
+    }
+
+    _cancelPositionRead() {
+        this._positionGeneration++;
+        this._positionCancel?.cancel();
+        this._positionCancel = null;
+    }
+
+    _refreshPosition(proxy) {
+        // MPRIS Position does not emit PropertiesChanged. A proxy's cached
+        // value may still be the sample taken when the player was discovered.
+        this._cancelPositionRead();
+        const generation = this._positionGeneration, trackId = this._trackId;
+        this._positionCancel = new Gio.Cancellable();
+        proxy.call('org.freedesktop.DBus.Properties.Get',
+            new GLib.Variant('(ss)', [PLAYER, 'Position']), Gio.DBusCallFlags.NONE,
+            2500, this._positionCancel, (p, result) => {
+                let value;
+                try { value = unpack(p.call_finish(result).deep_unpack()[0]); }
+                catch { /* Keep the last estimate if this player cannot answer. */ }
+                if (!this._alive || generation !== this._positionGeneration ||
+                    this._proxies.get(this._selected) !== p || trackId !== this._trackId) return;
+                this._positionCancel = null;
+                if (!Number.isFinite(value) || value < 0) return;
+                this._rebasePosition(p, value);
+                this._sync();
+            });
     }
 
     _sync() {
@@ -147,6 +178,8 @@ export class MediaService {
         if (!eligible.some(p => p.name === this._preferred)) this._preferred = null;
         const selected = eligible.find(p => p.name === this._preferred) ?? selectPlayer(players, this._selected);
         if (!selected) {
+            this._cancelPositionRead();
+            this._positionProxy = null;
             this._selected = null;
             this._playing = false;
             this._positionUs = 0;
@@ -160,25 +193,29 @@ export class MediaService {
         const {name, proxy} = selected;
         const meta = this._prop(proxy, 'Metadata') ?? {};
         const trackId = unpack(meta['mpris:trackid']) ?? null;
-        if (name !== this._selected || trackId !== this._trackId) {
+        const changed = name !== this._selected || proxy !== this._positionProxy || trackId !== this._trackId;
+        const status = this._prop(proxy, 'PlaybackStatus') || 'Stopped';
+        const playbackChanged = this._playing !== (status === 'Playing');
+        if (changed) {
             // New player or new track: restart the progress model.
             this._error = '';
             this._pending.clear();
             this._selected = name;
+            this._positionProxy = proxy;
             this._trackId = trackId;
             this._lengthUs = Number(unpack(meta['mpris:length']) ?? 0);
             this._rebasePosition(proxy);
         } else {
             this._lengthUs = Number(unpack(meta['mpris:length']) ?? this._lengthUs);
         }
-        const status = this._prop(proxy, 'PlaybackStatus') || 'Stopped';
         // Freeze the estimated position at pause and restart its clock at play.
         // A cached Position is often stale when only PlaybackStatus changes.
-        if (this._playing !== (status === 'Playing')) {
+        if (!changed && playbackChanged) {
             this._positionUs = this.positionSec() * 1e6;
             this._positionAt = monotonicSec();
         }
         this._playing = status === 'Playing';
+        if (changed || playbackChanged) this._refreshPosition(proxy);
         const canControl = Boolean(this._prop(proxy, 'CanControl'));
         const artists = unpack(meta['xesam:artist']);
         this._canSeek = canControl && Boolean(this._prop(proxy, 'CanSeek'));
@@ -229,6 +266,7 @@ export class MediaService {
         if (this._lengthUs > 0) us = Math.max(0, Math.min(this._lengthUs - 1, us));
         const generation = ++this._seekGeneration, trackId = this._trackId;
         const previous = [this._positionUs, this._positionAt];
+        this._cancelPositionRead();
         proxy.call('SetPosition', new GLib.Variant('(ox)', [this._trackId, us]),
             Gio.DBusCallFlags.NONE, 2500, this._cancellable, (p, result) => {
                 if (!this._alive) return;
@@ -411,6 +449,8 @@ export class MediaService {
 
     stop() {
         this._alive = false;
+        this._cancelPositionRead();
+        this._positionProxy = null;
         this._dropQueue();
         for (const name of this._roots.keys()) this._forgetRoot(name);
         this._pending.clear();
