@@ -52,7 +52,7 @@ export class Card {
             this._weatherView = new WeatherView(this._section('WEATHER'), settings, actions);
         this._weatherView?.setViewport(this._scroll);
         if (settings.get_boolean('enable-commute'))
-            this._commuteView = new CommuteView(this._section('COMMUTE'), actions);
+            this._commuteView = new CommuteView(this._section('COMMUTE'), actions, this._scroll);
         this.setPillTitleVisible(settings.get_boolean('pill-show-title'));
         this._empty = column('ubuntu-island-empty');
         this._empty.add_child(label(this._sectionCount ? 'Nothing playing' : 'Your island, your way', 'ubuntu-island-track'));

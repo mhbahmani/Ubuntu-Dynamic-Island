@@ -1,5 +1,16 @@
-export const PROVIDERS = ['neshan', 'mapbox', 'balad', 'ors', 'graphhopper', 'fossgis', 'osrm'];
+export const PROVIDERS = ['balad', 'mapbox', 'neshan', 'ors', 'graphhopper', 'fossgis', 'osrm'];
 export const PROVIDER_NAMES = {balad: 'Balad (experimental)', neshan: 'Neshan', mapbox: 'Mapbox', ors: 'openrouteservice', graphhopper: 'GraphHopper', fossgis: 'FOSSGIS / OSRM', osrm: 'OSRM demo'};
+export const ROUTE_APPS = {google: 'Google Maps', balad: 'Balad', neshan: 'Neshan'};
+
+// Public browser links, independent of the service used to calculate the ETA.
+export function routeLink(app, origin, destination) {
+    if (!point(origin) || !point(destination)) return null;
+    const latlon = p => `${p.latitude.toFixed(6)},${p.longitude.toFixed(6)}`;
+    const lonlat = p => `${p.longitude.toFixed(6)},${p.latitude.toFixed(6)}`;
+    if (app === 'balad') return `https://balad.ir/directions/driving?origin=${encodeURIComponent(lonlat(origin))}&destination=${encodeURIComponent(lonlat(destination))}`;
+    if (app === 'neshan') return `https://neshan.org/maps/routing/car/origin/${latlon(origin)}/destination/${latlon(destination)}`;
+    return `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(latlon(origin))}&destination=${encodeURIComponent(latlon(destination))}&travelmode=driving`;
+}
 export const intervalMs = minutes => Math.max(10, Math.min(120, Number(minutes) || 15)) * 60000;
 export function point(value) {
     if (!value || typeof value.latitude !== 'number' || typeof value.longitude !== 'number' ||
@@ -36,7 +47,12 @@ export function providerPriority(value = []) {
 }
 export function providerOrder(preferred, keys = {}, fallback = true, priority = PROVIDERS) {
     const order = providerPriority(priority);
-    const usable = id => KEYLESS_PROVIDERS.includes(id) || Boolean(keys[id]);
+    const usable = id => {
+        // With a Mapbox token configured, backups must not silently replace
+        // a failed traffic-capable source with a public OSRM baseline.
+        if (keys.mapbox && ['fossgis', 'osrm'].includes(id)) return false;
+        return KEYLESS_PROVIDERS.includes(id) || Boolean(keys[id]);
+    };
     const first = PROVIDERS.includes(preferred) ? preferred : order.find(usable);
     return [...new Set([first, ...(fallback ? order.filter(usable) : [])])].filter(Boolean);
 }
@@ -109,7 +125,11 @@ export class CommuteController {
             this.arm(this.interval - (now - cached.updatedAt)); return;
         }
         // Throttle route switching/retries as well as explicit refreshes.
-        if (now - this.lastAttempt < 5000) { this.arm(5000 - (now - this.lastAttempt)); return; }
+        if (now - this.lastAttempt < 5000) {
+            this.state = {status: 'loading', data: cached, stale: Boolean(cached)};
+            this.emit(this.state);
+            this.arm(5000 - (now - this.lastAttempt)); return;
+        }
         this.lastAttempt = now; this.busy = true;
         const token = ++this.generation;
         this.state = {status: 'loading', data: cached, stale: Boolean(cached)}; this.emit(this.state);

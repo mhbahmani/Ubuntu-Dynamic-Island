@@ -2,7 +2,7 @@ import {editRoute} from './commute-map.js';
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
-import {routesFrom, PROVIDER_NAMES, providerPriority, routeTitle} from './services/commute-model.js';
+import {routesFrom, PROVIDER_NAMES, providerPriority, routeTitle, ROUTE_APPS} from './services/commute-model.js';
 import {routingKeys, saveRoutingKey} from './services/commute-keys.js';
 
 import {WeatherHttp} from './services/weather-http.js';
@@ -24,10 +24,19 @@ export function commutePreferences(settings, window, dependencies = {}) {
     const syncProvider = () => { provider.selected = Math.max(0, providers.indexOf(settings.get_string('commute-provider'))); };
     syncProvider(); provider.connect('notify::selected', () => settings.set_string('commute-provider', providers[provider.selected]));
     const providerId = settings.connect('changed::commute-provider', syncProvider); group.add(provider);
+    const routeApps = Object.keys(ROUTE_APPS);
+    const openWith = new Adw.ComboRow({title: 'Open route in',
+        subtitle: 'Opens driving directions in your browser. Independent of the ETA source; no API key needed.',
+        model: Gtk.StringList.new(Object.values(ROUTE_APPS))});
+    const syncOpenWith = () => { openWith.selected = Math.max(0, routeApps.indexOf(settings.get_string('commute-open-with'))); };
+    syncOpenWith();
+    openWith.connect('notify::selected', () => settings.set_string('commute-open-with', routeApps[openWith.selected]));
+    const openWithId = settings.connect('changed::commute-open-with', syncOpenWith);
+    group.add(openWith);
     const fallback = new Adw.SwitchRow({title: 'Use backup routing sources', subtitle: 'May send endpoints to multiple providers. Public OSRM hosts share infrastructure.'});
     settings.bind('commute-fallback', fallback, 'active', Gio.SettingsBindFlags.DEFAULT); group.add(fallback);
     const priority = new Adw.PreferencesGroup({title: 'Provider priority',
-        description: 'First to last in Automatic mode; providers without keys are skipped. A preferred source goes first, then this backup order. Balad is unofficial; traffic freshness is unverified.'});
+        description: 'Default: Balad, then Mapbox if configured. Public OSRM is a last resort in Automatic when no Mapbox token is stored. Reorder below or choose a preferred source. Balad traffic freshness is unverified.'});
     const priorityRows = [];
     const renderPriority = () => {
         for (const row of priorityRows) priority.remove(row);
@@ -81,7 +90,7 @@ export function commutePreferences(settings, window, dependencies = {}) {
     const id = settings.connect('changed::commute-routes', render);
     const selectionId = settings.connect('changed::commute-selected', render); render();
     const keyControls = routingKeyPreferences(settings, window, dependencies);
-    window.connect('close-request', () => { settings.disconnect(id); settings.disconnect(selectionId); settings.disconnect(providerId); settings.disconnect(priorityId); return false; });
+    window.connect('close-request', () => { settings.disconnect(id); settings.disconnect(selectionId); settings.disconnect(providerId); settings.disconnect(priorityId); settings.disconnect(openWithId); return false; });
     return [group, priority, keyControls];
 }
 

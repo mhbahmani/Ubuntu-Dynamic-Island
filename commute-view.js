@@ -5,7 +5,7 @@ import Pango from 'gi://Pango';
 import Atk from 'gi://Atk';
 import {label, row, column, icon, button, setEnabled} from './widgets.js';
 import {openLocationSettings} from './services/commute-location.js';
-import {PROVIDER_NAMES, routeTitle, point} from './services/commute-model.js';
+import {PROVIDERS, KEYLESS_PROVIDERS, PROVIDER_NAMES, ROUTE_APPS, routeLink, routeTitle, point} from './services/commute-model.js';
 
 function textButton(text, action, primary = false) {
     const control = new St.Button({label: text, can_focus: true, reactive: true, track_hover: true,
@@ -24,11 +24,12 @@ function endpoint(text, destination = false) {
 }
 
 export class CommuteView {
-    constructor(section, actions) {
+    constructor(section, actions, viewport) {
         this._relayout = () => actions.relayout?.();
+        this.viewport = viewport;
         section.header.hide();
-        const content = section.content;
-        content.add_style_class_name('ubuntu-island-commute');
+        const content = this.main = column('ubuntu-island-commute');
+        section.content.add_child(content);
 
         const heading = row('ubuntu-island-commute-heading');
         this.name = label('Add your first route', 'ubuntu-island-track');
@@ -113,11 +114,18 @@ export class CommuteView {
         this.locationSettings = textButton('Location settings', () => openLocationSettings());
         this.savedStart.x_align = this.locationSettings.x_align = Clutter.ActorAlign.START;
         this.controls.add_child(this.locationSettings);
+        const source = column('ubuntu-island-commute-source');
+        source.x_expand = true;
+        this.provider = textButton('Automatic', () => this.showProviders(true));
+        this.provider.x_expand = true;
+        this.provider.add_style_class_name('ubuntu-island-commute-provider');
+        source.add_child(this.provider);
         this.credit = label('', 'ubuntu-island-commute-credit', false);
         this.credit.x_expand = true;
         this.credit.clutter_text.line_wrap = true;
         this.credit.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
-        this.controls.add_child(this.credit);
+        source.add_child(this.credit);
+        this.controls.add_child(source);
         this.fix = button('dialog-question-symbolic', 'Report a map issue', () =>
             Gio.AppInfo.launch_default_for_uri('https://www.openstreetmap.org/fixthemap', null),
         13, 'ubuntu-island-commute-icon-button');
@@ -131,18 +139,53 @@ export class CommuteView {
         this.open.set_child(openFace);
         this.controls.add_child(this.open);
         content.add_child(this.controls);
+        this.providerPanel = column('ubuntu-island-commute-provider-panel');
+        section.content.add_child(this.providerPanel);
+        const providerHeading = row('ubuntu-island-commute-heading');
+        this.providerBack = button('go-previous-symbolic', 'Back to route', () => this.showProviders(false),
+            15, 'ubuntu-island-commute-icon-button');
+        providerHeading.add_child(this.providerBack);
+        providerHeading.add_child(label('ETA provider', 'ubuntu-island-track'));
+        this.providerPanel.add_child(providerHeading);
+        this.providerRows = new Map();
+        for (const id of ['auto', ...PROVIDERS]) {
+            const control = textButton('', () => {
+                actions.commuteProvider?.(id);
+                this.showProviders(false);
+            });
+            control.x_expand = true;
+            control.add_style_class_name('ubuntu-island-commute-provider-choice');
+            this.providerRows.set(id, control);
+            this.providerPanel.add_child(control);
+        }
+        this.fallback = textButton('', () => actions.commuteFallback?.(!this.state.allowFallback));
+        this.providerPanel.add_child(this.fallback);
+        this.providerPanel.add_child(textButton('Set up API keys in Settings', () => actions.preferences?.('commute')));
+        this.providerPanel.hide();
+        section.box.connect('notify::mapped', () => {
+            if (!section.box.mapped) this.showProviders(false, false);
+        });
         content.connect('style-changed', this._relayout);
         this.render({});
     }
 
+    showProviders(show, focus = true) {
+        this.main.visible = !show;
+        this.providerPanel.visible = show;
+        const adjustment = this.viewport.get_vscroll_bar().get_adjustment();
+        adjustment.value = adjustment.lower;
+        this._relayout();
+        if (focus) (show ? this.providerBack : this.provider).grab_key_focus();
+    }
+
     _openRoute() {
-        const d = this.state?.data;
-        if (!d || !this.open.reactive) return;
-        Gio.AppInfo.launch_default_for_uri(`https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${d.origin.latitude}%2C${d.origin.longitude}%3B${d.destination.latitude}%2C${d.destination.longitude}`, null);
+        if (!this.open.reactive || !this.openUrl) return;
+        Gio.AppInfo.launch_default_for_uri(this.openUrl, null);
     }
 
     fit(width) {
         // Use the card's available width; child minimums may already overflow it.
+        width -= this.main.get_theme_node().get_horizontal_padding();
         const needed = this.duration.get_preferred_width(-1)[1]
             + (this.arrivalBox.visible ? this.arrivalBox.get_preferred_width(-1)[1] : 0)
             + this.driving.get_preferred_width(-1)[1]
@@ -210,14 +253,38 @@ export class CommuteView {
         this.configure.visible = !route;
         this.fix.visible = Boolean(route) && !locationFailure;
         this.refresh.visible = Boolean(route);
-        this.credit.text = data ? `${PROVIDER_NAMES[data.provider] ?? data.provider}\n© OpenStreetMap${data.provider === 'neshan' ? ' / Neshan' : data.provider === 'mapbox' ? ' / Mapbox' : ''}` : '© OpenStreetMap contributors';
+        const preferred = state.preferred ?? 'auto';
+        const providerName = id => id === 'auto' ? 'Automatic' : PROVIDER_NAMES[id] ?? id;
+        const actual = data ? providerName(data.provider) : '';
+        this.provider.label = `${preferred === 'auto' ? `Auto${actual ? ` · ${actual}` : ''}`
+            : actual && data.provider !== preferred ? `${providerName(preferred)} → ${actual}` : providerName(preferred)} ▾`;
+        this.provider.accessible_name = `Choose ETA provider. Preferred: ${providerName(preferred)}${actual ? `. Estimate from ${actual}` : ''}`;
+        this.provider.visible = Boolean(route);
+        for (const [id, control] of this.providerRows) {
+            const available = id === 'auto' || (state.availableProviders ?? KEYLESS_PROVIDERS).includes(id);
+            control.label = `${id === preferred ? '✓ ' : ''}${providerName(id)}${available ? '' : ' · API key required'}`;
+            control.child.ellipsize = Pango.EllipsizeMode.END;
+            control.child.x_align = Clutter.ActorAlign.START;
+            control.accessible_name = `${providerName(id)}${id === preferred ? ', selected' : ''}${available ? '' : ', API key required'}`;
+            if (id === preferred) control.add_style_pseudo_class('checked');
+            else control.remove_style_pseudo_class('checked');
+            if (id === preferred) control.add_accessible_state(Atk.StateType.SELECTED);
+            else control.remove_accessible_state(Atk.StateType.SELECTED);
+            setEnabled(control, available);
+        }
+        this.fallback.label = `Backup providers: ${state.allowFallback !== false ? 'On' : 'Off'}`;
+        this.fallback.accessible_name = `${this.fallback.label}. ${state.allowFallback !== false ? 'Disable to use only the selected provider' : 'Enable automatic fallback if the selected provider fails'}`;
+        this.credit.text = `© OpenStreetMap${data?.provider === 'neshan' ? ' / Neshan' : data?.provider === 'mapbox' ? ' / Mapbox' : ''}`;
         this.credit.accessible_name = this.credit.text;
+        this.provider.child.ellipsize = Pango.EllipsizeMode.END;
+        this.provider.child.x_align = Clutter.ActorAlign.START;
         this.refresh.accessible_name = loading ? 'Updating driving estimate' : 'Refresh driving estimate';
         setEnabled(this.refresh, Boolean(route) && !loading);
         setEnabled(this.swap, route?.originMode === 'fixed');
-        setEnabled(this.open, Boolean(data) && !locationFailure);
-        this.open.accessible_name = data ? `Open route in OpenStreetMap, ${this.eta.text} minutes, from ${this.origin.text} to ${this.destination.text}`
-            : 'Driving estimate unavailable';
+        this.openUrl = routeLink(state.openWith, route?.originMode === 'fixed' ? route.origin : data?.origin, route?.destination);
+        setEnabled(this.open, Boolean(this.openUrl) && !locationFailure);
+        this.open.accessible_name = this.openUrl ? `Open route in ${ROUTE_APPS[state.openWith] ?? ROUTE_APPS.google}, from ${this.origin.text} to ${this.destination.text}`
+            : 'Route endpoints unavailable';
         this._relayout();
     }
 }

@@ -1,27 +1,43 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {WeatherHttp} from './weather-http.js';
-import {CommuteController, routesFrom, useSavedStart} from './commute-model.js';
+import {CommuteController, routesFrom, useSavedStart, PROVIDERS, KEYLESS_PROVIDERS} from './commute-model.js';
 import {CurrentLocation} from './commute-location.js';
 import {routingKeys} from './commute-keys.js';
 
 export class CommuteService {
     constructor(settings, emit) {
         this.settings = settings; this.emit = emit; this.reversed = false;
+        this.availableProviders = [...KEYLESS_PROVIDERS];
         this.http = new WeatherHttp('UbuntuIsland/11 (GNOME extension; github.com/mhbahmani/ubuntu-dynamic-island)');
         this.location = new CurrentLocation();
         this.controller = new CommuteController({fetch: (url, headers) => this.fetch(url, headers),
             cancel: () => { this.http.cancel(); this.location.cancel(); this.keyCancel?.cancel(); this.cancelWait?.(); },
-            locate: () => this.location.get(), keys: () => { this.keyCancel = new Gio.Cancellable(); return routingKeys(this.keyCancel); }, emit: state => emit({...state, route: this.route}),
+            locate: () => this.location.get(), keys: async () => {
+                const cancel = this.keyCancel = new Gio.Cancellable();
+                const keys = await routingKeys(cancel);
+                if (!cancel.is_cancelled()) this.availableProviders = PROVIDERS.filter(id => KEYLESS_PROVIDERS.includes(id) || keys[id]);
+                return keys;
+            }, emit: state => this.publish(state),
             schedule: (ms, callback) => GLib.timeout_add(GLib.PRIORITY_DEFAULT, Math.ceil(ms), () => { callback(); return GLib.SOURCE_REMOVE; }),
             unschedule: id => GLib.Source.remove(id)});
         this.ids = ['commute-routes', 'commute-selected', 'commute-provider', 'commute-provider-order', 'commute-interval', 'commute-fallback', 'commute-keys-revision']
             .map(key => settings.connect(`changed::${key}`, () => {
-                this.reversed = false;
+                // Changing source or refresh settings must preserve the journey
+                // currently on screen, including its reversed direction.
+                if (key === 'commute-routes' || key === 'commute-selected') this.reversed = false;
                 if (key === 'commute-keys-revision') { this.controller.signature = null; this.controller.cache.clear(); }
                 this.configure();
             }));
+        this.ids.push(settings.connect('changed::commute-open-with', () => this.publish(this.controller.state)));
         this.configure();
+    }
+    publish(state) {
+        this.emit({...state, route: this.route,
+            preferred: this.settings.get_string('commute-provider'),
+            allowFallback: this.settings.get_boolean('commute-fallback'),
+            openWith: this.settings.get_string('commute-open-with'),
+            availableProviders: this.availableProviders});
     }
     async fetch(url, headers) {
         const delay = Math.max(0, 1100 - (GLib.get_monotonic_time() / 1000 - (this.lastRequest ?? -Infinity)));
@@ -52,6 +68,9 @@ export class CommuteService {
         this.settings.set_string('commute-routes', JSON.stringify(routes));
     }
     swap() { if (this.route?.originMode === 'fixed') { this.reversed = !this.reversed; this.configure(); } }
+    selectProvider(id) {
+        if (id === 'auto' || this.availableProviders.includes(id)) this.settings.set_string('commute-provider', id);
+    }
     setActive(active) { this.controller.setActive(active); }
     refresh() { this.controller.refresh(true); }
     stop() { this.controller.stop(); for (const id of this.ids) this.settings.disconnect(id); }

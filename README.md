@@ -80,6 +80,10 @@ and [compact playing pill](screenshots/playing-pill.png).
   to 15 minutes (minimum 10), only while visible. Public routing works without a
   key; optional Mapbox, openrouteservice, GraphHopper and Neshan keys add alternatives.
   See [Commute setup and provider limitations](docs/COMMUTE.md).
+  Choose the ETA source directly in the tab; reversing keeps the preference.
+  Automatic defaults to Balad, then Mapbox when configured, with public OSRM as
+  a last resort only without a Mapbox token. **Preferences → Commute → Open route in**
+  independently chooses Google Maps, Balad or Neshan for driving directions.
 - **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
   background opacity (0–100%, default 98%), matte tone (0–100%, default
   60%) that flattens the gradient colors without changing transparency,

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {routesFrom, point, intervalMs, providerPriority, providerOrder, requestFor, normalizeRoute, CommuteController} from '../services/commute-model.js';
+import {routesFrom, point, intervalMs, providerPriority, providerOrder, requestFor, normalizeRoute, CommuteController, routeLink} from '../services/commute-model.js';
 const route = {id: 'home', name: 'Home', originMode: 'fixed', origin: {latitude: 35.72, longitude: 51.33}, destination: {latitude: 35.68, longitude: 51.39}};
 const response = {code: 'Ok', routes: [{duration: 1920, distance: 18400}]};
 test('route input validation rejects malformed endpoints and limits saved routes', () => {
@@ -69,6 +69,21 @@ test('direction and route changes never reuse the wrong cached estimate', async 
     h.controller.configure({...route, origin: route.destination, destination: route.origin}); await flush();
     assert.deepEqual(h.controller.state.data.origin, route.destination);
 });
+test('quick source changes show pending state and fetch only the final selection', async () => {
+    const urls = []; const h = harness(async url => { urls.push(url); return response; });
+    h.controller.setActive(true); await flush();
+    h.controller.configure(route, 'osrm');
+    h.controller.configure(route, 'fossgis');
+    assert.equal(h.controller.state.status, 'loading');
+    assert.equal(urls.length, 1);
+    assert.equal(h.timers.size, 1);
+    h.advance(5000);
+    const [{cb}] = h.timers.values();
+    h.timers.clear(); cb(); await flush();
+    assert.equal(h.controller.state.data.provider, 'fossgis');
+    assert.equal(urls.length, 2);
+    h.controller.stop();
+});
 test('errors keep cached results stale and respect the refresh interval', async () => {
     let fail = false; const h = harness(async () => { if (fail) throw Error(); return response; });
     h.controller.setActive(true); await flush(); h.advance(900001); fail = true;
@@ -105,7 +120,7 @@ test('Mapbox requests traffic for departure now and normalizes seconds honestly'
     assert.equal(data.seconds, 1080); assert.equal(data.traffic, true);
     assert.equal(normalizeRoute('mapbox', response).traffic, false);
     assert.throws(() => normalizeRoute('mapbox', {code: 'NoRoute', routes: []}));
-    assert.deepEqual(providerOrder('auto', {mapbox: 'token', ors: 'key'}), ['mapbox', 'balad', 'ors', 'fossgis', 'osrm']);
+    assert.deepEqual(providerOrder('auto', {mapbox: 'token', ors: 'key'}), ['balad', 'mapbox', 'ors']);
 });
 test('Mapbox authorization failure falls back without calling its result traffic-aware', async () => {
     const h = harness(async url => {
@@ -113,9 +128,39 @@ test('Mapbox authorization failure falls back without calling its result traffic
         return response;
     });
     h.controller.keys = async () => ({mapbox: 'invalid'});
+    h.controller.configure(route, 'mapbox');
     h.controller.setActive(true); await flush();
     assert.equal(h.controller.state.data.provider, 'balad');
     assert.equal(h.controller.state.data.fallback, true); assert.equal(h.controller.state.data.traffic, false);
+});
+
+test('automatic uses Balad then Mapbox and never silently substitutes OSRM with a configured token', async () => {
+    const calls = [];
+    const h = harness(async url => { calls.push(url); throw Error('Unavailable'); });
+    h.controller.keys = async () => ({mapbox: 'configured'});
+    h.controller.setActive(true); await flush();
+    assert.equal(calls.length, 2);
+    assert.match(calls[0], /direction.raah.ir/);
+    assert.match(calls[1], /api.mapbox.com/);
+    assert.equal(h.controller.state.status, 'error');
+    assert.deepEqual(providerOrder('balad', {mapbox: 'configured'}), ['balad', 'mapbox']);
+    assert.equal(providerOrder('fossgis', {mapbox: 'configured'})[0], 'fossgis', 'An explicit baseline choice is honored');
+    h.controller.stop();
+});
+
+test('route apps preserve both endpoints and their order independently of the ETA provider', () => {
+    const google = new URL(routeLink('google', route.origin, route.destination));
+    assert.equal(google.hostname, 'www.google.com');
+    assert.equal(google.searchParams.get('api'), '1');
+    assert.equal(google.searchParams.get('origin'), '35.720000,51.330000');
+    assert.equal(google.searchParams.get('destination'), '35.680000,51.390000');
+    const balad = new URL(routeLink('balad', route.origin, route.destination));
+    assert.equal(balad.searchParams.get('origin'), '51.330000,35.720000');
+    assert.equal(balad.searchParams.get('destination'), '51.390000,35.680000');
+    const neshan = new URL(routeLink('neshan', route.destination, route.origin));
+    assert.equal(neshan.pathname, '/maps/routing/car/origin/35.680000,51.390000/destination/35.720000,51.330000');
+    assert.equal(routeLink('google', null, route.destination), null);
+    assert.equal(routeLink('balad', route.origin, {latitude: 91, longitude: 0}), null);
 });
 
 test('custom priority is sanitized and used for automatic and preferred fallback', () => {

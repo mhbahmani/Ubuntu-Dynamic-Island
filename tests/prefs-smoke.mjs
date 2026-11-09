@@ -169,7 +169,7 @@ try {
     if (error.code !== 'location-disabled') throw error;
 }
 // Accessible provider ordering persists and follows external settings changes.
-const moveBalad = tooltip(window, 'Move up: Balad (experimental)');
+const moveBalad = tooltip(window, 'Move down: Balad (experimental)');
 if (!moveBalad) throw new Error('Provider priority controls missing');
 moveBalad.emit('clicked');
 if (settings.get_strv('commute-provider-order')[1] !== 'balad') throw new Error('Provider order did not save');
@@ -177,6 +177,12 @@ settings.set_strv('commute-provider-order', ['osrm', 'balad']);
 if (!find(window, '1. OSRM demo')) throw new Error('Provider order did not follow settings');
 settings.set_string('commute-provider', 'balad');
 if (routingSource.selected !== 7) throw new Error('Balad selection missing');
+const openWith = find(window, 'Open route in');
+if (!openWith || openWith.selected !== 0) throw new Error('Route app selector missing');
+openWith.selected = 1;
+if (settings.get_string('commute-open-with') !== 'balad') throw new Error('Route app did not save');
+settings.set_string('commute-open-with', 'neshan');
+if (openWith.selected !== 2) throw new Error('Route app did not follow settings');
 
 settings.set_string('commute-routes', JSON.stringify([
     {id: 'a', name: 'Route A', origin: {latitude: 35.7, longitude: 51.3}, destination: {latitude: 35.8, longitude: 51.4}},

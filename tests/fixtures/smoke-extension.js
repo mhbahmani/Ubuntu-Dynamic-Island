@@ -420,6 +420,11 @@ export default class Smoke extends UbuntuIsland {
         assert(this._island.actor.height === standardTabHeight, 'Commute height differs from the other tabs');
         assert(navigationTop() === standardNavigationTop, 'Switching to Commute moved navigation');
         const readyCommute = this._states.commute;
+        for (const control of [commute.swap, commute.refresh]) {
+            const [x, y] = control.get_transformed_position();
+            assert(global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x + control.width / 2, y + control.height / 2) === control,
+                'Scroll padding clipped a right-aligned Commute control');
+        }
         const routePointer = Clutter.get_default_backend().get_default_seat()
             .create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
         const clickRouteActor = async actor => {
@@ -447,7 +452,9 @@ export default class Smoke extends UbuntuIsland {
             assert(routeOpens === 1, 'Open route button did not activate');
             commute.render({...readyCommute, data: null, status: 'loading'});
             await delay(50);
-            assert(!commute.open.reactive && !commute.open.can_focus, 'Missing estimate left a route action enabled');
+            assert(commute.open.reactive, 'Fixed route should open even when ETA is unavailable');
+            commute.render({...readyCommute, data: null, route: {...readyCommute.route, originMode: 'current'}, status: 'loading'});
+            assert(!commute.open.reactive && !commute.open.can_focus, 'Missing current location left a route action enabled');
             await clickRouteActor(commute.open);
             assert(routeOpens === 1, 'Disabled Commute opened a route');
         } finally {
@@ -456,6 +463,35 @@ export default class Smoke extends UbuntuIsland {
             this._island.actor.grab_key_focus();
             routePointer.notify_absolute_motion(GLib.get_monotonic_time(), 50, 500);
         }
+        // Select sources through native controls and retain the reversed route.
+        this._commute.availableProviders = ['balad', 'mapbox', 'fossgis', 'osrm'];
+        this._commute.controller.keys = async () => ({mapbox: 'fixture-token'});
+        this._commute.publish(this._commute.controller.state);
+        await clickRouteActor(commute.provider);
+        assert(commute.providerPanel.visible && !commute.main.visible, 'Provider picker did not open');
+        await this._capture('commute-providers');
+        this._commute.controller.lastAttempt = -Infinity;
+        await clickRouteActor(commute.providerRows.get('balad'));
+        assert(this._settings.get_string('commute-provider') === 'balad' && commute.main.visible, 'Balad selection failed');
+        await this._capture('commute-selected-provider');
+        this._commute.controller.lastAttempt = -Infinity;
+        await clickRouteActor(commute.swap);
+        assert(this._commute.reversed && this._states.commute.preferred === 'balad', `Reverse changed preferred source: reversed=${this._commute.reversed}, provider=${this._states.commute.preferred}, swap=${commute.swap.reactive}`);
+        await clickRouteActor(commute.provider);
+        this._commute.controller.lastAttempt = -Infinity;
+        await clickRouteActor(commute.providerRows.get('mapbox'));
+        assert(this._commute.reversed && this._states.commute.preferred === 'mapbox', 'Source selection reversed the journey');
+        assert(this._commute.route.origin.latitude === readyCommute.route.destination.latitude, 'Wrong source coordinates after source selection');
+        for (const [app, host] of [['google', 'www.google.com'], ['balad', 'balad.ir'], ['neshan', 'neshan.org']]) {
+            this._settings.set_string('commute-open-with', app);
+            assert(commute.openUrl.startsWith(`https://${host}/`), 'Open route setting did not apply live');
+        }
+        this._settings.set_string('commute-open-with', 'google');
+        this._commute.swap();
+        this._settings.set_string('commute-provider', 'auto');
+        commute.render(readyCommute);
+        this._island.actor.grab_key_focus();
+        routePointer.notify_absolute_motion(GLib.get_monotonic_time(), 50, 500);
         await delay(80);
         assert(commute.feedback.get_theme_node().get_background_color().alpha === 0,
             'Commute traffic status has a surrounding box');
@@ -468,7 +504,7 @@ export default class Smoke extends UbuntuIsland {
                     `Default Commute needs scrolling (${adjustment.upper - adjustment.lower} > ${adjustment.page_size})`);
             }
             for (const actor of [commute.eta, commute.unit, commute.arrival, commute.origin,
-                commute.destination, commute.swap, commute.status, commute.freshness, commute.open, commute.credit]) {
+                commute.destination, commute.swap, commute.status, commute.freshness, commute.open, commute.credit, commute.provider]) {
                 if (!actor.visible) continue;
                 const [x, y] = actor.get_transformed_position();
                 const [w, h] = actor.get_transformed_size();

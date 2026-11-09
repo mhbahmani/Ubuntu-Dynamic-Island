@@ -18,7 +18,17 @@ selected pin. Decimal latitude/longitude fields provide a keyboard alternative
 (press Enter to apply). On the focused map, arrow keys pan, +/− zoom, and Enter
 places the selected pin at the center. The route name is optional: leave it blank to display **Start name → Destination
 name**. That label also follows endpoint swaps. Save when the endpoints are set. The dashed line connects the
-pins; it is not a road itinerary. Open route opens OpenStreetMap directions.
+pins; it is not a road itinerary. **Preferences → Commute → Open route in** chooses
+Google Maps (default), Balad or Neshan for the **Open route** button. This choice
+is independent of the ETA source and needs no API key. Fixed routes can open
+even when the ETA service is unavailable; a current-location route needs a
+resolved origin. Reversing the route reverses the browser link too.
+
+The provider button beside **Open route** opens the ETA source picker. Choose
+Automatic or an available source, and turn **Backup providers** off to stay on
+that source even if it fails. Providers requiring an absent key are disabled;
+use the Settings shortcut to configure one. Source changes preserve the displayed
+direction and apply to both directions; the selection is shared across saved routes.
 
 Select **Use current location as start on each refresh** for a moving origin.
 **Locate me** lets you inspect its accuracy before saving. GNOME Location Services
@@ -61,11 +71,25 @@ discover free-key options. Availability and free-plan quotas can change.
 
 **Provider priority** lists sources from first to last. Use each row's Move up or
 Move down button to change the order; changes apply live. Automatic mode skips
-key-backed providers without a saved key. The default is Neshan, Mapbox, Balad,
+key-backed providers without a saved key. The default is Balad, Mapbox, Neshan,
 openrouteservice, GraphHopper, FOSSGIS, then OSRM. An explicit **Preferred routing
 source** is tried first; backups then follow the configured priority. Turning off
 backups uses only the first eligible source. Unknown/duplicate priority entries
 are ignored and omitted providers are appended.
+Fallback excludes public FOSSGIS/OSRM when a Mapbox token is available;
+if Balad and the configured keyed sources all fail, it reports the failure.
+Without a Mapbox token, public OSRM remains the last resort. A specifically
+selected source and existing custom priority remain respected.
+
+Browser link formats were checked on 2026-11-09 against
+[Google's Maps URL documentation](https://developers.google.com/maps/documentation/urls/get-started),
+[Balad's driving page](https://balad.ir/directions/driving) and its published
+[route parser](https://cdn.balad.ir/public/_next/static/chunks/pages/Directions/Driving-d8dd06751082153c8483.js),
+and [Neshan's published web route parser](https://neshan.org/maps/6699-3b995729281facb4f1f2.js).
+Balad uses longitude/latitude query pairs; Neshan uses latitude/longitude path
+pairs. Those two formats are inferred from the providers' current web clients,
+not a promised API contract. Browser interaction could not be verified in this
+environment; URL construction and live setting changes are covered by tests.
 
 Balad uses the keyless endpoint verified by the standalone probe and is labeled
 experimental. The ETA includes its routing profile's duration, but live-traffic

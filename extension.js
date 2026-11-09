@@ -59,6 +59,8 @@ export default class UbuntuIsland extends Extension {
             commuteNext: () => this._commute?.next(),
             commuteSwap: () => this._commute?.swap(),
             commuteRefresh: () => this._commute?.refresh(),
+            commuteProvider: id => this._commute?.selectProvider(id),
+            commuteFallback: enabled => this._settings.set_boolean('commute-fallback', enabled),
             commuteUseSavedStart: () => this._commute?.useSavedStart(),
             togglePillTitle: () => this._togglePillTitle(),
             relayout: () => this._island?.relayout(),
