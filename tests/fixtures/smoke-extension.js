@@ -170,6 +170,20 @@ export default class Smoke extends UbuntuIsland {
             assert(card._openPlayer.get_transformed_position()[1] + card._openPlayer.height <= footerTop + 1, 'Enlarged controls are unreachable');
             textSettings.set_double('text-scaling-factor', textScale);
             this._settings.set_int('expanded-width', 440);
+            for (const [opener, mode] of [[card._playerPicker, 'players'], [card._soundButton, 'sound'],
+                [card._lyricsButton, 'lyrics'], [card._queueButton, 'queue']]) {
+                opener.emit('clicked', 1);
+                assert(tools.mode === mode, `Could not open ${mode}`);
+                const tab = card._tabs.get('audio');
+                tab.grab_key_focus();
+                tab.emit('clicked', 1);
+                assert(tools.mode === null && !tools.panel.visible, `Leaving Music retained ${mode}`);
+                assert(global.stage.get_key_focus() === tab, 'Closing the media view stole tab focus');
+                assert(!this._progressTimer, 'Leaving a secondary view retained the media clock');
+                card._tabs.get('media').emit('clicked', 1);
+                assert(tools.main.visible && !tools.panel.visible && this._progressTimer,
+                    'Returning to Music did not restore playback');
+            }
             state = {...state, shuffle: null, loopStatus: null, canRaise: false, canSeek: false}; render();
             assert(!card._shuffle.visible && !card._repeat.visible && !card._openPlayer.visible && !card._seekBack.visible,
                 'Unsupported controls remain visible');

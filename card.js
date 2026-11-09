@@ -182,6 +182,8 @@ export class Card {
         this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : this._page === 'weather' ? ' ubuntu-island-card-weather' : this._page === 'commute' ? ' ubuntu-island-card-commute' : ''}`);
         this.updateMediaTint();
         if (this._empty) this._empty.visible = !this._page;
+        if (this._page !== 'media' && this._mediaTools?.mode)
+            this._mediaTools.show(null);
         this._actions.pageChanged?.(this._page);
     }
 
