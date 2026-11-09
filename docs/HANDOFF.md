@@ -3,6 +3,19 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Agents overflow (2026-11-09): the common Agents fixture needed
+8px of unnecessary scrolling. Reduced redundant spacing without reducing fonts;
+two active sessions and collapsed Recent now fit at 380px and 440px. Long lists
+still scroll, with Quick Ask and navigation fixed. Keyboard focus now reveals
+offscreen controls in the Agents scroll area, including secondary views. The
+focus signal is disconnected on destruction. AGENTS.md and CLAUDE.md now require
+common tabs to avoid scrolling where practical, while retaining accessible
+overflow for long lists and enlarged text.
+
+Native preview checks passed for compact 380px/440px layouts, long-list wheel
+scrolling, offscreen keyboard focus and fixed actions/navigation. Native 200%
+rendering was inspected. These changes have not been installed.
+
 Preview size/scaling (2026-11-09): `1.png` showed the small 800×600 nested Shell
 default; `2.png` showed that enlarging the window alone left text/icons too small.
 Windowed previews now default to **1600×1000 at 200% UI scale**, using the child

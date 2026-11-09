@@ -198,7 +198,7 @@
 .ubuntu-island-with-agents .ubuntu-island-tab { padding: 7px 7px; }
 .ubuntu-island-with-agents .ubuntu-island-navigation { spacing: 2px; }
 /* Agents: fixed header and footer, only the content scrolls. */
-.ubuntu-island-agents { padding: 8px 12px 0; spacing: 4px; }
+.ubuntu-island-agents { padding: 6px 12px 0; spacing: 3px; }
 .ubuntu-island-agent-header { spacing: 8px; min-height: 28px; padding: 0 4px; }
 .ubuntu-island-agent-heading { font-size: 11pt; font-weight: 700; color: #f1f3f7; }
 .ubuntu-island-agents-content { spacing: 6px; }
@@ -210,7 +210,7 @@
 .ubuntu-island-agent-session:focus { background-color: rgba(220,225,240,0.11); box-shadow: inset 0 0 0 1px #b7c5d7; }
 .ubuntu-island-agent-session:active { background-color: rgba(220,225,240,0.16); }
 .ubuntu-island-agent-face { spacing: 12px; }
-.ubuntu-island-agent-details { spacing: 3px; }
+.ubuntu-island-agent-details { spacing: 1px; }
 .ubuntu-island-agent-title { font-size: 10pt; font-weight: 600; color: #f1f3f7; }
 .ubuntu-island-agent-state, .ubuntu-island-agent-message { font-size: 9pt; color: #bcc3cf; }
 .ubuntu-island-agent-input, .ubuntu-island-agent-approval { color: #ffc47d; }
@@ -219,7 +219,7 @@
 .ubuntu-island-agent-error { color: #ffada5; }
 .ubuntu-island-agent-idle, .ubuntu-island-agent-unknown, .ubuntu-island-agent-closed, .ubuntu-island-agent-interrupted { color: #bcc3cf; }
 .ubuntu-island-agent-toolbar { spacing: 8px; }
-.ubuntu-island-agent-footer { spacing: 4px; padding: 4px 2px; border-top: 1px solid rgba(220,225,240,0.09); }
+.ubuntu-island-agent-footer { spacing: 4px; padding: 3px 2px; border-top: 1px solid rgba(220,225,240,0.09); }
 .ubuntu-island-agent-button { padding: 7px 10px; border-radius: 8px; font-size: 9pt; background-color: rgba(220,225,240,0.06); color: #eef0f4; }
 .ubuntu-island-agent-button:hover, .ubuntu-island-agent-button:focus { background-color: rgba(220,225,240,0.14); }
 .ubuntu-island-agent-button:focus { box-shadow: inset 0 0 0 1px #b7c5d7; }
@@ -233,7 +233,7 @@
 .ubuntu-island-agent-primary { background-color: #bc4327; color: #ffffff; font-weight: 600; }
 .ubuntu-island-agent-primary:hover, .ubuntu-island-agent-primary:focus { background-color: #d54b2d; }
 .ubuntu-island-agent-primary:active { background-color: #a93b23; }
-.ubuntu-island-agent-ask { border: 1px solid rgba(220,225,240,0.12); }
+.ubuntu-island-agent-ask { padding: 5px 10px; border: 1px solid rgba(220,225,240,0.12); }
 .ubuntu-island-agent-prompt, .ubuntu-island-agent-entry { background-color: rgba(10,12,16,0.4); color: #f5f6f9; border: 1px solid rgba(220,225,240,0.18); border-radius: 8px; padding: 8px; font-size: 10pt; }
 .ubuntu-island-agent-prompt { min-height: 42px; }
 .ubuntu-island-agent-prompt:focus, .ubuntu-island-agent-entry:focus { border-color: #b7c5d7; }

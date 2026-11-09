@@ -93,12 +93,25 @@ export class AgentsView {
         this.stSettings = St.Settings.get();
         const motion = this.stSettings.connect('notify::enable-animations', () => this._syncMotion());
         const preference = settings.connect('changed::disable-animations', () => this._syncMotion());
+        const focus = global.stage.connect('notify::key-focus', () => this._revealFocus());
         this.actor.connect('destroy', () => {
             this.dead = true; this.activity.remove_transition('agent-working');
             this._cancelFocus();
             this.stSettings.disconnect(motion); settings.disconnect(preference);
+            global.stage.disconnect(focus);
         });
         this.regroup = true; this.show('list');
+    }
+    _revealFocus() {
+        const target = global.stage.get_key_focus();
+        if (!this.actor.mapped || !target?.mapped || !this.content.contains(target)) return;
+        const top = this.scroll.get_transformed_position()[1];
+        const y = target.get_transformed_position()[1];
+        const height = target.get_transformed_size()[1];
+        const bottom = top + this.scroll.get_transformed_size()[1];
+        const offset = y < top || height > bottom - top ? y - top : Math.max(0, y + height - bottom);
+        this.adjustment.value = Math.max(this.adjustment.lower,
+            Math.min(this.adjustment.upper - this.adjustment.page_size, this.adjustment.value + offset));
     }
     _syncMotion() {
         const run = this.actor.mapped && this.mode === 'list' && this.snapshot?.connected &&

@@ -3,6 +3,16 @@
 Read [AGENT.md](AGENT.md) for the full engineering and commit rules, and
 [docs/HANDOFF.md](docs/HANDOFF.md) for the current implementation state.
 
+## Tab layout
+
+- Aim for the common tab layout to fit without scrolling. Improve grouping,
+  spacing and progressive disclosure before adding more height or scroll areas.
+- Preserve readable text and usable controls; never hide or clip overflow to
+  make a tab appear to fit. Keep scrolling available for long lists, enlarged
+  text and small displays, with navigation and primary actions outside it.
+- Verify native layouts at narrow and default card widths, 100% and 200% scale,
+  and enlarged text. Check that overflowing content remains reachable.
+
 ## Installation and packaging
 
 - Whenever adding, renaming, moving, or removing a runtime module or asset,

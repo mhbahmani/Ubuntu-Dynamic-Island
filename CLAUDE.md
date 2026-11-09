@@ -5,6 +5,18 @@ guide for this repository. Then read [docs/HANDOFF.md](docs/HANDOFF.md) for curr
 state and [README.md](README.md) for commands. Follow current user instructions
 when they supersede older notes.
 
+## Tab layout
+
+- Design common tab layouts to fit without scrolling where possible. Prefer
+  better grouping, compact spacing and progressive disclosure over taller tabs.
+- Keep text readable and controls usable. Retain scrolling for long lists,
+  enlarged text and small displays; never hide or clip overflow. Keep navigation
+  and primary actions outside scrolling content.
+- Verify native layouts at narrow/default widths, 100%/200% scale and enlarged
+  text, including access to overflowing content.
+
+## Working rules
+
 - Performance is the priority: keep GNOME Shell responsive, reuse service caches
   and timers, stop hidden work, bound asynchronous I/O, and clean up on disable.
 - Discover APIs through https://github.com/public-apis/public-apis, then verify

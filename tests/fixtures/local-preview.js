@@ -213,6 +213,12 @@ export default class Preview extends UbuntuIsland {
         const view = this._card._agentsView;
         assert(view.rows.size === 3 && this._pill._agents.visible, 'Sample sessions or counts missing');
         const initial = this._states.agents;
+        await delay(200);
+        for (const width of [380,440]) {
+            this._settings.set_int('expanded-width',width);
+            await delay(150);
+            assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Small session list scrolls at ${width}px`);
+        }
         const first = [...view.rows.values()][0];
         assert(!view.recentList.visible && view.recentButton.visible, 'Recent sessions are not collapsed');
         const order = view.activeList.get_children();
@@ -286,6 +292,28 @@ export default class Preview extends UbuntuIsland {
         await this._capture('agents-scaled');
         context.scale_factor = originalScale;
         await delay(200);
+        const many = {...initial, sessions:[...initial.sessions, ...Array.from({length:12}, (_,i) => ({...initial.sessions[0], id:`overflow-${i}`, label:`Session ${i + 1}`}))]};
+        this._renderAgents(many); view.show('list');
+        await delay(200);
+        assert(view.adjustment.upper > view.adjustment.page_size, 'Long session list has no scroll range');
+        const [sx,sy] = view.scroll.get_transformed_position();
+        const footerY = view.footer.get_transformed_position()[1];
+        pointer.notify_absolute_motion(GLib.get_monotonic_time(), sx + view.scroll.width / 2, sy + view.scroll.height / 2);
+        await delay(50);
+        pointer.notify_discrete_scroll(GLib.get_monotonic_time(), Clutter.ScrollDirection.DOWN, Clutter.ScrollSource.WHEEL);
+        await delay(250);
+        assert(view.adjustment.value > 0, 'Mouse wheel did not scroll sessions');
+        const last = view.rows.get('overflow-11');
+        last.open.grab_key_focus();
+        await delay(150);
+        assert(last.open.get_transformed_position()[1] + last.open.height <= sy + view.scroll.height + 1,
+            'Keyboard focus did not reveal the last session');
+        await click(last.menu);
+        assert(view.mode === 'session' && view.selectedSession.id === 'overflow-11', 'Last scrolled session is unreachable');
+        assert(view.footer.get_transformed_position()[1] === footerY, 'Scrolling moved Quick Ask');
+        view.show('list'); this._renderAgents(initial);
+        await delay(150);
+        assert(view.adjustment.value === 0, 'Shortened list retained stale scroll offset');
         view.destination = 'terminal'; view.folder.text = '/tmp'; view.prompt.text = 'Remember this project';
         await click(view.askButton);
         await click(view.submit);
