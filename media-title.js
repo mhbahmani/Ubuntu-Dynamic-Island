@@ -39,7 +39,10 @@ export class MediaTitle {
         if (!this.actor.get_stage()) return;
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         const natural = this.label.clutter_text.get_preferred_width(-1)[1];
-        const width = this.mode === 'fit' ? Math.min(natural, budget) : Math.min(budget, (this.mode === 'fixed' ? this.limit * 7 : 84) * scale);
+        // Fixed trimming caps long titles; short titles need only their measured
+        // width, otherwise the unused slot becomes a gap before the next icon.
+        const width = this.mode === 'scroll' ? Math.min(budget, 84 * scale)
+            : Math.min(natural, budget, this.mode === 'fixed' ? this.limit * 7 * scale : Infinity);
         this.desiredWidth = Math.max(1, width);
         this.actor.width = this.desiredWidth;
         this.actor.height = this.label.get_preferred_height(-1)[1];

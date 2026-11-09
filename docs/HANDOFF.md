@@ -3,6 +3,19 @@
 Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Short music titles (2026-11-09): confirmed the installed fixed/trim mode reserved
+`character limit × 7` logical pixels regardless of the displayed title's actual
+width. With the user's 17-character setting this meant a 119px title slot.
+The slot now uses the smaller of the measured text width and the existing cap.
+Long-title trimming, scrolling/fit modes and the configured notch minimum remain
+as before. Preferences call this **Character limit · trim** and explain that
+short names use less space. No new measurement, timer or animation was added.
+Native checks cover long→short→long transitions, narrow letters and Persian text,
+the actual title and notch widths, the notch minimum and static behavior. Captures
+are under `/tmp/ubuntu-island-smoke-mecu8y_6/trim-{long,short}-title.png`.
+All 131 Node tests, GTK preferences, native smoke and ZIP/source checks passed.
+The source fix has not been installed; the user's settings were only read.
+
 Quick Ask keyboard shortcut (2026-11-09): configure **Agents → Quick Ask → Quick
 Ask shortcut** in preferences; the default is unset. The native recorder requires
 Ctrl/Alt/Super and supports Escape to cancel and Backspace to disable. The binding

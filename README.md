@@ -454,10 +454,12 @@ A `~` marks estimates without live traffic; `!` marks a stale result. Mapbox's
 optional traffic-aware profile is now supported; see [the ETA comparison and
 provider review](docs/COMMUTE.md#eta-comparison-and-provider-review-2026-11-02).
 
-Under **Settings → Notch → Music name**, select one title behavior: **Fixed
-width · trim** (default), **Scroll overflowing title**, or **Fit width to title**.
-Fixed mode has a 5–40 character limit (default 12); narrow space or large fonts
-may still require additional ellipsis. Scrolling moves the complete title back
+Under **Settings → Notch → Music name**, select one title behavior: **Character
+limit · trim** (default), **Scroll overflowing title**, or **Fit width to title**.
+Trim mode has a 5–40 character limit (default 12). Short titles use their measured
+width instead of reserving the whole limit; the configured notch width remains a
+minimum. Narrow space or large fonts may still require additional ellipsis.
+Scrolling moves the complete title back
 and forth with a pause at each end, only while the collapsed title is visible
 and animations are enabled. Fit mode grows the notch for the title, up to a
 240 logical-pixel title budget and a monitor-aware growth budget (60% of monitor

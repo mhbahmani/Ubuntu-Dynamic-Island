@@ -388,7 +388,26 @@ export default class Smoke extends UbuntuIsland {
         assert(this._pill._title.visible, 'Title did not return');
         await this._capture('playing-pill');
         const longTitle = 'A long music title that should scroll completely across the collapsed notch';
+        // Real Pango measurement catches the unused fixed slot after a long
+        // title is replaced by a shorter one, including narrow/RTL text.
+        this._settings.set_int('pill-title-characters', 17);
+        this._renderMedia({...media, title: longTitle}); await delay(100);
+        const fullSlotWidth = this._pill._mediaTitle.actor.width;
+        const fullNotchWidth = this._island.actor.width;
+        await this._capture('trim-long-title');
+        for (const title of ['Hi', 'iiiiii', 'روز', 'Hi']) {
+            this._renderMedia({...media, title}); await delay(100);
+            const measured = this._pill._title.clutter_text.get_preferred_width(-1)[1];
+            assert(Math.abs(this._pill._mediaTitle.actor.width - measured) < 1,
+                `Short title still reserves unused width: ${title}`);
+            assert(this._pill._mediaTitle.actor.width < fullSlotWidth && this._island.actor.width < fullNotchWidth,
+                'Short title did not shrink the title slot and notch');
+            assert(this._island.actor.width >= this._settings.get_int('pill-width') && !this._pill._mediaTitle.animationKey,
+                'Trim mode lost the minimum notch width or started scrolling');
+        }
+        await this._capture('trim-short-title');
         this._renderMedia({...media, title: longTitle});
+        assert(this._pill._mediaTitle.actor.width === fullSlotWidth, 'A new long title failed to restore its width cap');
         this._settings.set_int('pill-title-characters', 5);
         assert(this._pill._title.text === 'A lon…', 'Fixed title ignored character threshold');
         this._settings.set_string('pill-title-mode', 'fit');

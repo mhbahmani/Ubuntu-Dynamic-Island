@@ -91,9 +91,9 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             description: 'Choose one behavior for the collapsed notch. The full title remains available to screen readers.'});
         const titleModes = ['fixed', 'scroll', 'fit'];
         const titleMode = new Adw.ComboRow({title: 'Music name behavior', model: Gtk.StringList.new([
-            'Fixed width · trim', 'Scroll overflowing title', 'Fit width to title']),
+            'Character limit · trim', 'Scroll overflowing title', 'Fit width to title']),
             subtitle: 'Fit mode caps the title at 240 px and the notch at 60% of the monitor (up to 600 px).'});
-        const characters = spin(settings, 'pill-title-characters', 'Title character limit', '5–40 characters · fixed mode only', 5, 40, 1);
+        const characters = spin(settings, 'pill-title-characters', 'Title character limit', '5–40 characters · trim mode only; short titles use less space', 5, 40, 1);
         const syncTitle = () => {
             titleMode.selected = Math.max(0, titleModes.indexOf(settings.get_string('pill-title-mode')));
             characters.sensitive = settings.get_string('pill-title-mode') === 'fixed';
