@@ -1,7 +1,62 @@
 # Session handoff
 
-Updated 2026-11-08. Target: GNOME Shell 46 on Ubuntu Wayland. Read
+Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
+
+Music state follow-up (2026-11-09): selecting a player, changing tracks and
+pausing/resuming now read Position asynchronously with a 2.5-second timeout.
+The MPRIS Position cache can remain at discovery time because it does not emit
+PropertiesChanged ([specification](https://specifications.freedesktop.org/mpris/latest/Player_Interface.html#Property:Position)).
+The existing local clock still supplies progress ticks; no polling was added.
+Cancellation and generation guards reject old replies after selection changes,
+seeks, Seeked signals or stop. Failed reads preserve the current estimate.
+Leaving Music resets Choose player, Sound, Lyrics and Up next to the main
+playback view without stealing focus from the newly selected tab.
+
+Validation: 113 Node tests, syntax/schema checks, GTK preference bindings and
+native Shell smoke passed. The private D-Bus test uses two players with stale
+cached positions to verify switching and resume; actual Telegram playback was
+not exercised. Native navigation checks cover all four secondary views, focus
+and playback-clock cleanup. Packaging matches the runtime source.
+
+Music spacing follow-up (2026-11-09): reduced vertical padding and row gaps so
+the main controls have more room within the same 260px card. Artwork and button
+sizes stay unchanged. Native checks use actual cover content and verify no
+scrolling at 440px and 380px with normal and 125% text; 150% text still scrolls
+when needed to keep every control reachable.
+
+Metrics, Weather and Commute follow-up (2026-11-09): weather loads its rectangular
+atlas without the media cover crop/rounded corners. Cropping the eight-column
+sheet to a square had shifted frame boundaries and made clouds jump sideways.
+The loader still rounds media covers. Native checks assert the atlas is 1536×1152.
+
+Metrics reads now have a 1.5-second cancellation deadline, isolate failures by
+source and guard restart generations. Start is idempotent, and stop cancels both
+read and sampling timers. IPv6 defaults cover connections without an IPv4
+default; CPU totals exclude already-counted guest time. Charts draw a dot for
+one valid sample. Memory continues to use MemTotal minus MemAvailable. Repeated
+live native samples and System rendering worked on the host; the exact persistent
+blank state in the supplied screenshot was not reproduced, so these are verified
+reliability fixes rather than a confirmed diagnosis of that session's freeze.
+
+Commute has an in-card ETA provider picker and backup toggle. Source/interval/key
+changes retain the reversed route. The default order is Balad, Mapbox, Neshan,
+then the other configured sources. Public OSRM is excluded from fallback when
+a Mapbox token is available (an explicit OSRM selection still works). Existing
+custom priority is preserved. Throttled source changes show an updating state.
+Open route independently uses Google Maps (default), Balad or Neshan, selected
+in Commute preferences; fixed endpoints work even without an ETA response.
+Commute padding moved inside the scrolling content to fix native hit testing
+that clipped the reverse/refresh buttons. Navigation and the 260px height remain
+fixed. See COMMUTE.md for browser URL source evidence and verification limits.
+
+Validation: Node regressions, syntax/schema checks, real GTK preference bindings,
+native GNOME smoke and live metrics sampling. Native checks cover actual provider
+selection/reversal clicks, route-app setting changes, narrow/enlarged-text layouts,
+weather texture geometry and hidden cleanup. User installation was not changed.
+Browser automation was unavailable; Balad/Neshan URL formats were checked against
+their current published web clients, without claiming browser or live traffic
+validation. The original reference screenshots remain untracked and untouched.
 
 Music refresh (2026-11-08): square rounded artwork, a static cover-derived tint,
 round vermilion play/pause, full-width seek timeline, and a compact utility row.
@@ -151,7 +206,7 @@ need live hardware validation; the smoke injects monitor notifications.
 - Commute refresh defaults to 15 minutes, minimum 10. Its tab and optional notch
   indicator share cache and lifecycle. Hidden consumers stop refresh timers.
   The notch uses `~` for estimates without live traffic and `!` for stale data.
-- Automatic routing tries configured Neshan and Mapbox, then experimental Balad, before baseline providers
+- Automatic routing defaults to experimental Balad, then configured Mapbox and Neshan, before baseline providers
   (ORS, GraphHopper, FOSSGIS, OSRM). Keys stay in the desktop keyring. Mapbox uses
   driving-traffic and checks response metadata before labeling traffic support.
   See [COMMUTE.md](COMMUTE.md) for provider evidence and setup; see
