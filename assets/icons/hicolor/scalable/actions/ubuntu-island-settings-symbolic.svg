@@ -1,8 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
-  <g fill="none" stroke="#bebebe" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M3 1v3m0 4v7M8 1v7m0 4v3M13 1v1m0 4v9"/>
-    <rect x="1" y="4" width="4" height="4" rx="1"/>
-    <rect x="6" y="8" width="4" height="4" rx="1"/>
-    <rect x="11" y="2" width="4" height="4" rx="1"/>
+  <g fill="#bebebe">
+    <!-- Filled rails and handles share GNOME's symbolic hover/focus color. -->
+    <rect x="2.25" y="1.25" width="1.5" height="3.5" rx="0.75"/>
+    <rect x="2.25" y="6.25" width="1.5" height="8.5" rx="0.75"/>
+    <rect x="7.25" y="1.25" width="1.5" height="8.5" rx="0.75"/>
+    <rect x="7.25" y="11.25" width="1.5" height="3.5" rx="0.75"/>
+    <rect x="12.25" y="1.25" width="1.5" height="3.5" rx="0.75"/>
+    <rect x="12.25" y="6.25" width="1.5" height="8.5" rx="0.75"/>
+    <!-- Explicit cutouts keep the handles open under symbolic recoloring. -->
+    <path fill-rule="evenodd" d="M1.75 3.25h2.5a1.5 1.5 0 0 1 1.5 1.5v1.5a1.5 1.5 0 0 1-1.5 1.5h-2.5a1.5 1.5 0 0 1-1.5-1.5v-1.5a1.5 1.5 0 0 1 1.5-1.5zM1.75 4.75v1.5h2.5v-1.5z"/>
+    <path fill-rule="evenodd" d="M6.75 8.25h2.5a1.5 1.5 0 0 1 1.5 1.5v1.5a1.5 1.5 0 0 1-1.5 1.5h-2.5a1.5 1.5 0 0 1-1.5-1.5v-1.5a1.5 1.5 0 0 1 1.5-1.5zM6.75 9.75v1.5h2.5v-1.5z"/>
+    <path fill-rule="evenodd" d="M11.75 3.25h2.5a1.5 1.5 0 0 1 1.5 1.5v1.5a1.5 1.5 0 0 1-1.5 1.5h-2.5a1.5 1.5 0 0 1-1.5-1.5v-1.5a1.5 1.5 0 0 1 1.5-1.5zM11.75 4.75v1.5h2.5v-1.5z"/>
   </g>
 </svg>
