@@ -15,7 +15,7 @@ import {icon, label, row} from './widgets.js';
 // Compact notch content shown while collapsed. The St.Button gives keyboard
 // focus semantics and an accessibility name for the toggle action.
 export class Pill {
-    constructor(onToggle, onToggleTitle, onDateChanged) {
+    constructor(onToggle, onToggleTitle, onChanged) {
         this.actor = new St.Button({
             style_class: 'ubuntu-island-pill',
             can_focus: true,
@@ -56,6 +56,9 @@ export class Pill {
         this._network.y_align = Clutter.ActorAlign.CENTER;
         this._down = label('↓ —', 'ubuntu-island-pill-rate', false);
         this._up = label('↑ —', 'ubuntu-island-pill-rate', false);
+        this._rateWidthTexts = [];
+        for (const rate of [this._down, this._up])
+            rate.connect('style-changed', () => { this._networkWidthKey = null; this._queueLayout(); });
         this._arrows = [];
         for (const [rate, color] of [[this._down, 'download'], [this._up, 'upload']]) {
             const item = row('ubuntu-island-pill-transfer');
@@ -83,22 +86,13 @@ export class Pill {
         this._date = this._dates.actor;
         this._date.visible = false;
         content.add_child(this._date);
-        this._onDateChanged = onDateChanged;
-        this.actor.connect('notify::mapped', () => this._syncDateClock());
-        this._date.connect('style-changed', () => {
-            if (!this.actor.mapped || this._expanded || this._dateRelayout) return;
-            // Font/scale settings settle after the initial theme notification.
-            // Measure once in idle so the fixed date widths use the new metrics.
-            this._dateRelayout = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
-                this._dateRelayout = 0;
-                if (this.actor.mapped && !this._expanded) this._onDateChanged?.();
-                return GLib.SOURCE_REMOVE;
-            });
-        });
+        this._onChanged = onChanged;
+        this.actor.connect('notify::mapped', () => { this._syncDateClock(); this._queueLayout(); });
+        this._date.connect('style-changed', () => this._queueLayout());
         this.actor.connect('destroy', () => {
             this._stopDateClock();
-            if (this._dateRelayout) GLib.Source.remove(this._dateRelayout);
-            this._dateRelayout = 0;
+            if (this._layoutIdle) GLib.Source.remove(this._layoutIdle);
+            this._layoutIdle = 0;
         });
         this._connection = row('ubuntu-island-pill-connection');
         this._connection.y_align = Clutter.ActorAlign.CENTER;
@@ -115,10 +109,11 @@ export class Pill {
             group.x_expand = true;
             group.x_align = Clutter.ActorAlign.CENTER;
         }
-        // The configured width is a minimum. Measure enabled groups so short
-        // rates and titles don't leave empty slots between indicators.
+        // The configured width is a minimum. Rate slots retain only their
+        // measured peak width; other groups keep their content-based sizing.
         this.actor._islandMinimumWidth = () => {
             if (!this.actor.mapped) return 0;
+            this._fitNetwork();
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             const monitor = Main.layoutManager.primaryMonitor;
             if (this._date.visible) {
@@ -212,6 +207,11 @@ export class Pill {
         this._weather.opacity = weather?.stale ? 140 : 255;
         this._network.visible = Boolean(!connectionState.visible && showNetwork && showMetrics && system &&
             !(connectionState.hideUnavailable && (connection === 'offline' || system.rxBytes == null || system.txBytes == null)));
+        if (!showNetwork || !showMetrics || this._networkInterface !== system?.iface) {
+            this._rateWidthTexts = [];
+            this._networkWidthKey = null;
+        }
+        this._networkInterface = system?.iface;
         const commuteState = commuteIndicator(commute);
         this._commute.visible = !connectionState.visible && showCommute && commuteState.visible &&
             !(connectionState.hideUnavailable && (!commute.data || commuteState.stale));
@@ -241,6 +241,38 @@ export class Pill {
         return {connectionEdge: connectionState.edge};
     }
 
+    _queueLayout() {
+        if (!this.actor.mapped || this._expanded || this._layoutIdle) return;
+        // Font/scale changes settle after the first style notification. Dates
+        // and bandwidth share one idle measurement, with no polling timer.
+        this._layoutIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._layoutIdle = 0;
+            if (this.actor.mapped && !this._expanded) this._onChanged?.();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _fitNetwork() {
+        if (!this._network.visible || this._expanded) return;
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const key = `${scale}:${this._down.text}:${this._up.text}`;
+        if (key === this._networkWidthKey) return;
+        this._networkWidthKey = key;
+        [this._down, this._up].forEach((rate, index) => {
+            const natural = rate.clutter_text.get_preferred_width(-1)[1];
+            const layout = rate.clutter_text.get_layout().copy();
+            layout.set_width(-1);
+            layout.set_text(this._rateWidthTexts[index] ?? rate.text, -1);
+            const previous = layout.get_pixel_size()[0];
+            if (!this._rateWidthTexts[index] || natural >= previous) this._rateWidthTexts[index] = rate.text;
+            // Hold each direction independently instead of shrinking on every
+            // sample. Remeasure the saved text for font/scale changes; do not
+            // carry a large pixel width into a smaller font or another network.
+            const width = Math.ceil(Math.max(natural, previous)) + 2 * scale;
+            if (rate.width !== width) rate.width = width;
+        });
+    }
+
     _syncDateClock() {
         if (!this.actor.mapped || !this._date.visible || this._expanded) {
             this._stopDateClock();
@@ -256,7 +288,7 @@ export class Pill {
     }
 
     _refreshDate() {
-        if (this._dateDay !== todayDay()) this._onDateChanged?.();
+        if (this._dateDay !== todayDay()) this._onChanged?.();
     }
 
     _stopDateClock() {
