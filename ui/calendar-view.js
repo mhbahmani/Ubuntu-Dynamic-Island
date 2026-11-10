@@ -35,6 +35,8 @@ export class CalendarView {
         this.title = label('', 'ubuntu-island-calendar-title', false);
         this.title.clutter_text.line_wrap = true;
         this.dates.add_child(this.title);
+        // The combined date line replaces the heading when conversions are
+        // shown. Larger text can wrap without clipping dates or controls.
         this.selectedDate = label('', 'ubuntu-island-calendar-selected', false);
         this.selectedDate.clutter_text.line_wrap = true;
         this.dates.add_child(this.selectedDate);
@@ -140,12 +142,14 @@ export class CalendarView {
         this.gridData = monthGrid(this.displayed, this.primary);
         const selectedInMonth = this.gridData.some(data => data.inMonth && data.day === this.selected);
         const focusDay = selectedInMonth ? this.selected : this.gridData.find(data => data.inMonth).day;
-        this.title.text = selectedInMonth ? dateTitle(this.selected, calendar) : monthTitle(this.displayed, calendar);
-        this.title.accessible_name = selectedInMonth ? fullDate(this.selected, calendar) : this.title.text;
         const shown = shownCalendars(this.primary, this.additional).filter(id => id !== this.primary);
+        this.title.text = selectedInMonth && !shown.length ? dateTitle(this.selected, calendar) : monthTitle(this.displayed, calendar);
+        this.title.visible = !selectedInMonth || !shown.length;
+        this.title.accessible_name = selectedInMonth ? fullDate(this.selected, calendar) : this.title.text;
         // Directional isolates keep mixed Persian/Latin dates in their own order.
-        this.selectedDate.text = shown.map(id => `\u2068${displayDate(this.selected, id)}\u2069`).join('  ·  ');
-        this.selectedDate.accessible_name = shown.map(id => fullDate(this.selected, primaryCalendar(id))).join('; ');
+        const dates = [this.primary, ...shown];
+        this.selectedDate.text = dates.map(id => `\u2068${displayDate(this.selected, id).replace(/ /g, '\u00a0')}\u2069`).join('  ·  ');
+        this.selectedDate.accessible_name = dates.map(id => fullDate(this.selected, primaryCalendar(id))).join('; ');
         this.selectedDate.visible = selectedInMonth && shown.length > 0;
         const selectedHoliday = calendarHolidays(this.selected, this.primary);
         this.holidayLabel.text = holidayDescription(selectedHoliday, this.primary);

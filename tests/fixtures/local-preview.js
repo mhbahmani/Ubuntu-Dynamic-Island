@@ -8,7 +8,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {sampleDevices, sampleAgents} from './preview-data.js';
-import {civilDay, todayDay, dateTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
+import {civilDay, todayDay, dateTitle, monthTitle, displayDate, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
 export default class Preview extends UbuntuIsland {
     enable() {
@@ -250,7 +250,9 @@ export default class Preview extends UbuntuIsland {
         for (const primary of ['jalali', 'gregorian', 'hijri']) {
             this._settings.set_string('calendar-primary', primary); await delay(180);
             assert(view.primary === primary && view.selected === sample, 'Preference switch lost selected date');
-            assert(view.title.text === dateTitle(sample, primaryCalendar(primary)), 'Header does not show the selected date');
+            assert(view.title.text === (view.selectedDate.visible ? monthTitle : dateTitle)(sample, primaryCalendar(primary)), 'Calendar heading does not match the displayed month/date');
+            if (view.selectedDate.visible)
+                assert(view.selectedDate.text.replace(/\u00a0/g, ' ').includes(displayDate(sample, primary)), 'Date strip omits the main calendar');
             assert(view.cells.filter(cell => cell.control.visible && cell.main.text).length === view.gridData.filter(day => day.inMonth).length, 'Other-month dates still visible');
             for (const cell of view.cells.filter(cell => cell.day === null))
                 assert(!cell.control.reactive && !cell.control.can_focus, 'Blank date cell is interactive');
@@ -272,7 +274,7 @@ export default class Preview extends UbuntuIsland {
         await click(view.cells.find(c => c.day === sample).control);
         await key(Clutter.KEY_Left); assert(view.selected === sample + 1, 'RTL arrow did not cross Nowruz');
         await key(Clutter.KEY_Right); assert(view.selected === sample, 'RTL arrow did not return');
-        assert(view.title.text === dateTitle(sample, 'persian'), 'Keyboard selection did not update the heading');
+        assert(view.selectedDate.text.replace(/\u00a0/g, ' ').includes(displayDate(sample, 'jalali')), 'Keyboard selection did not update the date strip');
         // Iranian published dates differ from the tabular Hijri calendar.
         const holidayDay = civilDay(2026, 11, 13);
         view.select(holidayDay - 1); await delay(150);
@@ -320,7 +322,7 @@ export default class Preview extends UbuntuIsland {
             const nav = this._card._navigation, [left] = this._island.actor.get_transformed_position();
             const right = left + this._island.actor.width;
             for (const actor of [view.previous, view.next, view.todayButton,
-                view.title, ...(view.selectedDate.visible ? [view.selectedDate] : []),
+                ...(view.title.visible ? [view.title] : []), ...(view.selectedDate.visible ? [view.selectedDate] : []),
                 ...(view.holidayLabel.visible ? [view.holidayLabel] : []),
                 ...view.headings, ...view.cells.filter(cell => cell.control.visible).map(cell => cell.control),
                 ...this._card._tabs.values(), nav.get_last_child()]) {
@@ -331,17 +333,20 @@ export default class Preview extends UbuntuIsland {
             const [controlsX] = view.controls.get_transformed_position();
             assert(dateX + view.dates.width <= controlsX, 'Date heading overlaps month controls');
             assert(dateY + view.dates.height <= view.scroll.get_transformed_position()[1], 'Date heading overlaps grid');
-            for (const label of [view.title, ...(view.selectedDate.visible ? [view.selectedDate] : []),
+            for (const label of [...(view.title.visible ? [view.title] : []), ...(view.selectedDate.visible ? [view.selectedDate] : []),
                 ...(view.holidayLabel.visible ? [view.holidayLabel] : [])])
                 assert(label.height + 1 >= label.clutter_text.get_preferred_height(label.width)[1], 'Date text is clipped');
             assert(view.scroll.get_transformed_position()[1] + view.scroll.height <= nav.get_transformed_position()[1] + 1, 'Grid overlaps navigation');
         };
+        this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);
         for (const scale of [1, 2]) {
             context.scale_factor = scale;
             for (const width of [440, 380]) {
                 this._settings.set_int('expanded-width', width); this._island.applyDimensions(); await delay(300);
                 verifyBounds();
                 assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Common month scrolls at ${width}/${scale}`);
+                assert(view.selectedDate.clutter_text.get_layout().get_line_count() === 1, `Calendar dates do not share one line at ${width}/${scale}`);
+                console.log(`[Island Preview] Calendar layout: ${width}px / ${scale * 100}%, height ${this._island.actor.height / scale}px, all dates on one line`);
                 await this._capture(`calendar-${width}-scale${scale}`);
             }
         }
