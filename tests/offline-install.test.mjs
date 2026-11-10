@@ -13,10 +13,10 @@ test('installer delivers offline status assets and preserves them on reinstall',
     const destination = join(extensions, 'ubuntu-island@mhbahmani.github.io');
     const files = ['services/connectivity.js', 'assets/notch/unplug-symbolic.svg'];
     try {
-        execFileSync('sh', [join(root, 'install.sh')], {env});
+        execFileSync('sh', [join(root, 'scripts/install.sh')], {env});
         for (const file of files)
             assert.equal(readFileSync(join(destination, file), 'utf8'), readFileSync(join(root, file), 'utf8'));
-        execFileSync('sh', [join(root, 'install.sh')], {env});
+        execFileSync('sh', [join(root, 'scripts/install.sh')], {env});
         const backup = readdirSync(extensions).find(name => name.includes('.backup.'));
         assert.ok(backup, 'Reinstall must preserve the previous extension');
         for (const file of files)

@@ -22,7 +22,7 @@ test('history stays bounded and preserves gaps and chronological order', () => {
 
 test('hidden charts store samples without requesting redraws', () => {
     let redraws = 0;
-    const source = readFileSync(new URL('../charts.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../ui/charts.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
     const Chart = vm.runInNewContext(`${source}\nHistoryChart`, {History,
         St: {DrawingArea: class {

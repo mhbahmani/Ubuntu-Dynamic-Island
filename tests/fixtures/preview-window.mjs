@@ -1,5 +1,5 @@
 import Gtk from 'gi://Gtk?version=4.0';
-import {editRoute} from '../commute-map.js';
+import {editRoute} from '../preferences/commute-map.js';
 // Real preferences-window lifecycle fixture, without the Extensions app service.
 import Gio from 'gi://Gio';
 import Adw from 'gi://Adw';

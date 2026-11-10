@@ -2,11 +2,11 @@ import {editRoute} from './commute-map.js';
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
-import {routesFrom, PROVIDER_NAMES, providerPriority, routeTitle, ROUTE_APPS} from './services/commute-model.js';
-import {routingKeys, saveRoutingKey} from './services/commute-keys.js';
+import {routesFrom, PROVIDER_NAMES, providerPriority, routeTitle, ROUTE_APPS} from '../services/commute-model.js';
+import {routingKeys, saveRoutingKey} from '../services/commute-keys.js';
 
-import {WeatherHttp} from './services/weather-http.js';
-import {validateRoutingKey} from './services/commute-validation.js';
+import {WeatherHttp} from '../services/weather-http.js';
+import {validateRoutingKey} from '../services/commute-validation.js';
 
 export function commutePreferences(settings, window, dependencies = {}) {
     const group = new Adw.PreferencesGroup({title: 'Driving routes',

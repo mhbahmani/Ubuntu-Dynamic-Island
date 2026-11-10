@@ -3,7 +3,7 @@ import {CurrentLocation} from '../services/commute-location.js';
 // Constructs real GTK controls without presenting a window or touching user settings.
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {routingKeyPreferences} from '../commute-prefs.js';
+import {routingKeyPreferences} from '../preferences/commute-prefs.js';
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 

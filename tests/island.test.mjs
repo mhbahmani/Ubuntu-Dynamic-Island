@@ -41,7 +41,7 @@ function harness(animation = 220) {
         pushModal: () => { const grab = {}; modal.add(grab); return grab; },
         popModal: grab => { assert.equal(modal.delete(grab), true); },
     };
-    const source = readFileSync(new URL('../island.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../ui/island.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replaceAll('export ', '');
     const Surface = vm.runInNewContext(`${source}\nIslandSurface`, {
         St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1}},

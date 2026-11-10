@@ -64,7 +64,7 @@ def main():
     extension.mkdir(parents=True)
     for path in source.glob('*.js'):
         shutil.copy2(path, extension / path.name)
-    for name in ('services', 'schemas', 'assets', 'helpers'):
+    for name in ('ui', 'preferences', 'services', 'schemas', 'assets', 'helpers'):
         shutil.copytree(source / name, extension / name)
     for name in ('metadata.json', 'stylesheet.css'):
         shutil.copy2(source / name, extension / name)

@@ -3,7 +3,7 @@ import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {containsPoint} from './services/presentation.js';
+import {containsPoint} from '../services/presentation.js';
 
 export const IslandState = Object.freeze({
     COLLAPSED: 'collapsed',

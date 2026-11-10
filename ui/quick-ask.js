@@ -2,7 +2,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import Pango from 'gi://Pango';
-import {AGENTS} from './services/agents-model.js';
+import {AGENTS} from '../services/agents-model.js';
 import {agentIcon} from './agent-icon.js';
 import {column, row, label, icon, button, setEnabled} from './widgets.js';
 

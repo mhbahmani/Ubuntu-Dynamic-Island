@@ -13,13 +13,13 @@ import Atk from 'gi://Atk';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 import {icon, label, row, column, button, pct, setEnabled, notchToggle} from './widgets.js';
-import {formatTime, clampFraction} from './services/format.js';
-import {formatCapacity} from './services/proc.js';
+import {formatTime, clampFraction} from '../services/format.js';
+import {formatCapacity} from '../services/proc.js';
 
 // Symbolic theme artwork uses a 16px grid. Keep the native size and an even
 // allocation so its strokes do not land on half-pixels at 100% scale.
 const NAVIGATION_ICON_SIZE = 16;
-const settingsIcon = new Gio.FileIcon({file: Gio.File.new_for_uri(import.meta.url).get_parent()
+const settingsIcon = new Gio.FileIcon({file: Gio.File.new_for_uri(import.meta.url).get_parent().get_parent()
     .resolve_relative_path('assets/icons/hicolor/scalable/actions/ubuntu-island-settings-symbolic.svg')});
 
 // Expanded island content, split into sections. Each section renders its own

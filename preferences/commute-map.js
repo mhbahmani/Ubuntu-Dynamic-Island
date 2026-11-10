@@ -2,10 +2,10 @@ import Gtk from 'gi://Gtk?version=4.0';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {WeatherHttp} from './services/weather-http.js';
-import {CurrentLocation, openLocationSettings} from './services/commute-location.js';
+import {WeatherHttp} from '../services/weather-http.js';
+import {CurrentLocation, openLocationSettings} from '../services/commute-location.js';
 import {RouteMap} from './commute-map-view.js';
-import {point} from './services/commute-model.js';
+import {point} from '../services/commute-model.js';
 
 // GTK map and tile requests exist only while the route editor is open.
 export async function editRoute(parent, existing, onSave, options = {}) {

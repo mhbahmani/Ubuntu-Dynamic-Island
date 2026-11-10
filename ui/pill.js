@@ -1,15 +1,15 @@
-import {agentCounts, agentSummary} from './services/agents-model.js';
-import {notchDates, todayDay} from './services/calendar-model.js';
+import {agentCounts, agentSummary} from '../services/agents-model.js';
+import {notchDates, todayDay} from '../services/calendar-model.js';
 import {NotchDates} from './notch-dates.js';
 import {agentIcon} from './agent-icon.js';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {MediaTitle} from './media-title.js';
 import GLib from 'gi://GLib';
-import {notchOrder, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator} from './services/notch-model.js';
+import {notchOrder, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator} from '../services/notch-model.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
-import {weatherSceneKind, temperature} from './services/weather-model.js';
+import {weatherSceneKind, temperature} from '../services/weather-model.js';
 import {icon, label, row} from './widgets.js';
 
 // Compact notch content shown while collapsed. The St.Button gives keyboard
@@ -157,7 +157,7 @@ export class Pill {
         if (connectionIcon !== this._connectionKind) {
             this._connectionKind = connectionIcon;
             if (connectionIcon === 'unplug-symbolic') {
-                const file = Gio.File.new_for_uri(import.meta.url).get_parent().resolve_relative_path('assets/notch/unplug-symbolic.svg');
+                const file = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path('assets/notch/unplug-symbolic.svg');
                 this._connectionIcon.gicon = new Gio.FileIcon({file});
             } else {
                 this._connectionIcon.gicon = null;
@@ -198,7 +198,7 @@ export class Pill {
             } else {
                 this._weather.remove_style_class_name('ubuntu-island-pill-weather');
                 this._weather.icon_size = 20;
-                const file = Gio.File.new_for_uri(import.meta.url).get_parent().resolve_relative_path(`assets/weather/notch/${kind}.svg`);
+                const file = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path(`assets/weather/notch/${kind}.svg`);
                 this._weather.gicon = new Gio.FileIcon({file});
             }
         }

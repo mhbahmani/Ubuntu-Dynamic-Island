@@ -2,7 +2,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 import GObject from 'gi://GObject';
-import {titleText, titleLimit} from './services/notch-model.js';
+import {titleText, titleLimit} from '../services/notch-model.js';
 
 // One clipped label, animated by Clutter. No JavaScript frame timer or repaint loop.
 export class MediaTitle {

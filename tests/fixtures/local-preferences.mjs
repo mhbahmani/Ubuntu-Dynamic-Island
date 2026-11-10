@@ -36,7 +36,7 @@ if (GLib.getenv('ISLAND_PREVIEW_PREFERENCES') === 'notch') {
     });
 }
 if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') {
-    const {editRoute} = await import('./commute-map.js');
+    const {editRoute} = await import('./preferences/commute-map.js');
     const settings = new Preferences(metadata).getSettings();
     window.set_visible_page_name('commute');
     await editRoute(window, null, route => {

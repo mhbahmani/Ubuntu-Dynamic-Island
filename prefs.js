@@ -1,10 +1,10 @@
-import {agentsPreferences} from './agents-prefs.js';
-import {calendarPreferences, notchDatePreferences} from './calendar-prefs.js';
-import {AGENT_ICON_NAME, agentIconDirectory} from './agent-icon.js';
-import {commutePreferences} from './commute-prefs.js';
+import {agentsPreferences} from './preferences/agents-prefs.js';
+import {calendarPreferences, notchDatePreferences} from './preferences/calendar-prefs.js';
+import {AGENT_ICON_NAME, agentIconDirectory} from './ui/agent-icon.js';
+import {commutePreferences} from './preferences/commute-prefs.js';
 import {migrateArrowStyle, migrateOfflineMode, OFFLINE_MODES} from './services/notch-model.js';
-import {notchPreview, notchStyles} from './notch-prefs.js';
-import {weatherPreferences} from './weather-prefs.js';
+import {notchPreview, notchStyles} from './preferences/notch-prefs.js';
+import {weatherPreferences} from './preferences/weather-prefs.js';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';

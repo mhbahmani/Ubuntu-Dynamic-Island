@@ -4,8 +4,8 @@ import Atk from 'gi://Atk';
 import GLib from 'gi://GLib';
 import {column, row, label, button} from './widgets.js';
 import {primaryCalendar, todayDay, weekday, monthGrid, shiftMonths, dateTitle, monthTitle,
-    fullDate, displayDate, persianDigits, shownCalendars, migrateCalendarSettings} from './services/calendar-model.js';
-import {calendarHolidays, holidayDescription, isCalendarWeekend} from './services/calendar-holidays.js';
+    fullDate, displayDate, persianDigits, shownCalendars, migrateCalendarSettings} from '../services/calendar-model.js';
+import {calendarHolidays, holidayDescription, isCalendarWeekend} from '../services/calendar-holidays.js';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERSIAN_WEEKDAYS = ['ی', 'د', 'س', 'چ', 'پ', 'ج', 'ش'];

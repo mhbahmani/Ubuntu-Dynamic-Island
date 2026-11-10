@@ -1,7 +1,7 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
-import {weatherSceneKind} from './services/weather-model.js';
-import {ArtLoader} from './services/art.js';
+import {weatherSceneKind} from '../services/weather-model.js';
+import {ArtLoader} from '../services/art.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -82,7 +82,7 @@ export class WeatherScene {
             this.image.set_content(null);
             this.actor.set_style_class_name(`ubuntu-island-weather-scene weather-${kind}`);
             this.style();
-            const file = Gio.File.new_for_uri(import.meta.url).get_parent().resolve_relative_path(`assets/weather/${kind}.png`);
+            const file = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path(`assets/weather/${kind}.png`);
             this.loader.load(file.get_uri(), 1536, content => {
                 if (this.dead) return;
                 this.ready = Boolean(content);

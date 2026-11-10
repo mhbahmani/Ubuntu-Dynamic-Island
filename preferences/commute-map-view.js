@@ -1,8 +1,8 @@
 import Gtk from 'gi://Gtk?version=4.0';
 import Gdk from 'gi://Gdk?version=4.0';
 import GLib from 'gi://GLib';
-import {project, unproject, visibleTiles} from './services/map-model.js';
-import {MapTiles} from './services/map-tiles.js';
+import {project, unproject, visibleTiles} from '../services/map-model.js';
+import {MapTiles} from '../services/map-tiles.js';
 
 // A native, event-driven map: no embedded browser, subprocess or frame timer.
 export class RouteMap {

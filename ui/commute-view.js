@@ -4,8 +4,8 @@ import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 import Atk from 'gi://Atk';
 import {label, row, column, icon, button, setEnabled} from './widgets.js';
-import {openLocationSettings} from './services/commute-location.js';
-import {PROVIDERS, KEYLESS_PROVIDERS, PROVIDER_NAMES, ROUTE_APPS, routeLink, routeTitle, point} from './services/commute-model.js';
+import {openLocationSettings} from '../services/commute-location.js';
+import {PROVIDERS, KEYLESS_PROVIDERS, PROVIDER_NAMES, ROUTE_APPS, routeLink, routeTitle, point} from '../services/commute-model.js';
 
 function textButton(text, action, primary = false) {
     const control = new St.Button({label: text, can_focus: true, reactive: true, track_hover: true,
@@ -44,7 +44,7 @@ export class CommuteView {
         this.driving = new St.Bin({style_class: 'ubuntu-island-commute-driving', y_align: Clutter.ActorAlign.CENTER,
             accessible_role: Atk.Role.REDUNDANT_OBJECT,
             child: new St.Icon({icon_size: 25, gicon: new Gio.FileIcon({file: Gio.File.new_for_uri(import.meta.url)
-                .get_parent().get_child('assets').get_child('commute-driving-symbolic.svg')})})});
+                .get_parent().get_parent().get_child('assets').get_child('commute-driving-symbolic.svg')})})});
         this.summary.add_child(this.driving);
         const duration = column('ubuntu-island-commute-duration');
         this.duration = duration;

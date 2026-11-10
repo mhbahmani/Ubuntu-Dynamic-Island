@@ -4,8 +4,8 @@ import Gdk from 'gi://Gdk';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {agentIcon} from './agent-icon.js';
-import {notchOrder, ARROW_STYLES, WEATHER_STYLES, arrowSvg, ARROW_ANGLE_MIN, ARROW_ANGLE_MAX} from './services/notch-model.js';
+import {agentIcon} from '../ui/agent-icon.js';
+import {notchOrder, ARROW_STYLES, WEATHER_STYLES, arrowSvg, ARROW_ANGLE_MIN, ARROW_ANGLE_MAX} from '../services/notch-model.js';
 
 export function notchPreview(settings, window) {
     const group = new Adw.PreferencesGroup({title: 'Notch order',
@@ -92,7 +92,7 @@ export function notchPreview(settings, window) {
 
 export function notchStyles(settings, window) {
     const group = new Adw.PreferencesGroup({title: 'Indicator style', description: 'Applies immediately to the collapsed notch. Download stays red; upload stays green.'});
-    const root = Gio.File.new_for_uri(import.meta.url).get_parent();
+    const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent();
     const arrows = [new Gtk.Image({pixel_size: 18}), new Gtk.Image({pixel_size: 18})];
     const weather = new Gtk.Image({pixel_size: 22});
     const pair = new Gtk.Box({spacing: 6}); arrows.forEach(icon => pair.append(icon));

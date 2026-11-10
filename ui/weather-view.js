@@ -2,7 +2,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {WeatherScene} from './weather-scene.js';
 import {label, row, column, button, setEnabled, notchToggle} from './widgets.js';
-import {temperature, parseLocation, localTime} from './services/weather-model.js';
+import {temperature, parseLocation, localTime} from '../services/weather-model.js';
 
 export class WeatherView {
     constructor(section, settings, actions) {

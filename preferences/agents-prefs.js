@@ -2,9 +2,9 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {AGENTS, TERMINALS} from './services/agents-model.js';
-import {agentExecutable} from './services/agent-launch.js';
-import {runtimePath, encoder, writeBytes} from './helpers/agents/io.js';
+import {AGENTS, TERMINALS} from '../services/agents-model.js';
+import {agentExecutable} from '../services/agent-launch.js';
+import {runtimePath, encoder, writeBytes} from '../helpers/agents/io.js';
 import {quickAskShortcut} from './shortcut-prefs.js';
 
 export function agentsPreferences(settings, window, path) {

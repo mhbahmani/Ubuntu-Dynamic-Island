@@ -2,7 +2,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
-import {CALENDARS} from './services/calendar-model.js';
+import {CALENDARS} from '../services/calendar-model.js';
 import {label, row} from './widgets.js';
 
 // Separate labels isolate RTL dates from their LTR neighbours. Long custom

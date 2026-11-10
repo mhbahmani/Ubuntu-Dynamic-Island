@@ -63,10 +63,10 @@ $(WEATHER_PREVIEWS): preview-%:
 	$(PYTHON) tests/preview.py --tab weather --scene $(patsubst %-day,%,$*) --ignore-power-saver $(PREVIEW_ARGS)
 
 install:
-	./install.sh
+	./scripts/install.sh
 
 build:
-	./build.sh
+	./scripts/build.sh
 
 enable:
 	gnome-extensions enable $(UUID)
@@ -87,7 +87,7 @@ test:
 	$(NODE) --test
 
 syntax:
-	@set -e; for file in *.js services/*.js helpers/agents/*.js scripts/*.mjs tests/*.mjs tests/fixtures/*.js tests/fixtures/*.mjs; do $(NODE) --check "$$file"; done
+	@find extension.js prefs.js ui preferences services helpers scripts tests -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -n1 $(NODE) --check
 	$(PYTHON) -c "import ast, pathlib; [ast.parse(p.read_text(), filename=str(p)) for p in pathlib.Path('tests').glob('*.py')]"
 
 check-schema:

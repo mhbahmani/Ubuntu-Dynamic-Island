@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync, readdirSync, readFileSync, rmSync, existsSync} from 'node:fs';
+import {mkdtempSync, readdirSync, readFileSync, rmSync, existsSync, cpSync, mkdirSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
-import {join, resolve} from 'node:path';
+import {join, resolve, relative} from 'node:path';
 import {execFileSync} from 'node:child_process';
 
 // Exercise the actual installer without touching the user's installation.
@@ -12,30 +12,62 @@ test('installer includes every runtime module and preserves the previous install
     const env = {...process.env, XDG_DATA_HOME: temporary};
     const destination = join(temporary, 'gnome-shell/extensions/ubuntu-island@mhbahmani.github.io');
     try {
-        execFileSync('sh', [join(root, 'install.sh')], {env});
-        const modules = readdirSync(root).filter(name => name.endsWith('.js'));
-        for (const name of modules) {
-            assert.equal(readFileSync(join(destination, name), 'utf8'), readFileSync(join(root, name), 'utf8'), name);
-        }
+        execFileSync('sh', [join(root, 'scripts/install.sh')], {env});
+        const modules = runtimeFiles(root);
+        verifyRuntime(root, destination, modules);
         assert.ok(existsSync(join(destination, 'schemas/gschemas.compiled')));
-        for (const name of readdirSync(join(root, 'helpers/agents')))
-            assert.equal(readFileSync(join(destination, 'helpers/agents', name), 'utf8'), readFileSync(join(root, 'helpers/agents', name), 'utf8'), name);
-        for (const name of readdirSync(join(root, 'services')).filter(name => name.endsWith('.js')))
-            assert.equal(readFileSync(join(destination, 'services', name), 'utf8'), readFileSync(join(root, 'services', name), 'utf8'), name);
-        assert.equal(readFileSync(join(destination, 'assets/commute-driving-symbolic.svg'), 'utf8'),
-            readFileSync(join(root, 'assets/commute-driving-symbolic.svg'), 'utf8'));
-        for (const name of readdirSync(join(root, 'assets/icons/hicolor/scalable/actions'))) {
-            const icon = `assets/icons/hicolor/scalable/actions/${name}`;
-            assert.equal(readFileSync(join(destination, icon), 'utf8'), readFileSync(join(root, icon), 'utf8'), name);
-        }
-        for (const name of readdirSync(join(root, 'assets/agents')))
-            assert.equal(readFileSync(join(destination, 'assets/agents', name), 'utf8'), readFileSync(join(root, 'assets/agents', name), 'utf8'), name);
         assert.ok(existsSync(join(temporary, 'applications/ubuntu-island.desktop')));
-        execFileSync('sh', [join(root, 'install.sh')], {env});
+        execFileSync('sh', [join(root, 'scripts/install.sh')], {env});
         const backup = readdirSync(join(temporary, 'gnome-shell/extensions')).find(name => name.includes('.backup.'));
         assert.ok(backup, 'Reinstallation must preserve the old extension');
         const backupDirectory = join(temporary, 'gnome-shell/extensions', backup);
-        for (const name of modules)
-            assert.equal(readFileSync(join(backupDirectory, name), 'utf8'), readFileSync(join(root, name), 'utf8'), `backup ${name}`);
+        verifyRuntime(root, backupDirectory, modules);
+    } finally { rmSync(temporary, {recursive: true, force: true}); }
+});
+
+const runtimeDirectories = ['ui', 'preferences', 'services', 'helpers', 'assets'];
+
+function runtimeFiles(root) {
+    return ['extension.js', 'prefs.js', 'metadata.json', 'stylesheet.css',
+        ...runtimeDirectories.flatMap(directory => readdirSync(join(root, directory), {recursive: true, withFileTypes: true})
+            .filter(entry => entry.isFile())
+            .map(entry => relative(root, join(entry.parentPath, entry.name))))];
+}
+
+function verifyRuntime(root, destination, files) {
+    for (const name of files) {
+        assert.deepEqual(readFileSync(join(destination, name)), readFileSync(join(root, name)), name);
+        if (!name.endsWith('.js')) continue;
+        const source = readFileSync(join(destination, name), 'utf8');
+        for (const [, relative] of source.matchAll(/(?:from\s+|import\s*\(\s*)['"](\.{1,2}\/[^'"]+\.js)['"]/g)) {
+            assert.ok(existsSync(resolve(destination, name, '..', relative)), `${name}: missing ${relative}`);
+        }
+    }
+}
+
+test('ZIP preserves the runtime layout and replaces stale archive entries', () => {
+    const temporary = mkdtempSync(join(tmpdir(), 'island-build-test-'));
+    const root = resolve(import.meta.dirname, '..');
+    const files = runtimeFiles(root);
+    try {
+        // Build from a private checkout so the test does not replace release artifacts.
+        for (const name of [...files, 'scripts/build.sh']) {
+            mkdirSync(resolve(temporary, name, '..'), {recursive: true});
+            cpSync(join(root, name), join(temporary, name));
+        }
+        cpSync(join(root, 'schemas'), join(temporary, 'schemas'), {recursive: true});
+        const build = () => execFileSync('sh', [join(temporary, 'scripts/build.sh')], {cwd: tmpdir()});
+        build();
+        const archive = join(temporary, 'dist', readdirSync(join(temporary, 'dist')).find(name => name.endsWith('.zip')));
+        writeFileSync(join(temporary, 'retired-module.js'), '// no longer shipped');
+        execFileSync('zip', ['-q', archive, 'retired-module.js'], {cwd: temporary});
+        build();
+        const destination = join(temporary, 'unpacked');
+        execFileSync('unzip', ['-q', archive, '-d', destination]);
+        verifyRuntime(root, destination, files);
+        assert.ok(existsSync(join(destination, 'schemas/gschemas.compiled')));
+        assert.ok(!existsSync(join(destination, 'retired-module.js')));
+        for (const name of ['scripts', 'tests', 'docs', 'dist', 'AGENTS.md'])
+            assert.ok(!existsSync(join(destination, name)), `${name} must not be packaged`);
     } finally { rmSync(temporary, {recursive: true, force: true}); }
 });

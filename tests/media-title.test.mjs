@@ -29,7 +29,7 @@ function harness() {
         set_modes() {}
     }
     const settings = new Actor({enable_animations: true});
-    const source = readFileSync(new URL('../media-title.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../ui/media-title.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
     const Title = vm.runInNewContext(`${source}\nMediaTitle`, {
         St: {Widget: Actor, Label: Actor, Settings: {get: () => settings}, ThemeContext: {get_for_stage: () => ({scale_factor: 1})}},

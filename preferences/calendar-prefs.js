@@ -2,7 +2,7 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {CALENDARS, migrateCalendarSettings, migrateNotchDates, DATE_PRESETS, DATE_TOKENS, dateFormatError, dateOrder, formatNotchDate, notchDates, todayDay} from './services/calendar-model.js';
+import {CALENDARS, migrateCalendarSettings, migrateNotchDates, DATE_PRESETS, DATE_TOKENS, dateFormatError, dateOrder, formatNotchDate, notchDates, todayDay} from '../services/calendar-model.js';
 
 export function notchDatePreferences(settings, window) {
     migrateCalendarSettings(settings);

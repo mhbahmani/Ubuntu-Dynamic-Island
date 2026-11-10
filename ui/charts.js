@@ -1,5 +1,5 @@
 import St from 'gi://St';
-import {History} from './services/history.js';
+import {History} from '../services/history.js';
 
 // One native drawing actor per chart. Samples use the existing metrics clock;
 // only mapped charts request repaints. No animation or extra sampling timer.

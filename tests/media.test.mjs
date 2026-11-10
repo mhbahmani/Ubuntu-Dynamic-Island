@@ -49,7 +49,7 @@ test('media position freezes on pause, resumes without jumping, and ignores idle
 });
 
 test('media updates render seek, pause, resume and new tracks without a zero frame', () => {
-    const cardUrl = new URL('../card.js', import.meta.url);
+    const cardUrl = new URL('../ui/card.js', import.meta.url);
     const source = readFileSync(cardUrl, 'utf8')
         .replaceAll('import.meta.url', JSON.stringify(cardUrl.href))
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');

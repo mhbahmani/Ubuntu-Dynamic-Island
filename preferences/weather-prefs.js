@@ -1,8 +1,8 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
-import {WeatherHttp} from './services/weather-http.js';
-import {parseLocation} from './services/weather-model.js';
+import {WeatherHttp} from '../services/weather-http.js';
+import {parseLocation} from '../services/weather-model.js';
 
 export function weatherPreferences(settings, window) {
     const group = new Adw.PreferencesGroup({title: 'Weather',

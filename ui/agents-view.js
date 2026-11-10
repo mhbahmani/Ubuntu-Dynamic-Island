@@ -4,14 +4,14 @@ import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import Atk from 'gi://Atk';
 import GLib from 'gi://GLib';
-import {AGENTS, AGENT_STATES, agentSummary, cleanText} from './services/agents-model.js';
+import {AGENTS, AGENT_STATES, agentSummary, cleanText} from '../services/agents-model.js';
 import {column, row, label, button, setEnabled, notchToggle} from './widgets.js';
 
 const DESTINATIONS = {terminal:'Terminal', 'copy-terminal':'Copy to terminal', desktop:'Desktop app', web:'Website'};
 const RECENT = new Set(['finished', 'closed']);
 const PRIORITY = {approval:0, input:0, error:1, interrupted:2, working:3, idle:4, unknown:5, finished:6, closed:7};
 const icons = new Map(Object.keys(AGENT_STATES).map(state => [state,
-    Gio.FileIcon.new(Gio.File.new_for_uri(import.meta.url).get_parent().resolve_relative_path(`assets/agents/${state}-symbolic.svg`))]));
+    Gio.FileIcon.new(Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path(`assets/agents/${state}-symbolic.svg`))]));
 function textButton(text, action, css = '') {
     const actor = new St.Button({label:text, style_class:`ubuntu-island-agent-button ${css}`, can_focus:true, reactive:true, track_hover:true});
     actor.connect('clicked', action); return actor;

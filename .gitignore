@@ -1,6 +1,7 @@
 .codegraph/
 node_modules/
 *.zip
+dist/
 schemas/gschemas.compiled
 
 __pycache__/
