@@ -1,6 +1,6 @@
 /* Ricelin composition with high-opacity matte graphite and vermilion controls. */
 .ubuntu-island-surface {
-    font-family: "Noto Sans";
+    font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans";
     color: #eceef2;
     background-gradient-direction: vertical;
     background-gradient-start: rgba(48, 50, 56, 0.98);
@@ -24,6 +24,15 @@
 .ubuntu-island-pill-media { spacing: 6px; }
 .ubuntu-island-pill StIcon { color: #d1d4dd; }
 .ubuntu-island-pill-title { color: #eceef2; font-size: 10pt; font-weight: 600; }
+.ubuntu-island-pill-date { font-size: 9.5pt; font-weight: 500; color: #d1d4dd; font-feature-settings: "tnum"; }
+.ubuntu-island-notch-dates { spacing: 8px; }
+.ubuntu-island-date-separator { font-size: 9pt; color: #7e8592; }
+.ubuntu-island-date-tooltip {
+    font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans";
+    font-size: 10pt; color: #eceef2; padding: 10px 14px;
+    border-radius: 10px; background-color: #25272d;
+    border: 1px solid rgba(235, 239, 255, 0.2);
+}
 .ubuntu-island-cpu-dot { width: 6px; height: 6px; border-radius: 3px; background-color: #87ad8b; }
 .ubuntu-island-dot-low { background-color: #87ad8b; }
 .ubuntu-island-dot-mid { background-color: #d4a75d; }
@@ -42,6 +51,37 @@
 }
 .ubuntu-island-muted { color: #b7bbc5; font-size: 10pt; }
 .ubuntu-island-empty { padding: 16px 4px; spacing: 8px; }
+/* Calendar: selected date and month controls share one compact header. */
+.ubuntu-island-calendar { padding: 8px 16px 6px; spacing: 6px; }
+.ubuntu-island-calendar-header { spacing: 12px; }
+.ubuntu-island-calendar-dates { spacing: 2px; }
+.ubuntu-island-calendar-controls { spacing: 2px; padding: 2px; border-radius: 8px; background-color: rgba(235,239,255,0.05); border: 1px solid rgba(235,239,255,0.07); }
+.ubuntu-island-calendar-title { font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; font-size: 10.5pt; font-weight: 500; color: #eceef2; }
+.ubuntu-island-calendar-control { padding: 3px 5px; min-height: 18px; border-radius: 6px; color: #c0c6d0; font-size: 8.5pt; }
+.ubuntu-island-calendar-control:hover { background-color: rgba(235,239,255,0.08); color: #f8f9fc; }
+.ubuntu-island-calendar-control:active { background-color: rgba(235,239,255,0.14); }
+.ubuntu-island-calendar-control:focus { box-shadow: inset 0 0 0 1px #bac7d9; }
+.ubuntu-island-calendar-grid { padding-top: 4px; border-top: 1px solid rgba(235,239,255,0.08); }
+.ubuntu-island-calendar-weekday { font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; padding: 2px 0 4px; font-size: 8.5pt; color: #aeb6c4; }
+.ubuntu-island-calendar-day { padding: 1px 0; }
+.ubuntu-island-calendar-date { min-width: 24px; min-height: 20px; border: 1px solid transparent; border-radius: 7px; }
+.ubuntu-island-calendar-day:hover .ubuntu-island-calendar-date { background-color: rgba(235,239,255,0.08); }
+.ubuntu-island-calendar-day:active .ubuntu-island-calendar-date { background-color: rgba(235,239,255,0.16); }
+.ubuntu-island-calendar-selected-day .ubuntu-island-calendar-date { background-color: rgba(235,239,255,0.08); border-color: #939eaf; }
+.ubuntu-island-calendar-today .ubuntu-island-calendar-date { background-color: #b74732; border-color: #cc624d; }
+.ubuntu-island-calendar-day:focus .ubuntu-island-calendar-date { box-shadow: inset 0 0 0 1px #edf1f7; }
+.ubuntu-island-calendar-number { font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; font-size: 9.5pt; font-weight: 400; color: #eceef2; font-feature-settings: "tnum"; }
+.ubuntu-island-calendar-weekend-heading,
+.ubuntu-island-calendar-holiday .ubuntu-island-calendar-number { color: #f0a38f; }
+.ubuntu-island-calendar-day:checked .ubuntu-island-calendar-number,
+.ubuntu-island-calendar-today .ubuntu-island-calendar-number { color: #ffffff; }
+.ubuntu-island-calendar-blank .ubuntu-island-calendar-date { background-color: transparent; border-color: transparent; box-shadow: none; }
+.ubuntu-island-calendar-holiday-label { font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; font-size: 8.5pt; color: #f0a38f; }
+.ubuntu-island-calendar-selected { font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; font-size: 8.5pt; color: #bac3d1; }
+/* Eight optional modules still leave room for the active caption at 380px. */
+.ubuntu-island-with-calendar .ubuntu-island-navigation { spacing: 2px; padding-left: 8px; padding-right: 8px; }
+.ubuntu-island-with-calendar .ubuntu-island-tab,
+.ubuntu-island-with-calendar.ubuntu-island-with-agents .ubuntu-island-tab { padding-left: 5px; padding-right: 5px; }
 /* Artwork-led media face. Color is sampled once when a cover loads. */
 .ubuntu-island-card-media .ubuntu-island-section-box { border-radius: 19px 19px 0 0; }
 .ubuntu-island-media-main { padding: 8px 14px 4px; spacing: 4px; }

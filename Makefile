@@ -19,6 +19,7 @@ help:
 	  '  make preview-commute-map Open the route editor immediately' \
 	  '  make preview-commute     Driving routes with sample estimates; no API key' \
 	  '  make preview-agents      Agent sessions and Quick Ask with safe sample data' \
+	  '  make preview-calendar    Interactive Jalali, Gregorian and Hijri calendar' \
 	  '  make preview-live        Live weather/routes/metrics, sample device controls' \
 	  '  make preview-headless    Save a preview screenshot without a window' \
 	  '  make preview-sun-day         Animated sunny weather sample' \
@@ -124,6 +125,10 @@ verify: check prefs-test weather-cache-test media-test smoke build
 .PHONY: preview-agents agents-test
 preview-agents:
 	$(PYTHON) tests/preview.py --tab agents $(PREVIEW_ARGS)
+
+.PHONY: preview-calendar
+preview-calendar:
+	$(PYTHON) tests/preview.py --tab calendar $(PREVIEW_ARGS)
 
 agents-test:
 	$(NODE) --test tests/agents*.test.mjs

@@ -8,18 +8,24 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {sampleDevices, sampleAgents} from './preview-data.js';
+import {civilDay, todayDay, dateTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
 export default class Preview extends UbuntuIsland {
     enable() {
         this._previewConfigured = false;
         const settings = this.getSettings();
+        settings.set_int('expanded-width', Number(GLib.getenv('ISLAND_PREVIEW_CARD_WIDTH') || 440));
+        new Gio.Settings({schema_id: 'org.gnome.desktop.interface'})
+            .set_double('text-scaling-factor', Number(GLib.getenv('ISLAND_PREVIEW_TEXT_SCALE') || 1));
         // Setup buttons in the preview must never modify real CLI configuration.
         for (const provider of ['claude', 'codex', 'opencode'])
             settings.set_string(`agents-${provider}-config`, `${GLib.getenv('ISLAND_PREVIEW_OUTPUT')}/agent-configs/${provider}`);
-        for (const module of ['media', 'metrics', 'audio', 'bluetooth', 'weather', 'commute', 'agents'])
+        for (const module of ['media', 'metrics', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar'])
             settings.set_boolean(`enable-${module}`, true);
-        for (const indicator of ['title', 'weather', 'network', 'commute', 'agents'])
+        for (const indicator of ['title', 'weather', 'network', 'commute', 'agents', 'date'])
             settings.set_boolean(`pill-show-${indicator}`, true);
+        settings.set_strv('pill-date-calendars', ['jalali', 'gregorian']);
+        settings.set_value('pill-date-formats', new GLib.Variant('a{ss}', {jalali: '%ww %d %mm'}));
         settings.set_string('pill-offline-mode', GLib.getenv('ISLAND_PREVIEW_OFFLINE_STYLE') || 'icon');
         settings.set_string('commute-routes', JSON.stringify([{id: 'sample', name: 'Heading home (sample)', originMode: 'fixed', originName: 'Work', destinationName: 'Home', origin: {latitude: 35.7219, longitude: 51.3347}, destination: {latitude: 35.6892, longitude: 51.389}}]));
         settings.set_string('commute-selected', 'sample');
@@ -96,16 +102,25 @@ export default class Preview extends UbuntuIsland {
             Main.overview.hide();
             const tab = GLib.getenv('ISLAND_PREVIEW_TAB') || 'notch';
             this._card.selectPage(tab === 'notch' ? 'media' : tab);
+            const calendarDate = GLib.getenv('ISLAND_PREVIEW_CALENDAR_DATE');
+            if (tab === 'calendar' && calendarDate)
+                this._card._calendarView.select(civilDay(...calendarDate.split('-').map(Number)));
             if (tab === 'notch') this._island.collapse();
             else this._island.expand();
+            const preferences = GLib.getenv('ISLAND_PREVIEW_PREFERENCES');
+            if (preferences) {
+                this._settings.set_string('preferences-page', preferences);
+                this._openPreferencesLive();
+            }
             if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') this._openPreferencesLive('commute');
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_INPUT') === '1') this._checkInput().catch(error => console.error(`[Island Preview] INPUT FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') this._checkFullPreview().catch(error => console.error(`[Island Preview] FULL FAIL: ${error.message}`));
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_CALENDAR') === '1') this._checkCalendar().catch(error => console.error(`[Island Preview] CALENDAR FAIL: ${error.message}`));
             const monitor = Main.layoutManager.primaryMonitor;
             const uiScale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             console.log(`[Island Preview] READY: ${monitor.width}x${monitor.height}, ${uiScale * 100}% UI; all modules enabled; ${tab === 'notch' ? 'collapsed notch' : tab} visible. Device controls use sample data.`);
-            if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') return GLib.SOURCE_REMOVE;
-            this._captureTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 20000 : GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1' ? 8000 : 1500, () => {
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1' || GLib.getenv('ISLAND_PREVIEW_CHECK_CALENDAR') === '1') return GLib.SOURCE_REMOVE;
+            this._captureTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 20000 : GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1' || preferences ? 8000 : 1500, () => {
                 this._captureTimer = 0;
                 this._capture().catch(error => console.warn(`[Island Preview] Screenshot: ${error.message}`));
                 return GLib.SOURCE_REMOVE;
@@ -164,7 +179,7 @@ export default class Preview extends UbuntuIsland {
             assert(pill._connection.visible === (style !== 'hide'), 'Offline indicator does not match selected style');
             assert(this._island._connectionEdge.visible === (style === 'edge'), 'Offline edge does not match selected style');
         }
-        for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents']) {
+        for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar']) {
             assert(this._card._pages.get(tab)?.available, `${tab} module unavailable`);
             this._card.selectPage(tab);
             this._island.expand();
@@ -186,7 +201,267 @@ export default class Preview extends UbuntuIsland {
         this._island.collapse();
         await delay(400);
         await this._capture('notch');
-        console.log('[Island Preview] FULL PASS: populated notch, all seven tabs, sample controls and Agents interactions');
+        console.log('[Island Preview] FULL PASS: populated notch, all eight tabs, sample controls and Agents interactions');
+    }
+
+    async _checkCalendar() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const assert = (condition, message) => { if (!condition) throw new Error(message); };
+        const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        const keyboard = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
+        const click = async actor => {
+            const [x, y] = actor.get_transformed_position(), [w, h] = actor.get_transformed_size();
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + w / 2, y + h / 2);
+            await delay(30);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
+            await delay(40);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
+            await delay(180);
+        };
+        const key = async symbol => {
+            keyboard.notify_keyval(GLib.get_monotonic_time(), symbol, Clutter.KeyState.PRESSED);
+            keyboard.notify_keyval(GLib.get_monotonic_time(), symbol, Clutter.KeyState.RELEASED);
+            await delay(180);
+        };
+        await this._checkNotchDate();
+        this._card.selectPage('calendar'); this._island.expand(); await delay(600);
+        const view = this._card._calendarView;
+        const sample = civilDay(2025, 3, 20);
+        view.select(sample);
+        assert(!view.modes && !view.modeButtons, 'Calendar choices must stay in preferences');
+        assert(!view.copyButton && !view.footer, 'Calendar still has a bottom action row');
+        for (const primary of ['jalali', 'gregorian', 'hijri']) {
+            this._settings.set_string('calendar-primary', primary); await delay(180);
+            assert(view.primary === primary && view.selected === sample, 'Preference switch lost selected date');
+            assert(view.title.text === dateTitle(sample, primaryCalendar(primary)), 'Header does not show the selected date');
+            assert(view.cells.filter(cell => cell.control.visible && cell.main.text).length === view.gridData.filter(day => day.inMonth).length, 'Other-month dates still visible');
+            for (const cell of view.cells.filter(cell => cell.day === null))
+                assert(!cell.control.reactive && !cell.control.can_focus, 'Blank date cell is interactive');
+            await this._capture(`calendar-${primary}`);
+        }
+        this._settings.set_string('calendar-primary', 'jalali');
+        this._settings.set_strv('calendar-additional', ['jalali', 'gregorian', 'hijri']);
+        await delay(150); await this._capture('calendar-all-dates');
+        assert(view.selectedDate.text.includes('ق'), 'Additional Hijri date missing');
+        this._settings.set_string('calendar-primary', 'gregorian');
+        await click(view.cells.find(c => c.day === sample).control);
+        await key(Clutter.KEY_Left); assert(view.selected === sample - 1, 'Gregorian arrow did not move left');
+        await key(Clutter.KEY_Right); assert(view.selected === sample, 'Gregorian arrow did not return');
+        this._settings.set_string('calendar-primary', 'jalali');
+        this._settings.set_strv('calendar-additional', ['gregorian']); await delay(150);
+        await click(view.next); assert(view.displayed !== sample && view.selected === sample, 'Month browsing changed the selected civil date');
+        assert(!view.cells.some(cell => cell.control.visible && cell.control.has_style_pseudo_class('checked')), 'Browsing selected the same date number in another month');
+        await click(view.previous); assert(view.displayed === sample && view.selected === sample, 'Previous month did not return');
+        await click(view.cells.find(c => c.day === sample).control);
+        await key(Clutter.KEY_Left); assert(view.selected === sample + 1, 'RTL arrow did not cross Nowruz');
+        await key(Clutter.KEY_Right); assert(view.selected === sample, 'RTL arrow did not return');
+        assert(view.title.text === dateTitle(sample, 'persian'), 'Keyboard selection did not update the heading');
+        // Iranian published dates differ from the tabular Hijri calendar.
+        const holidayDay = civilDay(2026, 11, 13);
+        view.select(holidayDay - 1); await delay(150);
+        await click(view.cells.find(c => c.day === holidayDay).control);
+        assert(view.holidayLabel.visible && view.holidayLabel.text === 'شهادت حضرت فاطمه', 'Selected Iranian holiday name missing');
+        const marked = () => view.cells.filter(cell => cell.control.visible && cell.control.has_style_class_name('ubuntu-island-calendar-holiday')).map(cell => cell.day).join(',');
+        const beforeAdditional = marked();
+        this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);
+        assert(marked() === beforeAdditional, 'Additional dates changed holiday markings');
+        await delay(150); await this._capture('calendar-iran-holiday');
+        this._settings.set_string('calendar-primary', 'gregorian'); await delay(150);
+        assert(!view.holidayLabel.visible && !view.cells.find(cell => cell.day === holidayDay).control.has_style_class_name('ubuntu-island-calendar-holiday'), 'Gregorian inherited Iranian holiday');
+        assert(view.cells.find(cell => cell.day === holidayDay + 1).control.has_style_class_name('ubuntu-island-calendar-holiday'), 'Gregorian weekend missing');
+        await this._capture('calendar-gregorian-weekends');
+        this._settings.set_string('calendar-primary', 'hijri');
+        view.select(holidayDay + 1); await delay(150);
+        assert(view.holidayLabel.text.includes('محاسبه‌ای'), 'Calculated lunar holiday is not identified');
+        await this._capture('calendar-hijri-holiday');
+        this._settings.set_string('calendar-primary', 'jalali');
+        this._settings.set_strv('calendar-additional', ['gregorian']);
+        await click(view.todayButton); assert(view.selected === todayDay(), 'Today did not reset selection');
+        const now = todayDay();
+        const redCells = () => view.cells.filter(cell => {
+            if (cell.day === null || !cell.control.visible) return false;
+            const color = cell.control.child.get_theme_node().get_background_color();
+            return color.red === 0xb7 && color.green === 0x47 && color.blue === 0x32;
+        });
+        assert(redCells().length === 1 && redCells()[0].day === now, 'Today does not own the red fill');
+        const controlsY = view.controls.get_transformed_position()[1];
+        await click(view.next);
+        assert(view.selected === now && redCells().length === 0, 'Red Today highlight carried into the next month');
+        assert(view.controls.get_transformed_position()[1] === controlsY, 'Month controls moved while browsing');
+        assert(!view.selectedDate.visible && !view.holidayLabel.visible, 'Browsing shows details for an offscreen selection');
+        await this._capture('calendar-next-month');
+        await click(view.previous);
+        assert(redCells().length === 1 && redCells()[0].day === now, 'Today highlight did not return with its actual month');
+        const another = view.cells.find(cell => cell.day !== null && cell.day !== now);
+        await click(another.control);
+        assert(another.control.has_style_pseudo_class('checked') && redCells().length === 1 && redCells()[0].day === now, 'Selecting another date moved the red Today highlight');
+        await click(view.todayButton);
+        const context = St.ThemeContext.get_for_stage(global.stage), originalScale = context.scale_factor;
+        const text = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'}), originalText = text.get_double('text-scaling-factor');
+        const originalWidth = this._settings.get_int('expanded-width');
+        const verifyBounds = () => {
+            const nav = this._card._navigation, [left] = this._island.actor.get_transformed_position();
+            const right = left + this._island.actor.width;
+            for (const actor of [view.previous, view.next, view.todayButton,
+                view.title, ...(view.selectedDate.visible ? [view.selectedDate] : []),
+                ...(view.holidayLabel.visible ? [view.holidayLabel] : []),
+                ...view.headings, ...view.cells.filter(cell => cell.control.visible).map(cell => cell.control),
+                ...this._card._tabs.values(), nav.get_last_child()]) {
+                const [x] = actor.get_transformed_position();
+                assert(x >= left - 1 && x + actor.width <= right + 1, 'Control outside card width');
+            }
+            const [dateX, dateY] = view.dates.get_transformed_position();
+            const [controlsX] = view.controls.get_transformed_position();
+            assert(dateX + view.dates.width <= controlsX, 'Date heading overlaps month controls');
+            assert(dateY + view.dates.height <= view.scroll.get_transformed_position()[1], 'Date heading overlaps grid');
+            for (const label of [view.title, ...(view.selectedDate.visible ? [view.selectedDate] : []),
+                ...(view.holidayLabel.visible ? [view.holidayLabel] : [])])
+                assert(label.height + 1 >= label.clutter_text.get_preferred_height(label.width)[1], 'Date text is clipped');
+            assert(view.scroll.get_transformed_position()[1] + view.scroll.height <= nav.get_transformed_position()[1] + 1, 'Grid overlaps navigation');
+        };
+        for (const scale of [1, 2]) {
+            context.scale_factor = scale;
+            for (const width of [440, 380]) {
+                this._settings.set_int('expanded-width', width); this._island.applyDimensions(); await delay(300);
+                verifyBounds();
+                assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Common month scrolls at ${width}/${scale}`);
+                await this._capture(`calendar-${width}-scale${scale}`);
+            }
+        }
+        this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);
+        view.select(civilDay(2026, 6, 4)); // Two overlapping holidays and all dates.
+        text.set_double('text-scaling-factor', 1.5); this._island.relayout(); await delay(400);
+        verifyBounds();
+        const heightBudget = this._island._heightBudget;
+        this._island._heightBudget = () => 230 * context.scale_factor;
+        this._island.relayout(); await delay(200);
+        const last = view.cells.filter(cell => cell.day !== null).at(-1).control;
+        last.can_focus = true; last.grab_key_focus(); await delay(200);
+        assert(last.get_transformed_position()[1] + last.height <= view.scroll.get_transformed_position()[1] + view.scroll.height + 1, 'Last date unreachable with enlarged text');
+        verifyBounds();
+        await this._capture('calendar-large-text');
+        this._island._heightBudget = heightBudget;
+        text.set_double('text-scaling-factor', originalText); context.scale_factor = originalScale;
+        this._settings.set_int('expanded-width', originalWidth); this._island.applyDimensions(); await delay(300);
+        this._settings.set_strv('calendar-additional', []); await delay(200);
+        assert(!view.selectedDate.visible, 'Empty additional-date line still occupies the header');
+        verifyBounds(); await this._capture('calendar-single-date');
+        this._settings.set_strv('calendar-additional', ['gregorian']); await delay(200);
+        view.select(todayDay()); await delay(200);
+        for (let i = 0; i < 3; i++) {
+            this._island.collapse(); await delay(300); assert(!view.midnightTimer, 'Hidden calendar retains timer');
+            this._island.expand(); await delay(300); assert(view.midnightTimer, 'Visible calendar clock missing');
+        }
+        this._card.selectPage('media'); assert(!view.midnightTimer, 'Inactive calendar retains timer');
+        this._card.selectPage('calendar'); await delay(300); await this._capture('calendar');
+        // The shared preferences action should open Calendar directly.
+        await click(this._card._navigation.get_last_child());
+        let preferences;
+        for (let i = 0; i < 40 && !preferences; i++) {
+            await delay(100);
+            preferences = this._agentWindows.all().find(w => w.get_title() === 'Ubuntu Island' && w.get_compositor_private()?.mapped);
+        }
+        assert(preferences && this._settings.get_string('preferences-page') === 'calendar', 'Calendar preferences shortcut failed');
+        assert(!this._pill._dates.tip.visible, 'Opening a preferences window exposed a hidden date tooltip');
+        await delay(500); await this._capture('calendar-preferences');
+        preferences.delete(global.get_current_time());
+        console.log('[Island Preview] CALENDAR PASS: Today-only red fill, separate month browsing/selection, blank adjacent-month cells, main-calendar holidays, live preferences, Jalali/Gregorian/Hijri, Nowruz, native keys/clicks, 380/440px, 100/200%, enlarged text and hidden cleanup');
+    }
+
+    async _checkNotchDate() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const assert = (condition, message) => { if (!condition) throw new Error(message); };
+        this._island.collapse(); await delay(400);
+        const pill = this._pill, settings = this._settings, dates = pill._dates;
+        const clock = Main.panel.statusArea.dateMenu._clock;
+        const dateLabel = id => dates.items.get(id).date;
+        settings.reset('pill-date-formats');
+        for (const calendar of ['jalali', 'gregorian', 'hijri']) {
+            settings.set_strv('pill-date-calendars', [calendar]); await delay(180);
+            const expected = notchDate(todayDay(), calendar), label = dateLabel(calendar);
+            assert(pill._date.visible && label.text === expected.text, 'Notch date does not match chosen calendar');
+            assert(pill.actor.accessible_name.includes(expected.description), 'Complete notch date is not accessible');
+            assert(pill._dateClock === clock, 'Visible date is not using the existing clock');
+            assert(!label.clutter_text.get_layout().is_ellipsized(), 'Compact single date is truncated');
+            await this._capture(`notch-date-${calendar}`);
+        }
+        settings.set_strv('pill-date-calendars', ['main']);
+        settings.set_string('calendar-primary', 'gregorian');
+        assert(dateLabel('gregorian').visible && dateLabel('gregorian').text === notchDate(todayDay(), 'gregorian').text,
+            'Notch does not follow the main calendar');
+        settings.set_strv('pill-date-calendars', ['jalali', 'gregorian', 'hijri']);
+        settings.set_strv('pill-date-order', ['gregorian', 'hijri', 'jalali']);
+        settings.set_value('pill-date-formats', new GLib.Variant('a{ss}', {gregorian: '%D/%M', hijri: '%d %mm', jalali: '%Y/%M/%D'}));
+        settings.set_value('pill-date-digits', new GLib.Variant('a{ss}', {jalali: 'latin'}));
+        await delay(200);
+        assert(dates.entries.map(entry => entry.id).join() === 'gregorian,hijri,jalali', 'Calendar order is incorrect');
+        assert(pill._date.get_child_at_index(0) === dateLabel('gregorian'), 'Actor order is incorrect');
+        assert(pill._date.get_child_at_index(2) === dateLabel('hijri'), 'Middle date is out of order');
+        assert(pill._date.get_child_at_index(4) === dateLabel('jalali'), 'Last date is out of order');
+        assert(dateLabel('jalali').text === formatNotchDate(todayDay(), 'jalali', '%Y/%M/%D', 'latin'), 'Per-calendar format/numerals ignored');
+        await this._capture('notch-dates-multiple');
+        settings.set_value('pill-date-formats', new GLib.Variant('a{ss}', Object.fromEntries(
+            ['jalali', 'gregorian', 'hijri'].map(id => [id, '%WW %d %MM %Y']))));
+        const context = St.ThemeContext.get_for_stage(global.stage), scale = context.scale_factor;
+        const text = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'}), textScale = text.get_double('text-scaling-factor');
+        for (const size of [1, 2]) {
+            context.scale_factor = size;
+            text.set_double('text-scaling-factor', 1.5);
+            this._island.applyDimensions(); await delay(250);
+            const [px, py] = pill.actor.get_transformed_position(), [pw, ph] = pill.actor.get_transformed_size();
+            const monitor = Main.layoutManager.primaryMonitor;
+            assert(px >= monitor.x && px + pw <= monitor.x + monitor.width, 'Multiple dates exceed the monitor');
+            const visible = [...dates.items.values()].flatMap(item => [item.date, item.separator]).filter(actor => actor.visible);
+            for (const actor of visible) {
+                const [x, y] = actor.get_transformed_position(), [w, h] = actor.get_transformed_size();
+                assert(x >= px && x + w <= px + pw + 1 && y >= py && y + h <= py + ph + 1,
+                    `Notch date overflows: ${actor.text} ${JSON.stringify({size, x, y, w, h, px, py, pw, ph})}`);
+            }
+            pill.actor.grab_key_focus(); await delay(100);
+            assert(dates.truncated && dates.tip.visible, 'Long dates cannot be read on keyboard focus');
+            for (const entry of dates.entries) assert(dates.tip.text.includes(entry.text), 'Full date is missing from tooltip');
+            const [tx, ty] = dates.tip.get_transformed_position(), [tw, th] = dates.tip.get_transformed_size();
+            assert(tx >= monitor.x && tx + tw <= monitor.x + monitor.width && ty + th <= monitor.y + monitor.height, 'Full-date tooltip overflows');
+            await this._capture(`notch-dates-long-scale${size}`);
+            global.stage.set_key_focus(null);
+            assert(!dates.tip.visible, 'Date tooltip stayed after focus left');
+        }
+        text.set_double('text-scaling-factor', textScale); context.scale_factor = scale;
+        settings.reset('pill-date-formats'); settings.reset('pill-date-digits'); settings.reset('pill-date-order');
+        this._island.applyDimensions(); await delay(150);
+        const order = settings.get_strv('pill-order');
+        settings.set_strv('pill-order', ['date', ...order]);
+        assert(pill.actor.get_child().get_child_at_index(0) === pill._date, 'Dates group could not be reordered');
+        settings.set_strv('pill-order', order);
+        pill._dateDay--;
+        clock.notify('clock');
+        assert(pill._dateDay === todayDay(), 'Dates did not refresh after day changed');
+        const fonts = new Set(), iter = dateLabel('jalali').clutter_text.get_layout().get_iter();
+        do { const run = iter.get_run_readonly(); if (run) fonts.add(run.item.analysis.font.describe().get_family()); } while (iter.next_run());
+        console.log(`[Island Preview] Notch date fonts: ${[...fonts].join(', ')}`);
+        const installed = dateLabel('jalali').get_pango_context().list_families().map(family => family.get_name());
+        if (installed.includes('Vazir') || installed.includes('Vazirmatn'))
+            assert(fonts.has('Vazir') || fonts.has('Vazirmatn'), 'Persian text is not using Vazir/Vazirmatn');
+        settings.set_strv('pill-date-calendars', []);
+        assert(!pill._date.visible && !pill._dateClock, 'Empty calendar selection retained date indicator or clock');
+        settings.set_strv('pill-date-calendars', ['jalali', 'gregorian']);
+        for (let i = 0; i < 3; i++) {
+            settings.set_boolean('pill-show-date', false);
+            assert(!pill._date.visible && !pill._dateClock, 'Disabled dates retained clock subscription');
+            settings.set_boolean('pill-show-date', true);
+            assert(pill._dateClock === clock, 'Dates did not resume after enabling');
+            this._island.expand(); await delay(300);
+            assert(!pill._dateClock && !dates.tip.visible, 'Expanded notch retained dates subscription/tooltip');
+            this._island.collapse(); await delay(300);
+            assert(pill._dateClock === clock, 'Dates did not resume after collapsing');
+        }
+        this._island.actor.hide(); await delay(100);
+        assert(!pill._dateClock && !dates.tip.visible, 'Hidden notch retained dates subscription/tooltip');
+        this._island.actor.show(); await delay(100);
+        assert(pill._dateClock === clock, 'Dates did not resume after showing');
+        settings.set_string('calendar-primary', 'jalali');
+        settings.set_strv('pill-date-calendars', ['main']);
+        console.log('[Island Preview] Notch date checks passed: formats, multiple calendars, order, numerals, bounded layout, full-date tooltip, clock cleanup');
     }
 
     async _checkAudio() {

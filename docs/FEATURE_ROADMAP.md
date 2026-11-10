@@ -4,6 +4,9 @@ Status (2026-11-02): Weather and Commute are implemented. See
 [WEATHER.md](WEATHER.md), [COMMUTE.md](COMMUTE.md), and [HANDOFF.md](HANDOFF.md)
 for current behavior. Calendar appointments and Task Progress remain proposals.
 
+A local [Jalali/Gregorian/Hijri date-browser prototype](CALENDAR.md) was added on
+2026-11-10. It is separate from the appointment/account integration proposed below.
+
 [AI agent sessions](AI_AGENTS.md) records the 2026-11-09 experimental prototype,
 test instructions and research for local status, session navigation and Quick Ask.
 The opt-in prototype implements the explicit-producer approach described below;

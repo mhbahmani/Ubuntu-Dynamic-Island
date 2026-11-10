@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run the working tree in a private, windowed GNOME Shell (no installation)."""
 import argparse
+from datetime import date
 import json
 import os
 from pathlib import Path
@@ -23,15 +24,20 @@ def main():
     parser.add_argument('--scene', choices=['sun', 'clouds', 'rain', 'snow', 'night', 'clouds-night', 'rain-night', 'snow-night'], default='clouds', help='Sample weather scene')
     parser.add_argument('--motion', choices=['off', 'subtle', 'live'], default='live', help='Preview animation mode')
     parser.add_argument('--edit-route', action='store_true', help='Open the Commute map editor immediately')
-    parser.add_argument('--tab', choices=['notch', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents'], default='notch', help='Start collapsed (notch, default), or open a module')
+    parser.add_argument('--preferences', choices=['appearance', 'notch', 'calendar'], help='Open an isolated preferences page alongside the preview')
+    parser.add_argument('--tab', choices=['notch', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar'], default='notch', help='Start collapsed (notch, default), or open a module')
     parser.add_argument('--connection', choices=['auto', 'online', 'offline', 'limited', 'portal'], help='Simulate connection status; defaults to online for samples, auto with --live')
     parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], default='icon', help='Initial offline notch design; can also change it in preferences')
     parser.add_argument('--check-full', action='store_true', help='Check populated notch, all tabs and sample device controls (headless sample mode)')
+    parser.add_argument('--check-calendar', action='store_true', help='Check calendar modes, keyboard access and scaled layouts (headless)')
     parser.add_argument('--check-input', action='store_true', help='Exercise dismissal, reopening and the top-bar menu')
     parser.add_argument('--live', action='store_true', help='Use live weather, routing and system metrics; media/audio/Bluetooth remain simulated')
     parser.add_argument('--headless', action='store_true', help='Render without a window; saves notch.png or the selected tab')
     parser.add_argument('--size', type=preview_size, metavar='WIDTHxHEIGHT', help='Preview resolution (default: 1600x1000 windowed, 1280x960 headless)')
     parser.add_argument('--scale', type=int, choices=[1, 2], help='Windowed UI scale: 1 = 100%%, 2 = 200%% (default: 2)')
+    parser.add_argument('--card-width', type=int, choices=[380, 440, 480], default=440, help='Card width in logical pixels (default: 440)')
+    parser.add_argument('--text-scale', type=float, choices=[1, 1.5, 2], default=1, help='Preview text size multiplier (default: 1)')
+    parser.add_argument('--calendar-date', type=date.fromisoformat, metavar='YYYY-MM-DD', help='Select a civil date in the calendar preview')
     parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
     args = parser.parse_args()
     if args.edit_route and args.tab == 'notch':
@@ -40,6 +46,8 @@ def main():
         parser.error('--check-full requires --headless sample mode with the default notch and without --check-input')
     if args.check_input and not args.headless:
         parser.error('--check-input requires --headless (nested virtual-pointer coordinates differ)')
+    if args.check_calendar and (not args.headless or args.check_full or args.check_input):
+        parser.error('--check-calendar requires --headless without other check modes')
     if args.duration < 0:
         parser.error('--duration must be nonnegative')
     if args.headless and args.scale is not None:
@@ -60,6 +68,16 @@ def main():
         shutil.copytree(source / name, extension / name)
     for name in ('metadata.json', 'stylesheet.css'):
         shutil.copy2(source / name, extension / name)
+    # Retain the user's Persian font in this isolated session, without changing
+    # or installing any host fonts. Other machines exercise the CSS fallback.
+    fonts = subprocess.run(['fc-list', '-f', '%{family}\t%{file}\n'],
+                           capture_output=True, text=True, check=True).stdout
+    for entry in fonts.splitlines():
+        family, path = entry.split('\t', 1)
+        if any(name in ('Vazir', 'Vazirmatn') for name in family.split(',')):
+            destination = root / 'share/fonts'
+            destination.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(path, destination / Path(path).name)
     (extension / 'extension.js').rename(extension / 'implementation.js')
     shutil.copy2(source / 'tests/fixtures/local-preview.js', extension / 'extension.js')
     shutil.copy2(source / 'tests/fixtures/preview-data.js', extension / 'preview-data.js')
@@ -84,6 +102,10 @@ def main():
                        XDG_DATA_DIRS=f'{root}/share:/usr/local/share:/usr/share', XDG_CURRENT_DESKTOP='GNOME',
                        GSETTINGS_BACKEND='keyfile', ISLAND_PREVIEW_OUTPUT=str(root),
                        ISLAND_PREVIEW_CHECK_FULL='1' if args.check_full else '0',
+                       ISLAND_PREVIEW_CHECK_CALENDAR='1' if args.check_calendar else '0',
+                       ISLAND_PREVIEW_CARD_WIDTH=str(args.card_width), ISLAND_PREVIEW_TEXT_SCALE=str(args.text_scale),
+                       ISLAND_PREVIEW_CALENDAR_DATE=args.calendar_date.isoformat() if args.calendar_date else '',
+                       ISLAND_PREVIEW_PREFERENCES=args.preferences or '',
                        ISLAND_PREVIEW_CONNECTION=args.connection or ('auto' if args.live else 'online'),
                        ISLAND_PREVIEW_OFFLINE_STYLE=args.offline_style,
                        ISLAND_PREVIEW_CHECK_INPUT='1' if args.check_input else '0',
@@ -127,6 +149,8 @@ def main():
     if args.check_input and '[Island Preview] INPUT PASS' not in output:
         return 1
     if args.check_full and ('[Island Preview] FULL PASS' not in output or '[Island Preview] FULL FAIL' in output):
+        return 1
+    if args.check_calendar and ('[Island Preview] CALENDAR PASS' not in output or '[Island Preview] CALENDAR FAIL' in output):
         return 1
     return code if code >= 0 else 128 - code
 

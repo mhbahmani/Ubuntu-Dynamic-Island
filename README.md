@@ -26,6 +26,31 @@ and [compact playing pill](screenshots/playing-pill.png).
 
 ## What's included
 
+- **Calendar (prototype, opt-in)**: choose Jalali (شمسی), Gregorian (میلادی), or
+  Hijri (قمری) under **Preferences → Calendar → Main calendar**. Additional date
+  switches show any of the other calendars under the selected date in the header.
+  The tab has grouped month controls, one number per day and only the needed week
+  rows. Jalali/Hijri use a Saturday-first RTL grid; Gregorian starts on Monday.
+  Adjacent-month cells stay empty. Holiday colors follow the main calendar:
+  Iranian holidays/Fridays in Jalali, Iranian Islamic dates/Fridays in Hijri,
+  and Saturday/Sunday weekends in Gregorian. Selecting a named holiday shows its
+  name in the header. Jalali 1405 dates follow the published calendar; other lunar
+  dates are labeled as calculated estimates.
+  Select a day to convert it, browse months, or return to Today.
+  Arrow keys move through dates; Page Up/Down changes month, Shift+Page Up/Down
+  changes year, and Home/End moves to the start/end of the week.
+  Enable it in **Preferences → Modules → Calendar**, or try `make preview-calendar`
+  without installing. Hijri uses tabular calculation; local moon-sighting dates
+  may differ. Appointments and account sync are not included.
+  **Preferences → Notch → Dates in the notch** shows one or several calendars.
+  Follow the main calendar, or turn that off to choose and reorder Jalali,
+  Gregorian and Hijri. Each has presets, custom Persian Calendar format codes,
+  and a Persian/Latin numeral choice. Expand its settings row to edit it and see
+  a preview. Move the whole **Dates** group in **Notch order**. Long formats shorten
+  to fit; hover over dates or focus the notch to read the full text.
+  The Calendar module can remain off.
+  Persian text prefers installed Vazir/Vazirmatn fonts, with a DejaVu Sans fallback.
+  See [calendar design and checks](docs/CALENDAR.md).
 - **Agents (experimental, opt-in)**: local Claude Code/Codex/OpenCode status events,
   attention counts, window selection/focus, optional notifications, and Quick Ask
   for CLI/desktop/web destinations. No API keys or account access. Tracking needs
@@ -145,6 +170,7 @@ make preview       # full sample preview, collapsed notch, all modules enabled
 make preview-offline # disconnected Wi-Fi icon with sample local modules
 make preview-offline-edge # unplugged symbol and split amber underline
 make preview-commute # sample driving route; map editor in preferences
+make preview-calendar # interactive Jalali/Gregorian/Hijri date browser
 make preview-commute-map # open the map editor immediately
 make preview-live  # live Tehran weather/routes and system metrics; sample devices
 make preview PREVIEW_ARGS="--tab weather --scene rain --ignore-power-saver" # animated demo
@@ -164,15 +190,17 @@ respected. Add `PREVIEW_ARGS="--headless"` to save a screenshot instead of openi
 This launches a nested GNOME Shell running a temporary copy of the working tree,
 using the actual St/Clutter UI and stylesheet. It starts collapsed with Music,
 Weather, network rates, CPU, Bluetooth and Commute indicators enabled and populated.
-Click the notch to explore all seven module tabs and open preferences. Sample playback,
+Click the notch to explore all eight module tabs and open preferences. Sample playback,
 seek, volume, output selection and Bluetooth controls update simulated data.
 Sample Weather, routing and network status work even when the host is offline.
 Use `--live` for real Weather, routing and system metrics; media/audio/Bluetooth
 controls remain simulated so the preview does not switch real devices.
 Open a particular module immediately with `PREVIEW_ARGS="--tab media"` (or
-`system`, `audio`, `bluetooth`, `weather`, `commute`, `agents`). Weather scene shortcuts
+`system`, `audio`, `bluetooth`, `weather`, `commute`, `agents`, `calendar`). Weather scene shortcuts
 continue to open Weather automatically; `make preview-commute` opens Commute.
 `make preview-agents` opens sample sessions and a simulated Quick Ask flow.
+Use `make preview-calendar PREVIEW_ARGS="--card-width 380 --text-scale 1.5"`
+to try the calendar at narrow width with enlarged text.
 Agent configuration changes from preview preferences stay in temporary folders.
 
 The preview window starts at **1600×1000 with 200% UI scaling**, so text, icons
@@ -441,10 +469,10 @@ Changes apply immediately. Previous **Offline badge** preferences migrate to
 
 ### Preferences tabs
 
-Preferences are grouped into Appearance, Notch, Modules, Weather, Commute and Agents tabs, with
+Preferences are grouped into Appearance, Notch, Modules, Weather, Commute, Agents and Calendar tabs, with
 search across settings. The Notch tab controls the music name, weather icon and
 upload/download rates independently; changes apply immediately. Drag items in the
-Notch order preview to arrange Music, Weather, Network, CPU, Bluetooth, Commute and Agents.
+Notch order preview to arrange Music, Weather, Network, CPU, Bluetooth, Commute, Agents and Dates.
 Select an item and use the move buttons for keyboard reordering. Hidden items
 keep their place.
 

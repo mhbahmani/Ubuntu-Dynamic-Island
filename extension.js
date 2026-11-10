@@ -7,6 +7,7 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import {LyricsService} from './services/lyrics.js';
 import {migrateArrowStyle, migrateOfflineMode} from './services/notch-model.js';
+import {migrateCalendarSettings, migrateNotchDates} from './services/calendar-model.js';
 import {CommuteService} from './services/commute.js';
 import {WeatherService} from './services/weather.js';
 import GLib from 'gi://GLib';
@@ -41,6 +42,8 @@ export default class UbuntuIsland extends Extension {
         this._settings = this.getSettings();
         migrateArrowStyle(this._settings);
         migrateOfflineMode(this._settings);
+        migrateCalendarSettings(this._settings);
+        migrateNotchDates(this._settings);
         this._states = {};
         this._progressTimer = 0;
         this._settingsIds = [];
@@ -49,7 +52,7 @@ export default class UbuntuIsland extends Extension {
 
         if (this._settings.get_boolean('move-clock')) this._moveCalendar();
 
-        this._pill = new Pill(() => this._island?.toggle(), () => this._togglePillTitle());
+        this._pill = new Pill(() => this._island?.toggle(), () => this._togglePillTitle(), () => this._renderPill());
         this._card = new Card(this._settings, {
             agentOpen: (session, choose) => this._openAgent(session, choose),
             agentActivate: (session, window) => this._activateAgent(session, window),
@@ -240,6 +243,8 @@ export default class UbuntuIsland extends Extension {
         for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
+        for (const key of ['pill-show-date', 'pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'calendar-primary'])
+            watch(key, () => this._renderPill());
         watch('surface-opacity', () => this._applyAppearance());
         watch('surface-matte', () => this._applyAppearance());
         watch('pill-width', () => this._island?.applyDimensions());
@@ -305,6 +310,14 @@ export default class UbuntuIsland extends Extension {
             expanded: this._island?.expanded ?? false,
             showMetrics: this._settings.get_boolean('enable-metrics'),
             showTitle: this._settings.get_boolean('pill-show-title'),
+            showDate: this._settings.get_boolean('pill-show-date'),
+            dateOptions: {
+                calendars: this._settings.get_strv('pill-date-calendars'),
+                order: this._settings.get_strv('pill-date-order'),
+                formats: this._settings.get_value('pill-date-formats').deepUnpack(),
+                digits: this._settings.get_value('pill-date-digits').deepUnpack(),
+                main: this._settings.get_string('calendar-primary'),
+            },
             titleMode: this._settings.get_string('pill-title-mode'),
             titleCharacters: this._settings.get_int('pill-title-characters'),
             animations: !this._settings.get_boolean('disable-animations'),

@@ -1,4 +1,5 @@
 import {agentsPreferences} from './agents-prefs.js';
+import {calendarPreferences, notchDatePreferences} from './calendar-prefs.js';
 import {AGENT_ICON_NAME, agentIconDirectory} from './agent-icon.js';
 import {commutePreferences} from './commute-prefs.js';
 import {migrateArrowStyle, migrateOfflineMode, OFFLINE_MODES} from './services/notch-model.js';
@@ -11,6 +12,16 @@ import {ExtensionPreferences} from 'resource:///org/gnome/Shell/Extensions/js/ex
 
 export default class UbuntuIslandPreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
+        // Latin keeps the established UI face; Persian falls through to the
+        // user's Vazir/Vazirmatn font instead of the system's Arabic fallback.
+        const fonts = new Gtk.CssProvider();
+        fonts.load_from_data('.ubuntu-island-preferences { font-family: "Noto Sans", "Vazir", "Vazirmatn", "DejaVu Sans"; }', -1);
+        window.add_css_class('ubuntu-island-preferences');
+        Gtk.StyleContext.add_provider_for_display(window.get_display(), fonts, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
+        window.connect('close-request', () => {
+            Gtk.StyleContext.remove_provider_for_display(window.get_display(), fonts);
+            return false;
+        });
         const iconTheme = Gtk.IconTheme.get_for_display(window.get_display());
         const iconDirectory = agentIconDirectory.get_path();
         if (!iconTheme.get_search_path().includes(iconDirectory)) iconTheme.add_search_path(iconDirectory);
@@ -19,10 +30,10 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         migrateOfflineMode(settings);
 
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
-        const tabs = ['last', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents'];
+        const tabs = ['last', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar'];
         const opening = new Adw.ComboRow({title: 'Open on expand',
             subtitle: 'Applies on the next opening. Unavailable tabs keep the last available tab.',
-            model: Gtk.StringList.new(['Last used tab', 'Media', 'System', 'Sound', 'Bluetooth', 'Weather', 'Commute', 'Agents'])});
+            model: Gtk.StringList.new(['Last used tab', 'Media', 'System', 'Sound', 'Bluetooth', 'Weather', 'Commute', 'Agents', 'Calendar'])});
         const syncOpening = () => { opening.selected = Math.max(0, tabs.indexOf(settings.get_string('expand-tab'))); };
         syncOpening();
         opening.connect('notify::selected', () => settings.set_string('expand-tab', tabs[opening.selected]));
@@ -66,6 +77,8 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         modules.add(spin(settings, 'metrics-interval', 'Metrics interval', 's', 1, 10, 1));
         modules.add(toggle(settings, 'enable-audio', 'Audio controls'));
         modules.add(toggle(settings, 'enable-bluetooth', 'Bluetooth controls'));
+        modules.add(toggle(settings, 'enable-calendar', 'Calendar',
+            'Browse Jalali, Gregorian and Hijri dates · Choose calendars in Calendar settings'));
         modules.add(toggle(settings, 'enable-remote-art', 'Fetch remote album art',
             'Downloads artwork over the network with a bounded, host-checked cache'));
 
@@ -105,11 +118,12 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         titles.add(titleMode); titles.add(characters);
         const pages = [
             ['appearance', 'Appearance', 'preferences-desktop-appearance-symbolic', [appearance]],
-            ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, titles, hover]],
+            ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, notchDatePreferences(settings, window), titles, hover]],
             ['modules', 'Modules', 'application-x-addon-symbolic', [modules]],
             ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],
             ['commute', 'Commute', 'find-location-symbolic', commutePreferences(settings, window)],
             ['agents', 'Agents', AGENT_ICON_NAME, agentsPreferences(settings, window, this.path)],
+            ['calendar', 'Calendar', 'x-office-calendar-symbolic', calendarPreferences(settings, window)],
         ];
         window.search_enabled = true;
         for (const [name, title, icon_name, groups] of pages) {

@@ -3,11 +3,177 @@
 Updated 2026-11-10. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Multiple notch calendars and formats (2026-11-10): **Preferences → Notch → Dates
+in the notch** now has Follow main calendar, independent calendar switches,
+up/down ordering, per-calendar format presets/custom patterns, and automatic,
+Persian or Latin numerals. Custom patterns use the installed Persian Calendar
+extension's documented date tokens, with our own ICU implementation. Expand a
+calendar row to edit it; drafts preview immediately and save on Apply. Invalid
+patterns leave the saved display intact. Format codes are listed in the editor.
+The older single-calendar preference migrates once, preserving new selections.
+
+`notch-dates.js` retains separate labels for mixed RTL/LTR dates and constrains
+their combined width. Full values are shown on hover or notch keyboard focus if
+shortened, and included in accessible names. It reuses the existing shared clock
+subscription for all calendars. Hidden/disabled/empty dates release the signal;
+tooltips hide on expansion and unmapping. Keep the tooltip's chrome registration
+without `trackFullscreen`: that option forcibly shows independent chrome when
+a normal window opens. Parent date mapping already handles fullscreen visibility.
+One coalesced idle measurement after style changes handles font/scale updates;
+without it the last date could overflow after enlarged text plus a scale change.
+
+Validation: all 146 Node tests, syntax/schema checks, GTK editor tests (multiple
+selection, order, presets, custom drafts/errors, numerals and settings sync),
+temporary-XDG installation, and ZIP integrity/source comparisons passed.
+Full smoke: `/tmp/ubuntu-island-smoke-6s4ghd6y`. Final native calendar/notch checks:
+`/tmp/ubuntu-island-preview-u1kp3j2w`, including multiple formats, actor order,
+100/200% scales, enlarged text, bounds, complete tooltip text and cleanup, plus
+the existing calendar checks. Actual 200% with 150% text was inspected at
+`/tmp/ubuntu-island-preview-9g2lvd3j`. Final interactive preview with the format
+editor open: `/tmp/ubuntu-island-preview-4mnirslv`.
+Use `make preview PREVIEW_ARGS="--preferences notch --size 2000x1400"` to open
+it again; fixture dates demonstrate Jalali weekday/day/month plus Gregorian.
+Root-module copy rules include the new renderer automatically. The extension has
+not been installed. The earlier commute-prefix fix is committed as `339044a`.
+
+Notch dates and Persian fonts (2026-11-10): **Preferences → Notch → Date in the
+notch** adds an opt-in day/month label. It can follow the main calendar or use
+Jalali/Gregorian/Hijri independently, even with the Calendar module disabled.
+Date participates in Notch order and measured width; full dates/year and calendar
+names are accessible. The date reuses the GNOME 46 date-menu WallClock's clock
+and timezone notifications, repainting only on a changed civil day. Signals are
+released on expansion, hiding, disabling the option and actor destruction.
+It introduces no polling timer. Calendar migration also runs at extension enable
+so a notch following the main calendar respects legacy preferences.
+
+The island and preferences use Noto Sans for Latin, with Vazir → Vazirmatn →
+DejaVu Sans for Persian. This machine has Vazirmatn; native Pango glyph-run
+inspection confirmed it is selected. Fonts are not installed or bundled.
+The isolated preview copies installed Vazir/Vazirmatn faces into its temporary
+font directory so its metrics match the host.
+
+Validation: 143 Node tests, syntax/schema checks, GTK preferences including live
+date choices and the eight-item order layout, temporary-XDG installation, ZIP
+integrity/source comparison, and native calendar/notch checks passed. Native
+checks cover three calendars, following/overriding the main calendar, ordering,
+accessible dates, simulated day change, font choice and hidden clock cleanup:
+`/tmp/ubuntu-island-preview-uijt3hu7`. Actual 200% UI with 150% text was inspected
+for the notch (`/tmp/ubuntu-island-preview-d7s0s6je`) and narrow calendar with
+overlapping holidays (`/tmp/ubuntu-island-preview-37hxpbon`). Full smoke passed
+at `/tmp/ubuntu-island-smoke-o5iuxe9r`; its first run failed a Quick Ask keyboard
+assertion while other previews were running, and the isolated rerun passed.
+Physical resume/timezone changes remain untested. These changes are not installed.
+
+Calendar Today/selection fix (2026-11-10): browsing a month now updates a separate
+displayed date, preserving the selected civil day. Only the actual current date
+has the vermilion fill; other selected dates have a neutral outline. Offscreen
+selection details disappear and the heading shows the browsed month/year. Today
+returns to the current day. Controls stay top-aligned so clicking through months
+does not move their targets. Native checks assert the computed red fill, no red
+date in the next month, restoration on return, and selection without moving Today.
+Final checks and captures: `/tmp/ubuntu-island-preview-ri4jzvd7`. Existing holiday,
+blank-cell, keyboard, width/scale and enlarged-text checks also passed. Calendar
+model tests and syntax/schema checks passed after the change.
+Holiday numbers now use color only, as requested; the underline/decoration was
+removed. Keep date labels as plain text so St retains control of their colors.
+The updated interactive preview is `/tmp/ubuntu-island-preview-796147m9`.
+These changes are not installed.
+
+Calendar holidays and empty cells (2026-11-10): holiday markings follow the main
+calendar, independently of additional dates. Jalali uses Iranian solar/religious
+holidays and Fridays; published 1405 lunar dates override tabular estimates.
+Hijri uses the Iranian Islamic set on the displayed calculated calendar, plus
+Fridays. Gregorian marks Saturday/Sunday only; no country was selected for public
+holidays. Calculated lunar names carry a visible محاسبه‌ای label. Warm numbers
+identify holidays; selecting one reveals its name in
+the header. Ordinary dates/weekends do not add height. See [CALENDAR.md](CALENDAR.md)
+for coverage and the official source. No runtime network request is added.
+
+Adjacent-month cells are empty, non-reactive, excluded from keyboard focus and
+marked redundant for accessibility. Keep the empty actors in the grid: hiding
+individual cells makes GNOME 46 misallocate homogeneous column widths. Native
+checks now assert bounds for all weekday headings and date slots, as well as
+header controls. Month/year keyboard navigation still crosses blank boundaries.
+`--calendar-date YYYY-MM-DD` selects a date in an isolated preview for reproduction.
+
+Validation: all 142 Node tests, syntax/schema checks, GTK preferences, temporary
+installation, and ZIP integrity/source comparisons passed. Native holiday,
+empty-cell and existing calendar checks passed at 380/440px, 100/200%, and enlarged
+text, including overlapping holidays and scrollable overflow. Artifacts:
+`/tmp/ubuntu-island-preview-52bwt73a` (native checks),
+`/tmp/ubuntu-island-preview-qt8xvvey` (actual 200%, 380px, 150% text, overlapping
+holidays), and `/tmp/ubuntu-island-preview-6e2u0r1v` (interactive default preview).
+The existing nested-Shell GSettings disposal assertions remain confined to
+shutdown. These changes have not been installed.
+
+Calendar header refinement (2026-11-10): removed Copy and the entire bottom date
+row. The heading now shows the selected day/month/year, with optional converted
+dates beneath it. Previous/Today/Next share a subtle grouped control beside the
+date. An empty additional-date line takes no space. Preferences help reflects
+the new location; date selection, conversion and keyboard behavior are retained.
+All 138 Node tests, syntax/schema checks and ZIP/source comparisons passed.
+Native checks verify header updates, no empty date line, date/control separation,
+text wrapping, keyboard access and reachable overflow at 380/440px and 100/200%.
+The six-week default layout is about 280 logical pixels tall (previously 300).
+Artifacts: `/tmp/ubuntu-island-preview-tf5yfedc` (native checks),
+`/tmp/ubuntu-island-preview-qd7rsdl7` (actual 200%, 380px, 150% text), and
+`/tmp/ubuntu-island-preview-yhkwo4ij` (interactive default-width 200%).
+The updated preview is isolated; these changes are not installed.
+
+Calendar redesign (2026-11-10): calendar choice moved to Preferences → Calendar.
+Main calendar offers Jalali, Gregorian and Hijri (قمری); additional switches show
+other representations of the selected date below the grid. The old Both/Jalali/
+Gregorian preference migrates without overwriting newer choices. The in-card
+switcher and paired numbers are removed. A single-line header, lighter/smaller
+fonts, compact date highlights and four-to-six week rows reduce the tab's height.
+The footer settings button opens Calendar preferences directly. Calendar changes
+apply live while preserving the selected civil day.
+
+Hijri uses ICU's explicit `islamic-civil` calculation, with a note in preferences
+that local moon-sighting dates can differ. It is not the Iranian observation table
+used by the user's Persian extension. No source/datasets/fonts from that extension
+are bundled. All three calendars share civil-day navigation, selected-date copy
+and the existing visible-only midnight timer. See [CALENDAR.md](CALENDAR.md).
+
+Redesign validation: all 138 Node tests, syntax/schema checks, GTK calendar
+bindings, temporary-XDG installation and ZIP/source comparisons passed. Native
+checks cover all three calendars, additional dates, preferences navigation,
+pointer/keyboard navigation, copy, Today, 380/440px widths, 100/200% scaling,
+enlarged text, reachable overflow and hidden timer cleanup. Actual windowed 200%
+rendering was inspected at 380px with normal and 150% text; both fit the common
+month without scrolling. The six-week tab is about 300 logical pixels tall,
+down from about 340 in the initial prototype. Captures:
+`/tmp/ubuntu-island-preview-6dwt6mz6` (final native checks and preferences),
+`/tmp/ubuntu-island-preview-iyvyau7m` (200%, narrow), and
+`/tmp/ubuntu-island-preview-aqa71jh4` (200%, narrow, enlarged text).
+The final default-width 200% preview is `/tmp/ubuntu-island-preview-1zjfc_tf`.
+Some nested-window captures omitted actors despite valid mapped allocations;
+a fresh single-window capture showed all seven columns correctly.
+The nested Shell emitted GSettings disposal assertions at shutdown, after the
+checks passed; no JavaScript errors occurred during the calendar checks.
+These changes are not installed.
+
 Agents main controls (2026-11-10): Clear finished and the notch visibility eye
 now sit in the main header. The top-level three-dot menu, Agent options view and
 its settings shortcut are removed. Session-specific menus remain. Clear keeps
 active sessions, disables when no finished sessions exist or an operation is
 pending, and retains Undo. The main header and Quick Ask remain outside scrolling.
+
+Initial prototype validation (before the redesign): all 136 Node tests, syntax/schema checks, GTK preference bindings,
+temporary-XDG installation and ZIP integrity/source comparisons passed. The
+full native preview passed all eight tabs, main Agents Clear/Undo/notch actions,
+narrow layout and the existing Agents/Sound interactions. Calendar-specific
+native checks passed pointer/keyboard conversion around Nowruz, all three modes,
+copy, Today, 380/440px, scale changes, enlarged text and hidden timer cleanup.
+Actual windowed 200% calendar rendering was inspected at default width and at
+380px with 150% text; the latter stacks numbers and scrolls the grid while keeping
+controls reachable. The regular Shell smoke also passed. Existing Shell search
+provider disposal warnings can occur when closing the nested window.
+Artifacts: `/tmp/ubuntu-island-preview-mfo9qq0r` (calendar checks),
+`/tmp/ubuntu-island-preview-stque1kd` (full preview),
+`/tmp/ubuntu-island-preview-hcid2cpb` (native 200%),
+`/tmp/ubuntu-island-preview-xyo9e68f` (narrow/enlarged text), and
+`/tmp/ubuntu-island-smoke-r_zolims` (Shell smoke). These changes are not installed.
 
 Navigation icon clarity (2026-11-09): the user's `1.png` shows the tab footer.
 These are symbolic SVGs from the icon theme, not PNG artwork. Most use a 16px

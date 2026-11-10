@@ -1,4 +1,6 @@
 import {agentCounts, agentSummary} from './services/agents-model.js';
+import {notchDates, todayDay} from './services/calendar-model.js';
+import {NotchDates} from './notch-dates.js';
 import {agentIcon} from './agent-icon.js';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -13,7 +15,7 @@ import {icon, label, row} from './widgets.js';
 // Compact notch content shown while collapsed. The St.Button gives keyboard
 // focus semantics and an accessibility name for the toggle action.
 export class Pill {
-    constructor(onToggle, onToggleTitle) {
+    constructor(onToggle, onToggleTitle, onDateChanged) {
         this.actor = new St.Button({
             style_class: 'ubuntu-island-pill',
             can_focus: true,
@@ -77,6 +79,27 @@ export class Pill {
         this._agentsText = label('', 'ubuntu-island-pill-rate', false);
         this._agents.add_child(this._agentsText);
         this._agents.visible = false; content.add_child(this._agents);
+        this._dates = new NotchDates(this.actor);
+        this._date = this._dates.actor;
+        this._date.visible = false;
+        content.add_child(this._date);
+        this._onDateChanged = onDateChanged;
+        this.actor.connect('notify::mapped', () => this._syncDateClock());
+        this._date.connect('style-changed', () => {
+            if (!this.actor.mapped || this._expanded || this._dateRelayout) return;
+            // Font/scale settings settle after the initial theme notification.
+            // Measure once in idle so the fixed date widths use the new metrics.
+            this._dateRelayout = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                this._dateRelayout = 0;
+                if (this.actor.mapped && !this._expanded) this._onDateChanged?.();
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+        this.actor.connect('destroy', () => {
+            this._stopDateClock();
+            if (this._dateRelayout) GLib.Source.remove(this._dateRelayout);
+            this._dateRelayout = 0;
+        });
         this._connection = row('ubuntu-island-pill-connection');
         this._connection.y_align = Clutter.ActorAlign.CENTER;
         this._connectionIcon = icon('network-wireless-disabled-symbolic', 16);
@@ -86,7 +109,7 @@ export class Pill {
         content.add_child(this._cpuDot);
         content.add_child(this._bluetooth);
         this._items = {media: this._media, weather: this._weather, network: this._network,
-            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents};
+            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents, date: this._date};
         const groups = [...Object.values(this._items), this._connection];
         for (const group of groups) {
             group.x_expand = true;
@@ -97,9 +120,15 @@ export class Pill {
         this.actor._islandMinimumWidth = () => {
             if (!this.actor.mapped) return 0;
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            const monitor = Main.layoutManager.primaryMonitor;
+            if (this._date.visible) {
+                const fixed = groups.filter(g => g.visible && ![this._media, this._date].includes(g));
+                const fixedWidth = fixed.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0);
+                const room = (monitor?.width ?? 1000 * scale) * 0.85 - fixedWidth - (100 + fixed.length * 12) * scale;
+                this._dates.setBudget(Math.max(100 * scale, Math.min(320 * scale, room)));
+            }
             const others = groups.filter(g => g !== this._media && g.visible);
             const otherWidth = others.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0) + (52 + others.length * 12) * scale;
-            const monitor = Main.layoutManager.primaryMonitor;
             const maximum = Math.min(600 * scale, (monitor?.width ?? 1000 * scale) * 0.6);
             this._mediaTitle.setBudget(Math.max(20 * scale, Math.min(240 * scale, maximum - otherWidth)));
             const visible = groups.filter(g => g.visible);
@@ -111,7 +140,15 @@ export class Pill {
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({agents, showAgents = false, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true}) {
+    render({agents, showAgents = false, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}}) {
+        this._expanded = expanded;
+        this._dateDay = todayDay();
+        const dateKey = `${this._dateDay}:${showDate}:${expanded}:${JSON.stringify(dateOptions)}`;
+        if (dateKey !== this._dateKey) {
+            this._dateKey = dateKey;
+            this._dates.render(showDate ? notchDates(this._dateDay, dateOptions) : [], expanded);
+        }
+        this._syncDateClock();
         const connectionState = connectionIndicator(connection, {order, mode: offlineMode,
             network: Boolean(showNetwork && showMetrics), weather: Boolean(showWeather && weather),
             commute: Boolean(showCommute && commute?.route)});
@@ -199,7 +236,36 @@ export class Pill {
         if (this._network.visible) description.push(`Download ${system.rx}, upload ${system.tx}`);
         if (this._commute.visible) description.push(commuteState.description);
         if (this._agents.visible) description.push(agentSummary(agents?.sessions));
+        if (this._date.visible) description.push(this._date.accessible_name);
         this.actor.accessible_name = description.join('. ');
         return {connectionEdge: connectionState.edge};
+    }
+
+    _syncDateClock() {
+        if (!this.actor.mapped || !this._date.visible || this._expanded) {
+            this._stopDateClock();
+            return;
+        }
+        if (this._dateClock) return;
+        // Reuse GNOME's clock notifications, which also handle resume and clock
+        // changes. No additional polling timer, and no repaint within a day.
+        this._dateClock = Main.panel.statusArea.dateMenu._clock;
+        this._dateClockId = this._dateClock.connect('notify::clock', () => this._refreshDate());
+        this._dateTimezoneId = this._dateClock.connect('notify::timezone', () => this._refreshDate());
+        this._refreshDate();
+    }
+
+    _refreshDate() {
+        if (this._dateDay !== todayDay()) this._onDateChanged?.();
+    }
+
+    _stopDateClock() {
+        if (this._dateClock) {
+            this._dateClock.disconnect(this._dateClockId);
+            this._dateClock.disconnect(this._dateTimezoneId);
+        }
+        this._dateClock = null;
+        this._dateClockId = 0;
+        this._dateTimezoneId = 0;
     }
 }

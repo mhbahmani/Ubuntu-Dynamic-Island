@@ -28,6 +28,16 @@
     <key name="pill-order" type="as"><default>['media', 'weather', 'network', 'cpu', 'bluetooth']</default><summary>Collapsed indicator order</summary></key>
     <key name="pill-show-weather" type="b"><default>false</default><summary>Show weather in the collapsed notch</summary></key>
     <key name="pill-show-network" type="b"><default>false</default><summary>Show network rates in the collapsed notch</summary></key>
+    <key name="pill-show-date" type="b"><default>false</default><summary>Show today's date in the collapsed notch</summary></key>
+    <key name="pill-date-calendar" type="s">
+      <default>'main'</default>
+      <choices><choice value="main"/><choice value="jalali"/><choice value="gregorian"/><choice value="hijri"/></choices>
+      <summary>Legacy single notch calendar, migrated to pill-date-calendars</summary>
+    </key>
+    <key name="pill-date-calendars" type="as"><default>['main']</default><summary>Calendars shown in the notch, or main to follow the month grid</summary></key>
+    <key name="pill-date-order" type="as"><default>['jalali', 'gregorian', 'hijri']</default><summary>Left-to-right order of notch dates</summary></key>
+    <key name="pill-date-formats" type="a{ss}"><default>{}</default><summary>Per-calendar date formats; defaults to %d %mm</summary></key>
+    <key name="pill-date-digits" type="a{ss}"><default>{}</default><summary>Per-calendar numerals: auto, persian, or latin</summary></key>
     <key name="pill-offline-mode" type="s">
       <default>'icon'</default>
       <choices><choice value="icon"/><choice value="edge"/><choice value="hide"/><choice value="badge"/></choices>
@@ -90,6 +100,24 @@
       <summary>Media controls</summary>
       <description>Show the now-playing section.</description>
     </key>
+    <key name="enable-calendar" type="b">
+      <default>false</default>
+      <summary>Jalali, Gregorian and Hijri calendar</summary>
+    </key>
+    <key name="calendar-mode" type="s">
+      <default>'both'</default>
+      <choices><choice value="both"/><choice value="jalali"/><choice value="gregorian"/></choices>
+      <summary>Legacy calendar display mode, migrated to primary and additional calendars</summary>
+    </key>
+    <key name="calendar-primary" type="s">
+      <default>'jalali'</default>
+      <choices><choice value="jalali"/><choice value="gregorian"/><choice value="hijri"/></choices>
+      <summary>Calendar used for the month grid</summary>
+    </key>
+    <key name="calendar-additional" type="as">
+      <default>['gregorian']</default>
+      <summary>Additional calendars for the selected date</summary>
+    </key>
     <key name="enable-metrics" type="b">
       <default>true</default>
       <summary>System metrics</summary>
@@ -131,7 +159,7 @@
     <key name="pill-show-commute" type="b"><default>false</default><summary>Show selected Commute estimate in the collapsed notch</summary></key>
     <key name="expand-tab" type="s">
       <default>'last'</default>
-      <choices><choice value="last"/><choice value="media"/><choice value="system"/><choice value="audio"/><choice value="bluetooth"/><choice value="weather"/><choice value="commute"/><choice value="agents"/></choices>
+      <choices><choice value="last"/><choice value="media"/><choice value="system"/><choice value="audio"/><choice value="bluetooth"/><choice value="weather"/><choice value="commute"/><choice value="agents"/><choice value="calendar"/></choices>
       <summary>Tab to show when expanding the island</summary>
       <description>Last keeps the previous tab. An unavailable preferred tab falls back to the last available tab.</description>
     </key>

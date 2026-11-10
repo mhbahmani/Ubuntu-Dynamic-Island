@@ -15,6 +15,26 @@ const window = new Adw.PreferencesWindow({title: 'Ubuntu Island', default_width:
 new Preferences(metadata).fillPreferencesWindow(window);
 window.connect('close-request', () => { finish(); return false; });
 window.present();
+if (GLib.getenv('ISLAND_PREVIEW_PREFERENCES') === 'notch') {
+    const find = (widget, title) => {
+        if (widget instanceof Adw.PreferencesRow && widget.title === title) return widget;
+        for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+            const match = find(child, title); if (match) return match;
+        }
+        return null;
+    };
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+        const calendar = find(window, 'Jalali · شمسی');
+        if (calendar instanceof Adw.ExpanderRow) {
+            calendar.expanded = true;
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+                find(calendar, 'Numerals').grab_focus();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+        return GLib.SOURCE_REMOVE;
+    });
+}
 if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') {
     const {editRoute} = await import('./commute-map.js');
     const settings = new Preferences(metadata).getSettings();

@@ -1,4 +1,5 @@
 import {AgentsView} from './agents-view.js';
+import {CalendarView} from './calendar-view.js';
 import {agentIcon} from './agent-icon.js';
 import {QuickAsk} from './quick-ask.js';
 import {MediaTools, textControl} from './media-tools.js';
@@ -45,6 +46,8 @@ export class Card {
         this.actor.add_child(this._scroll);
         this.actor._islandPreferredHeight = width => {
             if (this.quickAskOpen) return this._quickAsk.actor.get_preferred_height(width)[1];
+            if (this._page === 'calendar') return this._calendarView.preferredHeight(width)
+                + this._navigation.get_preferred_height(width)[1];
             if (this._page === 'commute')
                 this._commuteView.fit(width - this._body.get_theme_node().get_horizontal_padding());
             return 260 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
@@ -73,6 +76,12 @@ export class Card {
             this._agentsView = new AgentsView(settings, actions);
             this.actor.add_child(this._agentsView.actor);
             this._pages.set('agents', {box: this._agentsView.actor, available: true});
+            this._sectionCount++;
+        }
+        if (settings.get_boolean('enable-calendar')) {
+            this._calendarView = new CalendarView(settings, actions);
+            this.actor.add_child(this._calendarView.actor);
+            this._pages.set('calendar', {box: this._calendarView.actor, available: true});
             this._sectionCount++;
         }
         this.setPillTitleVisible(settings.get_boolean('pill-show-title'));
@@ -143,6 +152,7 @@ export class Card {
             ['weather', 'weather-clear-symbolic', 'Weather'],
             ['commute', 'find-location-symbolic', 'Commute'],
             ['agents', agentIcon, 'Agents'],
+            ['calendar', 'x-office-calendar-symbolic', 'Calendar'],
         ];
         for (const [id, glyph, title] of items) {
             if (!this._pages.has(id)) continue;
@@ -167,7 +177,7 @@ export class Card {
         navigation.add_child(this._pageCaption);
         navigation.add_child(spacer);
         navigation.add_child(button(settingsIcon, 'Island preferences',
-            () => this._actions.preferences(), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab'));
+            () => this._actions.preferences(this._page === 'calendar' ? 'calendar' : undefined), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab'));
         this.actor.add_child(navigation);
     }
 
@@ -192,7 +202,7 @@ export class Card {
     _syncPages() {
         if (!this._pages.get(this._page)?.available)
             this._page = [...this._pages].find(([, page]) => page.available)?.[0] ?? null;
-        this._scroll.visible = !this.quickAskOpen && this._page !== 'agents';
+        this._scroll.visible = !this.quickAskOpen && !['agents', 'calendar'].includes(this._page);
         if (this._quickAsk) this._quickAsk.actor.visible = Boolean(this.quickAskOpen);
         if (this._navigation) this._navigation.visible = !this.quickAskOpen;
         for (const [id, page] of this._pages) {
@@ -211,7 +221,8 @@ export class Card {
             }
         }
         if (this._pageCaption)
-            this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth', weather: 'Weather', commute: 'Commute', agents: 'Agents'}[this._page] ?? '';
+            this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth', weather: 'Weather', commute: 'Commute', agents: 'Agents', calendar: 'Calendar'}[this._page] ?? '';
+        if (this._pages.has('calendar')) this.actor.add_style_class_name('ubuntu-island-with-calendar');
         this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : this._page === 'weather' ? ' ubuntu-island-card-weather' : this._page === 'commute' ? ' ubuntu-island-card-commute' : this._page === 'agents' ? ' ubuntu-island-card-agents' : ''}`);
         if (this._page === 'audio') this._body.add_style_class_name('ubuntu-island-card-audio');
         if (this._pages.has('agents')) this.actor.add_style_class_name('ubuntu-island-with-agents');

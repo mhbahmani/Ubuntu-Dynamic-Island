@@ -27,11 +27,71 @@ function find(widget, title) {
     }
     return null;
 }
-for (const name of ['appearance', 'notch', 'modules', 'weather', 'commute', 'agents']) {
+for (const name of ['appearance', 'notch', 'modules', 'weather', 'commute', 'agents', 'calendar']) {
     window.set_visible_page_name(name);
     if (window.visible_page_name !== name) throw new Error(`Missing preferences tab: ${name}`);
 }
 const agentsEnabled = find(window, 'Enable Agents');
+const calendarEnabled = find(window, 'Calendar');
+if (!calendarEnabled || settings.get_boolean('enable-calendar')) throw new Error('Calendar must default off');
+calendarEnabled.active = true;
+if (!settings.get_boolean('enable-calendar')) throw new Error('Calendar toggle did not save');
+settings.set_boolean('enable-calendar', false);
+if (calendarEnabled.active) throw new Error('Calendar toggle did not follow settings');
+const mainCalendar = find(window, 'Main calendar');
+mainCalendar.selected = 2;
+if (settings.get_string('calendar-primary') !== 'hijri') throw new Error('Hijri selection did not save');
+const calendarPage = window.get_visible_page();
+const jalaliDate = find(calendarPage, 'Jalali · شمسی');
+jalaliDate.active = true;
+if (!settings.get_strv('calendar-additional').includes('jalali')) throw new Error('Additional Jalali date did not save');
+if (find(calendarPage, 'Hijri · قمری').visible) throw new Error('Main calendar duplicated in additional choices');
+settings.set_string('calendar-primary', 'gregorian');
+if (mainCalendar.selected !== 1 || find(calendarPage, 'Gregorian · میلادی').visible) throw new Error('Calendar preferences did not follow settings');
+settings.set_strv('calendar-additional', ['hijri']);
+if (jalaliDate.active || !find(calendarPage, 'Hijri · قمری').active) throw new Error('Additional calendars did not follow settings');
+settings.reset('calendar-primary'); settings.reset('calendar-additional');
+const showDate = find(window, 'Show date in notch');
+const followDate = find(window, 'Follow main calendar');
+if (!showDate || showDate.active || !followDate || !followDate.active || followDate.sensitive)
+    throw new Error('Notch date defaults are incorrect');
+showDate.active = true;
+if (!settings.get_boolean('pill-show-date') || !followDate.sensitive) throw new Error('Notch date toggle did not save');
+window.set_visible_page_name('notch');
+const notchPage = window.get_visible_page();
+const jalaliNotch = find(notchPage, 'Jalali · شمسی');
+const gregorianNotch = find(notchPage, 'Gregorian · میلادی');
+const shown = tooltip(jalaliNotch, 'Show Jalali in notch');
+if (!shown.active || shown.sensitive) throw new Error('Main calendar selection is not reflected');
+followDate.active = false;
+if (!shown.sensitive || settings.get_strv('pill-date-calendars').join() !== 'jalali') throw new Error('Manual date selection failed');
+tooltip(gregorianNotch, 'Show Gregorian in notch').active = true;
+if (settings.get_strv('pill-date-calendars').join() !== 'jalali,gregorian') throw new Error('Multiple calendars did not save');
+tooltip(gregorianNotch, 'Move Gregorian earlier').emit('clicked');
+if (settings.get_strv('pill-date-order')[0] !== 'gregorian') throw new Error('Date reordering failed');
+const format = find(jalaliNotch, 'Format');
+format.selected = 2;
+if (settings.get_value('pill-date-formats').deepUnpack().jalali !== '%Y/%M/%D') throw new Error('Preset did not save');
+format.selected = 5;
+const custom = find(jalaliNotch, 'Custom format');
+custom.text = '%WW %d %MM'; custom.emit('apply');
+if (settings.get_value('pill-date-formats').deepUnpack().jalali !== custom.text) throw new Error('Custom format did not save');
+custom.text = '%invalid'; custom.emit('apply');
+if (!find(jalaliNotch, 'Format needs attention').visible || settings.get_value('pill-date-formats').deepUnpack().jalali === custom.text)
+    throw new Error('Invalid date pattern replaced the saved format');
+settings.set_strv('pill-date-order', ['jalali', 'gregorian', 'hijri']);
+if (custom.text !== '%invalid') throw new Error('Reorder discarded the custom draft');
+const numerals = find(jalaliNotch, 'Numerals');
+numerals.selected = 2;
+if (settings.get_value('pill-date-digits').deepUnpack().jalali !== 'latin') throw new Error('Numeral selection did not save');
+settings.set_strv('pill-date-calendars', []);
+if (!find(notchPage, 'Date preview').subtitle.includes('Choose at least')) throw new Error('Empty date selection has no guidance');
+settings.set_strv('pill-date-calendars', ['main']);
+settings.set_string('calendar-primary', 'hijri');
+if (!followDate.active || !tooltip(find(notchPage, 'Hijri · قمری'), 'Show Hijri in notch').active) throw new Error('Main calendar did not follow settings');
+settings.set_boolean('pill-show-date', false);
+if (showDate.active || followDate.sensitive || jalaliNotch.sensitive) throw new Error('Disabled date controls remain active');
+for (const key of ['pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'calendar-primary']) settings.reset(key);
 if (!agentsEnabled || settings.get_boolean('enable-agents')) throw new Error('Agents must default off');
 agentsEnabled.active = true;
 if (!settings.get_boolean('enable-agents')) throw new Error('Agents toggle did not save');
@@ -106,7 +166,7 @@ const checkOrderWidth = width => {
         const image = chip.get_child().get_first_child();
         if (image.pixel_size !== (width >= fullWidth ? 18 : 14)) throw new Error('Order icons did not adapt to available space');
     }
-    if (count !== 7) throw new Error('Compact order preview lost a module');
+    if (count !== 8) throw new Error('Compact order preview lost a module');
 };
 for (const width of [900, 560, 360, 300, 900]) checkOrderWidth(width);
 const largeType = new Gtk.CssProvider();
@@ -185,6 +245,9 @@ opening.selected = 6;
 if (settings.get_string('expand-tab') !== 'commute') throw new Error('Opening tab did not save');
 settings.set_string('expand-tab', 'audio');
 if (opening.selected !== 3) throw new Error('Opening tab did not follow settings');
+settings.set_string('expand-tab', 'last');
+opening.selected = 8;
+if (settings.get_string('expand-tab') !== 'calendar') throw new Error('Calendar opening tab did not save');
 settings.set_string('expand-tab', 'last');
 const theme = find(window, 'Color theme');
 const opacity = find(window, 'Background opacity');
