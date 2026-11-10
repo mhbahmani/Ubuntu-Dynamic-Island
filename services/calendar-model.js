@@ -137,15 +137,23 @@ export function formatNotchDate(day, id, pattern = '%d %mm', digits = 'auto') {
     if (digits === 'persian' || (digits !== 'latin' && id !== 'gregorian')) text = persianDigits(text);
     return text;
 }
-export function notchDates(day, {calendars = ['main'], order = [], formats = {}, digits = {}, main = 'jalali'} = {}) {
-    const selected = calendars.includes('main') ? [Object.hasOwn(CALENDARS, main) ? main : 'jalali'] : calendars;
-    return dateOrder(order).filter(id => selected.includes(id)).map(id => ({id,
+export function notchDates(day, {main = 'jalali', calendars = [main], order = [], formats = {}, digits = {}} = {}) {
+    return dateOrder(order).filter(id => calendars.includes(id)).map(id => ({id,
         ...notchDate(day, id), text: formatNotchDate(day, id, formats[id], digits[id]),
     }));
 }
 export function migrateNotchDates(settings) {
-    if (!settings.get_user_value('pill-date-calendar')) return;
-    if (!settings.get_user_value('pill-date-calendars'))
-        settings.set_strv('pill-date-calendars', [settings.get_string('pill-date-calendar')]);
-    settings.reset('pill-date-calendar');
+    const legacy = settings.get_user_value('pill-date-calendar');
+    const saved = settings.get_user_value('pill-date-calendars');
+    const primary = settings.get_string('calendar-primary');
+    const main = Object.hasOwn(CALENDARS, primary) ? primary : 'jalali';
+    if (!saved) {
+        const choice = legacy ? settings.get_string('pill-date-calendar') : main;
+        settings.set_strv('pill-date-calendars', [Object.hasOwn(CALENDARS, choice) ? choice : main]);
+    } else if (settings.get_strv('pill-date-calendars').includes('main')) {
+        // Resolve the retired follow-main option once. Explicit selections,
+        // including an empty selection, remain independent of the month grid.
+        settings.set_strv('pill-date-calendars', [main]);
+    }
+    if (legacy) settings.reset('pill-date-calendar');
 }

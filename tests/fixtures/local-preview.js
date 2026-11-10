@@ -24,8 +24,6 @@ export default class Preview extends UbuntuIsland {
             settings.set_boolean(`enable-${module}`, true);
         for (const indicator of ['title', 'weather', 'network', 'commute', 'agents', 'date'])
             settings.set_boolean(`pill-show-${indicator}`, true);
-        settings.set_strv('pill-date-calendars', ['jalali', 'gregorian']);
-        settings.set_value('pill-date-formats', new GLib.Variant('a{ss}', {jalali: '%ww %d %mm'}));
         settings.set_string('pill-offline-mode', GLib.getenv('ISLAND_PREVIEW_OFFLINE_STYLE') || 'icon');
         settings.set_string('commute-routes', JSON.stringify([{id: 'sample', name: 'Heading home (sample)', originMode: 'fixed', originName: 'Work', destinationName: 'Home', origin: {latitude: 35.7219, longitude: 51.3347}, destination: {latitude: 35.6892, longitude: 51.389}}]));
         settings.set_string('commute-selected', 'sample');
@@ -224,6 +222,25 @@ export default class Preview extends UbuntuIsland {
             await delay(180);
         };
         await this._checkNotchDate();
+        const card = this._card, navigation = card._navigation, soundRows = card._outputRows;
+        for (let i = 0; i < 3; i++) {
+            card.selectPage('calendar'); this._island.expand(); await delay(400);
+            const previous = card._calendarView;
+            previous.todayButton.grab_key_focus();
+            assert(previous.todayButton.has_key_focus(), 'Calendar focus setup failed');
+            this._settings.set_boolean('enable-calendar', false); await delay(150);
+            assert(!card._calendarView && !card._pages.has('calendar') && !card._tabs.get('calendar').visible,
+                'Disabled Calendar retained its view or navigation tab');
+            assert(!previous.midnightTimer && !previous.layoutIdle, 'Disabled Calendar retained callbacks');
+            assert(card._page !== 'calendar' && !card.actor.has_style_class_name('ubuntu-island-with-calendar'),
+                'Disabling Calendar did not restore the available page/layout');
+            assert(card._tabs.get(card._page).has_key_focus(), 'Removing the focused calendar lost keyboard focus');
+            const page = card._page;
+            this._settings.set_boolean('enable-calendar', true); await delay(150);
+            assert(card._calendarView && card._tabs.get('calendar').visible && card._page === page,
+                'Calendar must appear immediately without changing the current tab');
+            assert(card._navigation === navigation && card._outputRows === soundRows, 'Calendar toggle rebuilt unrelated controls');
+        }
         this._card.selectPage('calendar'); this._island.expand(); await delay(600);
         const view = this._card._calendarView;
         const sample = civilDay(2025, 3, 20);
@@ -385,10 +402,10 @@ export default class Preview extends UbuntuIsland {
             assert(!label.clutter_text.get_layout().is_ellipsized(), 'Compact single date is truncated');
             await this._capture(`notch-date-${calendar}`);
         }
-        settings.set_strv('pill-date-calendars', ['main']);
-        settings.set_string('calendar-primary', 'gregorian');
+        settings.set_strv('pill-date-calendars', ['gregorian']);
+        settings.set_string('calendar-primary', 'hijri');
         assert(dateLabel('gregorian').visible && dateLabel('gregorian').text === notchDate(todayDay(), 'gregorian').text,
-            'Notch does not follow the main calendar');
+            'Changing the main calendar overwrote the notch selection');
         settings.set_strv('pill-date-calendars', ['jalali', 'gregorian', 'hijri']);
         settings.set_strv('pill-date-order', ['gregorian', 'hijri', 'jalali']);
         settings.set_value('pill-date-formats', new GLib.Variant('a{ss}', {gregorian: '%D/%M', hijri: '%d %mm', jalali: '%Y/%M/%D'}));
@@ -460,7 +477,7 @@ export default class Preview extends UbuntuIsland {
         this._island.actor.show(); await delay(100);
         assert(pill._dateClock === clock, 'Dates did not resume after showing');
         settings.set_string('calendar-primary', 'jalali');
-        settings.set_strv('pill-date-calendars', ['main']);
+        settings.set_strv('pill-date-calendars', ['jalali']);
         console.log('[Island Preview] Notch date checks passed: formats, multiple calendars, order, numerals, bounded layout, full-date tooltip, clock cleanup');
     }
 

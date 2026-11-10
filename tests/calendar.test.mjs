@@ -37,16 +37,35 @@ test('multiple notch calendars retain explicit order and independent formats', (
 
 test('single-notch calendar settings migrate without overwriting a new layout', () => {
     for (const choice of ['main', 'jalali', 'gregorian', 'hijri']) {
-        const values = new Map([['pill-date-calendar', choice]]);
+        const values = new Map([['pill-date-calendar', choice], ['calendar-primary', 'hijri']]);
         const settings = {get_user_value: key => values.get(key), get_string: key => values.get(key),
+            get_strv: key => values.get(key),
             set_strv: (key, value) => values.set(key, value), reset: key => values.delete(key)};
         migrateNotchDates(settings);
-        assert.deepEqual(values.get('pill-date-calendars'), [choice]);
+        assert.deepEqual(values.get('pill-date-calendars'), [choice === 'main' ? 'hijri' : choice]);
         assert.ok(!values.has('pill-date-calendar'));
         values.set('pill-date-calendar', 'gregorian');
         values.set('pill-date-calendars', []);
         migrateNotchDates(settings);
         assert.deepEqual(values.get('pill-date-calendars'), []);
+    }
+});
+
+test('notch calendar defaults and retired follow-main selections resolve once', () => {
+    for (const main of ['jalali', 'gregorian', 'hijri']) {
+        for (const selection of [undefined, ['main'], ['jalali', 'gregorian'], []]) {
+            const values = new Map([['calendar-primary', main]]);
+            if (selection) values.set('pill-date-calendars', selection);
+            const settings = {get_user_value: key => values.get(key), get_string: key => values.get(key),
+                get_strv: key => values.get(key), set_strv: (key, value) => values.set(key, value),
+                reset: key => values.delete(key)};
+            migrateNotchDates(settings);
+            const expected = !selection || selection.includes('main') ? [main] : selection;
+            assert.deepEqual(values.get('pill-date-calendars'), expected);
+            values.set('calendar-primary', main === 'jalali' ? 'gregorian' : 'jalali');
+            migrateNotchDates(settings);
+            assert.deepEqual(values.get('pill-date-calendars'), expected, 'Changing the grid must preserve notch choices');
+        }
     }
 });
 

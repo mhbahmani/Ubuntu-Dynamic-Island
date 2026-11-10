@@ -34,7 +34,7 @@
       <choices><choice value="main"/><choice value="jalali"/><choice value="gregorian"/><choice value="hijri"/></choices>
       <summary>Legacy single notch calendar, migrated to pill-date-calendars</summary>
     </key>
-    <key name="pill-date-calendars" type="as"><default>['main']</default><summary>Calendars shown in the notch, or main to follow the month grid</summary></key>
+    <key name="pill-date-calendars" type="as"><default>['jalali']</default><summary>Calendars shown in the notch; initialized to the main calendar</summary></key>
     <key name="pill-date-order" type="as"><default>['jalali', 'gregorian', 'hijri']</default><summary>Left-to-right order of notch dates</summary></key>
     <key name="pill-date-formats" type="a{ss}"><default>{}</default><summary>Per-calendar date formats; defaults to %d %mm</summary></key>
     <key name="pill-date-digits" type="a{ss}"><default>{}</default><summary>Per-calendar numerals: auto, persian, or latin</summary></key>

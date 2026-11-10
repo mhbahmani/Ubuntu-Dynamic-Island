@@ -43,11 +43,11 @@ and [compact playing pill](screenshots/playing-pill.png).
   without installing. Hijri uses tabular calculation; local moon-sighting dates
   may differ. Appointments and account sync are not included.
   **Preferences → Notch → Dates in the notch** shows one or several calendars.
-  Follow the main calendar, or turn that off to choose and reorder Jalali,
-  Gregorian and Hijri. Each has presets, custom Persian Calendar format codes,
-  and a Persian/Latin numeral choice. Expand its settings row to edit it and see
-  a preview. Move the whole **Dates** group in **Notch order**. Long formats shorten
-  to fit; hover over dates or focus the notch to read the full text.
+  Only the main calendar is selected initially; use the independent switches to
+  choose and reorder Jalali, Gregorian and Hijri. Each has presets, custom Persian
+  Calendar format codes, and a Persian/Latin numeral choice. Expand its settings
+  row to edit it and see a preview. Move the whole **Dates** group in **Notch order**.
+  Long formats shorten to fit; hover over dates or focus the notch to read the full text.
   The Calendar module can remain off.
   Persian text prefers installed Vazir/Vazirmatn fonts, with a DejaVu Sans fallback.
   See [calendar design and checks](docs/CALENDAR.md).
@@ -407,8 +407,9 @@ notch; middle-clicking the notch is a shortcut. The playback icon stays visible.
 
 Opening preferences keeps the island expanded so appearance and width changes
 can be previewed. The settings window remains interactive; normal outside-click
-and Escape dismissal resume after it closes. Module toggles and sampling interval
-still require disabling and re-enabling the extension, as stated in preferences.
+and Escape dismissal resume after it closes. The Calendar module toggle applies
+immediately; other module toggles and the sampling interval require disabling and
+re-enabling the extension, as stated in preferences.
 
 Validation includes 42 Node regressions and isolated GNOME rendering, pointer
 navigation, title toggling, and a real GTK preferences window lifecycle.

@@ -93,6 +93,9 @@ export class Card {
         this._body.add_child(this._empty);
         this._buildNavigation();
         this._syncPages();
+        const calendarChanged = settings.connect('changed::enable-calendar', () =>
+            this.setCalendarEnabled(settings.get_boolean('enable-calendar')));
+        this.actor.connect('destroy', () => settings.disconnect(calendarChanged));
         // Hiding the card mid-hover never delivers a leave-event on Wayland,
         // so hover highlights survive into the next expand and read as a
         // second, different selection indicator. Clear them at unmap.
@@ -108,6 +111,32 @@ export class Card {
         actor.remove_style_pseudo_class?.('hover');
         for (let child = actor.get_first_child(); child; child = child.get_next_sibling())
             this._clearHover(child);
+    }
+
+    setCalendarEnabled(enabled) {
+        if (Boolean(this._calendarView) === enabled) return;
+        const focus = global.stage.get_key_focus();
+        const restoreFocus = !enabled && focus &&
+            (this._calendarView.actor.contains(focus) || this._tabs.get('calendar').contains(focus));
+        if (enabled) {
+            this._calendarView = new CalendarView(this._settings, this._actions);
+            this._calendarView.actor.hide();
+            this.actor.add_child(this._calendarView.actor);
+            this.actor.set_child_at_index(this._calendarView.actor, this.actor.get_n_children() - 2);
+            this._pages.set('calendar', {box: this._calendarView.actor, available: true});
+            this._sectionCount++;
+        } else {
+            this._pages.delete('calendar');
+            this._calendarView.actor.destroy();
+            this._calendarView = null;
+            this._sectionCount--;
+        }
+        this._empty.get_child_at_index(0).text = this._sectionCount ? 'Nothing playing' : 'Your island, your way';
+        this._empty.get_child_at_index(1).text = this._sectionCount ? 'Start a track in your music app.' : 'Enable modules in Island preferences.';
+        this._syncPages();
+        if (restoreFocus && this.actor.mapped)
+            (this._tabs.get(this._page) ?? this._navigation.get_last_child()).grab_key_focus();
+        this._actions.relayout?.();
     }
 
     setPillTitleVisible(visible) {
@@ -155,7 +184,7 @@ export class Card {
             ['calendar', 'x-office-calendar-symbolic', 'Calendar'],
         ];
         for (const [id, glyph, title] of items) {
-            if (!this._pages.has(id)) continue;
+            if (!this._pages.has(id) && id !== 'calendar') continue;
             const tab = button(glyph, title, () => this.selectPage(id), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab');
             // Keep the glyph centered on the same axis as the caption and
             // preferences icon; the selection marker must not shift it upward.
@@ -222,7 +251,10 @@ export class Card {
         }
         if (this._pageCaption)
             this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth', weather: 'Weather', commute: 'Commute', agents: 'Agents', calendar: 'Calendar'}[this._page] ?? '';
+        const calendarTab = this._tabs.get('calendar');
+        if (calendarTab) calendarTab.visible = this._pages.has('calendar');
         if (this._pages.has('calendar')) this.actor.add_style_class_name('ubuntu-island-with-calendar');
+        else this.actor.remove_style_class_name('ubuntu-island-with-calendar');
         this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : this._page === 'weather' ? ' ubuntu-island-card-weather' : this._page === 'commute' ? ' ubuntu-island-card-commute' : this._page === 'agents' ? ' ubuntu-island-card-agents' : ''}`);
         if (this._page === 'audio') this._body.add_style_class_name('ubuntu-island-card-audio');
         if (this._pages.has('agents')) this.actor.add_style_class_name('ubuntu-island-with-agents');

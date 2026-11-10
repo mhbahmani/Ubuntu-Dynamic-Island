@@ -243,7 +243,7 @@ export default class UbuntuIsland extends Extension {
         for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
-        for (const key of ['pill-show-date', 'pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'calendar-primary'])
+        for (const key of ['pill-show-date', 'pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits'])
             watch(key, () => this._renderPill());
         watch('surface-opacity', () => this._applyAppearance());
         watch('surface-matte', () => this._applyAppearance());
@@ -260,8 +260,8 @@ export default class UbuntuIsland extends Extension {
         watch('hover-open', syncHover);
         watch('hover-open-delay', syncHover);
         watch('hover-close-delay', syncHover);
-        // Module toggles and the metrics interval take
-        // effect after a disable/enable cycle.
+        // Calendar owns its live module toggle in Card. Other module toggles
+        // and the metrics interval take effect after a disable/enable cycle.
     }
 
     _togglePillTitle() {
@@ -316,7 +316,6 @@ export default class UbuntuIsland extends Extension {
                 order: this._settings.get_strv('pill-date-order'),
                 formats: this._settings.get_value('pill-date-formats').deepUnpack(),
                 digits: this._settings.get_value('pill-date-digits').deepUnpack(),
-                main: this._settings.get_string('calendar-primary'),
             },
             titleMode: this._settings.get_string('pill-title-mode'),
             titleCharacters: this._settings.get_int('pill-title-characters'),

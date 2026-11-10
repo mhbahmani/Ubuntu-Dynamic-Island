@@ -7,6 +7,8 @@ the current date browser; account integration is not implemented yet.
 Enable Calendar in **Preferences → Modules**, or open Calendar in `make preview`
 without installing. **Preferences → Calendar** contains the month-grid choices;
 the settings button in the Calendar tab opens that page directly.
+The Calendar module toggle adds or removes its tab immediately; it does not need
+an extension restart. Turning it off releases the view and its callbacks.
 
 Choose **Main calendar**: Jalali (شمسی), Gregorian (میلادی), or Hijri (قمری).
 Additional date switches show the other calendars below the main date in the
@@ -35,9 +37,10 @@ at a fixed position as date/holiday details appear or disappear.
 ## Date in the notch
 
 Enable **Preferences → Notch → Dates in the notch → Show date in notch**.
-Dates default off and work independently of the Calendar module. Keep **Follow
-main calendar** for one date matching the grid, or turn it off and enable any
-combination of Jalali, Gregorian and Hijri. The row order is their left-to-right
+Dates default off and work independently of the Calendar module. Initially only
+the main calendar is selected. Use the independent switches to enable any
+combination of Jalali, Gregorian and Hijri; later changes to the main calendar
+preserve these choices. The row order is their left-to-right
 order in the notch; use each row's up/down buttons to move it. Move **Dates** in
 **Notch order** to position the whole group among other indicators.
 
@@ -69,7 +72,8 @@ hovering over the dates or focusing the notch shows the full formatted values.
 Separate actors preserve Persian/English direction and the chosen calendar order.
 Accessible names also include the calendar and full date/year. Hijri remains
 calculated, as in the tab. Older single-calendar settings migrate once without
-overwriting an existing multi-calendar selection.
+overwriting an existing multi-calendar selection. The retired Follow main calendar
+option resolves once to the current main calendar, leaving its switch editable.
 
 The visible notch listens to GNOME's existing clock and timezone notifications,
 updating only when the local civil day changes. It adds no timer. Expansion,

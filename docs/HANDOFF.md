@@ -3,6 +3,20 @@
 Updated 2026-11-10. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Calendar controls (2026-11-10): removed the Follow main
+calendar switch from Notch preferences. Fresh selections and the retired follow
+mode resolve once to the current main calendar; explicit selections, including
+empty or multiple calendars, remain intact. The three calendar switches are
+independent, and later main-calendar changes do not replace the notch selection.
+The full preview now starts with the same single-calendar default.
+
+Calendar previously read its module toggle only when Card was constructed, which
+left its tab absent after enabling it in preferences. Card now creates/destroys
+the calendar view live while retaining navigation and other module actors. It
+removes the calendar timer/settings/focus callbacks on disable, restores an
+available page/focus and updates the empty state and compact navigation styling.
+Other module toggles retain their existing re-enable requirement.
+
 Google Calendar planning (2026-11-10): the user approved the desktop-account
 direction and requested a plan for implementation in another session. Start with
 [GOOGLE_CALENDAR_PLAN.md](GOOGLE_CALENDAR_PLAN.md): read-only GNOME Online Accounts

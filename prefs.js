@@ -70,7 +70,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
 
         const modules = new Adw.PreferencesGroup({
             title: 'Modules',
-            description: 'Module toggles and the sampling interval apply after disabling and re-enabling the extension.',
+            description: 'Calendar changes apply immediately. Other module toggles and the sampling interval apply after disabling and re-enabling the extension.',
         });
         modules.add(toggle(settings, 'enable-media', 'Media controls'));
         modules.add(toggle(settings, 'enable-metrics', 'System metrics'));
@@ -78,7 +78,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         modules.add(toggle(settings, 'enable-audio', 'Audio controls'));
         modules.add(toggle(settings, 'enable-bluetooth', 'Bluetooth controls'));
         modules.add(toggle(settings, 'enable-calendar', 'Calendar',
-            'Browse Jalali, Gregorian and Hijri dates · Choose calendars in Calendar settings'));
+            'Show or hide the tab immediately · Choose calendars in Calendar settings'));
         modules.add(toggle(settings, 'enable-remote-art', 'Fetch remote album art',
             'Downloads artwork over the network with a bounded, host-checked cache'));
 

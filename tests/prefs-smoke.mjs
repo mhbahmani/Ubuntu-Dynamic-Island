@@ -52,19 +52,18 @@ settings.set_strv('calendar-additional', ['hijri']);
 if (jalaliDate.active || !find(calendarPage, 'Hijri · قمری').active) throw new Error('Additional calendars did not follow settings');
 settings.reset('calendar-primary'); settings.reset('calendar-additional');
 const showDate = find(window, 'Show date in notch');
-const followDate = find(window, 'Follow main calendar');
-if (!showDate || showDate.active || !followDate || !followDate.active || followDate.sensitive)
+if (!showDate || showDate.active || find(window, 'Follow main calendar'))
     throw new Error('Notch date defaults are incorrect');
 showDate.active = true;
-if (!settings.get_boolean('pill-show-date') || !followDate.sensitive) throw new Error('Notch date toggle did not save');
+if (!settings.get_boolean('pill-show-date')) throw new Error('Notch date toggle did not save');
 window.set_visible_page_name('notch');
 const notchPage = window.get_visible_page();
 const jalaliNotch = find(notchPage, 'Jalali · شمسی');
 const gregorianNotch = find(notchPage, 'Gregorian · میلادی');
 const shown = tooltip(jalaliNotch, 'Show Jalali in notch');
-if (!shown.active || shown.sensitive) throw new Error('Main calendar selection is not reflected');
-followDate.active = false;
-if (!shown.sensitive || settings.get_strv('pill-date-calendars').join() !== 'jalali') throw new Error('Manual date selection failed');
+if (!shown.active || !shown.sensitive || settings.get_strv('pill-date-calendars').join() !== 'jalali' ||
+    tooltip(gregorianNotch, 'Show Gregorian in notch').active || tooltip(find(notchPage, 'Hijri · قمری'), 'Show Hijri in notch').active)
+    throw new Error('Only the main calendar should be selected initially, with switches editable');
 tooltip(gregorianNotch, 'Show Gregorian in notch').active = true;
 if (settings.get_strv('pill-date-calendars').join() !== 'jalali,gregorian') throw new Error('Multiple calendars did not save');
 tooltip(gregorianNotch, 'Move Gregorian earlier').emit('clicked');
@@ -86,11 +85,12 @@ numerals.selected = 2;
 if (settings.get_value('pill-date-digits').deepUnpack().jalali !== 'latin') throw new Error('Numeral selection did not save');
 settings.set_strv('pill-date-calendars', []);
 if (!find(notchPage, 'Date preview').subtitle.includes('Choose at least')) throw new Error('Empty date selection has no guidance');
-settings.set_strv('pill-date-calendars', ['main']);
+settings.set_strv('pill-date-calendars', ['gregorian']);
 settings.set_string('calendar-primary', 'hijri');
-if (!followDate.active || !tooltip(find(notchPage, 'Hijri · قمری'), 'Show Hijri in notch').active) throw new Error('Main calendar did not follow settings');
+if (!tooltip(gregorianNotch, 'Show Gregorian in notch').active || tooltip(find(notchPage, 'Hijri · قمری'), 'Show Hijri in notch').active)
+    throw new Error('Changing the main calendar changed the explicit notch selection');
 settings.set_boolean('pill-show-date', false);
-if (showDate.active || followDate.sensitive || jalaliNotch.sensitive) throw new Error('Disabled date controls remain active');
+if (showDate.active || jalaliNotch.sensitive) throw new Error('Disabled date controls remain active');
 for (const key of ['pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'calendar-primary']) settings.reset(key);
 if (!agentsEnabled || settings.get_boolean('enable-agents')) throw new Error('Agents must default off');
 agentsEnabled.active = true;

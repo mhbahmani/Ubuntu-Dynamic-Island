@@ -11,11 +11,9 @@ export function notchDatePreferences(settings, window) {
         description: 'Show one or several calendars, in left-to-right order. Expand a calendar to change its format.'});
     const enabled = new Adw.SwitchRow({title: 'Show date in notch'});
     settings.bind('pill-show-date', enabled, 'active', Gio.SettingsBindFlags.DEFAULT);
-    const follow = new Adw.SwitchRow({title: 'Follow main calendar',
-        subtitle: 'Turn off to choose several calendars below.'});
     const preview = new Adw.ActionRow({title: 'Date preview', use_markup: false,
         subtitle_lines: 0});
-    group.add(enabled); group.add(preview); group.add(follow);
+    group.add(enabled); group.add(preview);
     const list = new Gtk.ListBox({selection_mode: Gtk.SelectionMode.NONE});
     list.add_css_class('boxed-list'); group.add(list);
     const ids = Object.keys(CALENDARS), rows = new Map();
@@ -103,11 +101,9 @@ export function notchDatePreferences(settings, window) {
     const sync = () => {
         syncing = true;
         const calendars = settings.get_strv('pill-date-calendars');
-        const main = settings.get_string('calendar-primary');
-        follow.active = calendars.includes('main'); follow.sensitive = enabled.active;
         const order = dateOrder(settings.get_strv('pill-date-order'));
         const formats = readMap('pill-date-formats'), digits = readMap('pill-date-digits');
-        const entries = notchDates(todayDay(), {calendars, main, order, formats, digits});
+        const entries = notchDates(todayDay(), {calendars, order, formats, digits});
         preview.subtitle = enabled.active ? entries.length ? `\u200e${entries.map(entry => `\u2068${entry.text}\u2069`).join('  ·  ')}` : 'Choose at least one calendar below.' : 'Date display is off.';
         if (arranged !== order.join(',')) {
             const focus = window.get_focus();
@@ -122,8 +118,7 @@ export function notchDatePreferences(settings, window) {
         for (const [id, item] of rows) {
             const pattern = formats[id] ?? '%d %mm';
             item.row.sensitive = enabled.active;
-            item.shown.active = follow.active ? id === main : calendars.includes(id);
-            item.shown.sensitive = !follow.active;
+            item.shown.active = calendars.includes(id);
             item.up.sensitive = order.indexOf(id) > 0;
             item.down.sensitive = order.indexOf(id) < order.length - 1;
             const index = DATE_PRESETS.findIndex(preset => preset.pattern === pattern);
@@ -141,11 +136,8 @@ export function notchDatePreferences(settings, window) {
         }
         syncing = false;
     };
-    follow.connect('notify::active', () => {
-        if (!syncing) settings.set_strv('pill-date-calendars', follow.active ? ['main'] : [settings.get_string('calendar-primary')]);
-    });
     enabled.connect('notify::active', sync);
-    const signals = ['pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'calendar-primary']
+    const signals = ['pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits']
         .map(key => settings.connect(`changed::${key}`, sync));
     window.connect('close-request', () => { signals.forEach(id => settings.disconnect(id)); return false; });
     sync();
