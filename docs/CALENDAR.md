@@ -1,6 +1,6 @@
 # Calendar prototype
 
-Enable Calendar in **Preferences → Modules**, or run `make preview-calendar`
+Enable Calendar in **Preferences → Modules**, or open Calendar in `make preview`
 without installing. **Preferences → Calendar** contains the month-grid choices;
 the settings button in the Calendar tab opens that page directly.
 
@@ -128,9 +128,9 @@ this prototype. It does not modify another installed calendar extension.
 node --test tests/calendar.test.mjs
 node --test tests/calendar-holidays.test.mjs
 make prefs-test
-make preview-calendar PREVIEW_ARGS="--headless --check-calendar --size 1600x1000 --duration 44"
-make preview-calendar PREVIEW_ARGS="--card-width 380 --text-scale 1.5"
-make preview-calendar PREVIEW_ARGS="--card-width 380 --text-scale 1.5 --calendar-date 2026-06-04"
+make preview-headless PREVIEW_ARGS="--tab calendar --check-calendar --size 1600x1000 --duration 44"
+make preview PREVIEW_ARGS="--tab calendar --card-width 380 --text-scale 1.5"
+make preview PREVIEW_ARGS="--tab calendar --card-width 380 --text-scale 1.5 --calendar-date 2026-06-04"
 node --test tests/install.test.mjs
 make build
 ```

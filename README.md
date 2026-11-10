@@ -39,7 +39,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   Select a day to convert it, browse months, or return to Today.
   Arrow keys move through dates; Page Up/Down changes month, Shift+Page Up/Down
   changes year, and Home/End moves to the start/end of the week.
-  Enable it in **Preferences → Modules → Calendar**, or try `make preview-calendar`
+  Enable it in **Preferences → Modules → Calendar**, or open Calendar in `make preview`
   without installing. Hijri uses tabular calculation; local moon-sighting dates
   may differ. Appointments and account sync are not included.
   **Preferences → Notch → Dates in the notch** shows one or several calendars.
@@ -65,7 +65,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   **Super+Alt+Space**, type a message, then press **Enter**. **Escape** closes it
   and keeps the draft. The shortcut also works with session tracking disabled.
   It uses your default agent, destination and project folder (home if unset).
-  Start with `make preview-agents`; see [setup and limitations](docs/AI_AGENTS.md).
+  Open Agents in `make preview`; see [setup and limitations](docs/AI_AGENTS.md).
 - **Single-surface morph**: the pill and the card are two children of one
   chrome-managed `St.Widget`, animated with width/height/opacity tweens
   (`COLLAPSED → EXPANDING → EXPANDED → COLLAPSING`), interrupt-safe under
@@ -169,11 +169,8 @@ or stops being eligible.
 make preview       # full sample preview, collapsed notch, all modules enabled
 make preview-offline # disconnected Wi-Fi icon with sample local modules
 make preview-offline-edge # unplugged symbol and split amber underline
-make preview-commute # sample driving route; map editor in preferences
-make preview-calendar # interactive Jalali/Gregorian/Hijri date browser
-make preview-commute-map # open the map editor immediately
 make preview-live  # live Tehran weather/routes and system metrics; sample devices
-make preview PREVIEW_ARGS="--tab weather --scene rain --ignore-power-saver" # animated demo
+make preview-headless # save a screenshot without opening a window
 make preview-sun-day    # sunny sample
 make preview-clouds-day # cloudy sample
 make preview-rain-day
@@ -189,24 +186,24 @@ respected. Add `PREVIEW_ARGS="--headless"` to save a screenshot instead of openi
 
 This launches a nested GNOME Shell running a temporary copy of the working tree,
 using the actual St/Clutter UI and stylesheet. It starts collapsed with Music,
-Weather, network rates, CPU, Bluetooth and Commute indicators enabled and populated.
+Weather, network rates, CPU, Bluetooth, Commute, Agents and Dates enabled and populated.
 Click the notch to explore all eight module tabs and open preferences. Sample playback,
 seek, volume, output selection and Bluetooth controls update simulated data.
 Sample Weather, routing and network status work even when the host is offline.
 Use `--live` for real Weather, routing and system metrics; media/audio/Bluetooth
 controls remain simulated so the preview does not switch real devices.
 Open a particular module immediately with `PREVIEW_ARGS="--tab media"` (or
-`system`, `audio`, `bluetooth`, `weather`, `commute`, `agents`, `calendar`). Weather scene shortcuts
-continue to open Weather automatically; `make preview-commute` opens Commute.
-`make preview-agents` opens sample sessions and a simulated Quick Ask flow.
-Use `make preview-calendar PREVIEW_ARGS="--card-width 380 --text-scale 1.5"`
+`system`, `audio`, `bluetooth`, `weather`, `commute`, `agents`, `calendar`).
+Weather scene shortcuts open Weather automatically. The full preview includes
+sample agent sessions, a simulated Quick Ask flow, a sample commute route and Calendar.
+Use `make preview PREVIEW_ARGS="--tab calendar --card-width 380 --text-scale 1.5"`
 to try the calendar at narrow width with enlarged text.
 Agent configuration changes from preview preferences stay in temporary folders.
 
 The preview window starts at **1600×1000 with 200% UI scaling**, so text, icons
 and controls are larger too. Use `--scale 1` for the original 100% UI. Set the
 window size independently, for example
-`make preview-agents PREVIEW_ARGS="--size 1920x1080 --scale 2"`.
+`make preview PREVIEW_ARGS="--size 1920x1080 --scale 2"`.
 At 200%, the window must be at least 1280×960. These options work with all
 windowed preview targets. Headless previews keep their 1280×960/100% defaults;
 they accept `--size` but do not use `--scale`. Restart an existing preview to
@@ -236,7 +233,7 @@ For a screenshot without opening a window:
 
 ```sh
 make preview-headless
-make preview PREVIEW_ARGS="--headless --check-full --duration 30" # all tabs, sample controls, Agents
+make preview-headless PREVIEW_ARGS="--check-full --duration 30" # all tabs, sample controls, Agents
 ```
 
 The nested window validates real rendering and interactions; it cannot establish

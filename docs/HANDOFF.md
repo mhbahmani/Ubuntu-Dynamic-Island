@@ -3,6 +3,15 @@
 Updated 2026-11-10. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Preview command cleanup (2026-11-10): keep the full `make preview`, weather scene
+shortcuts, both offline modes, live data and headless capture. Removed the separate
+module and map-editor shortcuts; all modules are already available in the full
+preview. Use `PREVIEW_ARGS` for focused tabs, settings, layout and interaction
+checks. Help and module guides now use the retained commands. Dry-ran all 13
+retained targets, confirmed the four removed shortcuts are unavailable, and
+checked documentation references, CLI help and diff whitespace. No runtime code
+changed; previews were not relaunched for this command cleanup.
+
 Network notch spacing (2026-11-10): removed the fixed 136px network width that
 left large empty margins around short rates in the user's `1.png`. The transfer
 group now uses its natural width; the existing tabular figures and 12px spacing
@@ -326,7 +335,7 @@ live broker data and never cancels or controls an agent.
 
 The inline concept rendered in local browser checks, but the user's chat preview
 failure could not be reproduced or attributed to a specific client error. The
-native preview and captured PNGs provide a fallback. Use `make preview-agents`.
+native preview and captured PNGs provide a fallback. Open Agents in `make preview`.
 
 The user's `2.png` showed Notch order growing with seven labeled chips. It now
 uses measured native GTK presentations: labeled 18px icons when they fit, compact
@@ -390,7 +399,7 @@ optional hooks/plugins. Installation preserves unrelated configuration and creat
 backups; invalid JSON and symlink configuration files are rejected. Nothing was
 written to real agent settings or the user's extension installation during this work.
 
-Use `make preview-agents` for sample sessions and simulated Quick Ask. Preview
+Open Agents in `make preview` for sample sessions and simulated Quick Ask. Preview
 setup targets temporary config directories. See [AI_AGENTS.md](AI_AGENTS.md) for
 real setup and limits. The default OpenCode adapter uses V1; V2 is experimental.
 Forced exits or missed events can leave stale reported states. Live authenticated
@@ -669,8 +678,8 @@ no sandbox override is required or appropriate.
 
 Use `make help` for all commands. Run `make check`, `make prefs-test`, and
 `make smoke` as relevant; `make verify` also checks packaging and weather cache.
-`make preview`, `make preview-live`, `make preview-commute`, and
-`make preview-commute-map` work without installation or logout. Weather preview
+`make preview`, weather scene shortcuts, offline modes, `make preview-live` and
+`make preview-headless` work without installation or logout. Weather preview
 targets include explicit day/night variants. Restart previews after source edits.
 
 Do not assume the installed extension matches this checkout. Compare files before

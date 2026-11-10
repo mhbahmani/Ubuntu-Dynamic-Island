@@ -8,13 +8,13 @@ and authenticated, live agent sessions have not been exercised.
 ## Try the prototype
 
 ```sh
-make preview-agents
+make preview # open the Agents tab
 # Headless screenshot, without installing:
-make preview-agents PREVIEW_ARGS='--headless --duration 12'
+make preview-headless PREVIEW_ARGS='--tab agents --duration 12'
 # Real local IPC, setup preservation and launch argument checks:
 make agents-test
 # Native input, window focus and narrow-layout checks:
-make preview PREVIEW_ARGS='--headless --check-full --duration 40'
+make preview-headless PREVIEW_ARGS='--check-full --duration 40'
 ```
 
 The preview uses three clearly labelled sample sessions and simulates Quick Ask;

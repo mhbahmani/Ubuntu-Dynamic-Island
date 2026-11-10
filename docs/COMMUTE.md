@@ -153,10 +153,9 @@ covered by fixtures; they have not been exercised with real account credentials.
 ## Local preview
 
 ```sh
-make preview-commute
-make preview-commute-map # open the map editor immediately
-make preview-commute PREVIEW_ARGS="--live" # real requests for the sample Tehran route
-make preview-commute PREVIEW_ARGS="--headless --duration 15"
+make preview # open the Commute tab; route editor is in preferences
+make preview-live PREVIEW_ARGS="--tab commute" # real requests for the sample Tehran route
+make preview-headless PREVIEW_ARGS="--tab commute --duration 15"
 ```
 
 The default uses a labeled 32-minute sample and needs no key. Preview settings are

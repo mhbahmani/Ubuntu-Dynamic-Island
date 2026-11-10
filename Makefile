@@ -7,7 +7,7 @@ PREVIEW_ARGS ?=
 WEATHER_PREVIEWS := preview-sun-day preview-clouds-day preview-rain-day preview-snow-day preview-night preview-clouds-night preview-rain-night preview-snow-night
 UUID := ubuntu-island@mhbahmani.github.io
 
-.PHONY: help preview preview-offline preview-offline-edge preview-commute preview-commute-map preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify media-test
+.PHONY: help preview preview-offline preview-offline-edge preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify media-test agents-test
 .PHONY: $(WEATHER_PREVIEWS)
 
 help:
@@ -16,10 +16,6 @@ help:
 	  '  make preview             Full sample preview; all modules and notch data enabled' \
 	  '  make preview-offline     Preview the disconnected icon; host network unchanged' \
 	  '  make preview-offline-edge Preview the split amber edge and unplugged symbol' \
-	  '  make preview-commute-map Open the route editor immediately' \
-	  '  make preview-commute     Driving routes with sample estimates; no API key' \
-	  '  make preview-agents      Agent sessions and Quick Ask with safe sample data' \
-	  '  make preview-calendar    Interactive Jalali, Gregorian and Hijri calendar' \
 	  '  make preview-live        Live weather/routes/metrics, sample device controls' \
 	  '  make preview-headless    Save a preview screenshot without a window' \
 	  '  make preview-sun-day         Animated sunny weather sample' \
@@ -44,7 +40,7 @@ help:
 	  '' \
 	  'Example: make preview PREVIEW_ARGS="--duration 15"' \
 	  'Preview defaults: 1600x1000 at 200%; use PREVIEW_ARGS="--scale 1" for 100%' \
-	  'Custom preview: make preview-agents PREVIEW_ARGS="--size 1920x1080 --scale 2"' \
+	  'Custom preview: make preview PREVIEW_ARGS="--size 1920x1080 --scale 2"' \
 	  'After installing changed code on Wayland, log out/in before testing it.'
 
 preview:
@@ -55,12 +51,6 @@ preview-offline:
 
 preview-offline-edge:
 	$(PYTHON) tests/preview.py --connection offline --offline-style edge $(PREVIEW_ARGS)
-
-preview-commute:
-	$(PYTHON) tests/preview.py --tab commute $(PREVIEW_ARGS)
-
-preview-commute-map:
-	$(PYTHON) tests/preview.py --tab commute --edit-route $(PREVIEW_ARGS)
 
 preview-live:
 	$(PYTHON) tests/preview.py --live $(PREVIEW_ARGS)
@@ -121,14 +111,6 @@ media-test:
 	dbus-run-session -- $(GJS) -m tests/media-dbus.mjs
 
 verify: check prefs-test weather-cache-test media-test smoke build
-
-.PHONY: preview-agents agents-test
-preview-agents:
-	$(PYTHON) tests/preview.py --tab agents $(PREVIEW_ARGS)
-
-.PHONY: preview-calendar
-preview-calendar:
-	$(PYTHON) tests/preview.py --tab calendar $(PREVIEW_ARGS)
 
 agents-test:
 	$(NODE) --test tests/agents*.test.mjs
