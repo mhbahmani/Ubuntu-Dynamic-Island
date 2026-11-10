@@ -17,6 +17,24 @@ removes the calendar timer/settings/focus callbacks on disable, restores an
 available page/focus and updates the empty state and compact navigation styling.
 Other module toggles retain their existing re-enable requirement.
 
+Audio ordering (2026-11-10): outputs now sort headphones (Bluetooth, wired/AUX),
+built-in speakers, HDMI/DisplayPort, then others. Classification uses port/profile/icon/form-factor
+metadata rather than translated names; explicit Bluetooth speakers remain in
+Others. Alphabetical/ID ties are stable, and the active output is not promoted.
+Bluetooth Music/Calls grouping and real Gvc device IDs are preserved.
+
+Validation: 148 Node tests, syntax/schema checks, GTK preferences, temporary-XDG
+installation, and ZIP integrity/source comparisons passed. Native calendar checks
+at `/tmp/ubuntu-island-preview-cvjbmtk8` cover repeated live toggles, focus/timer
+cleanup and the existing 380/440px, 100/200% and enlarged-text matrix. Full native
+preview `/tmp/ubuntu-island-preview-ck6rj3lq` passed audio category order, profile
+selection, focus preservation, reachable overflow, Agents and all eight tabs.
+Actual 200%/150% text audio was inspected at `/tmp/ubuntu-island-preview-4sa95npk`.
+The first calendar run's focus assertion raced the opening animation; the check
+now waits for expansion before exercising focus removal. Physical audio hotplug
+and routing were not changed or exercised. Changes are not installed.
+Keep the Google Calendar plan below; it remains a separate future feature.
+
 Google Calendar planning (2026-11-10): the user approved the desktop-account
 direction and requested a plan for implementation in another session. Start with
 [GOOGLE_CALENDAR_PLAN.md](GOOGLE_CALENDAR_PLAN.md): read-only GNOME Online Accounts

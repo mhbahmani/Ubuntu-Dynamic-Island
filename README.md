@@ -107,6 +107,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   (headphone mic available, lower playback quality). Only available, identified
   modes are shown. Using another microphone lets you keep Music mode; merging
   the controls does not remove the Bluetooth profile trade-off.
+  Outputs are ordered by headphones (Bluetooth or AUX), built-in speakers,
+  HDMI/DisplayPort, then other devices. Switching outputs keeps that order.
 - **Bluetooth**: event-driven BlueZ state (`GetManagedObjects` snapshot +
   `InterfacesAdded/Removed` + per-interface `PropertiesChanged`), paired
   devices with connect/disconnect, Battery1 percentage, adapter power toggle;

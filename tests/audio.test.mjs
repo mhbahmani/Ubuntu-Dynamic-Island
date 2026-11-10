@@ -14,7 +14,7 @@ function service(file, name, dependencies) {
 test('audio seeds existing devices, removes stale outputs, and disconnects without closing the shared mixer', () => {
     let id = 0;
     const signals = new Map();
-    const device = value => ({get_id: () => value, get_description: () => `Output ${value}`, get_origin: () => '', get_profiles: () => [], has_ports: () => true, port_available: true, connect: (name, cb) => { signals.set(`port-${value}`, cb); return ++id; }, disconnect() {}});
+    const device = value => ({get_id: () => value, get_description: () => `Output ${value}`, get_origin: () => '', get_profiles: () => [], get_port: () => '', get_icon_name: () => '', has_ports: () => true, port_available: true, connect: (name, cb) => { signals.set(`port-${value}`, cb); return ++id; }, disconnect() {}});
     const devices = new Map([[1, device(1)], [2, device(2)]]);
     const sink = {volume: 50, is_muted: false, connect: () => ++id, disconnect() {}};
     const control = {
@@ -22,6 +22,7 @@ test('audio seeds existing devices, removes stale outputs, and disconnects witho
         disconnect() {}, get_sinks: () => [...devices.keys()].map(value => ({device: value})),
         lookup_device_from_stream: stream => devices.get(stream === sink ? 1 : stream.device),
         lookup_output_id: value => devices.get(value),
+        get_stream_from_device: () => null,
         get_default_sink: () => sink, get_state: () => 1, get_vol_max_norm: () => 100, get_cards: () => [],
         close() { assert.fail('must not close the shared mixer'); },
     };
@@ -56,6 +57,7 @@ test('audio seeds existing devices, removes stale outputs, and disconnects witho
 test('Bluetooth modes share a physical device row, preserve selection, and follow removal', () => {
     const signals = new Map();
     const makeDevice = (id, profile, port) => ({get_id: () => id, get_description: () => 'Localized port name',
+        get_icon_name: () => '',
         get_origin: () => 'Headphones', get_port: () => port, get_profiles: () => [{profile, n_sources: profile.startsWith('a2dp') ? 0 : 1}],
         has_ports: () => true, port_available: true, connect: () => id, disconnect() {}});
     const music = makeDevice(1, 'a2dp-sink', 'headset-output');
@@ -65,7 +67,7 @@ test('Bluetooth modes share a physical device row, preserve selection, and follo
     const card = id => ({get_id: () => id, get_index: () => id, get_name: () => 'Headphones',
         get_ports: () => [{port:'headset-output'}, {port:'headset-hf-output'}]});
     let cards = [card(7)], active = music, selected, mixerState = 2;
-    const sink = {volume: 50, is_muted: false, get_card_index: () => 7, connect: () => 1, disconnect() {}};
+    const sink = {volume: 50, is_muted: false, get_card_index: () => 7, get_form_factor: () => 'headset', get_name: () => 'bluez_output', connect: () => 1, disconnect() {}};
     const control = {
         connect: (name, callback) => { signals.set(name, callback); return signals.size; }, disconnect() {},
         get_sinks: () => [sink], lookup_device_from_stream: () => active,
@@ -103,5 +105,51 @@ test('Bluetooth modes share a physical device row, preserve selection, and follo
     assert.equal(state.outputs.find(output => output.modes).modes.length, 1);
     audio.selectOutput(999);
     assert.equal(selected, calls, 'A stale click must not select a different device');
+    audio.stop();
+});
+
+test('outputs sort headphones and AUX, internal speakers, HDMI, then others without moving the active device first', () => {
+    const definitions = [
+        {id: 1, port: 'hdmi-output-0'},
+        {id: 2, port: 'analog-output-speaker'},
+        {id: 3, port: 'analog-output-headphones'},
+        {id: 4, port: 'headset-output', profile: 'a2dp-sink', form: 'headset'},
+        {id: 5, port: 'analog-output-speaker', icon: 'audio-card-usb'},
+        {id: 6, port: 'analog-output-lineout'},
+        {id: 7, port: 'speaker-output', profile: 'a2dp-sink', form: 'speaker'},
+    ];
+    const signals = new Map();
+    const devices = new Map(definitions.map(data => [data.id, {
+        get_id: () => data.id, get_description: () => 'خروجی', get_origin: () => 'دستگاه',
+        get_port: () => data.port, get_icon_name: () => data.icon || '',
+        get_profiles: () => data.profile ? [{profile: data.profile, n_sources: 0}] : [],
+        has_ports: () => true, port_available: true, connect: () => 1, disconnect() {},
+    }]));
+    const streams = new Map(definitions.map(data => [data.id, {
+        device: data.id, volume: 50, is_muted: false, get_card_index: () => data.id,
+        get_form_factor: () => data.form || '', get_name: () => '', connect: () => 1, disconnect() {},
+    }]));
+    let active = 5, state;
+    const control = {
+        connect: (name, callback) => { signals.set(name, callback); return signals.size; }, disconnect() {},
+        get_sinks: () => [...streams.values()], lookup_device_from_stream: stream => devices.get(stream.device),
+        get_stream_from_device: device => streams.get(device.get_id()), lookup_output_id: id => devices.get(id),
+        get_default_sink: () => streams.get(active), get_state: () => 1, get_vol_max_norm: () => 100,
+        get_cards: () => [4, 7].map(id => ({get_id: () => id, get_index: () => id})),
+    };
+    const Audio = service('audio', 'AudioService', {Gvc: {MixerControlState: {READY: 1}}, Volume: {getMixerControl: () => control}});
+    const audio = new Audio(value => { state = value; });
+    audio.start();
+    assert.deepEqual(Array.from(state.outputs, output => output.kind),
+        ['headphones', 'headphones', 'headphones', 'speakers', 'hdmi', 'other', 'other']);
+    assert.deepEqual(new Set(Array.from(state.outputs.slice(0, 3), output => output.id)), new Set([3, 6, 'bluetooth:4']));
+    assert.equal(state.outputs[3].id, 2);
+    assert.equal(state.outputs[4].id, 1);
+    assert.equal(state.outputs.find(output => output.id === 'bluetooth:7').kind, 'other', 'A Bluetooth speaker is not a headset');
+    const order = Array.from(state.outputs, output => output.id);
+    active = 1;
+    signals.get('default-sink-changed')(control);
+    assert.deepEqual(Array.from(state.outputs, output => output.id), order, 'Switching outputs must preserve category order');
+    assert.equal(state.outputs.find(output => output.active).id, 1);
     audio.stop();
 });

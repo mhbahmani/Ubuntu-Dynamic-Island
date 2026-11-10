@@ -53,15 +53,29 @@ export class AudioService {
 
     _describe(device, cards) {
         const parts = [device.get_description(), device.get_origin()].filter(Boolean);
-        const output = {id: device.get_id(), name: parts.join(' — ') || 'Audio output'};
         const profiles = device.get_profiles();
+        const stream = this._control.get_stream_from_device(device);
+        const port = (device.get_port() || '').toLowerCase();
+        const icon = (device.get_icon_name() || '').toLowerCase();
+        const form = (stream?.get_form_factor() || '').toLowerCase();
+        const streamName = (stream?.get_name() || '').toLowerCase();
+        // Use stable port/profile metadata, not translated display names. AUX
+        // line-out joins headphones; an explicitly identified Bluetooth speaker
+        // remains in Others. Active output never changes the category order.
+        const bluetooth = profiles.some(p => /^(a2dp[-_]sink|headset[-_]head[-_]unit|handsfree[-_]head[-_]unit)(?:[-_]|$)/.test(p.profile));
+        let kind = 'other';
+        if (/hdmi|displayport/.test(port)) kind = 'hdmi';
+        else if (bluetooth && form === 'speaker') kind = 'other';
+        else if (/headphone|headset|lineout|line-out|aux/.test(port) ||
+            /headphone|headset/.test(`${icon} ${form}`) || (bluetooth && form !== 'speaker')) kind = 'headphones';
+        else if (/speaker/.test(port) && !/usb/.test(`${icon} ${streamName}`)) kind = 'speakers';
+        const output = {id: device.get_id(), name: parts.join(' — ') || 'Audio output', kind};
         const music = profiles.length && profiles.every(p => p.n_sources === 0 && /^a2dp[-_]sink(?:[-_]|$)/.test(p.profile));
         const calls = profiles.length && profiles.every(p => p.n_sources > 0 && /^(headset[-_]head[-_]unit|handsfree[-_]head[-_]unit)(?:[-_]|$)/.test(p.profile));
         if (!music && !calls) return output;
         // Gvc's device.card is an opaque pointer in GJS. Match a live stream's
         // card index, or an unambiguous card+port for an inactive profile. Never
         // merge devices by their display name alone (two identical headsets).
-        const stream = this._control.get_stream_from_device(device);
         const candidates = cards.filter(card => stream
             ? card.get_index() === stream.get_card_index()
             : card.get_name() === device.get_origin() && card.get_ports().some(p => p.port === device.get_port()));
@@ -121,13 +135,15 @@ export class AudioService {
             if (!output.group) { groups.set(output.id, output); continue; }
             let group = groups.get(output.group);
             if (!group) {
-                group = {id: output.group, name: output.deviceName, active: false, modes: []};
+                group = {id: output.group, name: output.deviceName, kind: output.kind, active: false, modes: []};
                 groups.set(output.group, group);
             }
             group.active ||= output.active;
             group.modes.push({id: output.id, mode: output.mode, active: output.active});
         }
-        const outputs = [...groups.values()].sort((a, b) => a.name.localeCompare(b.name)).slice(0, 8);
+        const rank = {headphones: 0, speakers: 1, hdmi: 2, other: 3};
+        const outputs = [...groups.values()].sort((a, b) => rank[a.kind] - rank[b.kind] ||
+            a.name.localeCompare(b.name) || String(a.id).localeCompare(String(b.id))).slice(0, 8);
         for (const output of outputs)
             output.modes?.sort((a, b) => (a.mode === 'music' ? 0 : 1) - (b.mode === 'music' ? 0 : 1));
         this._onChange({

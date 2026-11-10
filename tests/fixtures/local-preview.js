@@ -190,7 +190,7 @@ export default class Preview extends UbuntuIsland {
         this._audio.setVolume(0.35);
         assert(this._states.audio.volume === 0.35, 'Sample volume control failed');
         this._audio.selectOutput(2);
-        assert(this._states.audio.outputs[1].active, 'Sample output control failed');
+        assert(this._states.audio.outputs.find(output => output.id === 'bluetooth:sample').active, 'Sample output control failed');
         this._bluetooth.toggle(this._states.bluetooth.devices[1]);
         assert(this._states.bluetooth.devices[1].connected, 'Sample Bluetooth control failed');
         await this._checkAudio();
@@ -487,6 +487,8 @@ export default class Preview extends UbuntuIsland {
         this._card.selectPage('audio');
         await delay(200);
         const group = this._card._outputRows.get('bluetooth:sample');
+        assert(['bluetooth:sample', 1, 4, 5].every((id, index) =>
+            this._card._outputs.get_child_at_index(index) === this._card._outputRows.get(id)), 'Output category order is incorrect');
         const calls = group._modeButtons.get('calls');
         const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
         const [x,y] = calls.get_transformed_position();
@@ -508,8 +510,17 @@ export default class Preview extends UbuntuIsland {
         const bounds = this._island.actor.get_transformed_position();
         assert(group.get_transformed_position()[0] + group.width <= bounds[0] + this._island.actor.width, 'Sound group overflows narrow card');
         await this._capture('sound-music-narrow');
+        const adjustment = this._card._scroll.get_vscroll_bar().get_adjustment();
+        adjustment.value = adjustment.upper - adjustment.page_size;
+        await delay(100);
+        const last = this._card._outputRows.get(5), viewport = this._card._scroll;
+        const top = viewport.get_transformed_position()[1], bottom = top + viewport.get_transformed_size()[1];
+        const lastTop = last.get_transformed_position()[1], lastBottom = lastTop + last.get_transformed_size()[1];
+        assert(lastTop >= top - 1 && lastBottom <= bottom + 1, 'Other outputs are unreachable below the scroll area');
+        await this._capture('sound-other-outputs');
+        adjustment.value = adjustment.lower;
         this._settings.set_int('expanded-width',440);
-        console.log('[Island Preview] AUDIO PASS: grouped modes, native click, quality explanation, stable focus and narrow layout');
+        console.log('[Island Preview] AUDIO PASS: category order, grouped modes, native click, stable focus, narrow layout and reachable overflow');
     }
 
     async _checkAgents() {

@@ -50,10 +50,12 @@ export function sampleDevices(preview, sampleMetrics) {
     ]}); }, cancel() {}, stop() {}};
     emitMedia();
     const audio = {available: true, volume: 0.64, muted: false, outputs: [
-        {id: 1, name: 'Built-in speakers (sample)', active: true},
         {id: 'bluetooth:sample', name: 'Studio headphones (sample)', active: false, modes: [
             {id: 2, mode: 'music', active: false}, {id: 3, mode: 'calls', active: false},
         ]},
+        {id: 1, name: 'Built-in speakers (sample)', active: true},
+        {id: 4, name: 'HDMI monitor (sample)', active: false},
+        {id: 5, name: 'USB speakers (sample)', active: false},
     ]};
     const emitAudio = () => preview._renderAudio({...audio, outputs: audio.outputs.map(output => ({...output}))});
     preview._audio = {
