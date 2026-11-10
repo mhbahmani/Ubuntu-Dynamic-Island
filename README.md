@@ -11,7 +11,7 @@ The repository root contains the current extension. Earlier prototypes remain
 available in Git history. Run installation and development commands from here.
 
 For session continuity, read [the handoff](docs/HANDOFF.md),
-[AGENT.md](AGENT.md), and [CLAUDE.md](CLAUDE.md). Performance and host
+[AGENTS.md](AGENTS.md), and [CLAUDE.md](CLAUDE.md). Performance and host
 responsiveness take priority over new effects or features. API discovery starts
 with [public-apis](https://github.com/public-apis/public-apis); verify provider
 documentation for current coverage, pricing, and limits.
@@ -28,9 +28,10 @@ and [compact playing pill](screenshots/playing-pill.png).
 
 - **Calendar (prototype, opt-in)**: choose Jalali (شمسی), Gregorian (میلادی), or
   Hijri (قمری) under **Preferences → Calendar → Main calendar**. Additional date
-  switches show any of the other calendars under the selected date in the header.
-  The tab has grouped month controls, one number per day and only the needed week
-  rows. Jalali/Hijri use a Saturday-first RTL grid; Gregorian starts on Monday.
+  switches put the selected dates together on one compact line in the header.
+  The tab has a clear date heading, grouped month controls, one number per day
+  and only the needed week rows. Jalali/Hijri use a Saturday-first RTL grid;
+  Gregorian starts on Monday.
   Adjacent-month cells stay empty. Holiday colors follow the main calendar:
   Iranian holidays/Fridays in Jalali, Iranian Islamic dates/Fridays in Hijri,
   and Saturday/Sunday weekends in Gregorian. Selecting a named holiday shows its
@@ -50,7 +51,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   Long formats shorten to fit; hover over dates or focus the notch to read the full text.
   The Calendar module can remain off.
   Persian text prefers installed Vazir/Vazirmatn fonts, with a DejaVu Sans fallback.
-  See [calendar design and checks](docs/CALENDAR.md).
+  See [calendar design and checks](docs/MODULES.md#calendar).
 - **Agents (experimental, opt-in)**: local Claude Code/Codex/OpenCode status events,
   attention counts, window selection/focus, optional notifications, and Quick Ask
   for CLI/desktop/web destinations. No API keys or account access. Tracking needs
@@ -65,7 +66,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   **Super+Alt+Space**, type a message, then press **Enter**. **Escape** closes it
   and keeps the draft. The shortcut also works with session tracking disabled.
   It uses your default agent, destination and project folder (home if unset).
-  Open Agents in `make preview`; see [setup and limitations](docs/AI_AGENTS.md).
+  Open Agents in `make preview`; see [setup and limitations](docs/MODULES.md#agents).
 - **Single-surface morph**: the pill and the card are two children of one
   chrome-managed `St.Widget`, animated with width/height/opacity tweens
   (`COLLAPSED → EXPANDING → EXPANDED → COLLAPSING`), interrupt-safe under
@@ -122,12 +123,12 @@ and [compact playing pill](screenshots/playing-pill.png).
   Fetches while the Weather tab or its enabled notch indicator is visible, at most every 20 minutes automatically.
   Bundled Meteocons animations sit behind the temperature and horizontal forecast,
   with optional Off/Subtle/Live motion and automatic power-saver/reduced-motion support.
-  See [weather setup, sources, and limitations](docs/WEATHER.md).
+  See [weather setup, sources, and limitations](docs/MODULES.md#weather).
 - **Commute (opt-in)**: saved driving routes with map-selected endpoints, optional
   current location, ETA/distance/arrival, and provider fallback. Refresh defaults
   to 15 minutes (minimum 10), only while visible. Public routing works without a
   key; optional Mapbox, openrouteservice, GraphHopper and Neshan keys add alternatives.
-  See [Commute setup and provider limitations](docs/COMMUTE.md).
+  See [Commute setup and provider limitations](docs/MODULES.md#commute).
   Choose the ETA source directly in the tab; reversing keeps the preference.
   Automatic defaults to Balad, then Mapbox when configured, with public OSRM as
   a last resort only without a Mapbox token. **Preferences → Commute → Open route in**
@@ -249,9 +250,9 @@ make install
 make enable
 ```
 
-`install.sh` compiles the GSettings schema and installs per-user under
+`scripts/install.sh` compiles the GSettings schema and installs per-user under
 `~/.local/share/gnome-shell/extensions/`. `make build` produces a versioned,
-installable zip.
+installable ZIP under `dist/`.
 
 ## Verify
 
@@ -332,114 +333,38 @@ and [module faces](https://github.com/Gakuseei/Ricelin/blob/main/assets/shell.pn
 The GNOME implementation uses native St/Clutter widgets; Ricelin's Quickshell
 components are design and architecture references rather than runtime dependencies.
 
-```
+```text
 ubuntu-dynamic-island/
-  extension.js            # lifecycle, service wiring, clock relocation
-  island.js               # morphing surface + interaction state machine
-  card.js                 # expanded content sections
-  media-tools.js          # player selection, quick sound, lyrics and track-list views
-  charts.js               # native drawing actors for bounded history
-  pill.js                 # compact pill content
-  widgets.js              # shared St widget factories
-  prefs.js                # preferences dialog (GSettings)
-  stylesheet.css          # extension-scoped styles
-  metadata.json
-  schemas/                # GSettings schema (compiled at install)
-  services/
-    media.js              # MPRIS + progress/seek model
-    lyrics.js             # on-demand lyrics requests, cancellation and session cache
-    lyrics-model.js       # bounded lyric parsing and lookup parameters
-    artwork-model.js      # square cover cropping and rounded alpha edges
-    art.js                # bounded artwork loader + cache (Soup 3, async)
-    system.js             # procfs sampling on a timer
-    proc.js               # pure parsers (Node-tested)
-    urlguard.js           # pure URL/host safety checks (Node-tested)
-    format.js             # pure time/hash helpers (Node-tested)
-    presentation.js       # pure geometry, player selection, layout signatures
-    audio.js              # Gvc mixer control (shared singleton)
-    bluetooth.js          # event-driven BlueZ client
-  tests/                  # node --test suite
-  install.sh / build.sh   # per-user install / zip packaging
-  README.md
+  extension.js            # GNOME Shell lifecycle and service wiring
+  prefs.js                # GNOME preferences entry point
+  metadata.json           # extension identity and supported Shell version
+  stylesheet.css          # extension-scoped native styles
+  ui/                     # island, notch, card, tabs and shared Shell widgets
+  preferences/            # GTK settings pages, route map and shortcut editor
+  services/               # async integrations, pure models and formatting
+  helpers/                # isolated runtime subprocesses (Agents bridge/setup)
+  assets/                 # packaged icons, weather artwork and desktop entry
+  schemas/                # GSettings XML; compiled during install/build
+  scripts/                # build/install, asset generation and routing probes
+  tests/                  # Node tests, native smoke checks and preview fixtures
+  docs/                   # module guide, current handoff and Google Calendar plan
+  screenshots/            # README examples
+  dist/                   # generated installable ZIPs (ignored by Git)
 ```
 
-### v5 refinements
+Keep development commands at the repository root: `make install`, `make build`,
+`make check` and the preview targets are unchanged. Installed packages retain
+`ui/`, `preferences/`, `services/` and `helpers/` beside the GNOME entry points;
+development scripts, tests and docs are not shipped.
 
-Noto Sans, matte graphite surfaces, and a fixed footer retain Ricelin’s compact
-media composition. Idle notches omit the name and music placeholder. Preferences
-use the GNOME 46 resource path. Actor dimensions follow the Shell theme scale,
-and unavailable HDMI ports are filtered with live availability updates.
+## Planned feature
 
-Verification includes 26 Node tests, preferences module import, and headless
-GNOME rendering with twelve real pointer hover/click cycles and 200% scaling.
-Physical mixed-monitor and HDMI hotplug acceptance still need a session reload.
+The [Google Calendar plan](docs/GOOGLE_CALENDAR_PLAN.md) covers read-only GNOME
+Online Accounts/EDS events, a compact agenda and an optional upcoming-event notch
+indicator. It is ready for a separate implementation session. Current optional
+module setup and limitations are in [the module guide](docs/MODULES.md).
 
-### Lightweight charts and appearance (v6)
-
-Theme and opacity changes apply immediately after opening preferences. Opacity
-only affects the background; text and controls stay fully opaque. No blur was added.
-
-Charts share the existing metrics sampler (default: once every two seconds).
-Four 60-sample typed buffers use 1,920 bytes for history; there are no extra timers,
-network requests, chart libraries, or chart animations. Hidden charts collect
-samples without requesting repaints. Disable System metrics to stop sampling.
-Missing samples leave gaps; network history resets when the active interface changes.
-The history window is 60 sampling intervals (two minutes at the default).
-
-Validated with 30 Node tests, real GTK preferences bindings, and isolated GNOME
-rendering at normal and 200% scale. The smoke test covers live theme/opacity changes
-and verifies hidden charts do not repaint. These checks are not a battery-life or
-whole-desktop performance benchmark.
-
-To check the real preferences controls without changing user settings (requires
-an available desktop display):
-
-```sh
-glib-compile-schemas --strict schemas
-GSETTINGS_BACKEND=memory GI_TYPELIB_PATH=/usr/lib/gnome-shell/girepository-1.0 \
-  LD_LIBRARY_PATH=/usr/lib/gnome-shell gjs -m tests/prefs-smoke.mjs
-```
-
-### Compact controls and live settings preview (v8)
-
-CPU load and used memory sit beside their headings as short values (`1.44`,
-`3.5 GB`), with percentages retained. The navigation uses a neutral selection
-indicator. The eye beside the track title toggles its visibility in the collapsed
-notch; middle-clicking the notch is a shortcut. The playback icon stays visible.
-
-Opening preferences keeps the island expanded so appearance and width changes
-can be previewed. The settings window remains interactive; normal outside-click
-and Escape dismissal resume after it closes. The Calendar module toggle applies
-immediately; other module toggles and the sampling interval require disabling and
-re-enabling the extension, as stated in preferences.
-
-Validation includes 42 Node regressions and isolated GNOME rendering, pointer
-navigation, title toggling, and a real GTK preferences window lifecycle.
-
-### Layout and transparency fixes (v9)
-
-Metric headings retain their natural width. Opening focuses the panel instead of
-the first tab, so selection and keyboard focus no longer produce different
-initial outlines. Background opacity now supports the full 0–100% range; opacity alone determines the transparency of the base surface.
-
-### Predictable controls (v10)
-
-Opacity is the final background alpha, independent of matte. Matte now flattens
-only the gradient colors and is labelled “Matte tone” in preferences. Existing
-matte preferences remain saved. Navigation uses a dedicated straight marker
-instead of button shadows. Metric names and secondary values share one expanding
-text area so surplus width cannot get stranded in a spacer while labels truncate.
-At enlarged text sizes, percentages move below their headings when necessary to
-fit the card. Validation passed 43 Node tests and native GNOME checks, including
-narrow layouts, 125%/150% text, and rendered background alpha. The user accepted
-the current state on 2026-10-28; hardware coverage limits above still apply.
-
-## Planned features
-
-See [the feature roadmap](docs/FEATURE_ROADMAP.md) for Weather, Commute, Google Calendar
-appointments, Task Progress, performance budgets, and sourced future ideas.
-
-### Notch indicators
+## Notch indicators
 
 Weather and System have eye buttons to show a static weather icon and compact
 upload/download rates in the collapsed notch. Both default off and require their
@@ -467,7 +392,7 @@ In **Settings → Notch → When offline**, choose:
 Changes apply immediately. Previous **Offline badge** preferences migrate to
 **Connection icon**. Expanded tabs retain cached data and recovery controls.
 
-### Preferences tabs
+## Preferences tabs
 
 Preferences are grouped into Appearance, Notch, Modules, Weather, Commute, Agents and Calendar tabs, with
 search across settings. The Notch tab controls the music name, weather icon and
@@ -477,8 +402,10 @@ Select an item and use the move buttons for keyboard reordering. Hidden items
 keep their place.
 
 The collapsed width is a minimum: the notch grows to fit enabled groups, with
-single-line rates, red download arrows and green upload arrows. Rate columns
-reserve space so changing traffic does not make the notch jump in width.
+single-line rates, red download arrows and green upload arrows. Each rate keeps
+the width of its widest displayed value, with just 2px of extra room, so lower
+traffic does not repeatedly shrink the notch. Longer values can grow the slot;
+switching networks or turning the indicator off clears the saved widths.
 Weather shares the same 260px expanded height as the other tabs, retaining its
 background artwork, four-hour forecast and current conditions.
 
@@ -494,9 +421,8 @@ button. The route editor uses a native GTK map to avoid WebKit sandbox crashes.
 Enable **Settings → Notch → Show Commute ETA** to see the selected driving route
 while collapsed. Drag its Commute chip to choose its position. Refresh uses the
 same 15-minute default (minimum 10), only while that indicator or the tab is visible.
-A `~` marks estimates without live traffic; `!` marks a stale result. Mapbox's
-optional traffic-aware profile is now supported; see [the ETA comparison and
-provider review](docs/COMMUTE.md#eta-comparison-and-provider-review-2026-11-02).
+A `!` marks a stale result. Provider and traffic details stay in the Commute tab;
+see [routing providers and keys](docs/MODULES.md#routing-providers-and-keys).
 
 Under **Settings → Notch → Music name**, select one title behavior: **Character
 limit · trim** (default), **Scroll overflowing title**, or **Fit width to title**.

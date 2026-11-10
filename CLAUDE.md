@@ -1,6 +1,6 @@
 # Claude working guide
 
-Read [AGENT.md](AGENT.md) first: it is the canonical engineering and contribution
+Read [AGENTS.md](AGENTS.md) first: it is the canonical engineering and contribution
 guide for this repository. Then read [docs/HANDOFF.md](docs/HANDOFF.md) for current
 state and [README.md](README.md) for commands. Follow current user instructions
 when they supersede older notes.
@@ -26,4 +26,4 @@ when they supersede older notes.
 - Preserve user edits and reference images. Exclude generated ZIPs, compiled
   schemas, and caches. Validate changes with the relevant Makefile targets.
 - Do not weaken privacy or sandboxing, expose credentials, or claim untested live
-  routing accuracy or hardware behavior. See AGENT.md for the complete rules.
+  routing accuracy or hardware behavior. See AGENTS.md for the complete rules.

@@ -1,9 +1,7 @@
 # Google Calendar implementation plan
 
-Status: ready for a future implementation session, 2026-11-10. No event integration
-has been implemented. This is the implementation plan for the user's accepted
-direction; it takes precedence over the older appointment proposal in
-[FEATURE_ROADMAP.md](FEATURE_ROADMAP.md).
+Status: planned, not implemented. This is the accepted direction for a future
+implementation session.
 
 Connect Google Calendar through GNOME Online Accounts and Evolution Data Server
 (EDS). Add events to the existing Calendar tab and an optional upcoming-event
@@ -42,30 +40,22 @@ Do not change the existing calendar/date format settings or add another main tab
 
 The current extension already has Jalali, Gregorian and calculated Hijri grids,
 holiday rules, keyboard navigation, configurable notch dates and Persian font
-fallbacks. [CALENDAR.md](CALENDAR.md) describes those behaviors. The date model uses
-UTC civil-day numbers for date-only arithmetic; that representation is not a UTC
-timestamp for a local appointment.
+fallbacks. [The module guide](MODULES.md#calendar) describes those behaviors. The
+date model uses UTC civil-day numbers for date-only arithmetic; that representation
+is not a UTC timestamp for a local appointment.
 
-Read-only inspection on this machine found:
+### Verify the target environment first
 
-| Component | Installed version or result |
-| --- | --- |
-| GNOME Shell | 46.0-0ubuntu6~24.04.17 |
-| GNOME Calendar | 46.1-0ubuntu2 |
-| GNOME Online Accounts | 3.50.4-0ubuntu2 |
-| Evolution Data Server | 3.52.3-0ubuntu1.2 |
-| ECal, EDataServer and Goa GJS imports | Typelibs unavailable |
-| Calendar launch options | `gnome-calendar --help` advertises `--date` and `--uuid` |
+Check the installed GNOME 46/EDS stack and available GJS bindings during phase 1;
+do not rely on a previous session's package snapshot. Initial optional packages to
+investigate are `gir1.2-ecal-2.0` and `gir1.2-edataserver-1.2`, including the ICal
+namespace supplied by their dependencies. Require Goa bindings only if the probe
+shows they are needed; EDS source metadata and desktop account settings may suffice.
 
-Ubuntu's package index offers `gir1.2-ecal-2.0` and `gir1.2-edataserver-1.2` at the
-matching EDS version. They are the initial optional dependencies to investigate;
-check the ICal namespace supplied by their dependencies too. Avoid requiring Goa
-bindings unless the spike demonstrates a need: EDS source metadata and the desktop
-account-settings application may be sufficient. No packages or accounts were
-changed. Whether a working Google calendar is connected has not been checked.
-
-The online EDS references currently describe a newer release. Verify exact GJS
-signatures and callback behavior on EDS 3.52 before building around them.
+No packages or accounts have been changed for this plan. Live Google access and
+recurrence callbacks remain unverified. Online EDS references may
+describe a newer release; confirm exact signatures and callback behavior against
+the installed stack before implementing the adapter.
 
 ## User experience
 
@@ -279,10 +269,10 @@ also releases the island's grab before opening an external calendar or meeting.
 
 ### 1. Verify the desktop integration
 
-- Read `AGENTS.md`, `AGENT.md`, `docs/HANDOFF.md` and this plan; check worktree state.
+- Read `AGENTS.md`, `docs/HANDOFF.md` and this plan; check worktree state.
 - Add a development probe under `scripts/`, not the root. Verify optional imports,
   source discovery, asynchronous ECal connection, view changes, recurrence
-  callbacks and cancellation against the installed 3.52 stack. Probe output should
+  callbacks and cancellation against the installed EDS stack. Probe output should
   use counts/status, not private event content.
 - Confirm required optional packages and document setup. Follow the repository's
   no-sudo rule; do not install system packages or change accounts automatically.
@@ -325,9 +315,9 @@ desktop calendar preferences or disrupting unrelated preferences pages.
 ### 4. Add compact markers, agenda and details
 
 - Extend `CalendarView` with event snapshots and range-change callbacks. Put agenda
-  and detail actor management in `calendar-agenda.js`; keep calendar arithmetic in
+  and detail actor management in `ui/calendar-agenda.js`; keep calendar arithmetic in
   the existing date model.
-- Wire requests through `card.js` and `extension.js`, including page changes,
+- Wire requests through `ui/card.js` and `extension.js`, including page changes,
   `select`/`moveMonth`, settings, mapping and cleanup. Extend Card's Escape/Back
   handling and preferred-height calculation for the internal views.
 - Add sample events to the full preview: Persian/English titles, multiple sources,
@@ -342,7 +332,7 @@ and all overflow reachable; existing date/holiday behavior remains correct.
 ### 5. Add the notch indicator and actions
 
 - Add event-order normalization, preferences preview and a bounded event label in
-  `pill.js` (extract a renderer only if needed). Connect its activation to the
+  `ui/pill.js` (extract a renderer only if needed). Connect its activation to the
   existing card/open-calendar flow and validated Join action.
 - Wire event consumption to collapsed visibility, upcoming windows and clock
   changes. Ensure a far-future event becomes visible without reopening the card.
@@ -355,12 +345,12 @@ polling, unintended navigation or privacy leak.
 ### 6. Verify integration and package the feature
 
 - Run the acceptance checks below and record actual results in `docs/HANDOFF.md`.
-- Update `README.md`, `docs/CALENDAR.md` and roadmap status to distinguish shipped
-  features, required dependencies, verified providers and remaining limitations.
-- Root `.js`, `services/` and `helpers/` are already copied by installation, build
-  and preview scripts. Verify the new helper is present everywhere. Extend
-  `tests/install.test.mjs`, which currently checks only `helpers/agents`, and the
-  Makefile syntax glob, which likewise omits new helper subdirectories.
+- Update `README.md` and `docs/MODULES.md` to distinguish shipped features,
+  required dependencies, verified providers and remaining limitations.
+- Runtime directories (`ui/`, `preferences/`, `services/`, `helpers/`, `assets/`)
+  are copied by installation, build and preview scripts. Keep new runtime files
+  there or update every copy path explicitly. The syntax and installer/ZIP tests
+  recurse through these directories; verify the new helper in all outputs.
 - Use a temporary `XDG_DATA_HOME` for installation checks and inspect ZIP contents.
   Do not replace the user's installed extension for testing.
 
@@ -419,7 +409,7 @@ to these commands; Node tests cannot establish GJS/EDS or Google compatibility.
 ## Start the next session
 
 > Implement the Google Calendar feature described in docs/GOOGLE_CALENDAR_PLAN.md.
-> Read AGENTS.md, AGENT.md and docs/HANDOFF.md first. Start with the GNOME 46/EDS
+> Read AGENTS.md and docs/HANDOFF.md first. Start with the GNOME 46/EDS
 > integration probe, then follow the phases and preserve the existing compact
 > Jalali/Gregorian/Hijri UI. Use fixtures without host account access for previews.
 > Keep the integration read-only and opt-in, record any live-account dependency,

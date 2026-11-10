@@ -28,27 +28,13 @@ timeout (15 seconds by default, maximum 60), a 1 MiB response cap, and no automa
 retries, polling, browser process, cookies, TLS impersonation, or proxy rotation.
 Normal environment proxy settings still apply. Do not repeatedly hammer endpoints.
 
-## Live observations, 2026-11-04, approximately 11:08 UTC
+## Interpretation and sources
 
-| Provider | HTTP status | ETA | Distance | Request time |
-|---|---|---|---|---|
-| Balad | 200 | 18.45 min | 9.91 km | 0.33 s |
-| FOSSGIS / OSRM | 200 | 13.66 min | 9.70 km | 0.50 s |
-| Waze (ROW region) | 403 | Unavailable | Unavailable | Not recorded |
-
-An earlier separate Balad probe also returned 18.45 min / 9.91 km in 0.66 s.
-Six offline tests passed. These observations establish that Balad's endpoint
-accepted a normal keyless request from this machine. They do not establish
-uptime, commercial permission, coverage on other roads, or agreement with actual
-driving time. The paths differ, so the ETA difference cannot all be attributed to
-traffic. Balad's response had no explicit traffic-freshness field: the probe
-reports `traffic_verified: false` even though the endpoint is named
-`driving-traffic`. Road restriction zones are not evidence of congestion data.
-
-Waze rejected the ordinary request. No CAPTCHA, fingerprinting, proxy rotation,
-or other access-control workaround was attempted. It is not currently verified
-as a working backup. A failure here does not prove that every Waze integration
-fails everywhere.
+Balad and Waze use unofficial interfaces; a successful probe does not establish
+uptime, usage permission, coverage or traffic freshness. Balad's probe reports
+`traffic_verified: false`. OSRM is a baseline comparison; different routes prevent
+attributing the entire ETA difference to traffic. Waze is a diagnostic candidate,
+not a verified extension fallback. Do not work around access-control failures.
 
 Endpoint references inspected:
 
