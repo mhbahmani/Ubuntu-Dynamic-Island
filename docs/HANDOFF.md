@@ -3,6 +3,18 @@
 Updated 2026-11-10. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Google Calendar planning (2026-11-10): the user approved the desktop-account
+direction and requested a plan for implementation in another session. Start with
+[GOOGLE_CALENDAR_PLAN.md](GOOGLE_CALENDAR_PLAN.md): read-only GNOME Online Accounts
+and EDS integration, source selection, compact markers/day agenda, optional event
+notch indicator and Join/Open actions. It includes defaults, an optional helper
+design, recurrence/timezone handling, implementation phases and acceptance checks.
+No runtime work or account/package changes were made. GNOME Calendar, GOA and EDS
+are installed; ECal/EDataServer/Goa typelibs are absent. Live Google synchronization
+and GJS recurrence callbacks still need the initial integration probe. The plan
+supersedes the roadmap's older appointment proposal; keep the simplified preview
+commands. The next session starter is at the end of the plan.
+
 Preview command cleanup (2026-11-10): keep the full `make preview`, weather scene
 shortcuts, both offline modes, live data and headless capture. Removed the separate
 module and map-editor shortcuts; all modules are already available in the full

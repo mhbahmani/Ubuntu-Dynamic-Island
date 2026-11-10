@@ -7,6 +7,11 @@ for current behavior. Calendar appointments and Task Progress remain proposals.
 A local [Jalali/Gregorian/Hijri date-browser prototype](CALENDAR.md) was added on
 2026-11-10. It is separate from the appointment/account integration proposed below.
 
+The user-approved Google Calendar direction now has a concrete
+[implementation plan](GOOGLE_CALENDAR_PLAN.md) for a future session (2026-11-10).
+Use that plan's scope, defaults and phases in preference to section 3 below.
+Implementation and live account validation are still pending.
+
 [AI agent sessions](AI_AGENTS.md) records the 2026-11-09 experimental prototype,
 test instructions and research for local status, session navigation and Quick Ask.
 The opt-in prototype implements the explicit-producer approach described below;

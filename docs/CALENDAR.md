@@ -1,5 +1,9 @@
 # Calendar prototype
 
+Google Calendar event integration is planned separately in
+[GOOGLE_CALENDAR_PLAN.md](GOOGLE_CALENDAR_PLAN.md). The behavior below describes
+the current date browser; account integration is not implemented yet.
+
 Enable Calendar in **Preferences → Modules**, or open Calendar in `make preview`
 without installing. **Preferences → Calendar** contains the month-grid choices;
 the settings button in the Calendar tab opens that page directly.
