@@ -382,9 +382,14 @@ export default class Preview extends UbuntuIsland {
         assert(view.rows.size === 2 && view.undoRow.visible, 'Hidden event resurfaced a row or lost Undo');
         await click(view.undoButton);
         assert(view.rows.size === 3 && view.rows.get(first.session.id).session.state === 'input', 'Undo restored stale status');
-        await click(view.menuButton);
-        await click(view.options.get_first_child());
+        assert(view.clearButton.visible && view.notchButton.visible, 'Main Agents actions missing');
+        await click(view.notchButton);
+        assert(view.mode === 'list' && !this._settings.get_boolean('pill-show-agents') && !this._pill._agents.visible, 'Main notch control did not hide status');
+        await click(view.notchButton);
+        assert(this._settings.get_boolean('pill-show-agents') && this._pill._agents.visible, 'Main notch control did not restore status');
+        await click(view.clearButton);
         assert(view.rows.size === 2 && [...view.rows.values()].every(item=>!['finished','closed'].includes(item.session.state)), 'Clear finished affected active work');
+        assert(!view.clearButton.reactive, 'Clear must be disabled without finished sessions');
         await click(view.undoButton);
         assert(view.rows.size === 3, 'Clear finished could not be undone');
         this._settings.set_boolean('disable-animations', motionBefore);

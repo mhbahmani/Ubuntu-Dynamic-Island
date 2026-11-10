@@ -210,6 +210,7 @@
 /* Agents: fixed header and footer, only the content scrolls. */
 .ubuntu-island-agents { padding: 6px 12px 0; spacing: 3px; }
 .ubuntu-island-agent-header { spacing: 8px; min-height: 28px; padding: 0 4px; }
+.ubuntu-island-agent-button.ubuntu-island-agent-clear { padding: 4px 6px; font-size: 9pt; }
 .ubuntu-island-agent-heading { font-size: 11pt; font-weight: 700; color: #f1f3f7; }
 .ubuntu-island-agents-content { spacing: 6px; }
 .ubuntu-island-agent-list { spacing: 2px; }

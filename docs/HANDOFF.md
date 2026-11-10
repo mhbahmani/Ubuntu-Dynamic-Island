@@ -1,7 +1,13 @@
 # Session handoff
 
-Updated 2026-11-09. Target: GNOME Shell 46 on Ubuntu Wayland. Read
+Updated 2026-11-10. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
+
+Agents main controls (2026-11-10): Clear finished and the notch visibility eye
+now sit in the main header. The top-level three-dot menu, Agent options view and
+its settings shortcut are removed. Session-specific menus remain. Clear keeps
+active sessions, disables when no finished sessions exist or an operation is
+pending, and retains Undo. The main header and Quick Ask remain outside scrolling.
 
 Navigation icon clarity (2026-11-09): the user's `1.png` shows the tab footer.
 These are symbolic SVGs from the icon theme, not PNG artwork. Most use a 16px

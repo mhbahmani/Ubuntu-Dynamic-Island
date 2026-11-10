@@ -33,6 +33,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   Click a session to return to its window. Status icons, collapsed Recent sessions,
   reversible Hide/Clear finished actions and a fixed Quick Ask bar keep the list
   compact. Drafts survive Back; errors preserve the prompt.
+  **Clear** in the main header removes finished sessions with Undo; the adjacent
+  eye toggles agent status in the notch. The former Agent options page is removed.
   Set **Agents → Quick Ask → Quick Ask shortcut** in preferences to widen the
   notch into a compact text box. Choose an unused combination such as
   **Super+Alt+Space**, type a message, then press **Enter**. **Escape** closes it

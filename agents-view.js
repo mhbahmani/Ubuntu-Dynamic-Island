@@ -5,7 +5,7 @@ import GObject from 'gi://GObject';
 import Atk from 'gi://Atk';
 import GLib from 'gi://GLib';
 import {AGENTS, AGENT_STATES, agentSummary, cleanText} from './services/agents-model.js';
-import {column, row, label, button, setEnabled} from './widgets.js';
+import {column, row, label, button, setEnabled, notchToggle} from './widgets.js';
 
 const DESTINATIONS = {terminal:'Terminal', 'copy-terminal':'Copy to terminal', desktop:'Desktop app', web:'Website'};
 const RECENT = new Set(['finished', 'closed']);
@@ -33,7 +33,9 @@ export class AgentsView {
         this.activity = new St.Icon({gicon:icons.get('working'), icon_size:14, style_class:'ubuntu-island-agent-working', y_align:Clutter.ActorAlign.CENTER});
         this.activity.set_pivot_point(0.5, 0.5); this.header.add_child(this.activity);
         this.summary = label('', 'ubuntu-island-source'); this.summary.x_expand = true; this.header.add_child(this.summary);
-        this.menuButton = button('view-more-symbolic', 'Agent options', () => this._menu(), 16, 'ubuntu-island-agent-menu-button'); this.header.add_child(this.menuButton);
+        this.clearButton = textButton('Clear', () => this._control({control:'clear-finished'}), 'ubuntu-island-agent-clear');
+        this.clearButton.accessible_name = 'Clear finished sessions'; this.header.add_child(this.clearButton);
+        this.notchButton = notchToggle(settings, 'pill-show-agents', 'agent status'); this.header.add_child(this.notchButton);
         this.scroll = new St.ScrollView({style_class:'ubuntu-island-agent-scroll', overlay_scrollbars:true, x_expand:true, y_expand:true});
         this.scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC); this.actor.add_child(this.scroll);
         this.adjustment = this.scroll.get_vscroll_bar().get_adjustment();
@@ -169,10 +171,10 @@ export class AgentsView {
         this._cancelFocus();
         this.mode = mode;
         this.back.accessible_name = mode === 'choices' ? 'Back to Quick Ask' : 'Back to sessions';
-        this.heading.text = {list:'Agents', ask:'Quick Ask', choices:this.choice === 'provider' ? 'Choose agent' : 'Open in', menu:'Agent options', session:'Session', windows:'Choose window'}[mode];
-        this.back.visible = mode !== 'list'; this.menuButton.visible = mode === 'list'; this.summary.visible = mode === 'list';
+        this.heading.text = {list:'Agents', ask:'Quick Ask', choices:this.choice === 'provider' ? 'Choose agent' : 'Open in', session:'Session', windows:'Choose window'}[mode];
+        this.back.visible = mode !== 'list'; this.clearButton.visible = this.notchButton.visible = mode === 'list'; this.summary.visible = mode === 'list';
         this.activity.visible = mode === 'list' && Boolean(this.snapshot?.sessions.some(s => s.state === 'working'));
-        this.list.visible = mode === 'list'; this.editor.visible = mode === 'ask'; this.options.visible = ['choices', 'menu', 'session'].includes(mode);
+        this.list.visible = mode === 'list'; this.editor.visible = mode === 'ask'; this.options.visible = ['choices', 'session'].includes(mode);
         this.windowList.visible = mode === 'windows'; this.askButton.visible = mode === 'list'; this.submitRow.visible = mode === 'ask';
         this.footer.visible = ['list', 'ask'].includes(mode); this.undoRow.visible = mode === 'list' && Boolean(this.snapshot?.undo);
         this.message.text = ''; this.adjustment.value = 0;
@@ -194,21 +196,9 @@ export class AgentsView {
         const previous = this.mode;
         this.show(previous === 'choices' ? 'ask' : 'list', false);
         if (previous === 'choices') (this.choice === 'provider' ? this.providerButton : this.destinationButton).grab_key_focus();
-        else if (previous === 'menu') this.menuButton.grab_key_focus();
         else if (previous === 'ask') this.askButton.grab_key_focus();
         else (this.rows.get(this.selectedSession?.id)?.open || this.askButton).grab_key_focus();
         return true;
-    }
-    _menu() {
-        this.options.destroy_all_children();
-        const clear = textButton('Clear finished sessions', () => this._control({control:'clear-finished'}));
-        setEnabled(clear, this.snapshot?.sessions.some(s => RECENT.has(s.state))); this.options.add_child(clear);
-        this.options.add_child(textButton('Agent settings & integrations', () => this.actions.preferences('agents')));
-        const shown = this.settings.get_boolean('pill-show-agents');
-        this.options.add_child(textButton(`${shown ? 'Hide' : 'Show'} status in the notch`, () => {
-            this.settings.set_boolean('pill-show-agents', !shown); this.show('list'); this.menuButton.grab_key_focus();
-        }));
-        this.show('menu'); this.back.grab_key_focus();
     }
     _session(session) {
         this.selectedSession = session; this.options.destroy_all_children();
@@ -221,7 +211,7 @@ export class AgentsView {
     }
     async _control(value) {
         if (this.pending) return;
-        this.pending = true; setEnabled(this.undoButton, false);
+        this.pending = true; setEnabled(this.undoButton, false); setEnabled(this.clearButton, false);
         const before = this.snapshot, mode = this.mode;
         try {
             await this.actions.agentControl(value);
@@ -231,7 +221,13 @@ export class AgentsView {
             }
         }
         catch { if (!this.dead) this.message.text = 'Observer unavailable. Re-enable Agents in settings to reconnect.'; }
-        finally { this.pending = false; if (!this.dead) setEnabled(this.undoButton, true); }
+        finally {
+            this.pending = false;
+            if (!this.dead) {
+                setEnabled(this.undoButton, true);
+                setEnabled(this.clearButton, this.snapshot?.sessions.some(s => RECENT.has(s.state)));
+            }
+        }
     }
     selectWindow(session, windows) {
         this.selectedSession = session; this.windowList.destroy_all_children();
@@ -262,6 +258,7 @@ export class AgentsView {
         this.snapshot = snapshot;
         if (!this.actor.mapped || this.mode !== 'list') return;
         const sessions = snapshot?.sessions || [];
+        setEnabled(this.clearButton, !this.pending && sessions.some(s => RECENT.has(s.state)));
         this.summary.text = snapshot?.connected ? agentSummary(sessions) : 'Observer offline';
         this.summary.accessible_name = `Last reported: ${this.summary.text}`;
         this.activity.visible = sessions.some(s => s.state === 'working');
