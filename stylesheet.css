@@ -329,7 +329,6 @@
 .ubuntu-island-weather-action:hover, .ubuntu-island-weather-action:focus { background-color: rgba(255,255,255,0.13); color: #ffffff; }
 .ubuntu-island-weather-action:disabled { color: #7e90a5; }
 
-.ubuntu-island-pill-network { width: 136px; }
 .ubuntu-island-pill-transfers { spacing: 8px; }
 .ubuntu-island-pill-rate { font-size: 9pt; color: #d1d4dd; font-feature-settings: "tnum"; }
 

@@ -3,6 +3,15 @@
 Updated 2026-11-10. Target: GNOME Shell 46 on Ubuntu Wayland. Read
 [AGENT.md](../AGENT.md) for performance, provider, privacy, and commit rules.
 
+Network notch spacing (2026-11-10): removed the fixed 136px network width that
+left large empty margins around short rates in the user's `1.png`. The transfer
+group now uses its natural width; the existing tabular figures and 12px spacing
+between notch groups remain. Longer values can grow instead of overflowing a
+fixed slot. Native 200% previews were inspected with normal and 150% text:
+`/tmp/ubuntu-island-preview-v56ags2j` and `/tmp/ubuntu-island-preview-t6xpnm8a`.
+Nine notch tests, temporary installation, diff checks and ZIP/source comparison
+passed. The extension has not been installed; preserve the user's reference image.
+
 Multiple notch calendars and formats (2026-11-10): **Preferences → Notch → Dates
 in the notch** now has Follow main calendar, independent calendar switches,
 up/down ordering, per-calendar format presets/custom patterns, and automatic,

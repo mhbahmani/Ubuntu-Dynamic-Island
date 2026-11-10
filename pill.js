@@ -115,8 +115,8 @@ export class Pill {
             group.x_expand = true;
             group.x_align = Clutter.ActorAlign.CENTER;
         }
-        // The configured width is a minimum. Reserve readable space for all
-        // enabled groups, independent of fluctuating rates and track titles.
+        // The configured width is a minimum. Measure enabled groups so short
+        // rates and titles don't leave empty slots between indicators.
         this.actor._islandMinimumWidth = () => {
             if (!this.actor.mapped) return 0;
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
