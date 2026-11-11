@@ -63,9 +63,10 @@ preserving stable navigation and focus; the current expansion remains the refere
   Inactivity expiry defaults to 60 minutes (configurable in Agents settings) and
   runs only when the Agents view maps; it clears cached and broker records without
   an idle timer. Fresh activity can recreate an expired session.
-- Regular tabs and sections share a 280px content height (scaled with the UI),
+- Regular tabs and sections share a 260px content height (scaled with the UI),
   including Calendar. Keep the expanded width/height stable across navigation;
-  use spare space for the content, with scrolling for overflow. Standalone
+  with tighter footer padding to avoid a spare band above navigation. Use space
+  for the content, with scrolling for overflow. Standalone
   shortcut Quick Ask retains its compact size.
 - Agents uses CLI harnesses only. Settings fill unset executable/config paths,
   select an installed harness initially and default the project to home. Terminal

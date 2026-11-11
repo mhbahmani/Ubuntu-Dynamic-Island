@@ -609,7 +609,7 @@ export default class Preview extends UbuntuIsland {
         for (const width of [380,440]) {
             this._settings.set_int('expanded-width',width);
             await delay(150);
-            assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Small session list scrolls at ${width}px`);
+            assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Small session list scrolls at ${width}px: ${view.adjustment.upper}/${view.adjustment.page_size}`);
         }
         const first = [...view.rows.values()][0];
         assert(!view.recentList && !view.recentButton && view.activeList.get_n_children() === 3, 'Sessions are not in one list');
@@ -652,8 +652,8 @@ export default class Preview extends UbuntuIsland {
         await click(view.askButton);
         assert(view.mode === 'ask' && view.prompt.clutter_text.has_key_focus(), 'Quick Ask pointer click failed');
         assert(!view.activity.get_transition('agent-working'), 'Composer retained the list animation');
-        assert(view.adjustment.upper <= view.adjustment.page_size + 1, 'Default composer needs unnecessary scrolling');
         await this._capture('agents-composer-empty');
+        assert(view.adjustment.upper <= view.adjustment.page_size, `Default composer needs unnecessary scrolling: ${view.adjustment.upper}/${view.adjustment.page_size}`);
         view.prompt.text = 'A sample multiline request\nKeep this as one prompt.';
         this._island._onEscape();
         assert(view.mode === 'list' && view.prompt.text.includes('multiline'), 'Escape discarded a draft');
@@ -725,10 +725,13 @@ export default class Preview extends UbuntuIsland {
         await delay(250);
         assert(view.adjustment.value > 0, 'Mouse wheel did not scroll sessions');
         const last = view.rows.get('overflow-11');
-        last.menu.grab_key_focus();
-        await delay(150);
-        assert(last.actor.get_transformed_position()[1] + last.actor.height <= sy + view.scroll.height + 1,
-            'Keyboard focus did not reveal the full last session');
+        for (const item of [last, [...view.rows.values()][0], last]) {
+            item.menu.grab_key_focus();
+            await delay(150);
+            const top = item.actor.get_transformed_position()[1];
+            assert(top >= sy - 1 && top + item.actor.height <= sy + view.scroll.height + 1,
+                `Keyboard focus did not reveal the full session: top=${top}, bottom=${top + item.actor.height}, viewport=${sy}/${sy + view.scroll.height}, scroll=${view.adjustment.value}`);
+        }
         const workingRow = [...view.rows.values()].find(item => item.session.state === 'working');
         assert(!workingRow.glyph.get_transition('agent-working'), 'Scrolled-out working row kept animating');
         await click(last.menu);

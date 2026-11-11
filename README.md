@@ -101,7 +101,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   remain controllable. Seeking uses GNOME's native keyboard-accessible slider,
   with the displayed timestamp following the thumb while dragging.
   The square cover supplies a subtle static tint; a full-width timeline and round
-  play control fit the same 280px surface as the other modules. The player-name
+  play control fit the same 260px surface as the other modules. The player-name
   menu selects Automatic or pins a running player, including a paused player.
   Shuffle/repeat and Open player appear when supported; ±10-second seek buttons
   are available for seekable tracks. The speaker button provides system volume,
@@ -429,7 +429,7 @@ single-line rates, red download arrows and green upload arrows. Each rate keeps
 the width of its widest displayed value, with just 2px of extra room, so lower
 traffic does not repeatedly shrink the notch. Longer values can grow the slot;
 switching networks or turning the indicator off clears the saved widths.
-Weather shares the same 280px expanded height as the other tabs, retaining its
+Weather shares the same 260px expanded height as the other tabs, retaining its
 background artwork, four-hour forecast and current conditions.
 
 At the top of **Settings → Notch**, **Indicator style** offers **Network arrow shape**

@@ -191,16 +191,19 @@ export class AgentsView {
         // receives focus, rather than revealing just the small button.
         const item = this.mode === 'list' && [...this.rows.values()].find(row => row.actor.contains(target));
         const visibleTarget = item?.actor || target;
-        const top = this.scroll.get_transformed_position()[1];
-        const y = visibleTarget.get_transformed_position()[1];
-        const height = visibleTarget.get_transformed_size()[1];
-        const bottom = top + this.scroll.get_transformed_size()[1];
-        const offset = y < top || height > bottom - top ? y - top : Math.max(0, y + height - bottom);
+        // Use content coordinates: native focus scrolling can update the
+        // adjustment before transformed positions catch up on the next frame.
+        let top = 0;
+        for (let actor = visibleTarget; actor !== this.content; actor = actor.get_parent())
+            top += actor.y;
+        const height = visibleTarget.height, page = this.adjustment.page_size;
+        const value = this.adjustment.value;
+        const next = top < value || height > page ? top : Math.max(value, top + height - page);
         // A still-running wheel transition must not pull keyboard focus back
         // outside the viewport on the next frame.
         this.adjustment.remove_transition('value');
         this.adjustment.value = Math.max(this.adjustment.lower,
-            Math.min(this.adjustment.upper - this.adjustment.page_size, this.adjustment.value + offset));
+            Math.min(this.adjustment.upper - page, next));
     }
     _syncMotion() {
         if (this.dead) return;
