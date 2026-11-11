@@ -6,10 +6,15 @@ import {containsPoint} from '../services/presentation.js';
 
 function harness(animation = 220) {
     class Actor {
-        constructor(props = {}) { Object.assign(this, {visible: true, opacity: 255, width: 170, height: 34}, props); }
+        constructor(props = {}) {
+            Object.assign(this, {visible: true, opacity: 255, width: 170, height: 34,
+                scale_x: 1, scale_y: 1, translation_y: 0}, props);
+        }
         connect() { return 1; }
         disconnect() {}
         add_child() {}
+        add_constraint() {}
+        set_pivot_point(x, y) { this.pivot = [x, y]; }
         hide() { this.visible = false; }
         show() { this.visible = true; }
         set_size(width, height) { Object.assign(this, {width, height}); }
@@ -26,7 +31,8 @@ function harness(animation = 220) {
             const options = this.transition;
             this.transition = null;
             if (!options) return;
-            if (options.width != null) this.set_size(options.width, options.height);
+            for (const key of ['width', 'height', 'translation_y', 'scale_x', 'scale_y', 'opacity'])
+                if (options[key] != null) this[key] = options[key];
             options.onComplete?.();
         }
     }
@@ -45,7 +51,7 @@ function harness(animation = 220) {
         .replace(/^import .*;\n/gm, '').replaceAll('export ', '');
     const Surface = vm.runInNewContext(`${source}\nIslandSurface`, {
         St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1}},
-        Clutter: {BinLayout: class {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0},
+        Clutter: {Actor, BinLayout: class {}, FixedLayout: class {}, AlignConstraint: class {}, AlignAxis: {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0, EASE_OUT_QUART: 1, EASE_OUT_CUBIC: 2},
             EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2, KEY_PRESS: 3, BUTTON_RELEASE: 4,
                 TOUCH_END: 5, TOUCH_CANCEL: 6}, KEY_Escape: 27,
             EVENT_STOP: true, EVENT_PROPAGATE: false},
@@ -199,4 +205,48 @@ test('opening focuses the surface instead of giving the first tab a focus ring',
     const {surface} = harness(0);
     surface.expand();
     assert.equal(surface.actor.focused, true);
+});
+
+test('turning off motion during opening settles every transform and cancels pending motion', () => {
+    const {surface, pill, card, modal} = harness();
+    surface.expand();
+    surface.actor.translation_y = 3;
+    pill.scale_x = pill.scale_y = 0.94;
+    card.translation_y = -2;
+    surface._settings.get_boolean = () => true;
+    surface.collapse();
+    assert.equal(surface.state, 'collapsed');
+    assert.equal(surface.actor.translation_y, 0);
+    assert.equal(surface.actor.width, 170);
+    for (const actor of [surface.actor, pill, card]) assert.equal(actor.transition, null);
+    for (const actor of [pill, card]) {
+        assert.equal(actor.scale_x, 1);
+        assert.equal(actor.scale_y, 1);
+        assert.equal(actor.translation_y, 0);
+    }
+    assert.equal(pill.opacity, 255);
+    assert.equal(card.opacity, 0);
+    assert.equal(card.visible, false);
+    assert.equal(modal.size, 0);
+});
+
+test('reversing a close preserves the current content pose and ignores its old completion', () => {
+    const {surface, pill, card} = harness();
+    surface.expand(); surface.actor.finish();
+    surface.collapse();
+    const stale = surface.actor.transition.onComplete;
+    surface.actor.set_size(350, 400);
+    surface.actor.translation_y = 5;
+    pill.scale_x = pill.scale_y = 0.96;
+    card.scale_x = card.scale_y = 0.98;
+    card.translation_y = -1;
+    surface.expand();
+    assert.equal(pill.scale_x, 0.96);
+    assert.equal(card.scale_x, 0.98);
+    assert.equal(card.translation_y, -1);
+    stale();
+    assert.equal(surface.state, 'expanding');
+    assert.equal(card.visible, true);
+    surface.actor.finish();
+    assert.equal(surface.state, 'expanded');
 });

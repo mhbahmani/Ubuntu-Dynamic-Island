@@ -1,6 +1,6 @@
 # Implementation handoff
 
-Updated 2026-11-10. Target: GNOME Shell 46 on Ubuntu Wayland.
+Updated 2026-11-11. Target: GNOME Shell 46 on Ubuntu Wayland.
 
 - [AGENTS.md](../AGENTS.md): engineering, packaging and commit rules.
 - [README](../README.md): installation, development commands and hardware checks.
@@ -25,8 +25,36 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Motion baseline
+
+The user accepted the notch expansion on 2026-11-11. Treat it as the reference
+for future features and animations: a restrained, fluid, MacBook-like feel with
+clear spatial continuity. New interactions should fit this motion language.
+
+- Keep the surface horizontally centered as it grows downward. Outgoing notch
+  content moves down and inward symmetrically: left items move right, right items
+  move left. Preserve each layer's text layout throughout the transition.
+- Use subtle uniform scaling and fades. The current implementation in
+  `ui/island.js` contracts the outgoing notch to 90%; incoming content settles
+  from 97% scale and a 4px upward offset. The surface's 8px drop is animated.
+- Opening decelerates with `EASE_OUT_QUART`; content uses `EASE_OUT_CUBIC`.
+  Closing uses `EASE_OUT_CUBIC` and 75% of the configured opening duration.
+  These values are the current reference when tuning related motion.
+- Reverse from the current pose when interrupted. Keep focus and input usable,
+  honor both extension and desktop reduced-motion settings, and settle fully
+  on hide/disable. Use native constraints/transitions; avoid runtime frame timers,
+  snapshots and per-label animation loops.
+- Recheck expansion and Quick Ask with `--check-motion` after related changes:
+  compact/full notches, narrow/default widths, 100/200% scale, enlarged text,
+  reversals and reduced motion. Run the native smoke test for input and cleanup.
+
+Tab transitions are future work. When requested, extend these principles while
+preserving stable navigation and focus; the current expansion remains the reference.
+
 ## Recent UI changes
 
+- The notch and card keep their own layout sizes inside a centered native
+  fixed-layout viewport; see the [motion baseline](#motion-baseline).
 - Sound outputs sort headphones (Bluetooth or wired), built-in speakers,
   HDMI/DisplayPort, then others. Stable ties do not promote the active device.
 - Calendar dates share a compact header line when additional calendars are shown.
@@ -57,6 +85,16 @@ The module guide replaces separate feature documents and the obsolete roadmap.
 Use Git history for earlier designs, research and session logs.
 
 ## Verification and remaining work
+
+Expansion checks: `make check` passes 151 tests plus syntax/schema validation.
+`--check-motion` observes painted frames in an isolated preview and verifies inward
+movement from both sides, stable layer sizes, Quick Ask focus, interrupted motion,
+fullscreen-style cleanup and both reduced-motion switches. These passed at 100%
+scale and in a real 200% nested display with 150% text, at 380/440px with compact
+and fully populated notches. `make smoke` also passed after the motion change,
+including input, Quick Ask focus/typing/shortcuts, preferences, scaling and repeated
+enable/disable. The rebuilt ZIP contains the updated runtime and excludes the
+motion fixture.
 
 After the directory moves, `make check` passed (Node tests, recursive JavaScript
 syntax checks, Python syntax and schema validation). Installer/ZIP tests compare

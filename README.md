@@ -67,10 +67,13 @@ and [compact playing pill](screenshots/playing-pill.png).
   and keeps the draft. The shortcut also works with session tracking disabled.
   It uses your default agent, destination and project folder (home if unset).
   Open Agents in `make preview`; see [setup and limitations](docs/MODULES.md#agents).
-- **Single-surface morph**: the pill and the card are two children of one
-  chrome-managed `St.Widget`, animated with width/height/opacity tweens
-  (`COLLAPSED → EXPANDING → EXPANDED → COLLAPSING`), interrupt-safe under
-  rapid toggling, snapping closed when hidden over fullscreen windows.
+- **Single-surface morph**: one chrome-managed surface expands downward around
+  its center. Notch content gently contracts inward and fades as the card or
+  Quick Ask appears, without reflowing text during the transition. Opening
+  eases into place; closing is slightly faster. Rapid reversals remain continuous,
+  reduced motion opens/closes instantly, and fullscreen hiding snaps it closed.
+  This is the accepted [motion baseline](docs/HANDOFF.md#motion-baseline) for
+  future features and animations.
 - **Ricelin-inspired faces**: one focused surface at a time, using matte graphite
   surfaces and Ricelin’s vermilion accent. Media opens as a compact
   horizontal artwork-and-controls face. A quiet navigation strip switches to
@@ -202,6 +205,13 @@ sample agent sessions, a simulated Quick Ask flow, a sample commute route and Ca
 Use `make preview PREVIEW_ARGS="--tab calendar --card-width 380 --text-scale 1.5"`
 to try the calendar at narrow width with enlarged text.
 Agent configuration changes from preview preferences stay in temporary folders.
+
+To inspect expansion and Quick Ask motion, use
+`make preview PREVIEW_ARGS="--check-motion --duration 30"`. This isolated check
+temporarily slows the animation, exercises compact/full notches at both card
+widths, and checks centering, focus, reversals and reduced motion. It saves painted
+frame measurements and screenshots alongside the preview log. The same flag works
+with `preview-headless` for automation; it cannot be combined with other checks.
 
 The preview window starts at **1600×1000 with 200% UI scaling**, so text, icons
 and controls are larger too. Use `--scale 1` for the original 100% UI. Set the

@@ -91,6 +91,11 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
   close, and disable. Do not add continuous window polling.
 - Use explicit hover, focus, selected, disabled, pending, and error states.
   Respect reduced motion and interrupted animations.
+- Use the accepted notch expansion as the baseline for future features and
+  animations, including any later tab transitions. Preserve centered movement,
+  stable text layout, restrained scaling, smooth deceleration and continuous
+  reversals. Reuse native transitions and respect both reduced-motion settings.
+  See [Motion baseline](docs/HANDOFF.md#motion-baseline) for behavior and checks.
 
 ## Verified GNOME API details
 

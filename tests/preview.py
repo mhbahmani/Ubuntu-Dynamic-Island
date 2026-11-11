@@ -30,6 +30,7 @@ def main():
     parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], default='icon', help='Initial offline notch design; can also change it in preferences')
     parser.add_argument('--check-full', action='store_true', help='Check populated notch, all tabs and sample device controls (headless sample mode)')
     parser.add_argument('--check-calendar', action='store_true', help='Check calendar modes, keyboard access and scaled layouts (headless)')
+    parser.add_argument('--check-motion', action='store_true', help='Check centered expansion, Quick Ask and interrupted motion (sample mode)')
     parser.add_argument('--check-input', action='store_true', help='Exercise dismissal, reopening and the top-bar menu')
     parser.add_argument('--live', action='store_true', help='Use live weather, routing and system metrics; media/audio/Bluetooth remain simulated')
     parser.add_argument('--headless', action='store_true', help='Render without a window; saves notch.png or the selected tab')
@@ -48,6 +49,8 @@ def main():
         parser.error('--check-input requires --headless (nested virtual-pointer coordinates differ)')
     if args.check_calendar and (not args.headless or args.check_full or args.check_input):
         parser.error('--check-calendar requires --headless without other check modes')
+    if args.check_motion and (args.live or args.tab != 'notch' or args.check_full or args.check_calendar or args.check_input):
+        parser.error('--check-motion requires sample mode with the default notch and no other check mode')
     if args.duration < 0:
         parser.error('--duration must be nonnegative')
     if args.headless and args.scale is not None:
@@ -81,6 +84,7 @@ def main():
     (extension / 'extension.js').rename(extension / 'implementation.js')
     shutil.copy2(source / 'tests/fixtures/local-preview.js', extension / 'extension.js')
     shutil.copy2(source / 'tests/fixtures/preview-data.js', extension / 'preview-data.js')
+    shutil.copy2(source / 'tests/fixtures/motion-check.js', extension / 'motion-check.js')
     shutil.copy2(source / 'tests/fixtures/local-preferences.mjs', extension / 'local-preferences.mjs')
     subprocess.run(['glib-compile-schemas', '--strict', str(extension / 'schemas')], check=True)
     apps = root / 'share/applications'
@@ -103,6 +107,7 @@ def main():
                        GSETTINGS_BACKEND='keyfile', ISLAND_PREVIEW_OUTPUT=str(root),
                        ISLAND_PREVIEW_CHECK_FULL='1' if args.check_full else '0',
                        ISLAND_PREVIEW_CHECK_CALENDAR='1' if args.check_calendar else '0',
+                       ISLAND_PREVIEW_CHECK_MOTION='1' if args.check_motion else '0',
                        ISLAND_PREVIEW_CARD_WIDTH=str(args.card_width), ISLAND_PREVIEW_TEXT_SCALE=str(args.text_scale),
                        ISLAND_PREVIEW_CALENDAR_DATE=args.calendar_date.isoformat() if args.calendar_date else '',
                        ISLAND_PREVIEW_PREFERENCES=args.preferences or '',
@@ -151,6 +156,8 @@ def main():
     if args.check_full and ('[Island Preview] FULL PASS' not in output or '[Island Preview] FULL FAIL' in output):
         return 1
     if args.check_calendar and ('[Island Preview] CALENDAR PASS' not in output or '[Island Preview] CALENDAR FAIL' in output):
+        return 1
+    if args.check_motion and ('[Island Preview] MOTION PASS' not in output or '[Island Preview] MOTION FAIL' in output):
         return 1
     return code if code >= 0 else 128 - code
 

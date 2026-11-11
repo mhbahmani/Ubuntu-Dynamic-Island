@@ -22,9 +22,9 @@ const DISMISS_GUARD_MS = 400;
 const clampRange = (value, lower, upper) => Math.max(lower, Math.min(upper, value));
 
 // The island is a single chrome-managed St.Widget surface: the compact pill
-// and the expanded card are two children of the same actor, morphed with
-// width/height/opacity tweens instead of a separate popup menu. The opaque
-// surface paints reliably on mixed-scale monitors without backdrop sampling.
+// and expanded card keep stable layouts in a centered content viewport while
+// the surface grows and their transforms blend, without a separate popup menu.
+// The opaque surface paints reliably on mixed-scale monitors without backdrop sampling.
 export class IslandSurface {
     constructor({settings, pill, card, onStateChange, onBeforeExpand, onEscape}) {
         this._settings = settings;
@@ -53,12 +53,23 @@ export class IslandSurface {
         });
         this._pill = pill;
         this._card = card;
-        this._pill.x_align = Clutter.ActorAlign.FILL;
-        this._pill.x_expand = true;
-        this._pill.y_align = Clutter.ActorAlign.CENTER;
+        // BinLayout clamps children to its changing allocation. Keep the two
+        // content layers at their own sizes instead: only this viewport and
+        // the surface morph, without reflowing text during every frame.
+        this._content = new Clutter.Actor({layout_manager: new Clutter.FixedLayout(),
+            x_expand: true, y_expand: true});
+        this.actor.add_child(this._content);
+        for (const layer of [this._pill, this._card]) {
+            layer.set_position(0, 0);
+            layer.add_constraint(new Clutter.AlignConstraint({source: this._content,
+                align_axis: Clutter.AlignAxis.X_AXIS, factor: 0.5}));
+            this._content.add_child(layer);
+        }
+        this._pill.add_constraint(new Clutter.AlignConstraint({source: this._content,
+            align_axis: Clutter.AlignAxis.Y_AXIS, factor: 0.5}));
+        this._pill.set_pivot_point(0.5, 0.5);
+        this._card.set_pivot_point(0.5, 0);
         this._card.hide();
-        this.actor.add_child(this._pill);
-        this.actor.add_child(this._card);
         // 1px inner top highlight, the "sheen" line of a glass panel.
         this._sheen = new St.Widget({style_class: 'ubuntu-island-sheen'});
         this._sheen.x_align = Clutter.ActorAlign.FILL;
@@ -167,13 +178,18 @@ export class IslandSurface {
 
     expand() {
         if (this.expanded) return;
+        const fromRest = this.state === IslandState.COLLAPSED;
         this._onBeforeExpand?.();
         const token = ++this._token;
         this._setState(IslandState.EXPANDING);
         this._cancelHoverTimers();
         if (!this._takeGrab()) {
-            this._setState(IslandState.COLLAPSED);
+            this._snapCollapsed();
             return;
+        }
+        if (fromRest) {
+            this._card.scale_x = this._card.scale_y = 0.97;
+            this._card.translation_y = -4 * this._scale;
         }
         this._card.show();
         this._pill.reactive = false;
@@ -184,14 +200,16 @@ export class IslandSurface {
         this._expandedHeight = Math.max(this._collapsedHeight, Math.min(natural + this._border, this._heightBudget()));
         this._sizeCard(this._expandedHeight);
         const duration = this._animationMs();
+        // A centered, uniform contraction takes both ends inward as the old
+        // notch descends and fades. It never stretches or redistributes text.
+        this._easeContent(this._pill, {opacity: 0, scale_x: 0.9, scale_y: 0.9}, duration * 0.65);
+        this._easeContent(this._card, {opacity: 255, scale_x: 1, scale_y: 1, translation_y: 0}, duration);
         this._easeSize(this._expandedWidth, this._expandedHeight, duration, () => {
             if (token !== this._token) return;
             this._setState(IslandState.EXPANDED);
             this.relayout();
             if (!this._card._islandFocus?.()) this.actor.grab_key_focus();
-        });
-        this._easeOpacity(this._pill, 0, duration);
-        this._easeOpacity(this._card, 255, duration);
+        }, Clutter.AnimationMode.EASE_OUT_QUART);
     }
 
     collapse() {
@@ -202,14 +220,16 @@ export class IslandSurface {
         this._releaseGrab();
         this._pill.reactive = true;
         this._pill.can_focus = true;
-        const duration = this._animationMs();
+        const duration = Math.round(this._animationMs() * 0.75);
+        this._easeContent(this._pill, {opacity: 255, scale_x: 1, scale_y: 1}, duration);
+        this._easeContent(this._card, {opacity: 0, scale_x: 0.97, scale_y: 0.97,
+            translation_y: -4 * this._scale}, duration * 0.65);
         this._easeSize(this._collapsedWidth, this._collapsedHeight, duration, () => {
             if (token !== this._token) return;
             this._card.hide();
+            this._resetContent();
             this._setState(IslandState.COLLAPSED);
-        });
-        this._easeOpacity(this._pill, 255, duration);
-        this._easeOpacity(this._card, 0, duration);
+        }, Clutter.AnimationMode.EASE_OUT_CUBIC);
     }
 
     // Content-driven height refresh while open (sections appearing/vanishing).
@@ -343,27 +363,44 @@ export class IslandSurface {
         return GLib.SOURCE_REMOVE;
     }
 
-    _easeSize(width, height, duration, onDone) {
-        if (duration <= 0) {
+    _easeSize(width, height, duration, onDone, mode = Clutter.AnimationMode.EASE_OUT_QUAD) {
+        const translation_y = this.expanded ? 8 * this._scale : 0;
+        this.actor.remove_all_transitions();
+        if (duration <= 0 || (this.actor.width === width && this.actor.height === height &&
+            this.actor.translation_y === translation_y)) {
             this.actor.set_size(width, height);
+            this.actor.translation_y = translation_y;
             onDone?.();
             return;
         }
         this.actor.ease({
             width,
             height,
+            translation_y,
             duration,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            mode,
             onComplete: onDone,
         });
     }
 
-    _easeOpacity(actor, value, duration) {
+    _easeContent(actor, properties, duration) {
+        actor.remove_all_transitions();
         if (duration <= 0) {
-            actor.opacity = value;
+            Object.assign(actor, properties);
             return;
         }
-        actor.ease({opacity: value, duration, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        actor.ease({...properties, duration: Math.round(duration), mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+    }
+
+    _resetContent() {
+        for (const layer of [this._pill, this._card]) {
+            layer.remove_all_transitions();
+            layer.scale_x = layer.scale_y = 1;
+            layer.translation_y = 0;
+        }
+        this._pill.width = Math.max(1, this._collapsedWidth - this._border);
+        this._pill.opacity = 255;
+        this._card.opacity = 0;
     }
 
     // Interrupted/suppressed transitions (settings change, fullscreen hide)
@@ -372,12 +409,10 @@ export class IslandSurface {
         this._token++;
         this._releaseGrab();
         this.actor.remove_all_transitions();
-        this._pill.remove_all_transitions();
-        this._card.remove_all_transitions();
+        this.actor.translation_y = 0;
+        this._resetContent();
         this._pill.reactive = true;
         this._pill.can_focus = true;
-        this._pill.opacity = 255;
-        this._card.opacity = 0;
         this._card.hide();
         this.actor.set_size(this._collapsedWidth, this._collapsedHeight);
         this._recenter();
@@ -455,7 +490,7 @@ export class IslandSurface {
         if (!monitor) return;
         this.actor.set_position(
             Math.round(monitor.x + (monitor.width - this.actor.width) / 2),
-            monitor.y + (this.expanded ? 8 * this._scale : 0));
+            monitor.y);
     }
 
     _heightBudget() {
