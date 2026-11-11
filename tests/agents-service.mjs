@@ -2,7 +2,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {AgentsService} from '../services/agents.js';
-import {launchAgent} from '../services/agent-launch.js';
+import {launchAgent, initializeAgentSettings, agentConfigDirectory, agentExecutable, defaultTerminal, agentTerminal} from '../services/agent-launch.js';
 import {runtimePath} from '../helpers/agents/io.js';
 
 const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().get_path();
@@ -42,17 +42,55 @@ try {
     }
     await until(() => !Gio.File.new_for_path(runtimePath()).query_exists(null));
     const dir = GLib.getenv('ISLAND_AGENT_TEST_DIR');
+    const values = new Map();
+    const automatic = {get_string: key => values.get(key) || (key === 'agents-terminal' ? 'auto' : ''),
+        get_boolean: key => values.get(key) || false,
+        set_boolean: (key, value) => values.set(key, value),
+        reset: key => values.delete(key),
+        get_user_value: key => values.get(key) ?? null,
+        set_string: (key, value) => values.set(key, value)};
+    initializeAgentSettings(automatic);
+    for (const provider of ['claude', 'codex', 'opencode']) {
+        assert(values.get(`agents-${provider}-config`) === agentConfigDirectory(provider), 'Config default was not filled');
+        const detected = agentExecutable(provider);
+        assert(!detected || values.get(`agents-${provider}-executable`) === detected, 'CLI detection was not saved');
+    }
+    assert(values.get('agents-project') === GLib.get_home_dir(), 'Project did not default to home');
+    assert(automatic.get_string('agents-terminal') === 'auto', 'Terminal should follow the desktop default');
+    values.set('agents-terminal-default-migrated', false); values.set('agents-terminal', 'gnome-terminal');
+    initializeAgentSettings(automatic);
+    assert(automatic.get_string('agents-terminal') === 'auto', 'Legacy automatic GNOME choice was not migrated');
+    values.set('agents-terminal', 'gnome-terminal'); initializeAgentSettings(automatic);
+    assert(automatic.get_string('agents-terminal') === 'gnome-terminal', 'Explicit terminal choice was not preserved');
+    const desktop = new Gio.Settings({schema_id:'org.gnome.desktop.default-applications.terminal'});
+    desktop.set_string('exec', 'x-terminal-emulator');
+    assert(defaultTerminal()?.id === 'terminator', 'Desktop symlink chain did not resolve to Terminator');
+    assert(agentTerminal('gnome-terminal')?.id === 'gnome-terminal', 'Explicit terminal was ignored');
+    desktop.set_string('exec', 'gnome-terminal');
+    assert(defaultTerminal()?.id === 'gnome-terminal', 'Changed desktop default was not followed');
+    desktop.set_string('exec', '/missing/terminal');
+    assert(defaultTerminal()?.id === 'terminator', 'Unavailable desktop command did not fall back to system alternative');
+    desktop.set_string('exec', 'x-terminal-emulator');
+    values.set('agents-claude-config', `${dir}/custom-config`);
+    values.set('agents-claude-executable', `${dir}/missing-custom-cli`);
+    values.set('agents-provider', 'opencode'); values.set('agents-project', dir);
+    initializeAgentSettings(automatic);
+    assert(values.get('agents-claude-config') === `${dir}/custom-config` &&
+        values.get('agents-claude-executable') === `${dir}/missing-custom-cli` &&
+        values.get('agents-provider') === 'opencode' && values.get('agents-project') === dir,
+        'Discovery replaced an explicit user setting');
     const settings = {get_string(key) {
-        if (key === 'agents-terminal') return 'gnome-terminal';
+        if (key === 'agents-terminal') return 'auto';
         if (key.endsWith('-executable')) return `${dir}/fake-agent`;
         return '';
     }};
     const prompt = "--dangerous $(touch SHOULD-NOT-EXIST) `echo injection` ' quoted\nsecond line";
-    launchAgent(settings, {provider:'claude',destination:'terminal',prompt,cwd:dir}, null);
+    launchAgent(settings, {provider:'claude',prompt,cwd:dir}, null);
     const capture = Gio.File.new_for_path(`${dir}/argv.json`);
     await until(() => capture.query_exists(null));
     const [,bytes] = capture.load_contents(null);
     const argv = JSON.parse(new TextDecoder().decode(bytes));
+    assert(argv[0] === `--working-directory=${dir}` && argv[1] === '-x', 'Default terminal did not use Terminator arguments');
     assert(argv.at(-1) === prompt && argv.at(-2) === '--', 'Prompt was not preserved as one argument');
     assert(!Gio.File.new_for_path(`${dir}/SHOULD-NOT-EXIST`).query_exists(null), 'Prompt executed as shell code');
     print('AGENTS NATIVE PASS');

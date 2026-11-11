@@ -17,6 +17,12 @@ metadata.dir = root;
 Adw.init();
 const prefs = new Preferences(metadata);
 const settings = prefs.getSettings();
+if (GLib.getenv('GSETTINGS_BACKEND') !== 'memory') throw new Error('Preferences tests require isolated settings');
+const agentTestDir = GLib.dir_make_tmp('island-prefs-agents-XXXXXX');
+for (const provider of ['claude', 'codex', 'opencode']) {
+    settings.set_string(`agents-${provider}-config`, `${agentTestDir}/${provider}`);
+    settings.set_string(`agents-${provider}-executable`, '/usr/bin/true');
+}
 const window = new Adw.PreferencesWindow();
 prefs.fillPreferencesWindow(window);
 function find(widget, title) {
@@ -32,6 +38,12 @@ for (const name of ['appearance', 'notch', 'modules', 'weather', 'commute', 'age
     if (window.visible_page_name !== name) throw new Error(`Missing preferences tab: ${name}`);
 }
 const agentsEnabled = find(window, 'Enable Agents');
+const inactive = find(window, 'Remove inactive sessions after');
+if (!inactive || inactive.value !== 60) throw new Error('Session expiry must default to one hour');
+inactive.value = 120;
+if (settings.get_int('agents-inactive-minutes') !== 120) throw new Error('Session expiry did not save');
+settings.set_int('agents-inactive-minutes', 60);
+if (inactive.value !== 60) throw new Error('Session expiry did not follow settings');
 const calendarEnabled = find(window, 'Calendar');
 if (!calendarEnabled || settings.get_boolean('enable-calendar')) throw new Error('Calendar must default off');
 calendarEnabled.active = true;
@@ -97,12 +109,24 @@ agentsEnabled.active = true;
 if (!settings.get_boolean('enable-agents')) throw new Error('Agents toggle did not save');
 settings.set_boolean('enable-agents', false);
 if (agentsEnabled.active) throw new Error('Agents toggle did not follow settings');
-const destination = find(window, 'Default destination');
-destination.selected = 2;
-if (settings.get_string('agents-destination') !== 'desktop') throw new Error('Desktop destination did not save');
-settings.set_string('agents-destination', 'web');
-if (destination.selected !== 3) throw new Error('Web destination did not follow settings');
-const agentProvider = find(window, 'Default agent');
+if (find(window, 'Default destination') || find(window, 'Desktop destination') || find(window, 'Holiday markings'))
+    throw new Error('Removed settings are still shown');
+for (const title of ['Open or close island', 'Next tab', 'Previous tab'])
+    if (!find(window, title)) throw new Error(`Missing shortcut setting: ${title}`);
+for (const provider of ['claude', 'codex', 'opencode'])
+    if (!settings.get_string(`agents-${provider}-config`).startsWith('/')) throw new Error('Provider default was not filled');
+if (!settings.get_string('agents-project').startsWith('/')) throw new Error('Default project folder was not filled');
+const terminal = find(window, 'Terminal');
+if (settings.get_string('agents-terminal') !== 'auto' || terminal.selected !== 0 ||
+    !terminal.model.get_string(0).startsWith('System default')) throw new Error('System terminal default is not visible');
+terminal.selected = 3;
+if (settings.get_string('agents-terminal') !== 'terminator') throw new Error('Terminator selection did not save');
+settings.set_string('agents-terminal', 'auto');
+if (terminal.selected !== 0) throw new Error('System terminal choice did not follow settings');
+const tracking = find(window, 'Session tracking');
+if (tracking?.activatable_widget?.label !== 'Enable integration…' || !tracking.activatable_widget.has_css_class('suggested-action'))
+    throw new Error('Setup does not have a clear primary action');
+const agentProvider = find(window, 'Default harness');
 agentProvider.selected = 1;
 if (settings.get_string('agents-provider') !== 'codex') throw new Error('Agent selection did not save');
 const shortcutRow = find(window, 'Quick Ask shortcut');
@@ -342,5 +366,40 @@ entry.text = 'late-key'; saveKey.emit('clicked');
 if (saveKey.sensitive || entry.sensitive) throw new Error('Validation allowed duplicate submissions');
 keyWindow.emit('close-request'); keyWindow._releaseValidation(); await wait();
 if (writes !== 2 || value) throw new Error('Validation saved a key after closing preferences');
+
+// Exercise the real setup confirmation without mapping a window on the host.
+// Installation is restricted to the temporary provider directories above.
+async function until(condition) {
+    for (let i = 0; i < 200; i++) { if (condition()) return; await wait(); }
+    throw new Error('Timed out waiting for setup preferences');
+}
+await until(() => tracking.activatable_widget.sensitive);
+let setupDialog;
+const present = Adw.MessageDialog.prototype.present;
+Adw.MessageDialog.prototype.present = function () { setupDialog = this; };
+try {
+    tracking.activatable_widget.emit('clicked');
+    await until(() => setupDialog);
+    if (setupDialog.heading !== 'Enable Claude Code tracking?' ||
+        setupDialog.get_response_label('install') !== 'Enable integration' ||
+        setupDialog.get_response_appearance('install') !== Adw.ResponseAppearance.SUGGESTED ||
+        setupDialog.default_response !== 'install' || setupDialog.close_response !== 'cancel' ||
+        !(setupDialog.extra_child instanceof Gtk.Expander) || setupDialog.extra_child.expanded)
+        throw new Error('Integration confirmation does not have a clear enable action and collapsed details');
+    const config = Gio.File.new_for_path(`${agentTestDir}/claude/settings.json`);
+    if (config.query_exists(null)) throw new Error('Review changed provider configuration before confirmation');
+    setupDialog.response('install');
+    await until(() => tracking.activatable_widget.sensitive && tracking.activatable_widget.label === 'Reconfigure…');
+    if (tracking.activatable_widget.has_css_class('suggested-action') || !tracking.subtitle.startsWith('Integration installed.'))
+        throw new Error('Installed integration is still presented as disabled');
+    setupDialog = null;
+    tracking.activatable_widget.emit('clicked');
+    await until(() => setupDialog);
+    if (setupDialog.heading !== 'Reconfigure Claude Code tracking?' || setupDialog.get_response_label('install') !== 'Apply changes')
+        throw new Error('Installed integration confirmation is incorrect');
+    setupDialog.response('cancel');
+    config.delete(null); config.get_parent().delete(null);
+} finally { Adw.MessageDialog.prototype.present = present; }
+Gio.File.new_for_path(agentTestDir).delete(null);
 window.close();
 print('Preferences controls and bidirectional settings passed');

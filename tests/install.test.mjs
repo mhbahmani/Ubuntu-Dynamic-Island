@@ -16,6 +16,7 @@ test('installer includes every runtime module and preserves the previous install
         const modules = runtimeFiles(root);
         verifyRuntime(root, destination, modules);
         assert.ok(existsSync(join(destination, 'schemas/gschemas.compiled')));
+        verifyLegacySettings(destination);
         assert.ok(existsSync(join(temporary, 'applications/ubuntu-island.desktop')));
         execFileSync('sh', [join(root, 'scripts/install.sh')], {env});
         const backup = readdirSync(join(temporary, 'gnome-shell/extensions')).find(name => name.includes('.backup.'));
@@ -45,6 +46,33 @@ function verifyRuntime(root, destination, files) {
     }
 }
 
+// Shell keeps loaded modules across extension toggles. After an in-session
+// install, the old Agents view can read the newly compiled schema on enable.
+function verifyLegacySettings(destination) {
+    execFileSync('gjs', ['-c', `
+        const Gio = imports.gi.Gio;
+        const source = Gio.SettingsSchemaSource.new_from_directory(ARGV[0], Gio.SettingsSchemaSource.get_default(), false);
+        const schema = source.lookup('org.gnome.shell.extensions.ubuntu-island', false);
+        const settings = new Gio.Settings({settings_schema: schema});
+        const expected = {
+            'agents-destination': 'terminal',
+            'agents-claude-desktop': '',
+            'agents-codex-desktop': '',
+            'agents-opencode-desktop': '',
+        };
+        for (const [key, value] of Object.entries(expected)) {
+            if (settings.get_string(key) !== value)
+                throw new Error('Legacy settings changed: ' + key);
+            const signal = settings.connect('changed::' + key, () => {});
+            settings.disconnect(signal);
+        }
+        for (const destination of ['terminal', 'copy-terminal', 'desktop', 'web']) {
+            if (!settings.set_string('agents-destination', destination) || settings.get_string('agents-destination') !== destination)
+                throw new Error('Legacy destination no longer supported: ' + destination);
+        }
+    `, join(destination, 'schemas')], {env: {...process.env, GSETTINGS_BACKEND: 'memory'}, timeout: 5000});
+}
+
 test('ZIP preserves the runtime layout and replaces stale archive entries', () => {
     const temporary = mkdtempSync(join(tmpdir(), 'island-build-test-'));
     const root = resolve(import.meta.dirname, '..');
@@ -66,6 +94,7 @@ test('ZIP preserves the runtime layout and replaces stale archive entries', () =
         execFileSync('unzip', ['-q', archive, '-d', destination]);
         verifyRuntime(root, destination, files);
         assert.ok(existsSync(join(destination, 'schemas/gschemas.compiled')));
+        verifyLegacySettings(destination);
         assert.ok(!existsSync(join(destination, 'retired-module.js')));
         for (const name of ['scripts', 'tests', 'docs', 'dist', 'AGENTS.md'])
             assert.ok(!existsSync(join(destination, name)), `${name} must not be packaged`);

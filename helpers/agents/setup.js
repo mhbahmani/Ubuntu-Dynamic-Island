@@ -3,7 +3,8 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import System from 'system';
 import {AGENTS} from '../../services/agents-model.js';
-import {HOOK_MARKER, hookEntries, mergeAgentHooks, openCodePlugin} from '../../services/agents-setup-model.js';
+import {agentConfigDirectory} from '../../services/agent-launch.js';
+import {hasAgentHooks, hookEntries, mergeAgentHooks, openCodePlugin} from '../../services/agents-setup-model.js';
 import {runtimePath, encoder, decoder} from './io.js';
 
 const [action, provider, directory = '', major = '1'] = ARGV;
@@ -21,10 +22,7 @@ function read(file) {
 }
 try {
     if (!Object.hasOwn(AGENTS, provider) || !['plan','status','install','remove'].includes(action)) throw new Error('Invalid setup action.');
-    const home = GLib.get_home_dir();
-    const config = directory || (provider === 'claude' ? GLib.getenv('CLAUDE_CONFIG_DIR') || `${home}/.claude`
-        : provider === 'codex' ? GLib.getenv('CODEX_HOME') || `${home}/.codex`
-        : `${GLib.get_user_config_dir()}/opencode`);
+    const config = directory || agentConfigDirectory(provider);
     if (!config.startsWith('/')) throw new Error('Configuration directory must be absolute.');
     const relay = Gio.File.new_for_uri(import.meta.url).get_parent().get_child('relay.js').get_path();
     const path = provider === 'opencode' ? `${config}/plugins/ubuntu-island-status.js`
@@ -40,7 +38,7 @@ try {
     } else {
         let parsed; try { parsed = old.text ? JSON.parse(old.text) : {}; }
         catch { throw new Error('Configuration is not plain JSON. Convert it to valid JSON before using this setup helper; the file was not changed.'); }
-        installed = JSON.stringify(parsed.hooks || {}).includes(HOOK_MARKER);
+        installed = hasAgentHooks(parsed);
         next = `${JSON.stringify(mergeAgentHooks(parsed, provider, relay, action !== 'remove'), null, 2)}\n`;
     }
     if (['install','remove'].includes(action)) {
@@ -56,7 +54,7 @@ try {
                 if (latest.etag !== old.etag) throw new Error('Configuration changed; inspect and retry.');
                 file.copy(Gio.File.new_for_path(`${path}.bak`), Gio.FileCopyFlags.OVERWRITE, null, null);
                 file.delete(null);
-            } else {
+            } else if (next !== old.text) {
                 file.replace_contents(encoder.encode(next), old.etag, Boolean(old.text), Gio.FileCreateFlags.PRIVATE, null);
             }
             installed = action === 'install';

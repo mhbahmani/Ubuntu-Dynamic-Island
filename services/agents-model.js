@@ -58,11 +58,21 @@ export class AgentStore {
         for (const id of this.undo.ids) { const row = this.rows.get(id); if (row) row.hidden = false; }
         this.undo = null;
     }
+    expire(before) {
+        // Called only when the Agents tab opens. A fresh report can recreate an
+        // expired session; this removes tracking data, never the agent process.
+        for (const [id, row] of this.rows) if (row.updated < before) this.rows.delete(id);
+        if (this.undo) {
+            this.undo.ids = this.undo.ids.filter(id => this.rows.has(id));
+            if (!this.undo.ids.length) this.undo = null;
+        }
+    }
     control(value) {
         if (value.control === 'clear') this.clear();
         else if (value.control === 'dismiss' && typeof value.id === 'string') this.dismiss(value.id);
         else if (value.control === 'clear-finished') this.clearFinished();
         else if (value.control === 'restore' && Number.isSafeInteger(value.token)) this.restore(value.token);
+        else if (value.control === 'expire' && Number.isSafeInteger(value.before) && value.before > 0 && value.before <= Date.now()) this.expire(value.before);
         else return false;
         return true;
     }
@@ -125,16 +135,19 @@ export function agentSummary(rows = []) {
         !c.working && !c.attention && c.finished && `${c.finished} finished`].filter(Boolean).join(' · ') || 'No active turns';
 }
 
-export const AGENT_SITES = {claude: 'https://claude.ai/new', codex: 'https://chatgpt.com/codex', opencode: 'https://opencode.ai/'};
-export const TERMINALS = ['gnome-terminal', 'kgx', 'kitty', 'wezterm'];
+export const TERMINAL_NAMES = {'gnome-terminal':'GNOME Terminal', kgx:'GNOME Console',
+    terminator:'Terminator', kitty:'Kitty', wezterm:'WezTerm'};
+export const TERMINALS = Object.keys(TERMINAL_NAMES);
 export function agentLaunchArgv(provider, executable, prompt, cwd, terminal) {
-    if (!Object.hasOwn(AGENTS, provider) || !TERMINALS.includes(terminal)) throw new Error('Choose a supported agent and terminal.');
+    if (!Object.hasOwn(AGENTS, provider) || ![...TERMINALS, 'x-terminal-emulator'].includes(terminal)) throw new Error('Choose a supported agent and terminal.');
     if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 16000 || prompt.includes('\0'))
         throw new Error('Enter a prompt of 1–16,000 characters.');
     if (!cwd?.startsWith('/') || cwd.includes('\0')) throw new Error('Choose an absolute project folder.');
     const command = provider === 'opencode' ? [executable, `--prompt=${prompt}`] : [executable, '--', prompt];
     if (terminal === 'gnome-terminal') return [terminal, '--window', `--working-directory=${cwd}`, '--', ...command];
     if (terminal === 'kgx') return [terminal, `--working-directory=${cwd}`, '--', ...command];
+    if (terminal === 'terminator') return [terminal, `--working-directory=${cwd}`, '-x', ...command];
+    if (terminal === 'x-terminal-emulator') return [terminal, '-e', ...command];
     if (terminal === 'kitty') return [terminal, '--directory', cwd, '--', ...command];
     return [terminal, 'start', '--cwd', cwd, '--', ...command];
 }

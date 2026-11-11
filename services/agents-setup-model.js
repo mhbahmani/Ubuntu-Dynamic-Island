@@ -1,15 +1,34 @@
 export const HOOK_MARKER = ' # ubuntu-island-agent-v1';
+const HOOK_LABELS = {
+    SessionStart: 'Session start', UserPromptSubmit: 'Prompt submitted',
+    PermissionRequest: 'Approval needed', Stop: 'Turn finished', SessionEnd: 'Session ended',
+    Interrupt: 'Turn interrupted', StopFailure: 'Turn failed', Notification: 'Attention needed',
+    PreToolUse: 'Input requested', PostToolUse: 'Tool finished', PostToolUseFailure: 'Tool failed',
+};
 export function shellQuote(value) { return `'${value.replaceAll("'", "'\\''")}'`; }
+function ownedHook(hook) {
+    return hook?.type === 'command' && typeof hook.command === 'string' && hook.command.endsWith(HOOK_MARKER);
+}
+export function hasAgentHooks(current) {
+    return Object.values(current.hooks || {}).some(groups => Array.isArray(groups) &&
+        groups.some(group => Array.isArray(group?.hooks) && group.hooks.some(ownedHook)));
+}
 export function hookEntries(provider, relay, gjs = '/usr/bin/gjs') {
-    const command = `${shellQuote(gjs)} -m ${shellQuote(relay)} ${provider}${HOOK_MARKER}`;
+    const handler = event => {
+        // Both harnesses support statusMessage as the human-readable hook label.
+        // Also label the shell comment for menus that display only the command.
+        const statusMessage = `Ubuntu Island: ${HOOK_LABELS[event]}`;
+        const command = `${shellQuote(gjs)} -m ${shellQuote(relay)} ${provider} # ${statusMessage}${HOOK_MARKER}`;
+        return {type: 'command', command, timeout: 1, statusMessage};
+    };
     const events = ['SessionStart', 'UserPromptSubmit', 'PermissionRequest', 'Stop', 'SessionEnd'];
     if (provider === 'codex') events.push('Interrupt');
     if (provider === 'claude') events.push('StopFailure', 'Notification');
-    const result = Object.fromEntries(events.map(event => [event, [{hooks: [{type: 'command', command, timeout: 1}]}]]));
+    const result = Object.fromEntries(events.map(event => [event, [{hooks: [handler(event)]}]]));
     if (provider === 'claude') result.Notification[0].matcher = 'permission_prompt|elicitation_dialog|elicitation_url_dialog|elicitation_complete|elicitation_response|agent_needs_input';
-    result.PreToolUse = [{matcher: provider === 'claude' ? 'AskUserQuestion' : 'request_user_input', hooks: [{type: 'command', command, timeout: 1}]}];
-    result.PostToolUse = [{hooks: [{type: 'command', command, timeout: 1}]}];
-    if (provider === 'claude') result.PostToolUseFailure = [{hooks: [{type: 'command', command, timeout: 1}]}];
+    result.PreToolUse = [{matcher: provider === 'claude' ? 'AskUserQuestion' : 'request_user_input', hooks: [handler('PreToolUse')]}];
+    result.PostToolUse = [{hooks: [handler('PostToolUse')]}];
+    if (provider === 'claude') result.PostToolUseFailure = [{hooks: [handler('PostToolUseFailure')]}];
     return result;
 }
 export function mergeAgentHooks(current, provider, relay, install) {
@@ -19,16 +38,19 @@ export function mergeAgentHooks(current, provider, relay, install) {
     const hooks = result.hooks || {};
     for (const [event, groups] of Object.entries(hooks)) {
         if (!Array.isArray(groups)) throw new Error('Unsupported hook groups.');
-        hooks[event] = groups.map(group => {
-            if (!group || !Array.isArray(group.hooks)) throw new Error('Unsupported hook handlers.');
-            return {...group, hooks: group.hooks.filter(h => !(typeof h.command === 'string' && h.command.endsWith(HOOK_MARKER)))};
-        }).filter(group => group.hooks.length);
-        if (!hooks[event].length) delete hooks[event];
+        hooks[event] = groups.flatMap(group => {
+            if (!group || Array.isArray(group) || !Array.isArray(group.hooks)) throw new Error('Unsupported hook handlers.');
+            const remaining = group.hooks.filter(hook => !ownedHook(hook));
+            // Leave every unrelated group intact, including intentionally empty ones.
+            if (remaining.length === group.hooks.length) return [group];
+            return remaining.length ? [{...group, hooks: remaining}] : [];
+        });
+        if (groups.length && !hooks[event].length) delete hooks[event];
     }
     if (install) for (const [event, groups] of Object.entries(hookEntries(provider, relay)))
         hooks[event] = [...(hooks[event] || []), ...groups];
     if (Object.keys(hooks).length) result.hooks = hooks;
-    else delete result.hooks;
+    else if (Object.keys(current.hooks || {}).length) delete result.hooks;
     return result;
 }
 

@@ -219,7 +219,7 @@ export default class Smoke extends UbuntuIsland {
     async _checkQuickAsk() {
         const key = 'island-quick-ask-shortcut', card = this._card, quick = card._quickAsk;
         const settings = this._settings, originalAsk = card._actions.agentAsk;
-        const saved = ['agents-provider', 'agents-destination', 'agents-project'].map(name => [name, settings.get_string(name)]);
+        const saved = ['agents-provider', 'agents-project'].map(name => [name, settings.get_string(name)]);
         const page = card._page, width = settings.get_int('expanded-width');
         const hover = settings.get_boolean('hover-open');
         const context = St.ThemeContext.get_for_stage(global.stage), scale = context.scale_factor;
@@ -247,7 +247,7 @@ export default class Smoke extends UbuntuIsland {
             await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_i]);
             assert(!this._island.expanded, 'Island shortcut did not close');
             settings.set_strv(key, ['<Super><Alt>space']);
-            settings.set_string('agents-provider', 'codex'); settings.set_string('agents-destination', 'terminal');
+            settings.set_string('agents-provider', 'codex');
             settings.set_string('agents-project', '');
             assert(this._quickAskBinding, 'Quick Ask binding was not registered');
             this._island.collapse(); await delay(250);
@@ -268,11 +268,11 @@ export default class Smoke extends UbuntuIsland {
             await chord([Clutter.KEY_Return]);
             assert(quick.error.visible && quick.prompt.text === 'Explain the selected project' && this._island.expanded,
                 'Launch failure discarded the prompt or closed the composer');
-            settings.set_int('expanded-width', 380); settings.set_string('agents-destination', 'web');
+            settings.set_int('expanded-width', 380);
             const interfaceSettings = new Gio.Settings({schema_id:'org.gnome.desktop.interface'});
             const textScale = interfaceSettings.get_double('text-scaling-factor');
             interfaceSettings.set_double('text-scaling-factor', 1.5); await delay(200);
-            assert(quick.target.text.includes('paste to send'), 'Web destination hid manual-paste behavior');
+            assert(quick.target.text.includes('terminal'), 'Compact prompt lost its CLI target');
             const right = actor => actor.get_transformed_position()[0] + actor.get_transformed_size()[0];
             const bottom = actor => actor.get_transformed_position()[1] + actor.get_transformed_size()[1];
             assert(right(quick.send) <= right(card.actor) && quick.prompt.width > 30 * scale, 'Narrow enlarged-text composer overflowed');
@@ -280,12 +280,12 @@ export default class Smoke extends UbuntuIsland {
                 'Compact error or destination hint is clipped at enlarged text');
             await this._capture('quick-ask-error-large-text');
             interfaceSettings.set_double('text-scaling-factor', textScale);
-            settings.set_string('agents-destination', 'terminal'); settings.set_int('expanded-width', width);
+            settings.set_int('expanded-width', width);
             let request;
             card._actions.agentAsk = input => { request = input; this._leaveAgents(); };
             await chord([Clutter.KEY_Return]);
-            assert(request?.provider === 'codex' && request.destination === 'terminal' && request.cwd === GLib.get_home_dir() &&
-                request.prompt === 'Explain the selected project', 'Shortcut did not use the selected agent/destination/project');
+            assert(request?.provider === 'codex' && request.cwd === GLib.get_home_dir() &&
+                request.prompt === 'Explain the selected project', 'Shortcut did not use the selected harness/project');
             assert(!this._island.expanded && !this._island._grab && !quick.prompt.text, 'Successful submit retained the modal or draft');
             await chord(hotkey); quick.prompt.text = 'Keep this draft';
             await chord([Clutter.KEY_Escape]);
@@ -959,7 +959,6 @@ export default class Smoke extends UbuntuIsland {
         await delay(600);
         await this._capture('preferences-tabs');
         const agentSession = this._states.agents.sessions[0];
-        const targetWindow = this._prefsWindow;
         assert(agentSession?.state === 'input', 'Native agent event did not reach Shell');
         this._island.resumeGrab();
         assert(this._island._grab, 'Agent focus check needs a real modal grab');
@@ -975,6 +974,14 @@ export default class Smoke extends UbuntuIsland {
         agentView.show('ask');
         await delay(150);
         assert(agentView.prompt.clutter_text.has_key_focus(), 'Reopening a draft lost focus');
+        const composerHeight = this._island.actor.height;
+        agentView.providerButton.emit('clicked', 1);
+        await delay(100);
+        assert(agentView.harnessMenu.visible && agentView.prompt.mapped, 'Harness menu hid the prompt');
+        agentView.harnessMenu.get_children()[1].emit('clicked', 1);
+        await delay(150);
+        assert(agentView.provider === 'codex' && agentView.prompt.clutter_text.has_key_focus(), 'Changing harness lost typing focus');
+        assert(this._island.actor.height === composerHeight, 'Harness selection resized the island');
         const keyboard = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         keyboard.notify_keyval(GLib.get_monotonic_time(), Clutter.KEY_z, Clutter.KeyState.PRESSED);
         keyboard.notify_keyval(GLib.get_monotonic_time(), Clutter.KEY_z, Clutter.KeyState.RELEASED);
@@ -991,7 +998,13 @@ export default class Smoke extends UbuntuIsland {
         this._card._actions.agentAsk = askAction;
         assert(agentView.mode === 'list' && !agentView.prompt.text, 'Ctrl+Enter did not submit Quick Ask');
         this._card.selectPage(previousPage);
-        this._activateAgent(agentSession, targetWindow);
+        // Match an actual private-session window by its unique process ID.
+        // The preferences/map pair may be ambiguous; never bypass the resolver
+        // with the old manual-window binding path.
+        const targetWindow = this._agentWindows.all().find(window => window.get_pid() > 1 &&
+            this._agentWindows.resolve({...agentSession, pids:[window.get_pid()]}) === window);
+        assert(targetWindow, 'Agent focus fixture needs an unambiguous application window');
+        this._openAgent({...agentSession, pids:[targetWindow.get_pid()]});
         await delay(350);
         const focused = global.display.focus_window;
         assert(!this._island.expanded && !this._island._grab &&
@@ -1150,7 +1163,13 @@ export default class Smoke extends UbuntuIsland {
 
         const saved = this._dateRestore;
         const agentWindows = this._agentWindows;
+        this._card.selectPage('agents'); this._island.expand(); await delay(300);
+        const sessionsView = this._card._agentsView;
+        sessionsView._session([...sessionsView.rows.values()][0]); await delay(50);
+        assert(sessionsView.menuCapture, 'Session menu did not capture dismissal events');
         this.disable();
+        assert(sessionsView.dead && !sessionsView.menuCapture && !sessionsView.revealIdle && !sessionsView.focusIdle,
+            'Disable retained the session menu or a pending focus callback');
         assert(agentWindows.windows.size === 0 && !agentWindows.created && !this._agents && !this._agentFocus,
             'Disable retained agent state or window signals');
         assert(connectionSignals.size === 0, 'Disable retained connection notifications');

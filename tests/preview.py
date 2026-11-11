@@ -24,7 +24,7 @@ def main():
     parser.add_argument('--scene', choices=['sun', 'clouds', 'rain', 'snow', 'night', 'clouds-night', 'rain-night', 'snow-night'], default='clouds', help='Sample weather scene')
     parser.add_argument('--motion', choices=['off', 'subtle', 'live'], default='live', help='Preview animation mode')
     parser.add_argument('--edit-route', action='store_true', help='Open the Commute map editor immediately')
-    parser.add_argument('--preferences', choices=['appearance', 'notch', 'calendar'], help='Open an isolated preferences page alongside the preview')
+    parser.add_argument('--preferences', choices=['appearance', 'notch', 'calendar', 'agents'], help='Open an isolated preferences page alongside the preview')
     parser.add_argument('--tab', choices=['notch', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar'], default='notch', help='Start collapsed (notch, default), or open a module')
     parser.add_argument('--connection', choices=['auto', 'online', 'offline', 'limited', 'portal'], help='Simulate connection status; defaults to online for samples, auto with --live')
     parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], default='icon', help='Initial offline notch design; can also change it in preferences')

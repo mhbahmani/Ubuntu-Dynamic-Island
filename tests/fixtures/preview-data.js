@@ -106,6 +106,7 @@ export function sampleDevices(preview, sampleMetrics) {
 export function sampleAgents(preview) {
     preview._agents?.stop();
     const store = new AgentStore();
+    preview._agentSampleStore = store;
     for (const [provider, session, label, state] of [
         ['claude','sample-1','ubuntu-island (sample)','approval'],
         ['codex','sample-2','api-service (sample)','working'],

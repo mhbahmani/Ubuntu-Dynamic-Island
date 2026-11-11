@@ -612,24 +612,37 @@ export default class Preview extends UbuntuIsland {
             assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Small session list scrolls at ${width}px`);
         }
         const first = [...view.rows.values()][0];
-        assert(!view.recentList.visible && view.recentButton.visible, 'Recent sessions are not collapsed');
+        assert(!view.recentList && !view.recentButton && view.activeList.get_n_children() === 3, 'Sessions are not in one list');
+        assert(!first.open.reactive && !first.open.can_focus && !first.arrow.visible, 'Unmatched session offers window activation');
+        assert(first.harness.gicon && first.status.text === 'Needs approval', 'Harness icon did not replace the repeated provider name');
         const order = view.activeList.get_children();
         await click(first.open);
-        assert(view.mode === 'windows', 'Clicking a session did not open its window chooser');
-        assert(this._island._onEscape() && view.mode === 'list', 'Escape did not return from the chooser');
+        assert(view.mode === 'list' && this._island.expanded, 'Unmatched session opened a chooser or dismissed the island');
+        const listHeight = this._island.actor.height;
+        await click(first.menu);
+        assert(view.mode === 'list' && view.sessionMenu.visible && view.hideSession.has_key_focus(), 'Session menu replaced the list or lost focus');
+        assert(this._island.actor.height === listHeight, 'Session menu changed island height');
+        await this._capture('agents-session-menu');
+        assert(this._island._onEscape() && !view.sessionMenu.visible && first.menu.has_key_focus(), 'Escape did not restore menu focus');
+        await click(first.menu); await click(view.heading);
+        assert(!view.sessionMenu.visible && view.mode === 'list', 'Click outside session menu did not dismiss it');
         const updated = {...initial, sessions:initial.sessions.map((s,i) => i ? s : {...s,state:'working'})};
-        first.open.grab_key_focus();
+        first.menu.grab_key_focus();
         this._renderAgents(updated);
-        assert([...view.rows.values()][0] === first && first.open.has_key_focus(), 'Status update replaced a row or stole focus');
+        assert([...view.rows.values()][0] === first && first.menu.has_key_focus(), 'Status update replaced a row or stole focus');
         assert(view.activeList.get_children().every((actor,i)=>actor === order[i]), 'Status update reordered click targets');
         const motionBefore = this._settings.get_boolean('disable-animations');
         this._settings.set_boolean('disable-animations', true);
-        assert(!view.activity.get_transition('agent-working'), 'Reduced motion retained an animation');
+        assert(!view.activity.get_transition('agent-working') && !first.glyph.get_transition('agent-working'), 'Reduced motion retained an animation');
         this._settings.set_boolean('disable-animations', false);
-        if (view.stSettings.enable_animations) assert(view.activity.get_transition('agent-working'), 'Visible working indicator did not animate');
+        if (view.stSettings.enable_animations) {
+            assert(view.activity.get_transition('agent-working') && first.glyph.get_transition('agent-working'), 'Visible working indicators did not animate');
+            const angle = first.glyph.rotation_angle_z; await delay(200);
+            assert(first.glyph.rotation_angle_z !== angle, 'Session working ring is static');
+        }
         this._card.selectPage('media');
         await delay(100);
-        assert(!view.activity.get_transition('agent-working'), 'Hidden Agents view retained its animation');
+        assert(!view.activity.get_transition('agent-working') && !first.glyph.get_transition('agent-working'), 'Hidden Agents view retained its animation');
         const text = first.status.text;
         this._renderAgents(initial);
         assert(first.status.text === text, 'Hidden session view repainted');
@@ -639,16 +652,17 @@ export default class Preview extends UbuntuIsland {
         await click(view.askButton);
         assert(view.mode === 'ask' && view.prompt.clutter_text.has_key_focus(), 'Quick Ask pointer click failed');
         assert(!view.activity.get_transition('agent-working'), 'Composer retained the list animation');
+        assert(view.adjustment.upper <= view.adjustment.page_size + 1, 'Default composer needs unnecessary scrolling');
+        await this._capture('agents-composer-empty');
         view.prompt.text = 'A sample multiline request\nKeep this as one prompt.';
         this._island._onEscape();
         assert(view.mode === 'list' && view.prompt.text.includes('multiline'), 'Escape discarded a draft');
         await click(view.askButton);
         await click(view.providerButton);
-        await click(view.options.get_children()[1]);
-        assert(view.provider === 'codex', 'Agent picker did not select Codex');
-        await click(view.destinationButton);
-        await click(view.options.get_children()[2]);
-        assert(view.destination === 'desktop' && !view.folder.visible, 'Desktop destination did not update');
+        await this._capture('agents-harness-menu');
+        await click(view.harnessMenu.get_children()[1]);
+        assert(view.provider === 'codex' && !view.harnessMenu.visible, 'Harness picker did not select Codex');
+        assert(view.prompt.clutter_text.has_key_focus() && view.prompt.clutter_text.editable, 'Harness selection lost prompt input');
         const ask = this._card._actions.agentAsk;
         this._card._actions.agentAsk = () => { throw new Error('Test app is unavailable'); };
         await click(view.submit);
@@ -682,6 +696,21 @@ export default class Preview extends UbuntuIsland {
         assert(this._island.actor.width === 880, 'Agents layout did not follow 200% display scaling');
         assert(view.footer.get_transformed_position()[1] + view.footer.height <= this._card._tabs.get('agents').get_parent().get_transformed_position()[1], 'Agents footer overlaps navigation at 200%');
         await this._capture('agents-scaled');
+        await click(first.menu); await this._capture('agents-session-menu-scaled'); view.handleEscape();
+        const regularSize = [this._island.actor.width, this._island.actor.height];
+        textSettings.set_double('text-scaling-factor', 1.5);
+        view.show('ask'); await delay(200);
+        view.prompt.text = ''; await this._capture('agents-composer-scaled-large');
+        view.providerButton.emit('clicked', 1); await delay(100);
+        await this._capture('agents-harness-scaled-large');
+        view.harnessMenu.get_children()[2].emit('clicked', 1); await delay(100);
+        assert(view.prompt.clutter_text.has_key_focus(), 'Large-text harness selection lost focus');
+        view.prompt.text = 'Sample draft';
+        view.submit.grab_key_focus(); view._revealFocus(); await delay(100);
+        assert(this._island.actor.width === regularSize[0] && this._island.actor.height === regularSize[1],
+            'Composer changed the expanded card size');
+        textSettings.set_double('text-scaling-factor', scale);
+        view.show('list'); await delay(100);
         context.scale_factor = originalScale;
         await delay(200);
         const many = {...initial, sessions:[...initial.sessions, ...Array.from({length:12}, (_,i) => ({...initial.sessions[0], id:`overflow-${i}`, label:`Session ${i + 1}`}))]};
@@ -696,21 +725,27 @@ export default class Preview extends UbuntuIsland {
         await delay(250);
         assert(view.adjustment.value > 0, 'Mouse wheel did not scroll sessions');
         const last = view.rows.get('overflow-11');
-        last.open.grab_key_focus();
+        last.menu.grab_key_focus();
         await delay(150);
-        assert(last.open.get_transformed_position()[1] + last.open.height <= sy + view.scroll.height + 1,
-            'Keyboard focus did not reveal the last session');
+        assert(last.actor.get_transformed_position()[1] + last.actor.height <= sy + view.scroll.height + 1,
+            'Keyboard focus did not reveal the full last session');
+        const workingRow = [...view.rows.values()].find(item => item.session.state === 'working');
+        assert(!workingRow.glyph.get_transition('agent-working'), 'Scrolled-out working row kept animating');
         await click(last.menu);
-        assert(view.mode === 'session' && view.selectedSession.id === 'overflow-11', 'Last scrolled session is unreachable');
+        assert(view.mode === 'list' && view.menuSession === last && view.sessionMenu.visible, 'Last scrolled session menu is unreachable');
+        assert(view.sessionMenu.get_transformed_position()[1] + view.sessionMenu.height <= footerY + 1,
+            `Session menu overlaps the fixed footer: bottom=${view.sessionMenu.get_transformed_position()[1] + view.sessionMenu.height}, footer=${footerY}, stack=${view.stack.height}, menu=${view.sessionMenu.height}, translation=${view.sessionMenu.translation_y}`);
+        await this._capture('agents-scrolled-menu');
         assert(view.footer.get_transformed_position()[1] === footerY, 'Scrolling moved Quick Ask');
         view.show('list'); this._renderAgents(initial);
         await delay(150);
         assert(view.adjustment.value === 0, 'Shortened list retained stale scroll offset');
-        view.destination = 'terminal'; view.folder.text = '/tmp'; view.prompt.text = 'Remember this project';
+        view.folder.text = '/tmp'; view.prompt.text = 'Remember this project';
         await click(view.askButton);
         await click(view.submit);
         assert(this._settings.get_string('agents-project') === '/tmp', 'Successful launch did not remember the project');
-        // Launch a real GTK window inside this private session and bind it explicitly.
+        // A real GTK window inside this private session supplies a process ID.
+        // A unique ancestry match activates it; ambiguous or absent matches do not.
         this._settings.set_string('preferences-page', 'notch');
         this.openPreferences();
         let window;
@@ -723,19 +758,27 @@ export default class Preview extends UbuntuIsland {
         await this._capture('notch-order-preferences');
         this._island.expand();
         this._openAgent(first.session);
-        assert(view.mode === 'windows', 'Unbound session did not show a chooser');
-        this._activateAgent(first.session,window);
+        assert(view.mode === 'list' && this._island.expanded, 'Unmatched session opened a chooser');
+        await this._agents.send({...first.session, pids:[window.get_pid()]});
+        assert(this._agentWindows.resolve(first.session) === window && first.open.reactive && first.arrow.visible,
+            'Unique process ancestry match did not enable the row');
+        const ambiguous = {is_skip_taskbar:() => false, get_pid:() => window.get_pid()};
+        this._agentWindows.windows.set(ambiguous, []); view.render(this._states.agents);
+        assert(!this._agentWindows.resolve(first.session) && !first.open.reactive, 'Shared process ID guessed a window');
+        this._agentWindows.windows.delete(ambiguous); view.render(this._states.agents);
+        this._openAgent(first.session);
         await delay(500);
         assert((global.display.focus_window === window || global.display.focus_window?.get_transient_for() === window) && !this._island.expanded, `Selected window did not receive focus: focused=${global.display.focus_window?.get_title()}, expanded=${this._island.expanded}, message=${view.message.text}`);
-        assert(this._agentWindows.candidates(first.session)[0] === window, 'Window binding was not retained');
+        assert(this._agentWindows.resolve(first.session) === window, 'Process match was not retained');
         window.delete(global.get_current_time());
         await delay(300);
-        assert(!this._agentWindows.bindings.has(first.session.id), 'Closed window binding leaked');
+        assert(!this._agentWindows.resolve(first.session), 'Closed window is still a target');
         view.show('list');
         this._island.expand();
         await delay(200);
         await click(first.menu);
-        await click(view.options.get_children()[3]);
+        assert(!first.open.reactive && !first.arrow.visible, 'Closed window left an activation affordance');
+        await click(view.hideSession);
         assert(view.rows.size === 2, 'Dismiss did not update the list');
         const latest = {...first.session, state:'input', start:true};
         await this._agents.send(latest);
@@ -752,11 +795,26 @@ export default class Preview extends UbuntuIsland {
         assert(!view.clearButton.reactive, 'Clear must be disabled without finished sessions');
         await click(view.undoButton);
         assert(view.rows.size === 3, 'Clear finished could not be undone');
+        const stale = [...this._agentSampleStore.rows.values()][0];
+        stale.updated = Date.now() - 2 * 60 * 60000;
+        this._settings.set_int('agents-inactive-minutes', 180);
+        this._renderAgents(this._agentSampleStore.snapshot());
+        assert(view.rows.size === 3, 'Expiry ran while already viewing Agents');
+        this._card.selectPage('media'); this._card.selectPage('agents'); await delay(100);
+        assert(view.rows.size === 3, 'Configured inactivity limit was ignored');
+        this._settings.set_int('agents-inactive-minutes', 60);
+        assert(view.rows.size === 3, 'Settings change performed background cleanup');
+        this._card.selectPage('media');
+        assert(this._agentSampleStore.rows.size === 3, 'Hidden tab performed cleanup');
+        this._card.selectPage('agents'); await delay(100);
+        assert(view.rows.size === 2 && this._agentSampleStore.rows.size === 2, 'Opening Agents did not expire cached and stored sessions');
+        await this._agents.send({...stale, state:'working', start:true});
+        assert(view.rows.size === 3, 'New activity did not return an expired session');
         this._settings.set_boolean('disable-animations', motionBefore);
         await this._agents.send({control:'clear'});
         assert(view.rows.size === 0, 'Clear did not update the list');
         sampleAgents(this);
-        console.log('[Island Preview] AGENTS PASS: rows, menus, draft/errors, Undo with live events, motion cleanup, narrow/scaled layout and window activation');
+        console.log('[Island Preview] AGENTS PASS: harness icons, inline menus, unique window matches, lazy expiry, draft/errors, Undo, motion cleanup and narrow/scaled layout');
     }
 
     openPreferences() {

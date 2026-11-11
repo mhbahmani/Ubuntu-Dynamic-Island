@@ -16,8 +16,11 @@ test('native client lifecycle and launcher preserve literal prompt arguments',()
     try {
         writeFileSync(join(temp,'fake-agent'),'#!/bin/sh\nexit 0\n',{mode:0o700});
         writeFileSync(join(temp,'gnome-terminal'),`#!/usr/bin/python3\nimport json, os, sys\nwith open(os.environ['ISLAND_AGENT_TEST_DIR']+'/argv.json','w') as f: json.dump(sys.argv[1:],f)\n`,{mode:0o700});
+        writeFileSync(join(temp,'terminator'),readFileSync(join(temp,'gnome-terminal')),{mode:0o700});
+        symlinkSync('terminator',join(temp,'system-terminal-link'));
+        symlinkSync('system-terminal-link',join(temp,'x-terminal-emulator'));
         const output=execFileSync('gjs',['-m',join(root,'tests/agents-service.mjs')],{encoding:'utf8',timeout:20000,
-            env:{...process.env,XDG_RUNTIME_DIR:temp,UBUNTU_ISLAND_AGENT_SOCKET:join(temp,'bridge/events.sock'),ISLAND_AGENT_TEST_DIR:temp,PATH:`${temp}:${process.env.PATH}`}});
+            env:{...process.env,GSETTINGS_BACKEND:'memory',XDG_RUNTIME_DIR:temp,UBUNTU_ISLAND_AGENT_SOCKET:join(temp,'bridge/events.sock'),ISLAND_AGENT_TEST_DIR:temp,PATH:`${temp}:${process.env.PATH}`}});
         assert.match(output,/AGENTS NATIVE PASS/);
     } finally {rmSync(temp,{recursive:true,force:true});}
 });
@@ -64,6 +67,10 @@ test('real GJS broker and relay: status, privacy, bounds, clear and shutdown',as
         await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,control:'clear-finished'});
         await until(()=>snapshots.at(-1).sessions.length===1);
         assert.equal(snapshots.at(-1).sessions[0].state,'approval');
+        await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,control:'expire',before:Date.now()-1});
+        await until(()=>snapshots.at(-1).sessions.length===0);
+        await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,provider:'codex',session:'approval',state:'working'});
+        await until(()=>snapshots.at(-1).sessions.length===1);
         await send(env.UBUNTU_ISLAND_AGENT_SOCKET,{v:1,control:'clear'});
         await until(()=>snapshots.at(-1).sessions.length===0);
         const exited=once(child,'exit');child.stdin.end();await exited;
@@ -79,13 +86,23 @@ test('real setup preserves settings, backup, repeated installs and removal',()=>
         for(const provider of ['claude','codex']) {
             const dir=join(temp,provider);mkdirSync(dir);
             const file=join(dir,provider==='claude'?'settings.json':'hooks.json');
-            const original={unrelated:'keep',hooks:{Stop:[{hooks:[{type:'command',command:'echo existing'}]}]}};
+            const original={description:'My existing hooks',unrelated:'keep',hooks:{
+                Stop:[{matcher:'',hooks:[{type:'command',command:'echo existing',statusMessage:'My notifier'},
+                    {type:'prompt',prompt:'Review result'}]},{matcher:'empty',hooks:[]}],CustomEvent:[],
+            }};
             writeFileSync(file,JSON.stringify(original));
             assert.equal(run('plan',provider,dir).installed,false);
             assert.equal(readFileSync(file,'utf8'),JSON.stringify(original));
             assert.equal(run('install',provider,dir).installed,true);
-            const first=readFileSync(file,'utf8');run('install',provider,dir);
-            assert.equal(readFileSync(file,'utf8'),first);assert.ok(existsSync(`${file}~`));
+            const first=readFileSync(file,'utf8');
+            assert.deepEqual(JSON.parse(first).hooks.Stop.slice(0,2),original.hooks.Stop);
+            assert.match(JSON.parse(first).hooks.Stop[2].hooks[0].statusMessage,/Ubuntu Island:/);
+            assert.equal(readFileSync(`${file}~`,'utf8'),JSON.stringify(original));
+            const modified=statSync(file).mtimeMs;
+            run('install',provider,dir);
+            assert.equal(readFileSync(file,'utf8'),first);
+            assert.equal(statSync(file).mtimeMs,modified,'Repeated setup unnecessarily rewrote the file');
+            assert.equal(readFileSync(`${file}~`,'utf8'),JSON.stringify(original),'Repeated setup overwrote the backup');
             assert.equal(run('remove',provider,dir).installed,false);
             assert.deepEqual(JSON.parse(readFileSync(file,'utf8')),original);
         }
@@ -93,10 +110,19 @@ test('real setup preserves settings, backup, repeated installs and removal',()=>
         assert.match(readFileSync(join(dir,'plugins/ubuntu-island-status.js'),'utf8'),/UbuntuIslandStatus/);
         run('remove','opencode',dir);assert.ok(!existsSync(join(dir,'plugins/ubuntu-island-status.js')));
         assert.ok(existsSync(join(dir,'plugins/ubuntu-island-status.js.bak')));
+        writeFileSync(join(dir,'plugins/ubuntu-island-status.js'),'// a user-owned plugin');
+        for(const action of ['install','remove']) assert.throws(()=>run(action,'opencode',dir));
+        assert.equal(readFileSync(join(dir,'plugins/ubuntu-island-status.js'),'utf8'),'// a user-owned plugin');
         const invalid=join(temp,'invalid');mkdirSync(invalid);
         writeFileSync(join(invalid,'settings.json'),'{invalid');
         assert.throws(()=>run('install','claude',invalid));
         assert.equal(readFileSync(join(invalid,'settings.json'),'utf8'),'{invalid');
+        for(const hooks of [null,[],{Stop:{}},{Stop:[null]},{Stop:[{hooks:'not an array'}]}]) {
+            const content=JSON.stringify({unrelated:'keep',hooks});
+            writeFileSync(join(invalid,'settings.json'),content);
+            assert.throws(()=>run('install','claude',invalid));
+            assert.equal(readFileSync(join(invalid,'settings.json'),'utf8'),content);
+        }
         const linked=join(temp,'linked');mkdirSync(linked);
         const target=join(temp,'must-not-create');
         symlinkSync(target,join(linked,'settings.json'));

@@ -19,7 +19,7 @@ main calendar, blank neighboring-month cells and custom notch date codes/order.
 Fresh notch settings select the main calendar once; later explicit selections
 remain independent. There is no account-event integration yet.
 
-Agents provides local hook/plugin status, explicit window selection and Quick Ask.
+Agents provides local hook/plugin status, unique process-to-window matching and Quick Ask.
 Clear and the notch eye toggle are in the main header. Session states are event
 reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
@@ -53,14 +53,42 @@ preserving stable navigation and focus; the current expansion remains the refere
 
 ## Recent UI changes
 
+- Sessions use harness logos and rotating working indicators. Three-dot actions
+  stay in an anchored menu. There is no window chooser: only a unique process
+  ancestry match enables row activation. Finished sessions stay in the main list.
+  Inactivity expiry defaults to 60 minutes (configurable in Agents settings) and
+  runs only when the Agents view maps; it clears cached and broker records without
+  an idle timer. Fresh activity can recreate an expired session.
+- Regular tabs and sections share a 280px content height (scaled with the UI),
+  including Calendar. Keep the expanded width/height stable across navigation;
+  use spare space for the content, with scrolling for overflow. Standalone
+  shortcut Quick Ask retains its compact size.
+- Agents uses CLI harnesses only. Settings fill unset executable/config paths,
+  select an installed harness initially and default the project to home. Terminal
+  follows the desktop default (including Terminator); explicit overrides remain
+  available. The former automatic GNOME Terminal choice migrates once to system
+  default, then later explicit GNOME choices are preserved.
+  Explicit path overrides are preserved. The highlighted Enable integration…
+  action opens a confirmation with a matching primary button; installed setups
+  show Reconfigure…. Secondary actions live under Integration actions.
+- Hooks have readable Ubuntu Island labels in `statusMessage` and the command
+  comment. Ownership still uses the original marker, allowing legacy hooks to
+  upgrade without duplicates. Merge/remove preserves unrelated handlers, metadata
+  and empty groups; unchanged installs preserve the existing file and backup.
+- The Agents composer keeps its entry mapped while the gray inline harness button
+  opens a menu. Selection restores typing focus. The larger prompt has a muted
+  placeholder and an inline arrow to send; Ctrl+Enter submits multiline prompts.
+- Appearance settings expose open/close (Super+Alt+I), next tab (Super+Alt+Right)
+  and previous tab (Super+Alt+Left) shortcuts. Ctrl+Tab/Ctrl+Shift+Tab navigate
+  while open. Bindings update live and are released on disable. Holiday markings
+  is no longer an informational row in Calendar settings.
 - The notch and card keep their own layout sizes inside a centered native
   fixed-layout viewport; see the [motion baseline](#motion-baseline).
 - Sound outputs sort headphones (Bluetooth or wired), built-in speakers,
   HDMI/DisplayPort, then others. Stable ties do not promote the active device.
 - Calendar dates share a compact header line when additional calendars are shown.
   Date text is now 9.5pt (single-calendar heading 11.5pt), with a little vertical
-  padding. The six-week fixture is 263px tall at 100% scale, close to the other
-  tabs' 260px. All three dates still fit one line at 380/440px; enlarged text wraps
+  padding. All three dates fit one line at 380/440px; enlarged text wraps
   and overflow remains reachable.
 - Network rates retain each direction's widest displayed value plus 2 logical
   pixels. Widths reset on interface/indicator changes and are remeasured on
@@ -85,6 +113,45 @@ The module guide replaces separate feature documents and the obsolete roadmap.
 Use Git history for earlier designs, research and session logs.
 
 ## Verification and remaining work
+
+Upgrade compatibility: an in-session install exposed cached Shell JavaScript
+reading a newly compiled schema without `agents-destination`. Keep all four retired
+destination/desktop keys as deprecated schema entries; the current CLI-only UI
+does not use them. Installer and ZIP checks now read them through real GJS/GSettings
+with an isolated memory backend. `make check` passed all 155 tests and the ZIP was
+rebuilt. The corrected version was installed with a backup to repair the reported
+host failure; a logout/login is still needed to replace cached Shell code.
+
+Session-list follow-up: `make check` passed 155 tests; GTK preferences passed the
+60-minute default and bidirectional expiry setting. The native full preview passed
+harness icons, menu focus/dismissal and bounds, unique/ambiguous/closed window
+matches, lazy expiry in the view and broker, fresh activity returning, and Undo.
+It also checked rotating rows, reduced motion, scrolled-out/hidden cleanup, stable
+card size, narrow/enlarged-text layouts and 200% scaling. `make smoke` passed,
+including automatic window activation, disabling with a session menu open,
+focus callback cleanup and repeated enable/disable. Installer tests and the
+rebuilt ZIP include the harness assets; all 106 packaged directory files matched
+the working tree. Live terminal tabs/panes still need real-environment acceptance.
+
+Terminal/setup follow-up: `make check` passed 153 tests and GTK preferences passed
+the enable/reconfigure confirmation flow with temporary provider configs. Native
+checks cover terminal alternatives/symlinks, explicit overrides, legacy migration,
+named hooks, mixed user handlers, repeated installs/backups and rejection of
+malformed configs or conflicting plugins. Read-only discovery on this machine
+resolved the system terminal to Terminator. The settings preview was inspected at
+200% scale; the rebuilt ZIP matches all 65 checked runtime/source files. No host
+provider configuration was changed and no live harness session was launched.
+
+Agents/navigation follow-up: `make check` passed 151 tests; the native agent
+checks also verified populated defaults, preserved overrides and literal launch
+arguments. GTK preferences, installer/ZIP checks and `make smoke` passed. Native
+keyboard checks cover global open/close, forward/backward tabs, Ctrl+Tab,
+Ctrl+Shift+Tab, and real typing after harness selection. The full sample preview
+passed all eight tabs, inline menus, no scrolling in the default composer, draft
+retention/errors, 200% scale and enlarged text. Calendar checks passed at
+380/440px and 100/200% scale with a shared 282px surface (280px content plus border),
+including reachable overflow on smaller displays. No host install or live agent
+session was used for these checks.
 
 Expansion checks: `make check` passes 151 tests plus syntax/schema validation.
 `--check-motion` observes painted frames in an isolated preview and verifies inward

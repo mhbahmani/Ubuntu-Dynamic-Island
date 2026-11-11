@@ -260,7 +260,11 @@
 .ubuntu-island-agent-session:hover { background-color: rgba(220,225,240,0.07); }
 .ubuntu-island-agent-session:focus { background-color: rgba(220,225,240,0.11); box-shadow: inset 0 0 0 1px #b7c5d7; }
 .ubuntu-island-agent-session:active { background-color: rgba(220,225,240,0.16); }
+.ubuntu-island-agent-session:disabled { background-color: transparent; box-shadow: none; }
 .ubuntu-island-agent-face { spacing: 12px; }
+.ubuntu-island-agent-harness-icon { padding: 4px; }
+.ubuntu-island-agent-open-arrow { color: #aeb6c5; }
+.ubuntu-island-agent-state-row { spacing: 5px; }
 .ubuntu-island-agent-details { spacing: 1px; }
 .ubuntu-island-agent-title { font-size: 10pt; font-weight: 600; color: #f1f3f7; }
 .ubuntu-island-agent-state, .ubuntu-island-agent-message { font-size: 9pt; color: #bcc3cf; }
@@ -280,13 +284,26 @@
 .ubuntu-island-agent-menu-button:hover, .ubuntu-island-agent-menu-button:focus { background-color: rgba(220,225,240,0.12); color: #f1f3f7; }
 .ubuntu-island-agent-menu-button:focus { box-shadow: inset 0 0 0 1px #b7c5d7; }
 .ubuntu-island-agent-menu-button:active { background-color: rgba(220,225,240,0.2); }
-.ubuntu-island-agent-recent { background-color: transparent; color: #b7bbc5; padding: 4px 10px; }
+.ubuntu-island-agent-session-menu { margin: 0 4px; padding: 5px; spacing: 4px; background-color: #30333a; border: 1px solid #646a77; border-radius: 9px; }
+.ubuntu-island-agent-session-menu .ubuntu-island-agent-button { padding: 7px 10px; }
+.ubuntu-island-agent-menu-note { padding: 3px 6px; font-size: 8pt; color: #bcc3cf; }
 .ubuntu-island-agent-primary { background-color: #bc4327; color: #ffffff; font-weight: 600; }
 .ubuntu-island-agent-primary:hover, .ubuntu-island-agent-primary:focus { background-color: #d54b2d; }
 .ubuntu-island-agent-primary:active { background-color: #a93b23; }
 .ubuntu-island-agent-ask { padding: 5px 10px; border: 1px solid rgba(220,225,240,0.12); }
 .ubuntu-island-agent-prompt, .ubuntu-island-agent-entry { background-color: rgba(10,12,16,0.4); color: #f5f6f9; border: 1px solid rgba(220,225,240,0.18); border-radius: 8px; padding: 8px; font-size: 10pt; }
-.ubuntu-island-agent-prompt { min-height: 42px; }
+.ubuntu-island-agent-composer { background-color: rgba(10,12,16,0.4); border: 1px solid rgba(220,225,240,0.18); border-radius: 12px; }
+.ubuntu-island-agent-composer:focus { border-color: #b7c5d7; }
+.ubuntu-island-agent-composer-face { padding: 8px; spacing: 6px; }
+.ubuntu-island-agent-composer .ubuntu-island-agent-prompt { min-height: 80px; border: none; background-color: transparent; padding: 3px; }
+.ubuntu-island-agent-prompt StLabel, .ubuntu-island-quick-ask-entry StLabel { color: #939aa6; }
+.ubuntu-island-agent-composer-toolbar { spacing: 8px; }
+.ubuntu-island-agent-harness { background-color: #3b3e45; padding: 6px 9px; }
+.ubuntu-island-agent-harness-menu { margin: 6px; padding: 4px; spacing: 2px; background-color: #30333a; border: 1px solid #646a77; border-radius: 9px; }
+.ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { padding: 7px 10px; }
+.ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { background-color: #505560; }
+.ubuntu-island-agent-project { spacing: 8px; color: #aeb6c5; }
+.ubuntu-island-agent-project .ubuntu-island-agent-entry { padding: 5px 8px; font-size: 9pt; }
 .ubuntu-island-agent-prompt:focus, .ubuntu-island-agent-entry:focus { border-color: #b7c5d7; }
 .ubuntu-island-quick-ask { padding: 12px 14px; spacing: 6px; }
 .ubuntu-island-quick-ask-line { spacing: 8px; }
@@ -296,7 +313,7 @@
 .ubuntu-island-quick-ask-send:hover { background-color: #cc5141; }
 .ubuntu-island-quick-ask-send:focus { box-shadow: inset 0 0 0 1px #f4aaa0; }
 .ubuntu-island-quick-ask-send:disabled { background-color: rgba(220,225,240,0.08); color: #7d818b; }
-.ubuntu-island-agent-options, .ubuntu-island-agent-empty { spacing: 6px; padding: 4px; }
+.ubuntu-island-agent-empty { spacing: 6px; padding: 4px; }
 .ubuntu-island-pill-agents { spacing: 4px; color: #b7c5d7; }
 .ubuntu-island-theme-ocean .ubuntu-island-tab-selected .ubuntu-island-tab-marker { background-color: #8acdf6; }
 .ubuntu-island-theme-forest .ubuntu-island-tab-selected .ubuntu-island-tab-marker { background-color: #9bd7b4; }

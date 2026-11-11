@@ -170,19 +170,23 @@
     <key name="enable-agents" type="b"><default>false</default><summary>enable agents</summary></key>
     <key name="pill-show-agents" type="b"><default>true</default><summary>pill show agents</summary></key>
     <key name="agents-notify" type="b"><default>false</default><summary>agents notify</summary></key>
+    <key name="agents-inactive-minutes" type="i"><default>60</default><range min="1" max="10080"/><summary>Remove inactive sessions after this many minutes, checked when Agents opens</summary></key>
     <key name="agents-provider" type="s"><default>'claude'</default><choices><choice value="claude"/><choice value="codex"/><choice value="opencode"/></choices><summary>agents provider</summary></key>
-    <key name="agents-destination" type="s"><default>'terminal'</default><choices><choice value="terminal"/><choice value="copy-terminal"/><choice value="desktop"/><choice value="web"/></choices><summary>agents destination</summary></key>
-    <key name="agents-terminal" type="s"><default>'gnome-terminal'</default><choices><choice value="gnome-terminal"/><choice value="kgx"/><choice value="kitty"/><choice value="wezterm"/></choices><summary>agents terminal</summary></key>
+    <key name="agents-terminal" type="s"><default>'auto'</default><choices><choice value="auto"/><choice value="gnome-terminal"/><choice value="kgx"/><choice value="terminator"/><choice value="kitty"/><choice value="wezterm"/></choices><summary>Terminal for agent sessions; auto follows the desktop default</summary></key>
+    <key name="agents-terminal-default-migrated" type="b"><default>false</default><summary>Legacy automatic terminal selection migrated</summary></key>
     <key name="agents-project" type="s"><default>''</default><summary>agents project</summary></key>
     <key name="agents-opencode-major" type="s"><default>'1'</default><choices><choice value="1"/><choice value="2"/></choices><summary>agents opencode major</summary></key>
-    <key name="agents-claude-desktop" type="s"><default>''</default><summary>agents claude desktop</summary></key>
     <key name="agents-claude-config" type="s"><default>''</default><summary>agents claude config</summary></key>
     <key name="agents-claude-executable" type="s"><default>''</default><summary>agents claude executable</summary></key>
-    <key name="agents-codex-desktop" type="s"><default>''</default><summary>agents codex desktop</summary></key>
     <key name="agents-codex-config" type="s"><default>''</default><summary>agents codex config</summary></key>
     <key name="agents-codex-executable" type="s"><default>''</default><summary>agents codex executable</summary></key>
-    <key name="agents-opencode-desktop" type="s"><default>''</default><summary>agents opencode desktop</summary></key>
     <key name="agents-opencode-config" type="s"><default>''</default><summary>agents opencode config</summary></key>
     <key name="agents-opencode-executable" type="s"><default>''</default><summary>agents opencode executable</summary></key>
+    <!-- Keep retired keys readable by Shell's cached pre-upgrade JavaScript until
+         logout. Current code does not use these or expose their former controls. -->
+    <key name="agents-destination" type="s"><default>'terminal'</default><choices><choice value="terminal"/><choice value="copy-terminal"/><choice value="desktop"/><choice value="web"/></choices><summary>Deprecated agent destination (upgrade compatibility)</summary></key>
+    <key name="agents-claude-desktop" type="s"><default>''</default><summary>Deprecated Claude desktop app (upgrade compatibility)</summary></key>
+    <key name="agents-codex-desktop" type="s"><default>''</default><summary>Deprecated Codex desktop app (upgrade compatibility)</summary></key>
+    <key name="agents-opencode-desktop" type="s"><default>''</default><summary>Deprecated OpenCode desktop app (upgrade compatibility)</summary></key>
   </schema>
 </schemalist>

@@ -1,6 +1,6 @@
 import {AgentsService} from './services/agents.js';
 import {AgentWindows} from './services/agent-windows.js';
-import {launchAgent, desktopTarget} from './services/agent-launch.js';
+import {launchAgent, initializeAgentSettings} from './services/agent-launch.js';
 import {AGENTS, AGENT_STATES} from './services/agents-model.js';
 import St from 'gi://St';
 import Meta from 'gi://Meta';
@@ -45,6 +45,7 @@ export default class UbuntuIsland extends Extension {
         migrateOfflineMode(this._settings);
         migrateCalendarSettings(this._settings);
         migrateNotchDates(this._settings);
+        initializeAgentSettings(this._settings);
         this._states = {};
         this._progressTimer = 0;
         this._settingsIds = [];
@@ -55,15 +56,11 @@ export default class UbuntuIsland extends Extension {
 
         this._pill = new Pill(() => this._island?.toggle(), () => this._togglePillTitle(), () => this._renderPill());
         this._card = new Card(this._settings, {
-            agentOpen: (session, choose) => this._openAgent(session, choose),
-            agentActivate: (session, window) => this._activateAgent(session, window),
+            agentOpen: session => this._openAgent(session),
+            agentWindow: session => this._agentWindows?.resolve(session),
+            agentExpire: () => this._expireAgents(),
             agentAsk: input => this._askAgent(input),
             closeQuickAsk: () => this._leaveAgents(),
-            agentHasApp: provider => Boolean(desktopTarget(this._settings, provider)),
-            agentOpenApp: provider => {
-                desktopTarget(this._settings, provider)?.launch([], global.create_app_launch_context(0, -1));
-                this._leaveAgents();
-            },
             agentControl: value => this._agentControl(value),
             mediaCommand: method => this._media?.command(method),
             selectPlayer: id => this._media?.select(id),
@@ -145,7 +142,7 @@ export default class UbuntuIsland extends Extension {
                 this._renderPill();
             });
         if (this._settings.get_boolean('enable-agents')) {
-            this._agentWindows = new AgentWindows();
+            this._agentWindows = new AgentWindows(() => this._card?._agentsView?.render(this._states.agents));
             this._agents = new AgentsService(this.path, state => this._renderAgents(state));
             this._agents.start();
         }
@@ -488,18 +485,23 @@ export default class UbuntuIsland extends Extension {
         return this._agents.send(value);
     }
 
-    _openAgent(session, choose = false) {
-        const candidates = this._agentWindows?.candidates(session) || [];
-        if (!choose && this._agentWindows?.bindings.has(session.id)) this._activateAgent(session, candidates[0]);
-        else {
-            const others = this._agentWindows?.all().filter(w => !candidates.includes(w)) || [];
-            this._card?._agentsView?.selectWindow(session, [...candidates, ...others]);
-        }
+    _expireAgents() {
+        if (!this._states.agents?.connected) return;
+        const before = Date.now() - this._settings.get_int('agents-inactive-minutes') * 60000;
+        const state = this._states.agents;
+        // Update immediately; the broker applies the same cutoff to its stored
+        // rows and Undo entries. Later activity is newer than this fixed cutoff.
+        this._renderAgents({...state, sessions:state.sessions.filter(session => session.updated >= before)});
+        void this._agents?.send({control:'expire', before}).catch(() => {});
+    }
+
+    _openAgent(session) {
+        const window = this._agentWindows?.resolve(session);
+        if (window) this._activateAgent(session, window);
     }
 
     _askAgent(input) {
-        const result = launchAgent(this._settings, {...input,
-            copy: text => St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, text)}, global.create_app_launch_context(0, -1));
+        const result = launchAgent(this._settings, input);
         this._leaveAgents();
         return result;
     }
@@ -514,12 +516,11 @@ export default class UbuntuIsland extends Extension {
     }
 
     _activateAgent(session, window) {
-        this._agentWindows?.bind(session, window);
         // Wait until the click release finishes before releasing the modal grab.
         if (this._agentFocus) GLib.Source.remove(this._agentFocus);
         this._agentFocus = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
             this._agentFocus = 0;
-            if (!this._enabled) return GLib.SOURCE_REMOVE;
+            if (!this._enabled || this._agentWindows?.resolve(session) !== window) return GLib.SOURCE_REMOVE;
             this._island.collapse();
             try { this._agentWindows.activate(window); }
             catch (error) { this._card._agentsView.message.text = error.message; }

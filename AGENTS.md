@@ -49,6 +49,10 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
 
 ## Tab layout
 
+- Keep the regular expanded island the same width and height when switching tabs
+  or sections. Use spare space for useful content (especially the Agents prompt)
+  rather than shrinking the surface. Keep navigation fixed and overflow reachable.
+  The standalone shortcut Quick Ask is intentionally a separate compact surface.
 - Aim for the common tab layout to fit without scrolling. Improve grouping,
   spacing and progressive disclosure before adding more height or scroll areas.
 - Preserve readable text and usable controls; never hide or clip overflow to
@@ -69,6 +73,10 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
   with download above the baseline and upload below. Reset on interface changes.
 - Keep navigation outside scrolling content so switching pages leaves the
   footer stable. Preserve device rows and focus across service updates.
+- Keep per-session actions in an anchored menu; do not add intermediate options
+  or window-chooser pages. Only offer window activation for an unambiguous process
+  match. Expire inactive agent records lazily when the Agents tab opens, never
+  through a cleanup timer or a new background worker.
 - The idle notch has no “Island” label or placeholder music icon. Playing and
   paused tracks remain available; stopped registrations do not. Playing media
   without metadata uses the player/URI fallback title.
@@ -135,6 +143,9 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
   runtime file layout. A successful source preview does not verify installation.
 - Keep installation per-user and preserve the previous install. Test with a
   temporary `XDG_DATA_HOME`; never replace the user's install merely to run tests.
+- Retain retired GSettings keys as deprecated compatibility entries when removing
+  controls. Shell can re-enable cached JavaScript against the newly installed
+  schema before logout; removing keys can break the running desktop extension.
 
 ## Verification and installation
 

@@ -92,14 +92,28 @@ make preview PREVIEW_ARGS="--tab calendar --card-width 380 --text-scale 1.5"
 
 An experimental, opt-in local status observer for Claude Code, Codex and OpenCode.
 It does not read credentials, transcripts or agent databases, or contact account
-APIs. Enable **Preferences → Modules → Agents**, then re-enable the extension.
+APIs. Enable **Preferences → Agents → Enable Agents**, then re-enable the extension.
 
 ### Integration setup
 
-In **Preferences → Agents**, review the setup and use **Enable integration**.
+In **Preferences → Agents**, press the highlighted **Enable integration…** button
+beside **Session tracking**, then confirm **Enable integration**. Configuration
+changes are available in a collapsed disclosure. Once installed, the row reports
+that state and the action becomes **Reconfigure…**.
 Setup merges the Island hook/plugin entries with a backup, preserving unrelated
-configuration. **Check**, **Remove** and **Test event** support reversible setup.
+configuration. **Integration actions** contains Refresh status, Send test event
+and Remove integration in separate settings rows.
 Invalid JSON and unsupported JSONC are rejected without rewriting the file.
+Hooks have readable **Ubuntu Island: …** labels (for example **Approval needed**)
+in the supported `statusMessage` field and command comment. The unique Island
+marker identifies ownership; a matching display name alone never does. Reconfigure
+upgrades older Island hooks without duplicates. Existing user handlers, matchers,
+metadata, empty groups and their order are retained; removal touches only marked
+Island command handlers. Unchanged setup does not rewrite the file or its backup.
+OpenCode uses the named `UbuntuIslandStatus` plugin (`ubuntu-island-status` for V2)
+and refuses to overwrite a different plugin at its destination.
+See the [Codex hook format](https://learn.chatgpt.com/docs/hooks) and
+[Claude Code hook fields](https://code.claude.com/docs/en/hooks#common-fields).
 
 | Provider | Configuration |
 | --- | --- |
@@ -107,7 +121,16 @@ Invalid JSON and unsupported JSONC are rejected without rewriting the file.
 | Codex | `hooks.json`; review trust through Codex's `/hooks` command |
 | OpenCode | `plugins/ubuntu-island-status.js`; V1 adapter by default, V2 experimental |
 
-Custom executable/configuration paths are supported. Restart the agent after
+Opening settings or enabling the extension fills unset CLI executable paths and
+provider config directories. Discovery checks PATH and common per-user install
+locations; missing CLIs remain unset with a message. It selects an installed
+harness initially and uses the home folder as the initial project. Terminal
+defaults to **System default**, showing the detected name (for example Terminator).
+Launches follow GNOME’s terminal setting or Ubuntu’s `x-terminal-emulator`
+alternative, with an installed-terminal fallback when neither is available.
+Choose an explicit terminal to override that behavior.
+Explicit selections and paths are preserved. Custom paths remain editable.
+Detection does not install software, sign in, or change provider configuration. Restart the agent after
 setup; existing sessions are not backfilled. **Test event** verifies local IPC,
 not compatibility with the installed provider. Real provider sessions still need
 acceptance testing after provider upgrades.
@@ -118,20 +141,35 @@ The list shows last-reported states such as Working, Needs approval, Needs input
 Finished and Error. It never automatically focuses a window or expands the notch.
 Optional notch counts and notifications default off.
 
-Select a session to associate a window explicitly, then return to that window.
-Process ancestry helps rank candidates but does not authorize a guessed binding.
-Exact terminal tabs/panes still need manual selection. Closed-window bindings are
-cleared. **Clear** and the notch eye toggle are in the main header; there is no
-separate Agent options page. Row **Hide** and **Clear finished** offer Undo without
-stopping agent processes. Recent sessions are collapsed initially.
+Each row shows its harness icon and a state label. A row becomes clickable, with
+a small arrow, only when its reported process ancestry matches exactly one open
+application window. Unknown or ambiguous matches have no open action or window
+chooser. A shared terminal server with several windows is ambiguous. Matching
+identifies a window, not an exact terminal tab/pane; opening a window still requires
+a click. Closed windows immediately lose their activation affordance.
 
-Quick Ask starts a selected agent in a project using GNOME Terminal, Console,
-Kitty or WezTerm. Prompts are passed as literal arguments, never shell templates.
-Desktop/web destinations use **Copy & open** followed by manual paste; OpenCode has
-no hosted-chat destination. Nothing types into other applications or puts prompts
-in URLs. CLI arguments can be visible to local process inspection; Copy & open is
-also available for terminal destinations. Clipboard managers may retain copied text.
-Island keeps drafts in memory only, with no prompt history or logs.
+The three-dot button opens a small anchored menu with last activity and **Hide
+session**; Escape restores focus to the button. **Clear** and the notch eye toggle
+stay in the main header. Hide and Clear finished offer Undo without stopping agent
+processes. There are no per-session options pages or separate Recent group.
+
+All sessions, including finished ones, stay in one list. **Preferences → Agents →
+Remove inactive sessions after** defaults to **60 minutes** and accepts 1–10,080
+minutes. Only opening the Agents tab (including reopening the island on that tab)
+checks for expiry. It removes records whose last report is older than the cutoff
+from both the cached view and the in-memory broker, including expired Undo entries.
+There is no periodic cleanup or process-liveness polling. Fresh activity can bring
+an expired session back; the cleanup never stops a process.
+
+Quick Ask starts a selected CLI harness (Claude Code, Codex or OpenCode) in a
+project using the system default or an explicit GNOME Terminal, Console, Terminator,
+Kitty or WezTerm selection. In the Agents composer,
+choose the harness from the gray button inside the prompt box; the dropdown
+preserves the draft and returns focus to the entry. The arrow button or Ctrl+Enter
+starts a session. Empty project input uses the home folder. Errors retain the draft.
+Prompts are passed as literal arguments, never shell templates, and may be visible
+to local process inspection. Island keeps drafts in memory only, with no prompt
+history or logs. Desktop, web and clipboard-based launches have been removed.
 
 The optional **Quick Ask shortcut** is unset initially. Choose an unused modified
 key combination, for example Super+Alt+Space. Enter launches, Escape/outside click
@@ -144,7 +182,9 @@ preferences are open or when the island is hidden for fullscreen.
 There are at most 32 session records, including hidden ones. The list scrolls
 inside the fixed card; header actions, Quick Ask and tab navigation remain outside
 it. Sorting on opening avoids moving rows under the pointer. Working animation
-runs only in the visible connected header with reduced motion disabled.
+runs only in the visible connected header and visible working rows, with reduced
+motion disabled. Scrolled-out rows, hidden tabs and the composer stop their
+native rotation transitions; no per-frame JavaScript or animation timer is used.
 
 The GJS bridge and relay live in `helpers/agents/`. Private Unix IPC uses a 0700
 runtime directory, 0600 socket, peer-UID checks and bounded JSON. It is a same-user

@@ -35,6 +35,24 @@ if (GLib.getenv('ISLAND_PREVIEW_PREFERENCES') === 'notch') {
         return GLib.SOURCE_REMOVE;
     });
 }
+if (GLib.getenv('ISLAND_PREVIEW_PREFERENCES') === 'agents') {
+    const find = (widget, title) => {
+        if (widget instanceof Adw.PreferencesRow && widget.title === title) return widget;
+        for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+            const match = find(child, title); if (match) return match;
+        }
+        return null;
+    };
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+        const actions = find(window, 'Integration actions');
+        actions.expanded = true;
+        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 300, () => {
+            find(actions, 'Refresh status').activatable_widget.grab_focus();
+            return GLib.SOURCE_REMOVE;
+        });
+        return GLib.SOURCE_REMOVE;
+    });
+}
 if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') {
     const {editRoute} = await import('./preferences/commute-map.js');
     const settings = new Preferences(metadata).getSettings();

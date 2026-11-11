@@ -46,11 +46,11 @@ export class Card {
         this.actor.add_child(this._scroll);
         this.actor._islandPreferredHeight = width => {
             if (this.quickAskOpen) return this._quickAsk.actor.get_preferred_height(width)[1];
-            if (this._page === 'calendar') return this._calendarView.preferredHeight(width)
-                + this._navigation.get_preferred_height(width)[1];
             if (this._page === 'commute')
                 this._commuteView.fit(width - this._body.get_theme_node().get_horizontal_padding());
-            return 260 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            // One regular card size across tabs and subviews. Overflow belongs
+            // in each page's scroll area; compact shortcut Quick Ask is separate.
+            return 280 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
         };
         this.actor._islandFocus = () => {
             if (!this.quickAskOpen) return false;

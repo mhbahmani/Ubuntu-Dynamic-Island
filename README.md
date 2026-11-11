@@ -53,19 +53,25 @@ and [compact playing pill](screenshots/playing-pill.png).
   Persian text prefers installed Vazir/Vazirmatn fonts, with a DejaVu Sans fallback.
   See [calendar design and checks](docs/MODULES.md#calendar).
 - **Agents (experimental, opt-in)**: local Claude Code/Codex/OpenCode status events,
-  attention counts, window selection/focus, optional notifications, and Quick Ask
-  for CLI/desktop/web destinations. No API keys or account access. Tracking needs
-  optional local hooks/plugins; desktop/web prompts use copy and manual paste.
-  Click a session to return to its window. Status icons, collapsed Recent sessions,
-  reversible Hide/Clear finished actions and a fixed Quick Ask bar keep the list
-  compact. Drafts survive Back; errors preserve the prompt.
+  attention counts, automatic window matching, optional notifications, and Quick Ask
+  for CLI harnesses. No API keys or account access. Tracking needs
+  optional local hooks/plugins; executable and configuration paths are detected.
+  Harness icons identify sessions; working indicators rotate while visible.
+  Rows open a window only when process ancestry identifies one unique target.
+  Three-dot menus keep Hide and last-activity details in the list, with Undo.
+  Finished sessions stay in the same list. **Agents → Remove inactive sessions
+  after** defaults to 60 minutes; cleanup runs only when opening the Agents tab.
+  A fixed Quick Ask bar keeps the list compact. Drafts survive Back; errors
+  preserve the prompt.
   **Clear** in the main header removes finished sessions with Undo; the adjacent
   eye toggles agent status in the notch. The former Agent options page is removed.
   Set **Agents → Quick Ask → Quick Ask shortcut** in preferences to widen the
   notch into a compact text box. Choose an unused combination such as
   **Super+Alt+Space**, type a message, then press **Enter**. **Escape** closes it
   and keeps the draft. The shortcut also works with session tracking disabled.
-  It uses your default agent, destination and project folder (home if unset).
+  It uses your default CLI harness, desktop terminal (including Terminator), and
+  project folder (initially your home folder). Explicit terminal choices remain
+  available in Agents settings.
   Open Agents in `make preview`; see [setup and limitations](docs/MODULES.md#agents).
 - **Single-surface morph**: one chrome-managed surface expands downward around
   its center. Notch content gently contracts inward and fades as the card or
@@ -83,7 +89,7 @@ and [compact playing pill](screenshots/playing-pill.png).
 - **Keyboard navigation**: Super+Alt+I opens/closes the island; Super+Alt+Right
   and Super+Alt+Left cycle available tabs. Ctrl+Tab and Ctrl+Shift+Tab also work
   while open. Customize or disable global bindings under **Appearance → Keyboard
-  shortcuts**.
+  shortcuts**. Regular tabs and sections share a stable expanded size.
 - Click toggles; **Escape and outside clicks close** via the same modal-grab
   pattern GNOME's own popup menus use (outside presses release input
   immediately so apps receive the next click); optional hover open/close.
@@ -95,7 +101,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   remain controllable. Seeking uses GNOME's native keyboard-accessible slider,
   with the displayed timestamp following the thumb while dragging.
   The square cover supplies a subtle static tint; a full-width timeline and round
-  play control fit the same 260px surface as the other modules. The player-name
+  play control fit the same 280px surface as the other modules. The player-name
   menu selects Automatic or pins a running player, including a paused player.
   Shuffle/repeat and Open player appear when supported; ±10-second seek buttons
   are available for seekable tracks. The speaker button provides system volume,
@@ -296,6 +302,9 @@ preview commands operate on a temporary copy. None of the verification targets
 installs the extension. `make install` changes installed files but does not reload
 running Shell code; toggling enable/disable is not a replacement for logout/login
 when that code has changed.
+If an upgrade reports `GSettings key agents-destination not found`, reinstall the
+current version and log out/back in. Retired settings remain in the schema for
+compatibility with cached Shell code; their former UI options stay removed.
 
 The Makefile wraps the existing scripts; they remain directly runnable. The tools
 required are GNU Make, Python 3, Node.js (development only), GJS, GNOME Shell 46,
@@ -420,7 +429,7 @@ single-line rates, red download arrows and green upload arrows. Each rate keeps
 the width of its widest displayed value, with just 2px of extra room, so lower
 traffic does not repeatedly shrink the notch. Longer values can grow the slot;
 switching networks or turning the indicator off clears the saved widths.
-Weather shares the same 260px expanded height as the other tabs, retaining its
+Weather shares the same 280px expanded height as the other tabs, retaining its
 background artwork, four-hour forecast and current conditions.
 
 At the top of **Settings → Notch**, **Indicator style** offers **Network arrow shape**

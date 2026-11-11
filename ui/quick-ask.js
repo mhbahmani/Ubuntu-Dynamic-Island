@@ -6,7 +6,7 @@ import {AGENTS} from '../services/agents-model.js';
 import {agentIcon} from './agent-icon.js';
 import {column, row, label, icon, button, setEnabled} from './widgets.js';
 
-// A local draft only. Launching reuses the same validated argv/clipboard path as
+// A local draft only. Launching reuses the same validated CLI launch path as
 // the full composer; neither settings nor the observer receive prompt contents.
 export class QuickAsk {
     constructor(settings, actions) {
@@ -32,7 +32,7 @@ export class QuickAsk {
             else this._cancelRelayout();
         });
         this.actor.connect('style-changed', () => this._queueRelayout());
-        const ids = ['agents-provider', 'agents-destination', 'agents-project'].map(key => settings.connect(`changed::${key}`, () => {
+        const ids = ['agents-provider', 'agents-project'].map(key => settings.connect(`changed::${key}`, () => {
             if (this.actor.mapped) this.refresh();
         }));
         this.actor.connect('destroy', () => {
@@ -55,11 +55,9 @@ export class QuickAsk {
     }
     refresh() {
         const provider = AGENTS[this.settings.get_string('agents-provider')];
-        const destination = this.settings.get_string('agents-destination');
-        const target = {terminal:'Terminal', 'copy-terminal':'Terminal', desktop:'Desktop app', web:'Website'}[destination];
-        this.prompt.hint_text = `Ask ${provider}…`;
-        this.target.text = `${provider} · ${target} · ${destination === 'terminal' ? 'Enter to start' : 'Enter to copy & open; paste to send'}`;
-        this.send.accessible_name = destination === 'terminal' ? `Start a new ${provider} session` : `Copy prompt and open ${provider}`;
+        this.prompt.hint_text = 'Ask anything…';
+        this.target.text = `${provider} · Enter to start in terminal`;
+        this.send.accessible_name = `Start a new ${provider} session`;
         setEnabled(this.send, Boolean(this.prompt.text.trim()));
         this._queueRelayout();
     }
@@ -70,7 +68,7 @@ export class QuickAsk {
         try {
             if (!this.prompt.text.trim()) throw new Error('Type a message first.');
             this.actions.agentAsk({provider:this.settings.get_string('agents-provider'),
-                destination:this.settings.get_string('agents-destination'), prompt:this.prompt.text,
+                prompt:this.prompt.text,
                 cwd:this.settings.get_string('agents-project') || GLib.get_home_dir()});
             this.send.grab_key_focus(); this.prompt.text = ''; this.error.hide();
         } catch (error) {
