@@ -148,7 +148,7 @@ export class CalendarView {
         this.title.accessible_name = selectedInMonth ? fullDate(this.selected, calendar) : this.title.text;
         // Directional isolates keep mixed Persian/Latin dates in their own order.
         const dates = [this.primary, ...shown];
-        this.selectedDate.text = dates.map(id => `\u2068${displayDate(this.selected, id).replace(/ /g, '\u00a0')}\u2069`).join('  ·  ');
+        this.selectedDate.text = dates.map(id => `\u2068${displayDate(this.selected, id).replace(/ /g, '\u00a0')}\u2069`).join(' · ');
         this.selectedDate.accessible_name = dates.map(id => fullDate(this.selected, primaryCalendar(id))).join('; ');
         this.selectedDate.visible = selectedInMonth && shown.length > 0;
         const selectedHoliday = calendarHolidays(this.selected, this.primary);

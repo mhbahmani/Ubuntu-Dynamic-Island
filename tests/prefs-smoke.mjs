@@ -109,7 +109,7 @@ agentsEnabled.active = true;
 if (!settings.get_boolean('enable-agents')) throw new Error('Agents toggle did not save');
 settings.set_boolean('enable-agents', false);
 if (agentsEnabled.active) throw new Error('Agents toggle did not follow settings');
-if (find(window, 'Default destination') || find(window, 'Desktop destination') || find(window, 'Holiday markings'))
+if (find(window, 'Default destination') || find(window, 'Desktop destination') || find(window, 'Holiday markings') || find(window, 'Hijri dates'))
     throw new Error('Removed settings are still shown');
 for (const title of ['Open or close island', 'Next tab', 'Previous tab'])
     if (!find(window, title)) throw new Error(`Missing shortcut setting: ${title}`);

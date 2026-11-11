@@ -153,7 +153,7 @@ export function calendarPreferences(settings, window) {
         model: Gtk.StringList.new(ids.map(id => CALENDARS[id].title))});
     group.add(primary);
     const extra = new Adw.PreferencesGroup({title: 'Additional dates',
-        description: 'Show these calendars under the selected date in the header.'});
+        description: 'Show these calendars alongside the selected date in the header.'});
     let syncing = false;
     const switches = new Map(ids.map(id => {
         const control = new Adw.SwitchRow({title: CALENDARS[id].title});
@@ -179,9 +179,6 @@ export function calendarPreferences(settings, window) {
     primary.connect('notify::selected', () => {
         if (!syncing) settings.set_string('calendar-primary', ids[primary.selected]);
     });
-    const hijri = new Adw.ActionRow({title: 'Hijri dates',
-        subtitle: 'Uses the tabular Islamic calendar. Local moon-sighting calendars may differ.'});
-    extra.add(hijri);
     const signals = ['calendar-primary', 'calendar-additional'].map(key => settings.connect(`changed::${key}`, sync));
     window.connect('close-request', () => { signals.forEach(id => settings.disconnect(id)); return false; });
     sync();

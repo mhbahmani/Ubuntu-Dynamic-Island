@@ -396,10 +396,10 @@ export default class Preview extends UbuntuIsland {
             for (const width of [440, 380]) {
                 this._settings.set_int('expanded-width', width); this._island.applyDimensions(); await delay(300);
                 verifyBounds();
-                assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Common month scrolls at ${width}/${scale}`);
+                await this._capture(`calendar-${width}-scale${scale}`);
+                assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Common month scrolls at ${width}/${scale}: ${view.adjustment.upper}/${view.adjustment.page_size}`);
                 assert(view.selectedDate.clutter_text.get_layout().get_line_count() === 1, `Calendar dates do not share one line at ${width}/${scale}`);
                 console.log(`[Island Preview] Calendar layout: ${width}px / ${scale * 100}%, height ${this._island.actor.height / scale}px, all dates on one line`);
-                await this._capture(`calendar-${width}-scale${scale}`);
             }
         }
         this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);

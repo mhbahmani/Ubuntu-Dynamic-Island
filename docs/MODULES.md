@@ -22,7 +22,7 @@ show dates in the other calendars. Account events are not implemented; the
 - Neighboring-month cells are empty and inactive. Today is highlighted only in
   its actual month/year; selecting another date gives it a neutral outline.
 - Additional dates share one header line with the main date beside the month
-  controls. The larger date labels have a little vertical breathing room; a single
+  controls. Brighter, larger date labels use compact vertical padding; a single
   calendar retains its full date heading. Enlarged text can
   wrap; the grid scrolls when needed with navigation and actions still reachable.
 - Arrows move by day/week, Home/End move to the week's edges, Page Up/Down change

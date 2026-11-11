@@ -85,15 +85,15 @@ preserving stable navigation and focus; the current expansion remains the refere
   placeholder and an inline arrow to send; Ctrl+Enter submits multiline prompts.
 - Appearance settings expose open/close (Super+Alt+I), next tab (Super+Alt+Right)
   and previous tab (Super+Alt+Left) shortcuts. Ctrl+Tab/Ctrl+Shift+Tab navigate
-  while open. Bindings update live and are released on disable. Holiday markings
-  is no longer an informational row in Calendar settings.
+  while open. Bindings update live and are released on disable. The informational
+  Holiday markings and Hijri dates rows are removed from Calendar settings.
 - The notch and card keep their own layout sizes inside a centered native
   fixed-layout viewport; see the [motion baseline](#motion-baseline).
 - Sound outputs sort headphones (Bluetooth or wired), built-in speakers,
   HDMI/DisplayPort, then others. Stable ties do not promote the active device.
 - Calendar dates share a compact header line when additional calendars are shown.
-  Date text is now 9.5pt (single-calendar heading 11.5pt), with a little vertical
-  padding. All three dates fit one line at 380/440px; enlarged text wraps
+  Date text is now 10pt (single-calendar heading 12pt), with brighter text and
+  reduced vertical padding. All three dates fit one line at 380/440px; enlarged text wraps
   and overflow remains reachable.
 - Network rates retain each direction's widest displayed value plus 2 logical
   pixels. Widths reset on interface/indicator changes and are remeasured on
@@ -118,6 +118,17 @@ The module guide replaces separate feature documents and the obsolete roadmap.
 Use Git history for earlier designs, research and session logs.
 
 ## Verification and remaining work
+
+Compact-layout follow-up: 155 Node tests and GTK preferences checks passed. The
+full native preview passed all eight tabs, the empty Agents state, a three-session
+list and the default composer without scrolling, and narrow/scaled/enlarged-text
+layouts. Keyboard focus now uses content coordinates, avoiding a race with native
+focus scrolling; checks move between the first and last rows of a long list.
+Calendar checks passed at 380/440px and 100/200% scale with all three dates on one
+line, a 262px surface (260px content plus border), and reachable overflow with
+enlarged text. A windowed native preview at 380px, 200% scale and 150% text was
+also visually checked. The rebuilt ZIP matches all 110 checked runtime files. No host
+installation or provider configuration was changed for this follow-up.
 
 Upgrade compatibility: an in-session install exposed cached Shell JavaScript
 reading a newly compiled schema without `agents-destination`. Keep all four retired
