@@ -26,11 +26,12 @@ const clampRange = (value, lower, upper) => Math.max(lower, Math.min(upper, valu
 // the surface grows and their transforms blend, without a separate popup menu.
 // The opaque surface paints reliably on mixed-scale monitors without backdrop sampling.
 export class IslandSurface {
-    constructor({settings, pill, card, onStateChange, onBeforeExpand, onEscape}) {
+    constructor({settings, pill, card, onStateChange, onBeforeExpand, onEscape, onSwitchTab}) {
         this._settings = settings;
         this._onStateChange = onStateChange;
         this._onBeforeExpand = onBeforeExpand;
         this._onEscape = onEscape;
+        this._onSwitchTab = onSwitchTab;
         this.state = IslandState.COLLAPSED;
         this._token = 0; // invalidates stale transition completions on interrupt
         this._hoverOpen = 0;
@@ -337,6 +338,10 @@ export class IslandSurface {
         } else if (type === Clutter.EventType.KEY_PRESS &&
             (event.get_key_symbol() === Clutter.KEY_Tab || event.get_key_symbol() === Clutter.KEY_ISO_Left_Tab)) {
             const backward = Boolean(event.get_state() & Clutter.ModifierType.SHIFT_MASK);
+            if (event.get_state() & Clutter.ModifierType.CONTROL_MASK) {
+                this._onSwitchTab?.(backward ? -1 : 1);
+                return Clutter.EVENT_STOP;
+            }
             this._card.navigate_focus(global.stage.key_focus,
                 backward ? St.DirectionType.TAB_BACKWARD : St.DirectionType.TAB_FORWARD, true);
             return Clutter.EVENT_STOP;

@@ -80,6 +80,10 @@ and [compact playing pill](screenshots/playing-pill.png).
   system, sound, and Bluetooth faces; close and preferences remain available.
   Background opacity defaults to 98% and supports 0–100%, without the previous
   monitor-dependent backdrop path.
+- **Keyboard navigation**: Super+Alt+I opens/closes the island; Super+Alt+Right
+  and Super+Alt+Left cycle available tabs. Ctrl+Tab and Ctrl+Shift+Tab also work
+  while open. Customize or disable global bindings under **Appearance → Keyboard
+  shortcuts**.
 - Click toggles; **Escape and outside clicks close** via the same modal-grab
   pattern GNOME's own popup menus use (outside presses release input
   immediately so apps receive the next click); optional hover open/close.

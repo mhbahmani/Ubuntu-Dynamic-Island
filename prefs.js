@@ -1,3 +1,4 @@
+import {shortcutRow} from './preferences/shortcut-prefs.js';
 import {agentsPreferences} from './preferences/agents-prefs.js';
 import {calendarPreferences, notchDatePreferences} from './preferences/calendar-prefs.js';
 import {AGENT_ICON_NAME, agentIconDirectory} from './ui/agent-icon.js';
@@ -62,6 +63,13 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         appearance.add(toggle(settings, 'move-clock', 'Move clock to the right',
             'Frees the panel center for the island'));
 
+        const shortcuts = new Adw.PreferencesGroup({title:'Keyboard shortcuts'});
+        for (const [key, title, subtitle] of [
+            ['island-toggle-shortcut', 'Open or close island', 'Toggle the expanded island from anywhere.'],
+            ['island-next-tab-shortcut', 'Next tab', 'Move to the next available tab. Ctrl+Tab also works while open.'],
+            ['island-previous-tab-shortcut', 'Previous tab', 'Move back one tab. Ctrl+Shift+Tab also works while open.'],
+        ]) shortcuts.add(shortcutRow(settings, window, key, title, subtitle));
+
         const hover = new Adw.PreferencesGroup({title: 'Hover'});
         hover.add(toggle(settings, 'hover-open', 'Open on hover',
             'Expand after hovering the pill; click always works too'));
@@ -117,7 +125,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         window.connect('close-request', () => { settings.disconnect(titleModeId); return false; });
         titles.add(titleMode); titles.add(characters);
         const pages = [
-            ['appearance', 'Appearance', 'preferences-desktop-appearance-symbolic', [appearance]],
+            ['appearance', 'Appearance', 'preferences-desktop-appearance-symbolic', [appearance, shortcuts]],
             ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, notchDatePreferences(settings, window), titles, hover]],
             ['modules', 'Modules', 'application-x-addon-symbolic', [modules]],
             ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],

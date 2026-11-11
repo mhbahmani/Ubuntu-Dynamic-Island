@@ -163,6 +163,9 @@
       <summary>Tab to show when expanding the island</summary>
       <description>Last keeps the previous tab. An unavailable preferred tab falls back to the last available tab.</description>
     </key>
+    <key name="island-toggle-shortcut" type="as"><default>['&lt;Super&gt;&lt;Alt&gt;i']</default><summary>Open or close the island</summary></key>
+    <key name="island-next-tab-shortcut" type="as"><default>['&lt;Super&gt;&lt;Alt&gt;Right']</default><summary>Next available island tab</summary></key>
+    <key name="island-previous-tab-shortcut" type="as"><default>['&lt;Super&gt;&lt;Alt&gt;Left']</default><summary>Previous available island tab</summary></key>
     <key name="island-quick-ask-shortcut" type="as"><default>[]</default><summary>Keyboard shortcut for the compact Quick Ask prompt</summary></key>
     <key name="enable-agents" type="b"><default>false</default><summary>enable agents</summary></key>
     <key name="pill-show-agents" type="b"><default>true</default><summary>pill show agents</summary></key>

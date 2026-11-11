@@ -232,6 +232,20 @@ export default class Smoke extends UbuntuIsland {
         };
         const hotkey = [Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_space];
         try {
+            this._island._snapCollapsed();
+            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_i]);
+            assert(this._island.expanded && !card.quickAskOpen, 'Island shortcut did not expand the regular card');
+            const initialPage = card._page, regularHeight = this._island.actor.height;
+            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_Right]);
+            assert(card._page !== initialPage, 'Next-tab shortcut did not advance');
+            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_Left]);
+            assert(card._page === initialPage, 'Previous-tab shortcut did not return');
+            await chord([Clutter.KEY_Control_L, Clutter.KEY_Tab]);
+            assert(card._page !== initialPage, 'Ctrl+Tab did not advance');
+            await chord([Clutter.KEY_Control_L, Clutter.KEY_Shift_L, Clutter.KEY_Tab]);
+            assert(card._page === initialPage && this._island.actor.height === regularHeight, 'Tab cycling changed regular card size');
+            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_i]);
+            assert(!this._island.expanded, 'Island shortcut did not close');
             settings.set_strv(key, ['<Super><Alt>space']);
             settings.set_string('agents-provider', 'codex'); settings.set_string('agents-destination', 'terminal');
             settings.set_string('agents-project', '');

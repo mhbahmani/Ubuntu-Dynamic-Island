@@ -26,6 +26,7 @@ import {surfaceStyle} from './services/appearance.js';
 import {layoutSignature} from './services/presentation.js';
 
 const QUICK_ASK_SHORTCUT = 'island-quick-ask-shortcut';
+const ISLAND_SHORTCUTS = ['island-toggle-shortcut', 'island-next-tab-shortcut', 'island-previous-tab-shortcut'];
 
 export default class UbuntuIsland extends Extension {
     enable() {
@@ -94,6 +95,7 @@ export default class UbuntuIsland extends Extension {
             pill: this._pill.actor,
             card: this._card.actor,
             onBeforeExpand: () => { if (!this._card.quickAskOpen) this._card.selectExpansionPage(); },
+            onSwitchTab: direction => this._card.cyclePage(direction),
             onEscape: () => !this._card.quickAskOpen && this._card._page === 'agents' && this._card._agentsView.handleEscape(),
             onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); },
         });
@@ -105,6 +107,7 @@ export default class UbuntuIsland extends Extension {
         this._island.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); });
         this._watchSettings();
         this._bindQuickAsk();
+        this._bindIslandShortcuts();
         this._applyAppearance();
 
         // Model events drive isolated UI updates; no UI code in the services.
@@ -236,6 +239,7 @@ export default class UbuntuIsland extends Extension {
         const watch = (key, handler) =>
             this._settingsIds.push(this._settings.connect(`changed::${key}`, handler));
         watch(QUICK_ASK_SHORTCUT, () => this._bindQuickAsk());
+        for (const key of ISLAND_SHORTCUTS) watch(key, () => this._bindIslandShortcuts());
         watch('pill-show-title', () => {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
@@ -280,9 +284,30 @@ export default class UbuntuIsland extends Extension {
             Main.notify('Ubuntu Island', 'Quick Ask shortcut could not be registered. Choose another combination in Agents preferences.');
     }
 
+    _bindIslandShortcuts() {
+        for (const key of this._islandBindings ?? []) Main.wm.removeKeybinding(key);
+        this._islandBindings = [];
+        for (const [index, key] of ISLAND_SHORTCUTS.entries()) {
+            if (!this._settings.get_strv(key).length) continue;
+            const action = Main.wm.addKeybinding(key, this._settings, Meta.KeyBindingFlags.IGNORE_AUTOREPEAT,
+                Shell.ActionMode.NORMAL | Shell.ActionMode.POPUP, () => {
+                    if (!this._canUseIslandShortcut()) return;
+                    this._island._cancelHoverTimers();
+                    if (index === 0) this._island.toggle();
+                    else { this._island.expand(); this._card.cyclePage(index === 1 ? 1 : -1); }
+                });
+            if (action !== Meta.KeyBindingAction.NONE) this._islandBindings.push(key);
+            else Main.notify('Ubuntu Island', 'An Island shortcut is unavailable. Choose another combination in Appearance settings.');
+        }
+    }
+
+    _canUseIslandShortcut() {
+        return this._enabled && this._island?.actor.mapped && !this._prefsWatch && !Main.sessionMode.isLocked &&
+            (Main.actionMode === Shell.ActionMode.NORMAL || Boolean(this._island._grab));
+    }
+
     _openQuickAsk() {
-        if (!this._enabled || !this._island?.actor.mapped || this._prefsWatch || Main.sessionMode.isLocked ||
-            (Main.actionMode !== Shell.ActionMode.NORMAL && !this._island?._grab)) return;
+        if (!this._canUseIslandShortcut()) return;
         this._island._cancelHoverTimers();
         this._card.showQuickAsk();
         this._island.expand();
@@ -526,6 +551,8 @@ export default class UbuntuIsland extends Extension {
     disable() {
         // Guard against late async callbacks before destroying any actor.
         this._enabled = false;
+        for (const key of this._islandBindings ?? []) Main.wm.removeKeybinding(key);
+        this._islandBindings = [];
         if (this._quickAskBinding) Main.wm.removeKeybinding(QUICK_ASK_SHORTCUT);
         this._quickAskBinding = false;
         if (this._progressTimer) GLib.Source.remove(this._progressTimer);

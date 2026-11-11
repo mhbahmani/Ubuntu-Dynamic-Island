@@ -228,6 +228,15 @@ export class Card {
         this._actions.relayout?.();
     }
 
+    cyclePage(direction = 1) {
+        const available = [...this._tabs.keys()].filter(id => this._pages.get(id)?.available);
+        if (!available.length) return;
+        const index = available.indexOf(this._page);
+        const id = available[(Math.max(0, index) + direction + available.length) % available.length];
+        this.selectPage(id);
+        if (this.actor.mapped) this._tabs.get(id).grab_key_focus();
+    }
+
     _syncPages() {
         if (!this._pages.get(this._page)?.available)
             this._page = [...this._pages].find(([, page]) => page.available)?.[0] ?? null;
