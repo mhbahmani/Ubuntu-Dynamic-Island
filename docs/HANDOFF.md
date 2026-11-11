@@ -53,6 +53,10 @@ preserving stable navigation and focus; the current expansion remains the refere
 
 ## Recent UI changes
 
+- An empty Agents list shows a waiting message and keeps Quick Ask available.
+  It does not infer missing integration from a lack of sessions or show a setup
+  button. Setup remains in Agents preferences. User-facing completion labels use
+  “Task finished”; the hook protocol's `turn` identifiers remain unchanged.
 - Sessions use harness logos and rotating working indicators. Three-dot actions
   stay in an anchored menu. There is no window chooser: only a unique process
   ancestry match enables row activation. Finished sessions stay in the main list.

@@ -2,7 +2,7 @@
 export const AGENTS = {claude: 'Claude Code', codex: 'Codex', opencode: 'OpenCode'};
 export const AGENT_STATES = {
     working: 'Working', approval: 'Needs approval', input: 'Needs input',
-    finished: 'Turn finished', idle: 'Idle', error: 'Error', interrupted: 'Interrupted',
+    finished: 'Task finished', idle: 'Idle', error: 'Error', interrupted: 'Interrupted',
     closed: 'Closed', unknown: 'Unknown',
 };
 export const AGENT_LIMIT = 32;
@@ -132,7 +132,7 @@ export function agentCounts(rows = []) {
 export function agentSummary(rows = []) {
     const c = agentCounts(rows);
     return [c.working && `${c.working} working`, c.attention && `${c.attention} needs you`,
-        !c.working && !c.attention && c.finished && `${c.finished} finished`].filter(Boolean).join(' · ') || 'No active turns';
+        !c.working && !c.attention && c.finished && `${c.finished} finished`].filter(Boolean).join(' · ') || (rows.length ? 'Idle' : 'No active sessions');
 }
 
 export const TERMINAL_NAMES = {'gnome-terminal':'GNOME Terminal', kgx:'GNOME Console',

@@ -46,9 +46,10 @@ export class AgentsView {
         this.list = column('ubuntu-island-agent-list'); this.content.add_child(this.list);
         this.activeList = column('ubuntu-island-agent-list'); this.list.add_child(this.activeList);
         this.empty = column('ubuntu-island-agent-empty'); this.list.add_child(this.empty);
-        this.empty.add_child(wrap('Your sessions will appear here', 'ubuntu-island-agent-title'));
-        this.empty.add_child(wrap('Connect a local agent to see when it needs you. Quick Ask is available without tracking.'));
-        this.empty.add_child(textButton('Set up tracking', () => actions.preferences('agents')));
+        // An empty observer snapshot says nothing about whether hooks are
+        // installed. Keep setup in preferences, not in the idle session list.
+        this.empty.add_child(wrap('No sessions to show', 'ubuntu-island-agent-title'));
+        this.empty.add_child(wrap('Start a session in your terminal or use Ask an agent below.'));
         this.editor = column('ubuntu-island-agent-editor'); this.editor.y_expand = true; this.content.add_child(this.editor);
         this.provider = settings.get_string('agents-provider');
         // Keep the entry mapped while choosing a harness. The menu overlays the

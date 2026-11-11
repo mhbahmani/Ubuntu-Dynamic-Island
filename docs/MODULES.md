@@ -138,7 +138,9 @@ acceptance testing after provider upgrades.
 ### Sessions and Quick Ask
 
 The list shows last-reported states such as Working, Needs approval, Needs input,
-Finished and Error. It never automatically focuses a window or expands the notch.
+Task finished and Error. An empty list is a waiting state, not evidence that an
+integration needs setup. Integration controls remain in Agents preferences.
+It never automatically focuses a window or expands the notch.
 Optional notch counts and notifications default off.
 
 Each row shows its harness icon and a state label. A row becomes clickable, with

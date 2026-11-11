@@ -1,8 +1,8 @@
 export const HOOK_MARKER = ' # ubuntu-island-agent-v1';
 const HOOK_LABELS = {
     SessionStart: 'Session start', UserPromptSubmit: 'Prompt submitted',
-    PermissionRequest: 'Approval needed', Stop: 'Turn finished', SessionEnd: 'Session ended',
-    Interrupt: 'Turn interrupted', StopFailure: 'Turn failed', Notification: 'Attention needed',
+    PermissionRequest: 'Approval needed', Stop: 'Task finished', SessionEnd: 'Session ended',
+    Interrupt: 'Task interrupted', StopFailure: 'Task failed', Notification: 'Attention needed',
     PreToolUse: 'Input requested', PostToolUse: 'Tool finished', PostToolUseFailure: 'Tool failed',
 };
 export function shellQuote(value) { return `'${value.replaceAll("'", "'\\''")}'`; }

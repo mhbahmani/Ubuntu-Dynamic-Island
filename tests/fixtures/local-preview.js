@@ -813,6 +813,9 @@ export default class Preview extends UbuntuIsland {
         this._settings.set_boolean('disable-animations', motionBefore);
         await this._agents.send({control:'clear'});
         assert(view.rows.size === 0, 'Clear did not update the list');
+        assert(view.empty.visible && view.summary.text === 'No active sessions', 'Empty observer has the wrong session state');
+        assert(!view.empty.get_children().some(child => child instanceof St.Button), 'An idle observer incorrectly asks to set up tracking');
+        await this._capture('agents-empty');
         sampleAgents(this);
         console.log('[Island Preview] AGENTS PASS: harness icons, inline menus, unique window matches, lazy expiry, draft/errors, Undo, motion cleanup and narrow/scaled layout');
     }
