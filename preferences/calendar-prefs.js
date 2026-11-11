@@ -152,8 +152,6 @@ export function calendarPreferences(settings, window) {
     const primary = new Adw.ComboRow({title: 'Main calendar',
         model: Gtk.StringList.new(ids.map(id => CALENDARS[id].title))});
     group.add(primary);
-    const holidays = new Adw.ActionRow({title: 'Holiday markings'});
-    group.add(holidays);
     const extra = new Adw.PreferencesGroup({title: 'Additional dates',
         description: 'Show these calendars under the selected date in the header.'});
     let syncing = false;
@@ -171,11 +169,6 @@ export function calendarPreferences(settings, window) {
         syncing = true;
         const main = settings.get_string('calendar-primary');
         primary.selected = Math.max(0, ids.indexOf(main));
-        holidays.subtitle = {
-            jalali: 'Fridays and Iranian holidays. Published dates for 1405; other years’ lunar dates are marked as estimates.',
-            hijri: 'Fridays and Iranian Islamic holidays. Calculated dates; actual observance can differ.',
-            gregorian: 'Saturday and Sunday. No country-specific public holidays.',
-        }[main];
         const additional = settings.get_strv('calendar-additional');
         for (const [id, control] of switches) {
             control.visible = id !== main;
