@@ -620,13 +620,35 @@ export default class Preview extends UbuntuIsland {
         const first = [...view.rows.values()][0];
         assert(!view.recentList && !view.recentButton && view.activeList.get_n_children() === 3, 'Sessions are not in one list');
         assert(!first.open.reactive && !first.open.can_focus && !first.arrow.visible, 'Unmatched session offers window activation');
-        assert(first.harness.gicon && first.status.text === 'Needs approval', 'Harness icon did not replace the repeated provider name');
+        assert(first.harness.gicon && first.status.text === 'Needs approval · sample-1', 'Harness/status/session reference missing');
+        const sharedProject = {...initial, sessions:initial.sessions.map(s => ({...s, label:'same-project'}))};
+        this._renderAgents(sharedProject);
+        assert(new Set([...view.rows.values()].map(item => item.reference)).size === 3, 'Same-project sessions cannot be distinguished');
+        for (const item of view.rows.values()) {
+            assert(item.status.text.includes(item.reference) && item.menu.accessible_name.includes(item.reference), 'Session identity missing from visible/accessibility labels');
+        }
+        await this._capture('agents-same-project');
+        this._renderAgents(initial);
         const order = view.activeList.get_children();
         await click(first.open);
         assert(view.mode === 'list' && this._island.expanded, 'Unmatched session opened a chooser or dismissed the island');
         const listHeight = this._island.actor.height;
         await click(first.menu);
         assert(view.mode === 'list' && view.sessionMenu.visible && view.hideSession.has_key_focus(), 'Session menu replaced the list or lost focus');
+        assert(view.menuIdentity.text === first.session.session && !view.menuIdentity.clutter_text.editable,
+            'Full session ID is missing or editable');
+        const keyboard = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
+        const press = async (key, shift = false) => {
+            if (shift) keyboard.notify_keyval(GLib.get_monotonic_time(), Clutter.KEY_Shift_L, Clutter.KeyState.PRESSED);
+            keyboard.notify_keyval(GLib.get_monotonic_time(), key, Clutter.KeyState.PRESSED);
+            keyboard.notify_keyval(GLib.get_monotonic_time(), key, Clutter.KeyState.RELEASED);
+            if (shift) keyboard.notify_keyval(GLib.get_monotonic_time(), Clutter.KEY_Shift_L, Clutter.KeyState.RELEASED);
+            await delay(100);
+        };
+        await press(Clutter.KEY_Tab, true);
+        assert(view.sessionMenu.visible && view.menuIdentity.clutter_text.has_key_focus(), 'Full session ID is not keyboard reachable');
+        await press(Clutter.KEY_Tab);
+        assert(view.hideSession.has_key_focus(), 'Tab did not return to the menu action');
         assert(this._island.actor.height === listHeight, 'Session menu changed island height');
         await this._capture('agents-session-menu');
         assert(this._island._onEscape() && !view.sessionMenu.visible && first.menu.has_key_focus(), 'Escape did not restore menu focus');

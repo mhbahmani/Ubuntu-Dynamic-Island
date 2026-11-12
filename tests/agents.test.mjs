@@ -1,9 +1,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {AgentStore, fromAgentHook, normalizeAgentEvent, agentLaunchArgv, agentCounts} from '../services/agents-model.js';
+import {AgentStore, fromAgentHook, normalizeAgentEvent, agentLaunchArgv, agentCounts, agentSessionReferences} from '../services/agents-model.js';
 import {HOOK_MARKER, hasAgentHooks, mergeAgentHooks, hookEntries, openCodePlugin} from '../services/agents-setup-model.js';
 
 const event = (state, changes = {}) => ({v:1,provider:'claude',session:'one',state,...changes});
+test('session references distinguish shared projects, suffixes and profiles without depending on row order',()=>{
+    const store = new AgentStore();
+    for (const [session, profile] of [['prefix-a-12345678','default'], ['prefix-b-12345678','default'],
+        ['prefix-a-12345678','other'], ['short','default']])
+        store.apply(event('working',{session,profile,label:'same-project'}));
+    const rows = store.snapshot().sessions, references = agentSessionReferences(rows);
+    assert.equal(new Set(references.values()).size,4);
+    assert.equal(references.get(rows[3].id),'short');
+    assert.equal(references.get(rows[1].id),'…b-12345678');
+    const reversed = agentSessionReferences([...rows].reverse());
+    for (const row of rows) assert.equal(reversed.get(row.id),references.get(row.id));
+    store.apply(event('finished',{session:'prefix-b-12345678'}));
+    assert.deepEqual(agentSessionReferences(store.snapshot().sessions),references);
+});
 test('agent observer never forwards hook prompt, tool arguments or transcript paths',()=>{
     const result = fromAgentHook('claude',{hook_event_name:'UserPromptSubmit',session_id:'x',cwd:'/private/project',
         prompt:'SECRET',transcript_path:'/secret',tool_input:{password:'SECRET'}},{at:1});

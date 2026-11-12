@@ -4,7 +4,7 @@ import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import Atk from 'gi://Atk';
 import GLib from 'gi://GLib';
-import {AGENTS, AGENT_STATES, agentSummary} from '../services/agents-model.js';
+import {AGENTS, AGENT_STATES, agentSummary, agentSessionReferences} from '../services/agents-model.js';
 import {column, row, label, button, setEnabled, notchToggle} from './widgets.js';
 
 const RECENT = new Set(['finished', 'closed']);
@@ -113,6 +113,10 @@ export class AgentsView {
         this.sessionMenu.reactive = true;
         this.sessionMenu.x_expand = this.sessionMenu.y_expand = true;
         this.sessionMenu.x_align = Clutter.ActorAlign.END; this.sessionMenu.y_align = Clutter.ActorAlign.START;
+        this.menuIdentity = new St.Entry({style_class:'ubuntu-island-agent-entry', can_focus:true,
+            reactive:true, accessible_name:'Session ID'});
+        this.menuIdentity.clutter_text.editable = false;
+        this.sessionMenu.add_child(this.menuIdentity);
         this.menuUpdated = label('', 'ubuntu-island-agent-menu-note'); this.sessionMenu.add_child(this.menuUpdated);
         this.hideSession = textButton('', () => {
             const id = this.menuSession?.session.id;
@@ -125,9 +129,18 @@ export class AgentsView {
         this.hideSession.set_child(hideFace); this.sessionMenu.add_child(this.hideSession);
         this.sessionMenu.hide(); this.stack.add_child(this.sessionMenu);
         this.sessionMenu.connect('notify::allocation', () => this._positionSessionMenu());
-        this.sessionMenu.connect('key-press-event', (_actor, event) => {
-            if ([Clutter.KEY_Escape, Clutter.KEY_Tab, Clutter.KEY_ISO_Left_Tab].includes(event.get_key_symbol())) {
+        this.sessionMenu.connect('captured-event', (_actor, event) => {
+            if (event.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
+            const key = event.get_key_symbol();
+            const backward = key === Clutter.KEY_ISO_Left_Tab || event.get_state() & Clutter.ModifierType.SHIFT_MASK;
+            if (key === Clutter.KEY_Escape) {
                 this._closeSessionMenu(true); return Clutter.EVENT_STOP;
+            }
+            if ([Clutter.KEY_Tab, Clutter.KEY_ISO_Left_Tab].includes(key)) {
+                if (backward && this.hideSession.has_key_focus()) this.menuIdentity.grab_key_focus();
+                else if (!backward && this.menuIdentity.contains(global.stage.get_key_focus())) this.hideSession.grab_key_focus();
+                else this._closeSessionMenu(true);
+                return Clutter.EVENT_STOP;
             }
             return Clutter.EVENT_PROPAGATE;
         });
@@ -326,8 +339,10 @@ export class AgentsView {
         if (wasOpen) { item.menu.grab_key_focus(); return; }
         this.menuSession = item;
         const time = new Date(item.session.updated).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        this.menuIdentity.text = item.session.session || item.session.id;
+        this.menuIdentity.accessible_name = `${AGENTS[item.session.provider]} session ID, profile ${item.session.profile || 'default'}`;
         this.menuUpdated.text = `Last activity · ${time}`;
-        this.hideSession.accessible_name = `Hide ${item.session.label} from the list. Keep the agent running`;
+        this.hideSession.accessible_name = `Hide ${item.session.label}, session ${item.reference} from the list. Keep the agent running`;
         item.menu.add_accessible_state(Atk.StateType.EXPANDED); item.menu.add_style_pseudo_class('active');
         this.sessionMenu.show();
         // The island's modal grab can retarget empty-space presses to its root,
@@ -372,6 +387,7 @@ export class AgentsView {
         this.snapshot = snapshot;
         if (!this.actor.mapped || this.mode !== 'list') return;
         const sessions = snapshot?.sessions || [];
+        const references = agentSessionReferences(sessions);
         setEnabled(this.clearButton, !this.pending && sessions.some(s => RECENT.has(s.state)));
         this.summary.text = snapshot?.connected ? agentSummary(sessions) : 'Observer offline';
         this.summary.accessible_name = `Last reported: ${this.summary.text}`;
@@ -413,8 +429,9 @@ export class AgentsView {
                 actor.connect('notify::allocation', () => this._syncMotion());
             }
             item.session = session; item.title.text = session.label;
+            item.reference = references.get(session.id);
             const state = AGENT_STATES[session.state] || 'Unknown';
-            item.status.text = state;
+            item.status.text = `${state} · ${item.reference}`;
             item.harness.gicon = harnessIcons.get(session.provider);
             item.harness.accessible_name = AGENTS[session.provider];
             item.glyph.gicon = icons.get(session.state) || icons.get('unknown');
@@ -423,8 +440,8 @@ export class AgentsView {
             if (!canOpen && item.open.has_key_focus()) item.menu.grab_key_focus();
             setEnabled(item.open, canOpen); item.open.track_hover = canOpen; item.arrow.visible = canOpen;
             item.open.accessible_role = canOpen ? Atk.Role.PUSH_BUTTON : Atk.Role.PANEL;
-            item.open.accessible_name = `${canOpen ? 'Open window for ' : ''}${session.label}, ${AGENTS[session.provider]}. Last reported ${state} at ${new Date(session.updated).toLocaleString()}`;
-            item.menu.accessible_name = `Options for ${session.label}`;
+            item.open.accessible_name = `${canOpen ? 'Open window for ' : ''}${session.label}, ${AGENTS[session.provider]}, session ${item.reference}. Last reported ${state} at ${new Date(session.updated).toLocaleString()}`;
+            item.menu.accessible_name = `Options for ${session.label}, session ${item.reference}`;
         }
         if (this.regroup) {
             for (const session of [...sessions].sort((a,b) => PRIORITY[a.state] - PRIORITY[b.state] || b.updated - a.updated)) {

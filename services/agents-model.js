@@ -142,6 +142,24 @@ export function agentSummary(rows = []) {
         !c.working && !c.attention && c.finished && `${c.finished} finished`].filter(Boolean).join(' · ') || (rows.length ? 'Idle' : 'No active sessions');
 }
 
+// Use the actual session ID, not row order or activity time. Shared suffixes
+// grow only enough to distinguish records, including identical IDs in different
+// profiles/providers. The full identity stays available in the session menu.
+export function agentSessionReferences(rows = []) {
+    const identities = rows.map(row => {
+        const session = token(row.session || row.id);
+        return {session, key: `${token(row.provider)}/${token(row.profile) || 'default'}/${session}`};
+    });
+    return new Map(rows.map((row, index) => {
+        const {session, key} = identities[index];
+        let length = Math.min(8, session.length);
+        while (length < key.length && identities.some((other, otherIndex) =>
+            otherIndex !== index && other.key !== key && other.key.endsWith(key.slice(-length)))) length++;
+        const reference = key.slice(-length);
+        return [row.id, `${length < session.length || length > session.length && length < key.length ? '…' : ''}${reference}`];
+    }));
+}
+
 export const TERMINAL_NAMES = {'gnome-terminal':'GNOME Terminal', kgx:'GNOME Console',
     terminator:'Terminator', kitty:'Kitty', wezterm:'WezTerm'};
 export const TERMINALS = Object.keys(TERMINAL_NAMES);
