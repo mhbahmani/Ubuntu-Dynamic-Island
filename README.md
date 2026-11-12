@@ -35,15 +35,17 @@ and [compact playing pill](screenshots/playing-pill.png).
   Adjacent-month cells stay empty. Holiday colors follow the main calendar:
   Iranian holidays/Fridays in Jalali, Iranian Islamic dates/Fridays in Hijri,
   and Saturday/Sunday weekends in Gregorian. Selecting a named holiday shows its
-  name in the header. Jalali 1405 dates follow the published calendar; other lunar
-  dates are labeled as calculated estimates.
+  name in the header. Jalali and Hijri dates in Iranian year 1405 follow the
+  published calendar; lunar holidays outside that year are marked as estimates.
   Select a day to convert it, browse months, or return to Today.
-  Hover or focus a day to open a box with its date in the other two calendars.
+  Pause over a day for 450 ms to see two small alternate dates; keyboard focus
+  shows them immediately. Moving away or closing the tab cancels the popup.
   Arrow keys move through dates; Page Up/Down changes month, Shift+Page Up/Down
   changes year, and Home/End moves to the start/end of the week.
   Enable it in **Preferences → Modules → Calendar**, or open Calendar in `make preview`
-  without installing. Hijri uses tabular calculation; local moon-sighting dates
-  may differ. Read-only desktop events are available through the optional EDS
+  without installing. Hijri follows Iran’s published 1405 calendar (21 March
+  2026–20 March 2027), with an aligned tabular estimate outside that range; local
+  moon-sighting dates may differ. Read-only desktop events are available through the optional EDS
   integration; see [event setup](docs/MODULES.md#desktop-events).
   **Preferences → Notch → Dates in the notch** shows one or several calendars.
   Only the main calendar is selected initially; use the independent switches to

@@ -1,16 +1,37 @@
 // Civil days are UTC day numbers, independent of DST. Only todayDay reads the
-// desktop's local time zone. ICU (already in GJS) supplies calendar conversions.
+// desktop's local time zone. ICU supplies names/conversions, with published
+// Iranian month starts overriding tabular Hijri inside the supported year.
+import {iranHijriParts, hasPublishedHijri} from './iran-hijri.js';
 const DAY = 86400000;
 export const CALENDARS = Object.freeze({
     jalali: {calendar: 'persian', name: 'Jalali', title: 'Jalali · شمسی'},
     gregorian: {calendar: 'gregory', name: 'Gregorian', title: 'Gregorian · میلادی'},
-    hijri: {calendar: 'islamic-civil', name: 'Hijri', title: 'Hijri · قمری'},
+    hijri: {calendar: 'islamic-iran', name: 'Hijri', title: 'Hijri · قمری'},
 });
 const formatters = new Map();
 function formatter(calendar, options, locale = calendar === 'gregory' ? 'en-GB' : 'fa-IR') {
     const key = JSON.stringify([calendar, options, locale]);
-    if (!formatters.has(key)) formatters.set(key, new Intl.DateTimeFormat(locale,
-        {...options, calendar, timeZone: 'UTC'}));
+    if (!formatters.has(key)) {
+        const regional = calendar === 'islamic-iran';
+        const base = new Intl.DateTimeFormat(locale,
+            {...options, calendar: regional ? 'islamic-civil' : calendar, timeZone: 'UTC'});
+        if (!regional) formatters.set(key, base);
+        else {
+            const number = new Intl.NumberFormat(base.resolvedOptions().locale, {
+                useGrouping: false, minimumIntegerDigits: options.day === '2-digit' ? 2 : 1,
+            });
+            const formatToParts = date => {
+                const day = Math.floor(date.getTime()/DAY), parts = iranHijriParts(day);
+                // ICU supplies localized month/year names from mid-month.
+                // Replace the day separately, including regional 30-day months.
+                const reference = new Date((day - parts.day + 15)*DAY);
+                const weekday = options.weekday ? base.formatToParts(date).find(p => p.type === 'weekday')?.value : '';
+                return base.formatToParts(reference).map(p => p.type === 'day'
+                    ? {...p, value: number.format(parts.day)} : p.type === 'weekday' ? {...p, value: weekday} : p);
+            };
+            formatters.set(key, {formatToParts, format: date => formatToParts(date).map(p => p.value).join('')});
+        }
+    }
     return formatters.get(key);
 }
 export const calendarTodayLabel = (id, calendarLanguage = true) => calendarLanguage
@@ -31,6 +52,7 @@ export const todayDay = (now = new Date()) => Math.floor(Date.UTC(now.getFullYea
 export const civilDay = (year, month, day) => Math.floor(Date.UTC(year, month - 1, day) / DAY);
 export const weekday = day => new Date(day * DAY).getUTCDay();
 export function dateParts(day, calendar) {
+    if (calendar === 'islamic-iran') return iranHijriParts(day);
     const parts = formatter(calendar, {year: 'numeric', month: 'numeric', day: 'numeric'}, 'en-US')
         .formatToParts(new Date(day * DAY));
     return Object.fromEntries(parts.filter(p => ['year', 'month', 'day'].includes(p.type)).map(p => [p.type, Number(p.value)]));
@@ -91,7 +113,7 @@ export function notchDate(day, choice = 'main', main = 'jalali', calendarLanguag
     const calendar = primaryCalendar(id);
     return {
         text: formatter(calendar, {day: 'numeric', month: 'short'}, calendarLanguage ? undefined : 'en-GB').format(new Date(day * DAY)),
-        description: `${CALENDARS[id].name}: ${fullDate(day, calendar, 'short', calendarLanguage)}${id === 'hijri' ? ' (calculated)' : ''}`,
+        description: `${CALENDARS[id].name}: ${fullDate(day, calendar, 'short', calendarLanguage)}${id === 'hijri' && !hasPublishedHijri(day) ? ' (estimated)' : ''}`,
         rtl: calendarLanguage && id !== 'gregorian',
     };
 }

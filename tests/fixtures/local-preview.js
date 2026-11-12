@@ -473,6 +473,11 @@ export default class Preview extends UbuntuIsland {
             const selected = view.selected;
             pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2); await delay(100);
             const tip = view.dayTip.tip;
+            assert(!tip.visible && view.dayTip.timer, 'Day hover opened without its pause');
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(),50,500); await delay(80);
+            assert(!tip.visible && !view.dayTip.timer, 'Leaving retained a pending popup');
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2); await delay(550);
+            assert(!/Hijri:|Gregorian:|Jalali:|calculated|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/.test(tip.text), 'Day popup has unnecessary labels');
             assert(tip.visible && tip.text.split('\n').length === 2 && !tip.text.includes(`${primary[0].toUpperCase()+primary.slice(1)}:`),
                 'Day hover did not show the other two calendars');
             assert(view.selected === selected, 'Day hover changed the selection');
@@ -678,8 +683,9 @@ export default class Preview extends UbuntuIsland {
         assert(view.cells.find(cell => cell.day === holidayDay + 1).control.has_style_class_name('ubuntu-island-calendar-holiday'), 'Gregorian weekend missing');
         await this._capture('calendar-gregorian-weekends');
         this._settings.set_string('calendar-primary', 'hijri');
-        view.select(holidayDay + 1); await delay(150);
-        assert(view.agenda.holiday.text.includes('محاسبه‌ای'), 'Calculated lunar holiday is not identified');
+        view.select(holidayDay); await delay(150);
+        assert(view.agenda.holiday.text.includes('شهادت') && !view.agenda.holiday.text.includes('محاسبه‌ای'),
+            'Hijri holiday does not follow the published Iranian date');
         await this._capture('calendar-hijri-holiday');
         this._settings.set_string('calendar-primary', 'jalali');
         this._settings.set_strv('calendar-additional', ['gregorian']);

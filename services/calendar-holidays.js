@@ -1,4 +1,5 @@
 import {dateParts, monthBounds, weekday} from './calendar-model.js';
+import {hasPublishedHijri} from './iran-hijri.js';
 
 // Holiday rules follow the main calendar, independently of additional dates.
 // Iranian dates and short event names checked against the official 1405 calendar:
@@ -36,8 +37,8 @@ export function isCalendarWeekend(dayOfWeek, primary) {
 }
 
 function calculatedLunarHoliday(day) {
-    const parts = dateParts(day, 'islamic-civil');
-    const key = parts.month === 2 && day === monthBounds(day, 'islamic-civil').end
+    const parts = dateParts(day, 'islamic-iran');
+    const key = parts.month === 2 && day === monthBounds(day, 'islamic-iran').end
         ? '2/last' : `${parts.month}/${parts.day}`;
     return LUNAR.get(key);
 }
@@ -57,7 +58,7 @@ export function calendarHolidays(day, primary) {
         }
     } else if (primary === 'hijri') {
         const lunar = calculatedLunarHoliday(day);
-        if (lunar) { names.push(lunar); estimated = true; }
+        if (lunar) { names.push(lunar); estimated = !hasPublishedHijri(day); }
     }
     return {weekend, names, estimated, holiday: weekend || names.length > 0};
 }

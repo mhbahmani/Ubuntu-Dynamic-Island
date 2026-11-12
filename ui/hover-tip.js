@@ -1,15 +1,20 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
+import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {label} from './widgets.js';
 
 // One noninteractive popup per view, shared by its hover/focus targets. No
-// timers or hidden updates; conversions run only for the current target.
+// repeating timers or hidden updates; a hover delay uses one cancellable source.
 export class HoverTip {
-    constructor(owner) {
+    constructor(owner, {delay = 0, styleClass = ''} = {}) {
         this.owner = owner;
+        this.delay = delay;
+        this.timer = 0;
+        this.ready = false;
         this.tip = label('', 'ubuntu-island-date-tooltip', false);
+        if (styleClass) this.tip.add_style_class_name(styleClass);
         this.tip.clutter_text.line_wrap = true;
         this.tip.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
         this.tip.set_text_direction(Clutter.TextDirection.LTR);
@@ -18,6 +23,7 @@ export class HoverTip {
         owner.connect('notify::mapped', () => this.refresh());
         owner.connect('notify::allocation', () => this.refresh());
         owner.connect('destroy', () => {
+            this._cancel();
             this.destroyed = true;
             Main.layoutManager.removeChrome(this.tip);
             this.tip.destroy();
@@ -28,20 +34,37 @@ export class HoverTip {
     addTarget(actor, text) {
         const sync = () => {
             if (this.destroyed) return;
-            if (actor.mapped && (actor.hover || actor.has_key_focus()))
+            if (actor.mapped && (actor.hover || actor.has_key_focus())) {
+                if (this.target?.actor !== actor) this._cancel();
                 this.target = {actor, text};
-            else if (this.target?.actor !== actor) return;
+            } else if (this.target?.actor !== actor) return;
             this.refresh();
         };
         actor.connectObject('notify::hover', sync, 'notify::mapped', sync,
             'notify::allocation', sync, 'key-focus-in', sync, 'key-focus-out', sync, this.owner);
     }
 
+    _cancel() {
+        if (this.timer) GLib.Source.remove(this.timer);
+        this.timer = 0;
+        this.ready = false;
+        this.tip.hide();
+    }
+
     refresh() {
         if (this.destroyed) return;
         const target = this.target?.actor;
         if (!this.owner.mapped || !target?.mapped || !(target.hover || target.has_key_focus())) {
-            this.tip.hide(); return;
+            this._cancel(); return;
+        }
+        if (this.delay && !this.ready && !target.has_key_focus()) {
+            if (!this.timer) this.timer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, this.delay, () => {
+                this.timer = 0;
+                this.ready = true;
+                this.refresh();
+                return GLib.SOURCE_REMOVE;
+            });
+            return;
         }
         const text = this.target.text();
         if (!text) { this.tip.hide(); return; }

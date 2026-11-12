@@ -40,6 +40,10 @@
     border: 1px solid rgba(235, 239, 255, 0.2);
 }
 .ubuntu-island-cpu-dot { width: 6px; height: 6px; border-radius: 3px; background-color: #87ad8b; }
+.ubuntu-island-calendar-day-tooltip {
+    font-size: 9pt; color: #b7bbc5; padding: 6px 9px;
+    border-radius: 7px;
+}
 .ubuntu-island-pill-event { padding: 0; border: none; background-color: transparent; color: #e3e8f0; }
 .ubuntu-island-pill-event-face { spacing: 6px; }
 .ubuntu-island-pill-event:hover, .ubuntu-island-pill-event:focus { color: #ffffff; }

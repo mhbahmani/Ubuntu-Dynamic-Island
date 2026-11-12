@@ -29,7 +29,7 @@ export class CalendarView {
         this.actor.layout_manager.homogeneous = true;
         this.actor.y_expand = true;
         this.actor.set_text_direction(Clutter.TextDirection.LTR);
-        this.dayTip = new HoverTip(this.actor);
+        this.dayTip = new HoverTip(this.actor, {delay: 450, styleClass: 'ubuntu-island-calendar-day-tooltip'});
         this.agenda = new CalendarAgenda({...actions,restoreFocus:() => this.todayButton.grab_key_focus()});
         this.actor.add_child(this.agenda.actor);
         this.month = column('ubuntu-island-calendar-month');
@@ -132,7 +132,7 @@ export class CalendarView {
         if (day == null) return '';
         const native = this.settings.get_boolean('calendar-use-calendar-language');
         return Object.entries(CALENDARS).filter(([id]) => id !== this.primary)
-            .map(([id, calendar]) => `${calendar.name}: \u2068${fullDate(day, calendar.calendar, 'short', native)}\u2069${id === 'hijri' ? ' (calculated)' : ''}`)
+            .map(([id]) => `\u2068${formatNotchDate(day,id,'%d %MM %Y','auto',native)}\u2069`)
             .join('\n');
     }
     _key(event, day) {

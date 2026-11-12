@@ -5,7 +5,7 @@ import {civilDay, dateParts, monthBounds, shiftMonths, monthGrid, todayDay, nume
 test('English date display keeps calendar conversion and overrides saved Persian numerals', () => {
     const day = civilDay(2026,11,10);
     assert.equal(formatNotchDate(day,'jalali','%Y/%M/%D','persian',false),'1405/08/19');
-    assert.equal(formatNotchDate(day,'hijri','%Y/%M/%D','persian',false),'1448/05/29');
+    assert.equal(formatNotchDate(day,'hijri','%Y/%M/%D','persian',false),'1448/05/30');
     for (const id of ['jalali','gregorian','hijri']) {
         assert.equal(calendarTodayLabel(id,false),'Today');
         const full = fullDate(day,primaryCalendar(id),'long',false);
@@ -40,7 +40,7 @@ test('date format tokens, literal text and numerals work for each calendar', () 
     assert.equal(formatNotchDate(day, 'jalali', '%Y/%M/%D'), '۱۴۰۵/۰۸/۱۹');
     assert.equal(formatNotchDate(day, 'jalali', '%y/%m/%d', 'latin'), '05/8/19');
     assert.equal(formatNotchDate(day, 'gregorian', '%Y/%M/%D'), '2026/11/10');
-    assert.equal(formatNotchDate(day, 'hijri', '%Y/%M/%D'), '۱۴۴۸/۰۵/۲۹');
+    assert.equal(formatNotchDate(day, 'hijri', '%Y/%M/%D'), '۱۴۴۸/۰۵/۳۰');
     assert.equal(formatNotchDate(day, 'gregorian', '%WW %d %MM %Y'), 'Tuesday 10 November 2026');
     assert.equal(formatNotchDate(day, 'gregorian', '%ww %w %mm'), 'Tue T Nov');
     assert.equal(formatNotchDate(day, 'gregorian', '%d %mm', 'persian'), '۱۰ Nov');
@@ -61,8 +61,8 @@ test('multiple notch calendars retain explicit order and independent formats', (
         formats: {gregorian: '%D/%M', jalali: '%Y/%M/%D'}, digits: {jalali: 'latin'},
     });
     assert.deepEqual(entries.map(entry => entry.id), ['hijri', 'gregorian', 'jalali']);
-    assert.deepEqual(entries.map(entry => entry.text), ['۲۹ جمادی‌الاول', '10/11', '1405/08/19']);
-    assert.match(entries[0].description, /calculated/);
+    assert.deepEqual(entries.map(entry => entry.text), ['۳۰ جمادی‌الاول', '10/11', '1405/08/19']);
+    assert.doesNotMatch(entries[0].description, /calculated|estimated/);
     assert.equal(notchDates(civilDay(2026, 11, 10), {calendars: []}).length, 0);
     assert.deepEqual(dateOrder(['constructor', 'gregorian', 'gregorian']), ['gregorian', 'jalali', 'hijri']);
     assert.deepEqual(notchDates(civilDay(2026, 11, 10), {main: 'hijri'}).map(entry => entry.id), ['hijri']);
@@ -106,14 +106,14 @@ test('notch dates follow the chosen calendar independently of the grid', () => {
     const day = civilDay(2026, 11, 10);
     assert.equal(notchDate(day, 'jalali').text, '۱۹ آبان');
     assert.equal(notchDate(day, 'gregorian').text, '10 Nov');
-    assert.match(notchDate(day, 'hijri').text, /۲۹/);
+    assert.match(notchDate(day, 'hijri').text, /۳۰/);
     for (const id of ['jalali', 'gregorian', 'hijri']) {
         assert.deepEqual(notchDate(day, 'main', id), notchDate(day, id, 'gregorian'));
         assert.equal(notchDate(day, id).rtl, id !== 'gregorian');
         assert.notEqual(notchDate(day + 1, id).text, notchDate(day, id).text);
     }
     assert.match(notchDate(day, 'gregorian').description, /2026/);
-    assert.match(notchDate(day, 'hijri').description, /calculated/);
+    assert.doesNotMatch(notchDate(day, 'hijri').description, /calculated|estimated/);
     assert.deepEqual(notchDate(day, 'invalid'), notchDate(day, 'jalali'));
     assert.equal(notchDate(civilDay(2026, 3, 21), 'jalali').text, '۱ فروردین');
     assert.equal(notchDate(civilDay(2027, 1, 1), 'gregorian').text, '1 Jan');
@@ -204,4 +204,29 @@ test('Today follows the main calendar language', () => {
     assert.equal(calendarTodayLabel('jalali'), 'امروز');
     assert.equal(calendarTodayLabel('gregorian'), 'Today');
     assert.equal(calendarTodayLabel('hijri'), 'اليوم');
+});
+
+
+test('Iranian Hijri dates match the published year and remain continuous at both boundaries', () => {
+    const calendar = primaryCalendar('hijri');
+    for (const [year,month,day,hy,hm,hd] of [
+        [2026,3,21,1447,10,1], [2026,4,19,1447,11,1], [2026,5,18,1447,12,1],
+        [2026,6,16,1448,1,1], [2026,7,16,1448,2,1], [2026,8,14,1448,3,1],
+        [2026,9,13,1448,4,1], [2026,10,12,1448,5,1], [2026,11,11,1448,6,1],
+        [2026,12,11,1448,7,1], [2027,1,10,1448,8,1], [2027,2,8,1448,9,1],
+        [2027,3,10,1448,10,1], [2026,11,13,1448,6,3],
+    ]) assert.deepEqual(dateParts(civilDay(year,month,day),calendar), {year:hy,month:hm,day:hd});
+    for (let day=civilDay(2026,2,1); day<civilDay(2027,5,1); day++) {
+        const current=dateParts(day,calendar), next=dateParts(day+1,calendar);
+        assert.ok(next.day === current.day+1 || next.day === 1 && [29,30].includes(current.day));
+        const bounds=monthBounds(day,calendar);
+        assert.ok([29,30].includes(bounds.end-bounds.start+1));
+        assert.equal(dateParts(bounds.end+1,calendar).day,1);
+        assert.equal(shiftMonths(bounds.start,calendar,1),bounds.end+1);
+        const named=fullDate(day,calendar,'long',false);
+        assert.ok(named.startsWith(new Intl.DateTimeFormat('en-GB',{weekday:'long',timeZone:'UTC'}).format(new Date(day*86400000))));
+        assert.match(named,new RegExp(`\\b${current.day}\\b`));
+    }
+    assert.match(fullDate(civilDay(2026,11,10),calendar,'long',false), /30 Jumada I 1448/);
+    assert.match(notchDate(civilDay(2027,4,1),'hijri').description,/estimated/);
 });

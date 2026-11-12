@@ -95,8 +95,8 @@ Holiday colors follow the **main calendar**, not the additional displayed dates.
 
 Named holidays appear in the selected-date header. Jalali year 1405 uses bundled
 dates from the [University of Tehran's published calendar](https://calendar.ut.ac.ir/documents/2139738/7092644/Calendar-1405.pdf/64228cbb-f4de-dc32-4d2b-57db3c8e322f?t=1761972997587).
-Lunar holidays outside that dataset and the Hijri view use calculated dates,
-labeled **محاسبه‌ای**. These are Iranian observances, not a universal holiday list;
+Both Jalali and Hijri use those published lunar dates. Outside that year,
+lunar holidays use aligned tabular estimates, labeled **محاسبه‌ای**. These are Iranian observances, not a universal holiday list;
 local moon-sighting dates may differ.
 
 ### Dates in the notch
@@ -140,7 +140,11 @@ to read the full text. Separate text actors preserve mixed text direction.
 ### Implementation and checks
 
 `services/calendar-model.js` uses ICU calendars and UTC civil-day arithmetic for
-date-only values, with local time determining Today. Hijri uses `islamic-civil`.
+date-only values, with local time determining Today. `services/iran-hijri.js`
+supplies published Iranian month starts for 1405. Outside that year it uses
+`islamic-civil`, aligned at the published boundary to keep month browsing
+continuous. ICU still supplies localized month names and actual weekdays.
+This conversion uses only bundled data, with no requests, polling or dependency.
 Persian text uses bundled Vazir, with Vazirmatn/DejaVu Sans fallbacks. `make install`
 registers Vazir in an independently owned per-user directory; previews use private
 font directories. Latin text uses Noto Sans.

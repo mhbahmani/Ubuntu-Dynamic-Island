@@ -65,8 +65,8 @@ export function notchDatePreferences(settings, window) {
                 settings.set_strv('pill-date-short-months', [...selected]);
             });
         }
-        if (id === 'hijri') row.add_row(new Adw.ActionRow({title: 'Calculated Hijri dates',
-            subtitle: 'Local moon-sighting dates may differ.'}));
+        if (id === 'hijri') row.add_row(new Adw.ActionRow({title: 'Iranian Hijri dates',
+            subtitle: 'Uses Iran’s published 1405 calendar (21 March 2026–20 March 2027). Other years use a tabular estimate; local moon-sighting dates may differ.'}));
         list.append(row);
         const item = {row, shown, up, down, preset, custom, error, numerals, shortMonth, editing: false};
         rows.set(id, item);

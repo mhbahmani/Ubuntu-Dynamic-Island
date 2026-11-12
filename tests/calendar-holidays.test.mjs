@@ -40,20 +40,20 @@ test('published Iranian 1405 dates override calculated lunar dates and keep over
     assert.equal(namedDays, 26, 'Published 1405 calendar has 26 distinct named holiday dates');
 });
 
-test('Hijri holidays match the displayed calculation including the last day of a short Safar', () => {
+test('Hijri holidays match published Iranian dates including the last day of a short Safar', () => {
     let safarEnd;
     for (let day = civilDay(2026, 7, 1); day < civilDay(2026, 9, 1); day++) {
-        const parts = dateParts(day, 'islamic-civil');
+        const parts = dateParts(day, 'islamic-iran');
         if (parts.month === 2 && parts.day === 29) safarEnd = day;
         const info = calendarHolidays(day, 'hijri');
         if (info.names.length) {
-            assert.equal(info.estimated, true);
-            assert.match(holidayDescription(info, 'hijri'), /محاسبه‌ای/);
+            assert.equal(info.estimated, false);
+            assert.doesNotMatch(holidayDescription(info, 'hijri'), /محاسبه‌ای/);
         }
     }
     assert.ok(safarEnd);
     assert.deepEqual(calendarHolidays(safarEnd, 'hijri').names, ['شهادت امام رضا']);
-    assert.deepEqual(calendarHolidays(civilDay(2026, 11, 14), 'hijri').names, ['شهادت حضرت فاطمه']);
+    assert.deepEqual(calendarHolidays(civilDay(2026, 11, 13), 'hijri').names, ['شهادت حضرت فاطمه']);
 });
 
 test('Gregorian does not inherit Iranian holidays; unpublished lunar dates are explicitly estimates', () => {
@@ -61,7 +61,7 @@ test('Gregorian does not inherit Iranian holidays; unpublished lunar dates are e
     assert.deepEqual(calendarHolidays(independence, 'jalali').names, ['پیروزی انقلاب اسلامی']);
     assert.equal(calendarHolidays(independence, 'gregorian').holiday, false);
     assert.equal(holidayDescription(calendarHolidays(civilDay(2026, 11, 8), 'gregorian'), 'gregorian'), 'Weekend');
-    const estimate = calendarHolidays(civilDay(2025, 7, 6), 'jalali');
+    const estimate = calendarHolidays(civilDay(2025, 7, 7), 'jalali');
     assert.ok(estimate.names.includes('عاشورا'));
     assert.equal(estimate.estimated, true);
     assert.match(holidayDescription(estimate, 'jalali'), /محاسبه‌ای/);
