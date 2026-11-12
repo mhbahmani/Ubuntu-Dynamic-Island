@@ -1,7 +1,8 @@
 export const HOOK_MARKER = ' # ubuntu-island-agent-v1';
 const HOOK_LABELS = {
+    SubagentStart: 'Subagent started', SubagentStop: 'Subagent stopped',
     SessionStart: 'Session start', UserPromptSubmit: 'Prompt submitted',
-    PermissionRequest: 'Approval needed', Stop: 'Task finished', SessionEnd: 'Session ended',
+    PermissionRequest: 'Approval needed', Stop: 'Response stopped', SessionEnd: 'Session ended',
     Interrupt: 'Task interrupted', StopFailure: 'Task failed', Notification: 'Attention needed',
     PreToolUse: 'Input requested', PostToolUse: 'Tool finished', PostToolUseFailure: 'Tool failed',
 };
@@ -23,9 +24,11 @@ export function hookEntries(provider, relay, gjs = '/usr/bin/gjs') {
     };
     const events = ['SessionStart', 'UserPromptSubmit', 'PermissionRequest', 'Stop', 'SessionEnd'];
     if (provider === 'codex') events.push('Interrupt');
-    if (provider === 'claude') events.push('StopFailure', 'Notification');
+    if (provider === 'claude') events.push('StopFailure', 'Notification', 'SubagentStart', 'SubagentStop');
     const result = Object.fromEntries(events.map(event => [event, [{hooks: [handler(event)]}]]));
     if (provider === 'claude') result.Notification[0].matcher = 'permission_prompt|elicitation_dialog|elicitation_url_dialog|elicitation_complete|elicitation_response|agent_needs_input';
+    // Only input prompts: a relay on every tool start adds latency to each call.
+    // Resumed work is observed when the first tool finishes (PostToolUse).
     result.PreToolUse = [{matcher: provider === 'claude' ? 'AskUserQuestion' : 'request_user_input', hooks: [handler('PreToolUse')]}];
     result.PostToolUse = [{hooks: [handler('PostToolUse')]}];
     if (provider === 'claude') result.PostToolUseFailure = [{hooks: [handler('PostToolUseFailure')]}];

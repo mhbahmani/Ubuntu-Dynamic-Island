@@ -2,11 +2,13 @@
 import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
 import GLib from 'gi://GLib';
+import {AgentTitles} from './titles.js';
 import {AgentStore} from '../../services/agents-model.js';
 import {readBounded, readChunk, writeBytes, encoder, decoder, runtimePath, privateDirectory} from './io.js';
 
 const loop = new GLib.MainLoop(null, false);
 const store = new AgentStore();
+const titles = new AgentTitles(store, schedule);
 const cancel = new Gio.Cancellable();
 const clients = new Set();
 const stdout = new GioUnix.OutputStream({fd: 1, close_fd: false});
@@ -28,7 +30,7 @@ function shutdown() {
     if (shuttingDown) return;
     shuttingDown = true;
     if (tick) GLib.Source.remove(tick);
-    cancel.cancel(); service?.stop(); service?.close();
+    titles.stop(); cancel.cancel(); service?.stop(); service?.close();
     for (const conn of clients) { try { conn.close(null); } catch {} }
     try { socketFile?.delete(null); } catch {}
     loop.quit();
@@ -39,13 +41,14 @@ async function accept(connection) {
     clients.add(connection);
     try {
         if (connection.get_socket().get_credentials().get_unix_user() !== new Gio.Credentials().get_unix_user()) return;
-        const raw = JSON.parse(await readBounded(connection.get_input_stream(), 4096, local));
+        const raw = JSON.parse(await readBounded(connection.get_input_stream(), 32768, local));
         const now = GLib.get_monotonic_time();
         if (now - burstAt > 1000000) { burstAt = now; burst = 0; }
         if (++burst > 100) { store.dropped++; schedule(); return; }
-        if (raw.v === 1 && store.control(raw)) { schedule(); return; }
+        if (raw.v === 1 && store.control(raw)) { titles.sync(); schedule(); return; }
         const dropped = store.dropped;
-        if (store.apply(raw) || store.dropped !== dropped) schedule();
+        if (store.apply(raw)) { titles.remember(raw, raw.titleSource); titles.sync(); schedule(); }
+        else if (store.dropped !== dropped) schedule();
     } catch { /* Untrusted input is never logged. */ }
     finally {
         if (!local.is_cancelled()) GLib.Source.remove(timer);
@@ -55,7 +58,20 @@ async function accept(connection) {
 }
 async function watchParent() {
     const stdin = new GioUnix.InputStream({fd: 0, close_fd: false});
-    try { while ((await readChunk(stdin, 32, cancel)).length) {} } catch {}
+    let pending = '';
+    try {
+        while (true) {
+            const bytes = await readChunk(stdin, 1024, cancel);
+            if (!bytes.length) break;
+            pending += decoder.decode(bytes);
+            if (pending.length > 4096) break;
+            let end;
+            while ((end = pending.indexOf('\n')) >= 0) {
+                const command = JSON.parse(pending.slice(0, end)); pending = pending.slice(end + 1);
+                if (typeof command.titles === 'boolean') titles.setActive(command.titles);
+            }
+        }
+    } catch {}
     shutdown();
 }
 try {

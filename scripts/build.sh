@@ -7,6 +7,7 @@ VERSION=$(sed -n 's/.*"version": \([0-9]*\).*/\1/p' metadata.json)
 STAGE=$(mktemp -d)
 trap 'rm -rf "$STAGE"' EXIT
 mkdir -p "$STAGE/schemas"
+# helpers/agents includes the visibility-scoped title metadata reader.
 # Match install.sh and keep development files out of the package.
 cp extension.js prefs.js metadata.json stylesheet.css "$STAGE/"
 cp -R ui preferences "$STAGE/"

@@ -170,3 +170,67 @@ test('terminal window lookup verifies the D-Bus owner, cancellation and metadata
         {encoding:'utf8',timeout:10000});
     assert.match(output,/TERMINAL IDENTITY PASS/);
 });
+
+test('title metadata reads, atomic renames, bounds and visibility cleanup stay outside Shell', () => {
+    const temp = mkdtempSync(join(tmpdir(),'island-agent-titles-'));
+    try {
+        const output = execFileSync('gjs',['-m',join(root,'tests/agent-titles-native.mjs')], {
+            env:{...process.env,ISLAND_AGENT_TEST_DIR:temp},encoding:'utf8',timeout:10000});
+        assert.match(output,/AGENT TITLES PASS/);
+    } finally {rmSync(temp,{recursive:true,force:true});}
+});
+
+// The relay deliberately rejects ambiguous ancestry. When the test itself runs
+// under a real Claude/Codex process (outside a PID-namespaced sandbox), that
+// ancestor makes the fixture's fake chain ambiguous, so the case cannot run.
+function agentAncestor() {
+    let pid=process.pid;
+    for (let i=0;i<32&&pid>1;i++) {
+        try {
+            const stat=readFileSync(`/proc/${pid}/stat`,'utf8');
+            const name=stat.slice(stat.indexOf('(')+1,stat.lastIndexOf(')'));
+            if (['claude','codex'].includes(name)) return name;
+            pid=Number(stat.slice(stat.lastIndexOf(')')+2).split(' ')[1]);
+        } catch { return null; }
+    }
+    return null;
+}
+test('real relay corroborates inherited Claude session IDs with bounded process ancestry', async t => {
+    const ancestor=agentAncestor();
+    if (ancestor) { t.skip(`running under a real ${ancestor} process; ancestry is intentionally ambiguous`); return; }
+    const temp=mkdtempSync(join(tmpdir(),'island-agent-parent-'));
+    const path=join(temp,'events.sock'), events=[];
+    const server=net.createServer(socket=>{
+        let input=''; socket.on('data',data=>input+=data);
+        socket.on('end',()=>{events.push(JSON.parse(input));socket.end();});
+    });
+    try {
+        server.listen(path); await once(server,'listening');
+        const script=join(temp,'ancestry.py');
+        writeFileSync(script,`import ctypes, json, os, subprocess, sys
+ctypes.CDLL(None).prctl(15, sys.argv[1].encode(), 0, 0, 0)
+if sys.argv[1] == 'claude':
+    subprocess.run(['gjs','-m',sys.argv[2],'claude'], input=json.dumps({'hook_event_name':'SessionStart','session_id':'parent'}), text=True, check=True)
+    subprocess.run([sys.executable,__file__,'codex',sys.argv[2]], check=True)
+else:
+    subprocess.run(['gjs','-m',sys.argv[2],'codex'], input=json.dumps({'hook_event_name':'UserPromptSubmit','session_id':'child','prompt':'SECRET'}), text=True, check=True)
+`);
+        const env={...process.env,UBUNTU_ISLAND_AGENT_SOCKET:path,CLAUDE_CONFIG_DIR:join(temp,'profile'),
+            CLAUDE_CODE_SESSION_ID:'parent',CLAUDE_CODE_HOST_SESSION_ID:'WRONG-HOST'};
+        const run=async (name, values=env) => {
+            const process=spawn('python3',[script,name,join(root,'helpers/agents/relay.js')],{env:values});
+            let errors=''; process.stderr.on('data',b=>errors+=b);
+            assert.equal((await once(process,'exit'))[0],0,errors);
+        };
+        await run('claude'); await until(()=>events.length===2);
+        assert.equal(events[1].parent.session,'parent');
+        assert.equal(events[1].parent.profile,events[0].profile);
+        assert.deepEqual(events[1].parent.process,events[0].process);
+        assert.ok(events[1].pids.includes(events[0].process.pid));
+        assert.ok(!JSON.stringify(events).includes('SECRET'));
+        await run('codex'); await until(()=>events.length===3);
+        assert.equal(events[2].parent,null,'Inherited ID without a Claude ancestor linked a parent');
+        await run('claude',{...env,CLAUDE_CODE_SESSION_ID:''}); await until(()=>events.length===5);
+        assert.equal(events[4].parent,null,'HOST_SESSION_ID was used as a fallback');
+    } finally {await new Promise(resolve=>server.close(resolve));rmSync(temp,{recursive:true,force:true});}
+});

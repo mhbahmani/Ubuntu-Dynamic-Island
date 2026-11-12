@@ -118,6 +118,7 @@ export default class Preview extends UbuntuIsland {
             if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') this._openPreferencesLive('commute');
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_INPUT') === '1') this._checkInput().catch(error => console.error(`[Island Preview] INPUT FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') this._checkFullPreview().catch(error => console.error(`[Island Preview] FULL FAIL: ${error.message}`));
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_METADATA') === '1') this._checkAgentMetadata().catch(error => console.error(`[Island Preview] AGENT METADATA FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_HOVER') === '1') this._checkAgentHover().catch(error => console.error(`[Island Preview] AGENT HOVER FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_CALENDAR') === '1') this._checkCalendar().catch(error => console.error(`[Island Preview] CALENDAR FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_COMMUTE') === '1') this._checkCommute().catch(error => console.error(`[Island Preview] COMMUTE FAIL: ${error.message}: ${error.stack}`));
@@ -980,6 +981,71 @@ export default class Preview extends UbuntuIsland {
         adjustment.value = adjustment.lower;
         this._settings.set_int('expanded-width',440);
         console.log('[Island Preview] AUDIO PASS: category order, grouped modes, native click, stable focus, narrow layout and reachable overflow');
+    }
+
+    async _checkAgentMetadata() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT,ms,() => {resolve(); return GLib.SOURCE_REMOVE;}));
+        const assert = (value, message) => {if (!value) throw new Error(message);};
+        const {AgentStore, fromAgentHook} = await import('./services/agents-model.js');
+        const store = new AgentStore(), process = {pid:99999,start:'12345'};
+        const update = () => this._renderAgents(store.snapshot());
+        store.apply(fromAgentHook('claude',{session_id:'metadata-parent',hook_event_name:'SessionStart',
+            cwd:'/project',session_title:'Codex 3 fixes review'},{process}));
+        store.apply({v:1,provider:'codex',session:'metadata-child',state:'working',label:'Review fixes',
+            parent:{provider:'claude',profile:'default',session:'metadata-parent',process}});
+        store.apply(fromAgentHook('claude',{session_id:'metadata-parent',hook_event_name:'Stop',cwd:'/scratchpad/before'}));
+        this._card.selectPage('agents'); this._island.expand(); update(); await delay(500);
+        const view = this._card._agentsView;
+        const parent = [...view.rows.values()].find(item => item.session.provider === 'claude');
+        const child = [...view.rows.values()].find(item => item.session.provider === 'codex');
+        const context = St.ThemeContext.get_for_stage(global.stage), oldScale = context.scale_factor;
+        const desktop = new Gio.Settings({schema_id:'org.gnome.desktop.interface'}), textScale = desktop.get_double('text-scaling-factor');
+        const originalWindow = view.actions.agentWindow, originalOpen = view.actions.agentOpen;
+        const oldWidth = this._settings.get_int('expanded-width');
+        const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        const target = {};
+        let opened;
+        try {
+            view.actions.agentWindow = session => session.provider === 'codex' ? target : null;
+            view.actions.agentOpen = session => {opened = session.id;};
+            for (const scale of [1,2]) for (const text of [1,1.5]) for (const width of [380,440]) {
+                this._island.expand();
+                context.scale_factor = scale;
+                desktop.set_double('text-scaling-factor',scale * text);
+                this._settings.set_int('expanded-width',width); update(); await delay(250);
+                assert(view.rows.get(child.session.id) === child,'Metadata update replaced row');
+                assert(parent.title.text === 'Codex 3 fixes review','cwd replaced title');
+                assert(parent.status.text.startsWith('Waiting for Codex'),'Waiting state missing');
+                assert(child.status.text.includes('⤷ From Claude'),'Relationship cue missing');
+                assert(child.open.accessible_name.includes('Started by Codex 3 fixes review'),'Accessible parent missing');
+                child.menu.grab_key_focus(); await delay(120);
+                assert(view.relationshipTip.tip.visible && view.relationshipTip.tip.text === 'Started by Codex 3 fixes review',`Keyboard explanation missing at ${width}/${scale}/${text}, focus=${child.menu.has_key_focus()}, expanded=${this._island.expanded}, target=${view.relationshipTip.target?.actor}, text=${view.relationshipTip.tip.text}`);
+                assert(child.status.width > 0 && child.status.clutter_text.get_layout().get_pixel_size()[0] <= child.status.width + 1,'Status overflows width');
+                assert(child.actor.get_transformed_position()[0] + child.actor.width <= view.scroll.get_transformed_position()[0] + view.scroll.width + 1,'Row overflows card');
+                const order = view.activeList.get_children();
+                store.setTitle(parent.session.id,'Renamed parent'); update(); await delay(60);
+                assert(child.menu.has_key_focus() && view.relationshipTip.tip.text === 'Started by Renamed parent','Rename lost focus or stale tooltip');
+                assert(order.every((actor,index) => actor === view.activeList.get_children()[index]),'Rename reordered rows');
+                view._session(child); await delay(80);
+                assert(view.sessionMenu.visible, `Menu closed before Escape at ${width}/${scale}/${text}, focus=${global.stage.get_key_focus()}, adjustment=${view.adjustment.value}`);
+                assert(view.menuUpdated.text.includes('Started by Renamed parent'),'Session details omit parent');
+                view.handleEscape(); await delay(50); assert(child.menu.has_key_focus(),`Escape lost menu focus at ${width}/${scale}/${text}, expanded=${this._island.expanded}, menu=${view.sessionMenu.visible}, focus=${global.stage.get_key_focus()}`);
+                store.setTitle(parent.session.id,'Codex 3 fixes review'); update();
+                await this._capture(`agent-metadata-${width}-${scale}-${text}`);
+                const [x,y] = child.actor.get_transformed_position();
+                pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+30,y+child.actor.height/2); await delay(100);
+                update(); await delay(60); assert(child.actor.hover,'Update lost stationary hover');
+                child.open.emit('clicked', 1); assert(opened === child.session.id,'Child activation changed identity');
+            }
+            this._island.collapse(); await delay(300);
+            assert(this._pill._agents.visible && this._pill._agentsText.text.includes('◷1'),'Notch omitted waiting count');
+            assert(!view.relationshipTip.tip.visible && !child.glyph.get_transition('agent-working'),'Hidden tooltip or motion');
+        } finally {
+            view.actions.agentWindow = originalWindow; view.actions.agentOpen = originalOpen;
+            context.scale_factor = oldScale; desktop.set_double('text-scaling-factor',textScale);
+            this._settings.set_int('expanded-width',oldWidth);
+        }
+        console.log('[Island Preview] AGENT METADATA PASS: titles, waiting, parent cue, live rename, stable actors/focus/hover, activation identity, widths/scales/text and hidden cleanup');
     }
 
     async _checkAgentHover() {

@@ -209,8 +209,8 @@ export class Pill {
         this._weather.visible = Boolean(!connectionState.visible && showWeather && weather?.data?.current &&
             !(connectionState.hideUnavailable && (weather.stale || weather.status === 'offline' || weather.status === 'unavailable')));
         const agentTotals = agentCounts(agents?.sessions);
-        this._agents.visible = Boolean(showAgents && agents?.connected && (agentTotals.working || agentTotals.attention || agentTotals.finished));
-        this._agentsText.text = `${agentTotals.working}${agentTotals.attention ? ` · !${agentTotals.attention}` : agentTotals.finished && !agentTotals.working ? ` · ✓${agentTotals.finished}` : ''}`;
+        this._agents.visible = Boolean(showAgents && agents?.connected && (agentTotals.working || agentTotals.waiting || agentTotals.attention || agentTotals.finished));
+        this._agentsText.text = `${agentTotals.working}${agentTotals.waiting ? ` · ◷${agentTotals.waiting}` : ''}${agentTotals.attention ? ` · !${agentTotals.attention}` : agentTotals.finished && !agentTotals.working && !agentTotals.waiting ? ` · ✓${agentTotals.finished}` : ''}`;
         this._agents.accessible_name = agentSummary(agents?.sessions);
         const current = weather?.data?.current;
         const kind = weatherSceneKind(current);

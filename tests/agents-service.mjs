@@ -18,9 +18,28 @@ try {
     for (let cycle = 0; cycle < 3; cycle++) {
         service.start(); service.start();
         await until(() => latest?.connected);
-        await service.send({provider:'codex', session:`fixture-${cycle}`, state:'working', label:'fixture'});
+        const provider = cycle === 0 ? 'claude' : 'codex';
+        const titleRoot = `${GLib.getenv('ISLAND_AGENT_TEST_DIR')}/titles`;
+        const directory = `${titleRoot}/projects/project/fixture-${cycle}`;
+        GLib.mkdir_with_parents(directory, 0o700);
+        GLib.file_set_contents(`${directory}/custom-title.json`, JSON.stringify({customTitle:'Metadata title'}));
+        await service.send({provider, session:`fixture-${cycle}`, state:'working', label:'fixture',
+            titleSource:{root:titleRoot,transcript:`${titleRoot}/projects/project/fixture-${cycle}.jsonl`}});
         await until(() => latest.sessions?.length === 1);
-        await service.send({provider:'codex', session:`fixture-${cycle}`, state:'closed'});
+        if (cycle === 0) {
+            assert(latest.sessions[0].label === 'fixture', 'Hidden broker read title metadata');
+            service.setTitlesVisible(true);
+            await until(() => latest.sessions[0]?.label === 'Metadata title');
+            assert(!JSON.stringify(latest).includes(titleRoot), 'Private locator reached Shell snapshot');
+            service.setTitlesVisible(false); await delay(100);
+            const before = updates;
+            GLib.file_set_contents(`${directory}/custom-title.json`, JSON.stringify({customTitle:'Hidden rename'}));
+            await delay(200); assert(updates === before, 'Hidden broker updated title');
+            service.setTitlesVisible(true);
+            await until(() => latest.sessions[0]?.label === 'Hidden rename');
+            service.setTitlesVisible(false);
+        }
+        await service.send({provider, session:`fixture-${cycle}`, state:'closed'});
         await until(() => latest.sessions?.length === 0);
         assert(latest.undo === null, 'Ended session offered Undo');
         await service.send({control:'clear'});

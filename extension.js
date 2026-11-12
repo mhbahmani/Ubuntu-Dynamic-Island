@@ -3,7 +3,7 @@ import {CalendarEventsService} from './services/calendar-events.js';
 import {eventQueryRanges, upcomingEvents, validateMeetUri} from './services/calendar-events-model.js';
 import {AgentWindows} from './services/agent-windows.js';
 import {launchAgent, initializeAgentSettings} from './services/agent-launch.js';
-import {AGENTS, AGENT_STATES} from './services/agents-model.js';
+import {AGENTS, AGENT_STATES, agentNotificationNeeded} from './services/agents-model.js';
 import St from 'gi://St';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
@@ -62,7 +62,7 @@ export default class UbuntuIsland extends Extension {
         this._card = new Card(this._settings, {
             agentOpen: session => this._openAgent(session),
             agentWindow: session => this._agentWindows?.resolve(session),
-            agentVisibility: active => this._agentWindows?.setActive(active),
+            agentVisibility: active => { this._agentWindows?.setActive(active); this._agents?.setTitlesVisible?.(active); },
             agentExpire: () => this._expireAgents(),
             agentAsk: input => this._askAgent(input),
             closeQuickAsk: () => this._leaveAgents(),
@@ -157,6 +157,7 @@ export default class UbuntuIsland extends Extension {
             this._agentWindows = new AgentWindows(() => this._card?._agentsView?.render(this._states.agents));
             this._agentWindows.setActive(Boolean(this._card._agentsView?.actor.mapped));
             this._agents = new AgentsService(this.path, state => this._renderAgents(state));
+            this._agents.setTitlesVisible(Boolean(this._card._agentsView?.actor.mapped));
             this._agents.start();
         }
         this._connectivity = new ConnectivityService(state => this._renderConnectivity(state));
@@ -593,8 +594,7 @@ export default class UbuntuIsland extends Extension {
         if (this._settings.get_boolean('agents-notify') && !Main.sessionMode.isLocked) {
             for (const session of state.sessions || []) {
                 const old = previous.find(s => s.id === session.id);
-                if (['approval', 'input', 'finished'].includes(session.state) &&
-                    (!old || old.state !== session.state || old.turn !== session.turn))
+                if (agentNotificationNeeded(old, session))
                     Main.notify(`Ubuntu Island · ${AGENT_STATES[session.state]}`, `${AGENTS[session.provider]} · ${session.label}`);
             }
         }

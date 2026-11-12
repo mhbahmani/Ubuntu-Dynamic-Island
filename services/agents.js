@@ -13,6 +13,7 @@ export class AgentsService {
             const launcher = new Gio.SubprocessLauncher({flags: Gio.SubprocessFlags.STDIN_PIPE | Gio.SubprocessFlags.STDOUT_PIPE | Gio.SubprocessFlags.STDERR_SILENCE});
             this.process = launcher.spawnv(['/usr/bin/gjs', '-m', `${this.path}/helpers/agents/bridge.js`]);
             this._read(generation, this.process.get_stdout_pipe());
+            this._writeVisibility();
             this.process.wait_async(null, (p, result) => {
                 try { p.wait_finish(result); } catch {}
                 if (generation !== this.generation) return;
@@ -22,6 +23,25 @@ export class AgentsService {
         } catch {
             this.process = null;
             this.emit({connected:false, sessions:[], message:'Could not start the local observer.'});
+        }
+    }
+    setTitlesVisible(active) {
+        this.titlesVisible = Boolean(active);
+        this._writeVisibility();
+    }
+    async _writeVisibility() {
+        if (!this.process || this.visibilityWriting) return;
+        this.visibilityWriting = this.process;
+        const process = this.process, cancel = this.cancel;
+        try {
+            do {
+                this.visibilitySent = Boolean(this.titlesVisible);
+                await writeBytes(process.get_stdin_pipe(), encoder.encode(`${JSON.stringify({titles:this.visibilitySent})}\n`), cancel);
+            } while (!cancel.is_cancelled() && this.visibilitySent !== Boolean(this.titlesVisible));
+        } catch { /* Shutdown cancels writes. */ }
+        finally {
+            if (this.visibilityWriting === process) this.visibilityWriting = null;
+            if (this.process && this.process !== process) this._writeVisibility();
         }
     }
     async _read(generation, stream) {

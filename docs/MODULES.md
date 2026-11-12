@@ -217,7 +217,67 @@ Optional notch counts and notifications default off.
 Each row shows its harness icon, state and a short session ID. References use the
 last eight ID characters and extend when needed to distinguish matching suffixes
 or profiles. They do not depend on the row's position or last activity time.
-The project folder stays the heading; conversation titles are not collected.
+The heading prefers the provider's explicit session title. For Claude, the broker
+also reads the per-session `custom-title.json` associated with the reported
+transcript path; it never opens the transcript. The supported layout is
+`<CLAUDE_CONFIG_DIR>/projects/<project>/<session>/custom-title.json`, next to
+`<session>.jsonl`, with a `customTitle` (or `title`) string. The default profile
+root is `~/.claude`. Other layouts fall back to hook titles, then the first useful
+project name (OpenCode currently uses that fallback). A later working-directory change cannot rename the row. Missing or
+malformed metadata preserves the last known title; an initially unnamed session
+keeps its project fallback. Titles are sanitized and limited to 160 characters.
+
+Title reads and directory monitors belong to `helpers/agents/titles.js` in the
+existing broker subprocess. Only the visible Agents list needs title monitoring;
+notch counts use cached snapshots. Reads are asynchronous, capped at 8 KiB with a
+one-second deadline. Exact session-directory/title-file events are coalesced for
+60 ms, including atomic replacement and creation of a missing session directory.
+There are no periodic scans or refresh timers. Hiding the list, opening Quick Ask,
+expiry and disable cancel its reads, sources and monitors; reopening refreshes.
+Hidden parents can still supply titles for visible children. Unsupported paths,
+symlinks and files not owned by the user are rejected.
+
+**Waiting for Codex**, **Waiting for subagent** and **Waiting for background task**
+are distinct from Task finished. A parent's Stop can mean its response paused
+while work remains. Native subagent events, ID-only background Bash/task results,
+and present `background_tasks` snapshots maintain bounded task sets. Missing
+fields do not erase known tasks. Verified active Codex children contribute a
+Codex waiting reason only after the parent's own Stop; their existence alone
+never changes Working to Waiting. Attention states remain distinct. Multiple
+children complete independently, and the final child's completion alone does
+not finish its parent: its next own work/Stop event settles that status. Task
+and child counts are kept separately because one shell task may host a Codex
+session; they are never added together as if known to be independent.
+
+Waiting contributes its own summary/notch count (`◷`), produces no completion
+notification and is excluded from Clear finished. Older providers without task
+fields or native subagent hooks still use Stop as finished when no outstanding
+work is known. Child-context hooks cannot finish or rename the parent. States
+remain last reports, not process-liveness assertions.
+
+A verified Codex child shows **⤷ From Claude** beside its status. Hover, keyboard
+focus and session details expose **Started by <current parent title>**. The relay
+requires inherited `CLAUDE_CODE_SESSION_ID`, a Claude ancestor between this Codex
+and any outer Codex delegation, and the matching parent session/profile report
+with the same PID and process birth token. `CLAUDE_CODE_HOST_SESSION_ID`, shared
+projects/windows and title similarity are never used. Missing/ambiguous evidence
+leaves the cue absent. Child-first arrival resolves when the parent reports;
+hidden/finished parents still update the description. On parent expiry/removal,
+the child's last verified attribution remains historical and does not imply an
+active parent. Only Claude-to-Codex links are accepted, ruling out cycles and
+self-links. These labels do not participate in window matching or activation.
+
+Fixture/native coverage and live-provider acceptance gaps are recorded in
+[the handoff](HANDOFF.md#agent-session-metadata-2026-11-13).
+
+Existing Claude integrations need **Reconfigure…** to add the owned
+`SubagentStart`/`SubagentStop` hooks. PreToolUse stays limited to input prompts,
+so a waiting parent shows Working again when its first resumed tool finishes,
+not when it starts. Upgrades/removal remain idempotent and preserve unrelated handlers.
+Restart the provider after setup. Hook fields, background result formats, process
+names and the title-file layout are version-dependent; no transcript parsing or
+process polling is used to compensate for unsupported versions. The inherited
+environment variable is observed local behavior, not a guaranteed provider API.
 The three-dot menu exposes the full ID in a read-only field: Shift+Tab from Hide
 session focuses it, and Ctrl+A/Ctrl+C can select/copy it. Tab returns to Hide;
 tabbing out of the menu or pressing Escape restores the anchor's focus.
@@ -279,7 +339,7 @@ preferences are open or when the island is hidden for fullscreen.
 There are at most 32 session records, including hidden ones. The list scrolls
 inside the fixed card; header actions, Quick Ask and tab navigation remain outside
 it. Sorting on opening avoids moving rows under the pointer. Working animation
-runs only in the visible connected header and visible working rows, with reduced
+runs only in visible working rows, with reduced
 motion disabled. Scrolled-out rows, hidden tabs and the composer stop their
 native rotation transitions; no per-frame JavaScript or animation timer is used.
 
@@ -296,6 +356,8 @@ and concurrent same-tool requests without distinct IDs can be indistinguishable.
 
 ```sh
 make agents-test
+node --test tests/agents-metadata.test.mjs
+ISLAND_PREVIEW_CHECK_AGENT_METADATA=1 make preview-headless PREVIEW_ARGS="--tab agents --size 1920x1440 --duration 35"
 make preview PREVIEW_ARGS="--tab agents"
 make preview-headless PREVIEW_ARGS="--check-full --duration 60"
 ```

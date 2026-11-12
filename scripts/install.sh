@@ -21,6 +21,7 @@ if [ -e "$DEST" ]; then
     printf 'Previous installation backed up to: %s\n' "$BAK"
 fi
 mkdir "$DEST"
+# helpers/agents includes the visibility-scoped title metadata reader.
 # Keep the runtime layout in sync with build.sh and the isolated previews.
 cp "$SRC/extension.js" "$SRC/prefs.js" "$SRC/metadata.json" "$SRC/stylesheet.css" "$DEST/"
 cp -R "$SRC/ui" "$SRC/preferences" "$SRC/services" "$SRC/assets" "$SRC/helpers" "$DEST/"

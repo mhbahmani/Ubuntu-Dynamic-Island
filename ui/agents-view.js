@@ -1,16 +1,18 @@
+import Pango from 'gi://Pango';
+import {HoverTip} from './hover-tip.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import Atk from 'gi://Atk';
 import GLib from 'gi://GLib';
-import {AGENTS, AGENT_STATES, agentSummary, agentSessionReferences} from '../services/agents-model.js';
+import {AGENTS, AGENT_STATES, agentSummary, agentSessionReferences, agentStatus} from '../services/agents-model.js';
 import {column, row, label, button, setEnabled, notchToggle} from './widgets.js';
 
 const RECENT = new Set(['finished', 'closed']);
-const PRIORITY = {approval:0, input:0, error:1, interrupted:2, working:3, idle:4, unknown:5, finished:6, closed:7};
+const PRIORITY = {approval:0, input:0, error:1, interrupted:2, working:3, waiting:3, idle:4, unknown:5, finished:6, closed:7};
 const icons = new Map(Object.keys(AGENT_STATES).map(state => [state,
-    Gio.FileIcon.new(Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path(`assets/agents/${state}-symbolic.svg`))]));
+    Gio.FileIcon.new(Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path(`assets/agents/${state === 'waiting' ? 'idle' : state}-symbolic.svg`))]));
 const harnessIcons = new Map(Object.keys(AGENTS).map(provider => [provider,
     Gio.FileIcon.new(Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path(`assets/agents/${provider}.svg`))]));
 function textButton(text, action, css = '') {
@@ -27,6 +29,7 @@ export class AgentsView {
     constructor(settings, actions) {
         this.settings = settings; this.actions = actions; this.rows = new Map(); this.mode = 'list';
         this.actor = column('ubuntu-island-agents'); this.actor.y_expand = true;
+        this.relationshipTip = new HoverTip(this.actor);
         this.header = row('ubuntu-island-agent-header'); this.actor.add_child(this.header);
         this.back = button('go-previous-symbolic', 'Back to sessions', () => this.handleEscape(), 14, 'ubuntu-island-agent-menu-button');
         this.header.add_child(this.back);
@@ -116,6 +119,8 @@ export class AgentsView {
         this.menuIdentity.clutter_text.editable = false;
         this.sessionMenu.add_child(this.menuIdentity);
         this.menuUpdated = label('', 'ubuntu-island-agent-menu-note'); this.sessionMenu.add_child(this.menuUpdated);
+        this.menuUpdated.reactive = this.menuUpdated.track_hover = true;
+        this.relationshipTip.addTarget(this.menuUpdated, () => this.menuUpdated.text);
         this.hideSession = textButton('', () => {
             const id = this.menuSession?.session.id;
             this._closeSessionMenu();
@@ -142,7 +147,15 @@ export class AgentsView {
             }
             return Clutter.EVENT_PROPAGATE;
         });
-        this.adjustment.connect('notify::value', () => { this._closeSessionMenu(); this._syncMotion(); });
+        this.adjustment.connect('notify::value', () => {
+            // Mapping the anchored menu can clamp the list's scroll value at
+            // enlarged text sizes. That layout update must not discard focus.
+            const focus = global.stage.get_key_focus();
+            if (this.sessionMenu.visible && focus && this.sessionMenu.contains(focus)) this._positionSessionMenu();
+            else this._closeSessionMenu();
+            this._syncMotion();
+        });
+        this.scroll.connect('scroll-event', () => { this._closeSessionMenu(); return Clutter.EVENT_PROPAGATE; });
         this.scroll.connect('notify::allocation', () => this._syncMotion());
         this.message = wrap(''); this.content.add_child(this.message);
         this.message.connect('notify::text', () => { this.message.visible = Boolean(this.message.text); }); this.message.hide();
@@ -162,7 +175,7 @@ export class AgentsView {
             return Clutter.EVENT_PROPAGATE;
         });
         this.actor.connect('notify::mapped', () => {
-            this.actions.agentVisibility?.(this.actor.mapped);
+            this.actions.agentVisibility?.(this.actor.mapped && this.mode === 'list');
             if (this.actor.mapped) { this.regroup = true; this.actions.agentExpire?.(); this.render(this.snapshot); }
             else { this._cancelFocus(); this.harnessMenu.hide(); this._closeSessionMenu(); }
             this._syncMotion();
@@ -292,6 +305,7 @@ export class AgentsView {
         this._cancelFocus();
         this._closeSessionMenu();
         this.mode = mode;
+        this.actions.agentVisibility?.(this.actor.mapped && mode === 'list');
         this.harnessMenu.hide();
         this.back.accessible_name = 'Back to sessions';
         this.heading.text = mode === 'ask' ? 'Quick Ask' : 'Agents';
@@ -338,7 +352,7 @@ export class AgentsView {
         const time = new Date(item.session.updated).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
         this.menuIdentity.text = item.session.session || item.session.id;
         this.menuIdentity.accessible_name = `${AGENTS[item.session.provider]} session ID, profile ${item.session.profile || 'default'}`;
-        this.menuUpdated.text = `Last activity · ${time}`;
+        this.menuUpdated.text = `${item.session.attribution ? `Started by ${item.session.attribution.title} · ` : ''}Last activity · ${time}`;
         this.hideSession.accessible_name = `Hide ${item.session.label}, session ${item.reference} from the list. Keep the agent running`;
         item.menu.add_accessible_state(Atk.StateType.EXPANDED); item.menu.add_style_pseudo_class('active');
         this.sessionMenu.show();
@@ -414,6 +428,10 @@ export class AgentsView {
                     style_class:'ubuntu-island-agent-harness-icon'}); face.add_child(harness);
                 const details = column('ubuntu-island-agent-details'); details.x_expand = true; face.add_child(details);
                 const title = label('', 'ubuntu-island-agent-title'), status = label('', 'ubuntu-island-agent-state');
+                status.x_expand = true;
+                status.clutter_text.line_wrap = true;
+                status.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
+                status.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
                 const stateRow = row('ubuntu-island-agent-state-row');
                 const glyph = new St.Icon({icon_size:12,y_align:Clutter.ActorAlign.CENTER}); glyph.set_pivot_point(0.5,0.5);
                 stateRow.add_child(glyph); stateRow.add_child(status); details.add_child(title); details.add_child(stateRow);
@@ -423,24 +441,30 @@ export class AgentsView {
                 open.connect('clicked', () => { if (open.reactive) this.actions.agentOpen(item.session); });
                 item.menu = button('view-more-symbolic', 'Session options', () => this._session(item), 14, 'ubuntu-island-agent-menu-button'); actor.add_child(item.menu);
                 item.menu.y_align = Clutter.ActorAlign.CENTER;
+                const relationship = () => item.session.attribution ? `Started by ${item.session.attribution.title}` : '';
+                this.relationshipTip.addTarget(actor, relationship);
+                this.relationshipTip.addTarget(open, relationship);
+                this.relationshipTip.addTarget(item.menu, relationship);
                 this.activeList.add_child(actor); this.rows.set(session.id, item);
                 glyph.connect('notify::mapped', () => this._syncMotion());
                 actor.connect('notify::allocation', () => this._syncMotion());
             }
             item.session = session; item.title.text = session.label;
             item.reference = references.get(session.id);
-            const state = AGENT_STATES[session.state] || 'Unknown';
-            item.status.text = `${state} · ${item.reference}`;
+            const state = agentStatus(session);
+            const relationship = session.attribution ? `Started by ${session.attribution.title}` : '';
+            item.status.text = `${state} · ${item.reference}${relationship ? ' · ⤷ From Claude' : ''}`;
+            item.actor.accessible_description = item.open.accessible_description = item.menu.accessible_description = relationship;
             item.harness.gicon = harnessIcons.get(session.provider);
             item.harness.accessible_name = AGENTS[session.provider];
             item.glyph.gicon = icons.get(session.state) || icons.get('unknown');
-            item.glyph.set_style_class_name(`ubuntu-island-agent-${session.state}`);
+            item.glyph.set_style_class_name(`ubuntu-island-agent-${session.state === 'waiting' ? 'idle' : session.state}`);
             const canOpen = Boolean(this.actions.agentWindow?.(session));
             if (!canOpen && item.open.has_key_focus()) item.menu.grab_key_focus();
             setEnabled(item.open, canOpen); item.open.track_hover = canOpen; item.arrow.visible = canOpen;
             item.open.accessible_role = canOpen ? Atk.Role.PUSH_BUTTON : Atk.Role.PANEL;
-            item.open.accessible_name = `${canOpen ? 'Open window for ' : ''}${session.label}, ${AGENTS[session.provider]}, session ${item.reference}. Last reported ${state} at ${new Date(session.updated).toLocaleString()}`;
-            item.menu.accessible_name = `Options for ${session.label}, session ${item.reference}`;
+            item.open.accessible_name = `${canOpen ? 'Open window for ' : ''}${session.label}, ${AGENTS[session.provider]}, session ${item.reference}. Last reported ${state} at ${new Date(session.updated).toLocaleString()}. ${relationship}`;
+            item.menu.accessible_name = `Options for ${session.label}, session ${item.reference}. ${relationship}`;
         }
         if (this.regroup) {
             for (const session of [...sessions].sort((a,b) => PRIORITY[a.state] - PRIORITY[b.state] || b.updated - a.updated)) {
@@ -449,6 +473,11 @@ export class AgentsView {
             }
             this.regroup = false;
         }
+        if (this.menuSession) {
+            const session = this.menuSession.session;
+            this.menuUpdated.text = `${session.attribution ? `Started by ${session.attribution.title} · ` : ''}Last activity · ${new Date(session.updated).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+        }
+        this.relationshipTip.refresh();
         this._syncMotion();
     }
 }

@@ -34,12 +34,19 @@ export class HoverTip {
     addTarget(actor, text) {
         const sync = () => {
             if (this.destroyed) return;
+            // Keep a keyboard explanation stable while unrelated targets
+            // receive pointer/allocation events during a live layout update.
+            if (this.target?.actor !== actor && this.target?.actor.has_key_focus() && !actor.has_key_focus()) return;
             if (actor.mapped && (actor.hover || actor.has_key_focus())) {
                 if (this.target?.actor !== actor) this._cancel();
                 this.target = {actor, text};
             } else if (this.target?.actor !== actor) return;
             this.refresh();
         };
+        actor.connectObject('destroy', () => {
+            if (this.destroyed || this.target?.actor !== actor) return;
+            this._cancel(); this.target = null;
+        }, this.owner);
         actor.connectObject('notify::hover', sync, 'notify::mapped', sync,
             'notify::allocation', sync, 'key-focus-in', sync, 'key-focus-out', sync, this.owner);
     }
