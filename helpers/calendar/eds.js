@@ -97,7 +97,11 @@ export class EDSReader {
                 sourceStates.push({uid,status:'disconnected'}); incomplete = true; continue;
             }
             try {
-                const client = await new Promise((resolve,reject) => ECal.Client.connect(source, ECal.ClientSourceType.EVENTS, 5, cancel,
+                // Read EDS's existing cache immediately. Its documented -1
+                // sentinel is unsigned here; waiting five seconds per remote
+                // source delayed the whole batch past the Shell deadline.
+                // Existing view/online signals deliver subsequent sync changes.
+                const client = await new Promise((resolve,reject) => ECal.Client.connect(source, ECal.ClientSourceType.EVENTS, 0xffffffff, cancel,
                     (_s,r) => { try { resolve(ECal.Client.connect_finish(r)); } catch (e) { reject(e); } }));
                 if (!current()) return;
                 client.set_default_timezone(zone);

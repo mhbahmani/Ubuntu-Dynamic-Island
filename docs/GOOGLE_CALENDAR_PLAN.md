@@ -41,6 +41,13 @@ Implemented boundaries:
   schedules one next boundary. Activation reveals the relevant inline event. Lock/hide
   releases event state. All-day events remain in the inline list.
 
+Calendar client connections use the documented unsigned `-1` no-wait sentinel
+to read EDS's existing cache immediately. Waiting five seconds per source had
+delayed seven selected calendars to roughly 30 seconds, exceeding the Shell's
+20-second deadline. The live read after this change completed in 0.26 seconds;
+the existing view/online signals still deliver changes, with no added polling.
+See [ECal.Client.connect](https://gnome.pages.gitlab.gnome.org/evolution-data-server/libecal/type_func.Client.connect.html).
+
 EDS 3.52's asynchronous `Client.generate_instances` has no completion callback in
 GJS: it cannot establish a completed empty range. The reader instead awaits an
 asynchronous view/query and complete series retrieval, resolves timezones
