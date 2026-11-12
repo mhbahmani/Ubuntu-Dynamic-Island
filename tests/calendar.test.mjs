@@ -2,6 +2,39 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {civilDay, dateParts, monthBounds, shiftMonths, monthGrid, todayDay, numericDate, dateTitle, fullDate, calendarTodayLabel, primaryCalendar, shownCalendars, migrateCalendarSettings, notchDate, notchDates, formatNotchDate, dateFormatError, dateOrder, migrateNotchDates} from '../services/calendar-model.js';
 
+test('English date display keeps calendar conversion and overrides saved Persian numerals', () => {
+    const day = civilDay(2026,11,10);
+    assert.equal(formatNotchDate(day,'jalali','%Y/%M/%D','persian',false),'1405/08/19');
+    assert.equal(formatNotchDate(day,'hijri','%Y/%M/%D','persian',false),'1448/05/29');
+    for (const id of ['jalali','gregorian','hijri']) {
+        assert.equal(calendarTodayLabel(id,false),'Today');
+        const full = fullDate(day,primaryCalendar(id),'long',false);
+        assert.match(full,/Tuesday/);
+        assert.doesNotMatch(full,/[\u0600-\u06ff]/);
+        const entries = notchDates(day,{calendars:[id],digits:{[id]:'persian'},calendarLanguage:false});
+        assert.equal(entries[0].rtl,false);
+        assert.doesNotMatch(entries[0].text + entries[0].description,/[\u0600-\u06ff]/);
+    }
+    assert.match(formatNotchDate(day,'jalali'),/[\u0600-\u06ff]/);
+});
+
+test('short English month names are opt-in per notch calendar and keep full descriptions', () => {
+    const day = civilDay(2026,3,21);
+    assert.equal(formatNotchDate(day,'jalali','%d %MM','auto',false,true),'1 Far');
+    assert.equal(formatNotchDate(day,'jalali','%d %mm','auto',false,true),'1 Far');
+    assert.equal(formatNotchDate(day,'jalali','%Y/%M/%D','auto',false,true),'1405/01/01');
+    assert.equal(formatNotchDate(day,'jalali','%d %MM','auto',true,true),formatNotchDate(day,'jalali','%d %MM'));
+    assert.equal(formatNotchDate(day,'gregorian','%MM','auto',false,true),'March');
+    const months = new Set();
+    for (let offset = 0; offset < 365; offset++) months.add(formatNotchDate(day+offset,'hijri','%MM','auto',false,true));
+    assert.equal(months.size,12);
+    for (const month of ['Rab I','Rab II','Jum I','Jum II','Dhu Q','Dhu H']) assert(months.has(month));
+    const [entry] = notchDates(day,{calendars:['jalali'],shortMonths:['jalali'],calendarLanguage:false});
+    assert.equal(entry.text,'1 Far');
+    assert.match(entry.description,/Farvardin/);
+    assert.match(notchDates(day,{calendars:['jalali'],calendarLanguage:false})[0].text,/Farvardin/);
+});
+
 test('date format tokens, literal text and numerals work for each calendar', () => {
     const day = civilDay(2026, 11, 10);
     assert.equal(formatNotchDate(day, 'jalali', '%Y/%M/%D'), '۱۴۰۵/۰۸/۱۹');

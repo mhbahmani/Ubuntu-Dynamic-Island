@@ -3,7 +3,23 @@ import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {civilDay, numericDate} from '../services/calendar-model.js';
 import {EVENT_LIMITS, normalizeOccurrences, validateMeetUri, localDayRange,
-    eventQueryRanges, eventsForDay, upcomingEvents, calendarColor} from '../services/calendar-events-model.js';
+    eventQueryRanges, eventsForDay, upcomingEvents, calendarColor, isGoogleHolidayCalendar, visibleCalendarEvents} from '../services/calendar-events-model.js';
+
+test('holiday sources use Google identifiers rather than names or event titles', () => {
+    const path = id => `events::https://apidata.googleusercontent.com/caldav/v2/${encodeURIComponent(id)}/events/`;
+    assert.equal(isGoogleHolidayCalendar(path('en.ir#holiday@group.v.calendar.google.com')), true);
+    assert.equal(isGoogleHolidayCalendar(path('cln2sqbi4dk6ur39chgnig37e9nnas1eeon66obccln68obi5pjmurr7dhiisorfdk@virtual')), true);
+    for (const value of [null, 'Holidays in Iran', path('personal@example.com'), path('invalid@virtual'),
+        path('en.ir#holiday@group.v.calendar.google.com.evil'), path('%zz')])
+        assert.equal(isGoogleHolidayCalendar(value), false);
+    const snapshot = {status:'partial',incomplete:true,coverage:[],sources:[{uid:'holidays',holiday:true},{uid:'personal'}],
+        occurrences:[{sourceUid:'holidays',title:'Holiday'},{sourceUid:'personal',title:'Holiday',allDay:true}]};
+    assert.equal(visibleCalendarEvents(snapshot,true), snapshot);
+    const hidden = visibleCalendarEvents(snapshot,false);
+    assert.deepEqual(hidden.occurrences, [snapshot.occurrences[1]]);
+    assert.equal(hidden.incomplete,true);
+    assert.equal(snapshot.occurrences.length,2);
+});
 
 const day = civilDay(2026, 11, 11);
 const now = localDayRange(day).startMs + 12 * 3600000;

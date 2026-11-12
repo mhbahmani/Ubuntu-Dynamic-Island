@@ -39,6 +39,7 @@
     <key name="pill-date-order" type="as"><default>['jalali', 'gregorian', 'hijri']</default><summary>Left-to-right order of notch dates</summary></key>
     <key name="pill-date-formats" type="a{ss}"><default>{}</default><summary>Per-calendar date formats; defaults to %d %mm</summary></key>
     <key name="pill-date-digits" type="a{ss}"><default>{}</default><summary>Per-calendar numerals: auto, persian, or latin</summary></key>
+    <key name="pill-date-short-months" type="as"><default>[]</default><summary>Jalali and Hijri notch dates using short month names in English display</summary></key>
     <key name="pill-offline-mode" type="s">
       <default>'icon'</default>
       <choices><choice value="icon"/><choice value="edge"/><choice value="hide"/><choice value="badge"/></choices>
@@ -111,6 +112,9 @@
       <summary>Legacy calendar display mode, migrated to primary and additional calendars</summary>
     </key>
     <key name="calendar-events-enabled" type="b"><default>false</default><summary>Read events from selected desktop calendars</summary></key>
+    <key name="calendar-show-holidays" type="b"><default>true</default><summary>Show holiday notes and events from recognized holiday calendars</summary></key>
+    <key name="calendar-use-calendar-language" type="b"><default>true</default><summary>Use each calendar's language for dates instead of English</summary></key>
+    <key name="calendar-event-title-size" type="i"><default>9</default><range min="8" max="14"/><summary>Calendar event title font size in points</summary></key>
     <key name="calendar-event-sources" type="as"><default>[]</default><summary>Explicit EDS calendar source UIDs</summary></key>
     <key name="pill-show-event" type="b"><default>false</default><summary>Show upcoming timed events in the notch</summary></key>
     <key name="pill-event-show-title" type="b"><default>false</default><summary>Reveal event titles in the collapsed notch</summary></key>

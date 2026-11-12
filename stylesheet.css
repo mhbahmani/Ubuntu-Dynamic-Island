@@ -95,7 +95,7 @@
 .ubuntu-island-calendar-event:focus { border-color: #bac7d9; }
 .ubuntu-island-calendar-event:hover, .ubuntu-island-calendar-event:focus { background-color: rgba(225,230,240,0.08); }
 .ubuntu-island-calendar-event:active { background-color: rgba(235,239,255,0.14); }
-.ubuntu-island-calendar-event-title { font-size: 10pt; color: #f1f3f7; }
+.ubuntu-island-calendar-event-title { font-size: 9pt; color: #f1f3f7; }
 .ubuntu-island-calendar-event-meta { font-size: 8.5pt; color: #bbc3cf; }
 /* Two fixed line slots scale with text size, regardless of title or event count. */
 .ubuntu-island-calendar-event .ubuntu-island-calendar-event-title,

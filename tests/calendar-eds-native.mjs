@@ -57,6 +57,8 @@ async function run() {
     const source = registry.ref_source('system-calendar');
     check(source,'Private local calendar exists');
     source.get_extension(EData.SOURCE_EXTENSION_CALENDAR).set_color('#12abcd');
+    source.get_extension(EData.SOURCE_EXTENSION_RESOURCE).set_identity(
+        'events::https://apidata.googleusercontent.com/caldav/v2/en.ir%23holiday%40group.v.calendar.google.com/events/');
     await call(source,'write',[]);
     const client = await new Promise((resolve,reject) => ECal.Client.connect(source,ECal.ClientSourceType.EVENTS,5,null,(_s,r) => {
         try {resolve(ECal.Client.connect_finish(r));} catch(e) {reject(e);}
@@ -69,6 +71,7 @@ async function run() {
     const catalog = await next({catalog:true,sources:[],ranges:[],timezone:'UTC'});
     check(catalog.status === 'ready' && catalog.sources.some(s=>s.uid==='system-calendar'),'Reader catalog');
     check(catalog.sources.find(s=>s.uid==='system-calendar').color === '#12abcd', 'EDS source color reaches Shell service');
+    check(catalog.sources.find(s=>s.uid==='system-calendar').holiday, 'EDS holiday identity reaches Shell service');
     const request = {catalog:false,sources:['system-calendar'],ranges:eventQueryRanges([{startDay:civilDay(2026,11,10),endDayExclusive:civilDay(2026,11,16)}]),timezone:'UTC'};
     const snapshot = await next(request);
     check(snapshot.status === 'ready',`Reader status ${snapshot.status}`);

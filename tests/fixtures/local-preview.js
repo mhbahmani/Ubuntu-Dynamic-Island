@@ -429,6 +429,12 @@ export default class Preview extends UbuntuIsland {
             'Event cards have different heights');
         const longEvent = [...view.agenda.rows.values()].find(item => item.event.uid === 'later');
         assert(longEvent.title.clutter_text.get_layout().is_ellipsized(), 'Long sample title does not demonstrate truncation');
+        const defaultTitleWidth = longEvent.title.clutter_text.get_preferred_width(-1)[1];
+        this._settings.set_int('calendar-event-title-size', 14); await delay(100);
+        assert(view.agenda.rows.get(longEvent.event.id) === longEvent && longEvent.title.clutter_text.get_preferred_width(-1)[1] > defaultTitleWidth,
+            'Event font setting did not resize existing titles');
+        this._settings.reset('calendar-event-title-size'); await delay(100);
+        assert(Math.abs(longEvent.control.height - compactHeight) <= 1, 'Restoring title size changed the default card height');
         await this._capture('calendar-inline-events');
         const sampleRecords = this._sampleCalendarRecords;
         this._sampleCalendarRecords = sampleRecords.filter(event => event.uid !== 'review'); this._calendarEvents.publish(); await delay(50);
@@ -486,7 +492,8 @@ export default class Preview extends UbuntuIsland {
         const eventText = new Gio.Settings({schema_id:'org.gnome.desktop.interface'});
         const eventSize = {scale:eventContext.scale_factor, text:eventText.get_double('text-scaling-factor'),
             width:this._settings.get_int('expanded-width')};
-        for (const scale of [1,2]) for (const font of [1,2]) for (const width of [380,440]) {
+        for (const titleSize of [8,9,14]) for (const scale of [1,2]) for (const font of [1,2]) for (const width of [380,440]) {
+            this._settings.set_int('calendar-event-title-size',titleSize);
             eventContext.scale_factor = scale; eventText.set_double('text-scaling-factor',font);
             this._settings.set_int('expanded-width',width); view.select(todayDay()); await delay(100);
             const rows = [...view.agenda.rows.values()], height = rows[0].control.height;
@@ -500,6 +507,7 @@ export default class Preview extends UbuntuIsland {
             view.select(todayDay()+1); await delay(100);
             assert(Math.abs([...view.agenda.rows.values()][0].control.height - height) <= 1, 'Scaled single event fills its panel');
         }
+        this._settings.reset('calendar-event-title-size');
         eventContext.scale_factor = eventSize.scale; eventText.set_double('text-scaling-factor',eventSize.text);
         this._settings.set_int('expanded-width',eventSize.width); view.select(todayDay()); await delay(100);
         // Grid sizing remains independent of whether event data is configured.
@@ -543,6 +551,30 @@ export default class Preview extends UbuntuIsland {
         assert(view.agenda.holiday.visible && view.agenda.holiday.text === 'شهادت حضرت فاطمه', 'Selected Iranian holiday name missing');
         const marked = () => view.cells.filter(cell => cell.control.visible && cell.control.has_style_class_name('ubuntu-island-calendar-holiday')).map(cell => cell.day).join(',');
         const beforeAdditional = marked();
+        const holidaySnapshot = {status:'ready',incomplete:false,coverage:[{startDay:holidayDay,endDayExclusive:holidayDay+1}],
+            sources:[{uid:'holiday-fixture',holiday:true},{uid:'personal-fixture'}],occurrences:[
+                {id:'holiday-fixture',uid:'holiday',sourceUid:'holiday-fixture',title:'Holiday',allDay:true,
+                    startDate:'2026-11-13',endDateExclusive:'2026-11-14'},
+                {id:'personal-fixture',uid:'personal',sourceUid:'personal-fixture',title:'Personal all-day plan',allDay:true,
+                    startDate:'2026-11-13',endDateExclusive:'2026-11-14'}]};
+        this._settings.set_boolean('calendar-events-enabled',true);
+        view.setEvents(holidaySnapshot);
+        assert(view.agenda.rows.size === 2, 'Holiday filtering fixture missing');
+        view.agenda.rows.get('holiday-fixture').control.grab_key_focus();
+        this._settings.set_boolean('calendar-show-holidays',false); await delay(100);
+        assert(!view.agenda.holiday.visible && view.agenda.holiday.text === '' && view.agenda.rows.size === 1 &&
+            view.agenda.rows.has('personal-fixture') && view.todayButton.has_key_focus(),
+            'Holiday switch must hide the note and holiday rows while preserving personal events and focus');
+        assert(marked() === beforeAdditional, 'Holiday text switch changed nonworking-day colors');
+        this._settings.set_boolean('calendar-show-holidays',true); await delay(100);
+        assert(view.agenda.holiday.visible && view.agenda.rows.size === 2, 'Holiday switch did not restore both displays');
+        this._settings.set_boolean('calendar-use-calendar-language',false); await delay(100);
+        assert(view.todayButton.label === 'Today' && !/[\u0600-\u06ff]/.test(view.agenda.heading.text + view.title.text + view.agenda.holiday.text),
+            'English calendar preference left localized date text');
+        assert(view.cells.filter(cell => cell.day !== null).every(cell => /^[0-9]+$/.test(cell.main.text)), 'English calendar retained Persian day numbers');
+        await this._capture('calendar-english');
+        this._settings.set_boolean('calendar-use-calendar-language',true);
+        this._settings.set_boolean('calendar-events-enabled',false);
         this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);
         assert(marked() === beforeAdditional, 'Additional dates changed holiday markings');
         await delay(150); await this._capture('calendar-iran-holiday');
@@ -632,8 +664,13 @@ export default class Preview extends UbuntuIsland {
         this._settings.set_strv('calendar-additional', ['gregorian']); await delay(200);
         view.select(todayDay()); await delay(200);
         for (let i = 0; i < 3; i++) {
+            view.select(todayDay() + 40);
+            this._card.selectPage('media'); this._card.selectPage('calendar');
+            assert(view.selected === todayDay() + 40, 'Tab switching reset the selected date');
             this._island.collapse(); await delay(300); assert(!view.midnightTimer, 'Hidden calendar retains timer');
             this._island.expand(); await delay(300); assert(view.midnightTimer, 'Visible calendar clock missing');
+            assert(view.selected === todayDay() && view.displayed === todayDay(), 'Reopening retained the browsed date/month');
+            assert(view.agenda.adjustment.value === 0, 'Reopening retained the agenda scroll position');
         }
         this._card.selectPage('media'); assert(!view.midnightTimer, 'Inactive calendar retains timer');
         this._card.selectPage('calendar'); await delay(300); await this._capture('calendar');
@@ -668,6 +705,21 @@ export default class Preview extends UbuntuIsland {
             assert(!label.clutter_text.get_layout().is_ellipsized(), 'Compact single date is truncated');
             await this._capture(`notch-date-${calendar}`);
         }
+        settings.set_strv('pill-date-calendars', ['gregorian']);
+        settings.set_strv('pill-date-calendars', ['jalali', 'hijri']);
+        settings.set_boolean('calendar-use-calendar-language',false); await delay(100);
+        assert(dates.entries.every(entry => !entry.rtl && !/[\u0600-\u06ff]/.test(entry.text + entry.description)),
+            'English setting did not update the notch dates and descriptions');
+        const fullDescriptions = dates.entries.map(entry => entry.description).join();
+        settings.set_strv('pill-date-short-months',['jalali','hijri']); await delay(100);
+        for (const id of ['jalali','hijri'])
+            assert(dateLabel(id).text === formatNotchDate(todayDay(),id,'%d %mm','auto',false,true), 'Short month setting did not update the notch');
+        assert(dates.entries.map(entry => entry.description).join() === fullDescriptions, 'Short months changed accessible full dates');
+        await this._capture('notch-short-english-months');
+        settings.set_boolean('calendar-use-calendar-language',true); await delay(100);
+        assert(/[\u0600-\u06ff]/.test(dateLabel('jalali').text), 'Calendar language did not restore in the notch');
+        assert(dateLabel('jalali').text === formatNotchDate(todayDay(),'jalali'), 'Short months affected native calendar language');
+        settings.reset('pill-date-short-months');
         settings.set_strv('pill-date-calendars', ['gregorian']);
         settings.set_string('calendar-primary', 'hijri');
         assert(dateLabel('gregorian').visible && dateLabel('gregorian').text === notchDate(todayDay(), 'gregorian').text,

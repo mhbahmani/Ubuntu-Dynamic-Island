@@ -3,6 +3,13 @@ import assert from 'node:assert/strict';
 import {civilDay, dateParts} from '../services/calendar-model.js';
 import {calendarHolidays, holidayDescription, isCalendarWeekend} from '../services/calendar-holidays.js';
 
+test('English observance descriptions preserve the holiday dates', () => {
+    const info = calendarHolidays(civilDay(2026,11,13),'jalali');
+    assert.equal(holidayDescription(info,'jalali',false),'Martyrdom of Fatimah');
+    assert.equal(holidayDescription({...info,estimated:true},'jalali',false),'Martyrdom of Fatimah (calculated)');
+    assert.match(holidayDescription(info,'jalali'),/شهادت/);
+});
+
 test('weekly holidays follow the main calendar', () => {
     for (let day = 0; day < 7; day++) {
         assert.equal(isCalendarWeekend(day, 'gregorian'), day === 0 || day === 6);

@@ -4,6 +4,38 @@
 export const EVENT_LIMITS = Object.freeze({occurrences: 500, inputRecords: 2000,
     sources: 64, identity: 1024, title: 512, location: 1024, uri: 2048, rangeDays: 62});
 const DAY = 86400000;
+
+// EDS's Google CalDAV resources use either the calendar ID directly or its
+// base32hex encoding followed by @virtual. Classify the source, never titles:
+// a personal appointment mentioning a holiday must remain a personal event.
+export function isGoogleHolidayCalendar(resource) {
+    if (typeof resource !== 'string' || resource.length > 4096) return false;
+    const match = resource.match(/^events::https:\/\/apidata\.googleusercontent\.com\/caldav\/v2\/([^/]+)\/events\/?$/i);
+    if (!match) return false;
+    let id;
+    try { id = decodeURIComponent(match[1]); } catch { return false; }
+    if (id.endsWith('@virtual')) {
+        const encoded = id.slice(0, -8).toLowerCase();
+        if (!/^[0-9a-v]+$/.test(encoded)) return false;
+        let bits = 0, buffer = 0;
+        id = '';
+        for (const char of encoded) {
+            buffer = (buffer << 5) | '0123456789abcdefghijklmnopqrstuv'.indexOf(char);
+            bits += 5;
+            if (bits >= 8) { bits -= 8; id += String.fromCharCode((buffer >> bits) & 255); }
+            buffer &= (1 << bits) - 1;
+        }
+        if (buffer !== 0) return false;
+    }
+    return /^[a-z0-9_.-]+#holiday@group\.v\.calendar\.google\.com$/i.test(id);
+}
+
+export function visibleCalendarEvents(snapshot, showHolidays) {
+    if (showHolidays) return snapshot;
+    const hidden = new Set((snapshot.sources || []).filter(source => source.holiday === true).map(source => source.uid));
+    return {...snapshot, occurrences: snapshot.occurrences.filter(event => !hidden.has(event.sourceUid))};
+}
+
 const controls = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu;
 const compare = (a, b) => a < b ? -1 : a > b ? 1 : 0;
 const instant = value => Number.isSafeInteger(value) && Math.abs(value) <= 8640000000000000;

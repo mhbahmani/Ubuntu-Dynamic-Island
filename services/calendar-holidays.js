@@ -62,8 +62,23 @@ export function calendarHolidays(day, primary) {
     return {weekend, names, estimated, holiday: weekend || names.length > 0};
 }
 
-export function holidayDescription(info, primary) {
+const ENGLISH_NAMES = new Map([
+    ['نوروز', 'Nowruz'], ['روز جمهوری اسلامی', 'Islamic Republic Day'], ['روز طبیعت', 'Nature Day'],
+    ['رحلت امام خمینی', 'Death of Imam Khomeini'], ['قیام ۱۵ خرداد', '15 Khordad Uprising'],
+    ['پیروزی انقلاب اسلامی', 'Islamic Revolution Day'], ['ملی شدن صنعت نفت', 'Oil Nationalization Day'],
+    ['تاسوعا', 'Tasua'], ['عاشورا', 'Ashura'], ['اربعین', 'Arbaeen'],
+    ['رحلت پیامبر و شهادت امام حسن', 'Death of Prophet Muhammad and martyrdom of Imam Hasan'],
+    ['شهادت امام رضا', 'Martyrdom of Imam Reza'], ['شهادت امام حسن عسکری', 'Martyrdom of Imam Hasan al-Askari'],
+    ['میلاد پیامبر و امام جعفر صادق', 'Birthday of Prophet Muhammad and Imam Jafar al-Sadiq'],
+    ['شهادت حضرت فاطمه', 'Martyrdom of Fatimah'], ['ولادت امام علی', 'Birthday of Imam Ali'],
+    ['مبعث پیامبر', 'Prophet Muhammad’s mission'], ['نیمه شعبان', 'Mid-Shaaban'],
+    ['شهادت امام علی', 'Martyrdom of Imam Ali'], ['عید فطر', 'Eid al-Fitr'],
+    ['تعطیلات عید فطر', 'Eid al-Fitr holiday'], ['شهادت امام جعفر صادق', 'Martyrdom of Imam Jafar al-Sadiq'],
+    ['عید قربان', 'Eid al-Adha'], ['عید غدیر', 'Eid al-Ghadir'],
+]);
+
+export function holidayDescription(info, primary, calendarLanguage = true) {
     if (info.names.length)
-        return `${info.names.join(' · ')}${info.estimated ? ' (محاسبه‌ای)' : ''}`;
-    return info.weekend ? primary === 'gregorian' ? 'Weekend' : 'جمعه · تعطیل هفتگی' : '';
+        return `${info.names.map(name => calendarLanguage ? name : ENGLISH_NAMES.get(name) || name).join(' · ')}${info.estimated ? calendarLanguage ? ' (محاسبه‌ای)' : ' (calculated)' : ''}`;
+    return info.weekend ? primary === 'gregorian' ? 'Weekend' : calendarLanguage ? 'جمعه · تعطیل هفتگی' : 'Friday · Weekend' : '';
 }

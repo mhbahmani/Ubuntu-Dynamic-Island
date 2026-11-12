@@ -260,6 +260,7 @@ export class Card {
     }
 
     selectExpansionPage() {
+        this._calendarView?.resetToToday();
         const preferred = this._settings.get_string('expand-tab');
         if (preferred === 'last') return;
         // A fixed-tab choice should not be overridden by a player appearing later.

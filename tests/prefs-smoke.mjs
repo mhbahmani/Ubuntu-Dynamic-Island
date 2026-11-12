@@ -47,6 +47,21 @@ if (settings.get_int('agents-inactive-minutes') !== 120) throw new Error('Sessio
 settings.set_int('agents-inactive-minutes', 60);
 if (inactive.value !== 60) throw new Error('Session expiry did not follow settings');
 const calendarEnabled = find(window, 'Calendar');
+for (const [title,key] of [['Show holidays and observances','calendar-show-holidays'], ['Use calendar language','calendar-use-calendar-language']]) {
+    const control = find(window,title);
+    if (!control?.active) throw new Error(`${title} must default on`);
+    control.active = false;
+    if (settings.get_boolean(key)) throw new Error(`${title} did not save`);
+    settings.set_boolean(key,true);
+    if (!control.active) throw new Error(`${title} did not follow settings`);
+}
+const eventTitleSize = find(window, 'Event title font size');
+if (!eventTitleSize || eventTitleSize.value !== 9) throw new Error('Calendar event titles must default to 9pt');
+eventTitleSize.value = 12;
+if (settings.get_int('calendar-event-title-size') !== 12) throw new Error('Event title size did not save');
+settings.set_int('calendar-event-title-size', 8);
+if (eventTitleSize.value !== 8) throw new Error('Event title size did not follow settings');
+settings.reset('calendar-event-title-size');
 const eventsEnabled = find(window,'Show desktop calendar events');
 if (!eventsEnabled || eventsEnabled.active) throw new Error('Calendar events must default off');
 eventsEnabled.active = true;
@@ -85,6 +100,19 @@ window.set_visible_page_name('notch');
 const notchPage = window.get_visible_page();
 const jalaliNotch = find(notchPage, 'Jalali · شمسی');
 const gregorianNotch = find(notchPage, 'Gregorian · میلادی');
+const shortJalali = find(jalaliNotch,'Short English month names');
+const shortHijri = find(find(notchPage,'Hijri · قمری'),'Short English month names');
+if (!shortJalali || !shortHijri || shortJalali.sensitive || shortJalali.active || find(gregorianNotch,'Short English month names'))
+    throw new Error('Short English month controls must default off and require English dates');
+settings.set_boolean('calendar-use-calendar-language',false);
+if (!shortJalali.sensitive || !shortHijri.sensitive) throw new Error('English month controls did not enable');
+shortJalali.active = true;
+if (settings.get_strv('pill-date-short-months').join() !== 'jalali' || shortHijri.active) throw new Error('Short month selections are not independent');
+settings.set_strv('pill-date-short-months',['jalali','hijri']);
+if (!shortHijri.active) throw new Error('Short month control did not follow settings');
+settings.set_boolean('calendar-use-calendar-language',true);
+if (shortJalali.sensitive || !shortJalali.active) throw new Error('Native language must disable, not discard short-month selection');
+settings.reset('pill-date-short-months');
 const shown = tooltip(jalaliNotch, 'Show Jalali in notch');
 if (!shown.active || !shown.sensitive || settings.get_strv('pill-date-calendars').join() !== 'jalali' ||
     tooltip(gregorianNotch, 'Show Gregorian in notch').active || tooltip(find(notchPage, 'Hijri · قمری'), 'Show Hijri in notch').active)

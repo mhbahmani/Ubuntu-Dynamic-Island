@@ -8,7 +8,7 @@ import {primaryCalendar, todayDay, weekday, monthGrid, shiftMonths, monthTitle,
     fullDate, calendarTodayLabel, formatNotchDate, persianDigits, migrateCalendarSettings} from '../services/calendar-model.js';
 import {calendarHolidays, holidayDescription, isCalendarWeekend} from '../services/calendar-holidays.js';
 import {CalendarAgenda} from './calendar-agenda.js';
-import {eventsForDay} from '../services/calendar-events-model.js';
+import {eventsForDay, visibleCalendarEvents} from '../services/calendar-events-model.js';
 
 function textButton(text, action) {
     const actor = new St.Button({label: text, style_class: 'ubuntu-island-calendar-control',
@@ -80,7 +80,7 @@ export class CalendarView {
             this.grid.add_child(control); return cell;
         });
         this.eventSnapshot = {status:'disabled',occurrences:[],coverage:[],sources:[],incomplete:true};
-        const changed = ['calendar-primary', 'calendar-events-enabled', 'calendar-event-sources', 'color-theme'].map(key => settings.connect(`changed::${key}`, () => {
+        const changed = ['calendar-primary', 'calendar-use-calendar-language', 'calendar-events-enabled', 'calendar-event-sources', 'calendar-show-holidays', 'calendar-event-title-size', 'color-theme'].map(key => settings.connect(`changed::${key}`, () => {
             this.primary = settings.get_string('calendar-primary');
             this.render(); this.actions.relayout?.();
         }));
@@ -106,6 +106,12 @@ export class CalendarView {
         this.render();
     }
 
+    resetToToday() {
+        this.pendingEvent = null;
+        this.today = todayDay();
+        this.adjustment.value = this.agenda.adjustment.value = 0;
+        this.select(this.today);
+    }
     select(day, focus = false) {
         if (day == null) return;
         if (day !== this.selected) this.agenda.adjustment.value = 0;
@@ -135,25 +141,28 @@ export class CalendarView {
     }
     render() {
         const rtl = this.primary !== 'gregorian';
+        const calendarLanguage = this.settings.get_boolean('calendar-use-calendar-language');
+        const nativeText = rtl && calendarLanguage;
         const calendar = primaryCalendar(this.primary);
         this.gridData = monthGrid(this.displayed, this.primary);
         const selectedInMonth = this.gridData.some(data => data.inMonth && data.day === this.selected);
         const focusDay = selectedInMonth ? this.selected : this.gridData.find(data => data.inMonth).day;
-        this.todayButton.label = calendarTodayLabel(this.primary);
+        this.todayButton.label = calendarTodayLabel(this.primary, calendarLanguage);
         this.todayButton.accessible_name = this.todayButton.label;
-        this.todayButton.set_text_direction(rtl ? Clutter.TextDirection.RTL : Clutter.TextDirection.LTR);
-        this.title.text = monthTitle(this.displayed, calendar);
+        this.todayButton.set_text_direction(nativeText ? Clutter.TextDirection.RTL : Clutter.TextDirection.LTR);
+        this.title.text = monthTitle(this.displayed, calendar, calendarLanguage);
         this.title.accessible_name = this.title.text;
-        this.title.set_text_direction(rtl ? Clutter.TextDirection.RTL : Clutter.TextDirection.LTR);
+        this.title.set_text_direction(nativeText ? Clutter.TextDirection.RTL : Clutter.TextDirection.LTR);
         const selectedHoliday = calendarHolidays(this.selected, this.primary);
-        this.agenda.holiday.text = holidayDescription(selectedHoliday, this.primary);
-        this.agenda.holiday.visible = selectedHoliday.names.length > 0;
+        const showHolidays = this.settings.get_boolean('calendar-show-holidays');
+        this.agenda.holiday.text = showHolidays ? holidayDescription(selectedHoliday, this.primary, calendarLanguage) : '';
+        this.agenda.holiday.visible = showHolidays && selectedHoliday.names.length > 0;
         const layout = this.grid.layout_manager;
         for (let i = 0; i < 7; i++) {
             const day = (i + (rtl ? 6 : 1)) % 7;
             const date = this.displayed + day - weekday(this.displayed);
-            this.headings[i].text = formatNotchDate(date, this.primary, rtl ? '%w' : '%ww').slice(0, rtl ? 1 : 2);
-            this.headings[i].accessible_name = formatNotchDate(date, this.primary, '%WW');
+            this.headings[i].text = formatNotchDate(date, this.primary, nativeText ? '%w' : '%ww', 'auto', calendarLanguage).slice(0, nativeText ? 1 : 2);
+            this.headings[i].accessible_name = formatNotchDate(date, this.primary, '%WW', 'auto', calendarLanguage);
             this.headings[i].set_style_class_name(`ubuntu-island-calendar-weekday${isCalendarWeekend(day, this.primary) ? ' ubuntu-island-calendar-weekend-heading' : ''}`);
             const meta = layout.get_child_meta(this.grid, this.headings[i]);
             meta.left_attach = rtl ? 6 - i : i; meta.top_attach = 0;
@@ -179,13 +188,13 @@ export class CalendarView {
             cell.day = data.day;
             const selected = data.day === this.selected, today = data.day === this.today;
             const holiday = calendarHolidays(data.day, this.primary);
-            const number = rtl ? persianDigits(data.primary) : String(data.primary);
+            const number = nativeText ? persianDigits(data.primary) : String(data.primary);
             cell.main.text = number;
             cell.control.set_style_class_name(`ubuntu-island-calendar-day${selected ? ' ubuntu-island-calendar-selected-day' : ''}${today ? ' ubuntu-island-calendar-today' : ''}${holiday.holiday ? ' ubuntu-island-calendar-holiday' : ''}`);
             cell.control.can_focus = data.day === focusDay;
             if (selected) { cell.control.add_style_pseudo_class('checked'); cell.control.add_accessible_state(Atk.StateType.SELECTED); }
             else { cell.control.remove_style_pseudo_class('checked'); cell.control.remove_accessible_state(Atk.StateType.SELECTED); }
-            cell.control.accessible_name = `${fullDate(data.day, calendar)}${today ? `; ${calendarTodayLabel(this.primary)}` : ''}${holiday.holiday ? `; ${holidayDescription(holiday, this.primary)}` : ''}`;
+            cell.control.accessible_name = `${fullDate(data.day, calendar, 'short', calendarLanguage)}${today ? `; ${calendarTodayLabel(this.primary, calendarLanguage)}` : ''}${holiday.holiday && showHolidays ? `; ${holidayDescription(holiday, this.primary, calendarLanguage)}` : ''}`;
             cell.dateAccessible = cell.control.accessible_name;
         });
         this._renderEvents(); this.actions.calendarRangeChanged?.();
@@ -197,7 +206,8 @@ export class CalendarView {
     setEvents(snapshot) { this.eventSnapshot = snapshot; this._renderEvents(); }
     _renderEvents() {
         if (!this.agenda) return;
-        const enabled = this.settings.get_boolean('calendar-events-enabled'), snapshot = this.eventSnapshot;
+        const enabled = this.settings.get_boolean('calendar-events-enabled');
+        const snapshot = visibleCalendarEvents(this.eventSnapshot, this.settings.get_boolean('calendar-show-holidays'));
         const configured = enabled && this.settings.get_strv('calendar-event-sources').length > 0;
         const covered = day => snapshot.coverage?.some(r => r.startDay <= day && day < r.endDayExclusive);
         for (const cell of this.cells) {
@@ -209,7 +219,8 @@ export class CalendarView {
         if (!configured) this.pendingEvent = null;
         this.agenda.update(configured ? snapshot : {status:'ready', occurrences:[],
             coverage:[{startDay:this.selected,endDayExclusive:this.selected + 1}], incomplete:false},
-        this.selected,this.primary,this.settings.get_string('color-theme'));
+        this.selected,this.primary,this.settings.get_string('color-theme'),this.settings.get_int('calendar-event-title-size'),
+        this.settings.get_boolean('calendar-use-calendar-language'));
         if (this.pendingEvent && this.actions.calendarFocusReady?.() && !this.focusIdle) {
             this.focusIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
                 this.focusIdle = 0; this.focusRequestedEvent(); return GLib.SOURCE_REMOVE;

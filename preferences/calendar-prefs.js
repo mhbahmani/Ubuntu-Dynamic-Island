@@ -55,10 +55,20 @@ export function notchDatePreferences(settings, window) {
         const numerals = new Adw.ComboRow({title: 'Numerals',
             model: Gtk.StringList.new(['Calendar default', 'Persian · ۰۱۲۳', 'Latin · 0123'])});
         row.add_row(preset); row.add_row(custom); row.add_row(error); row.add_row(numerals);
+        const shortMonth = id !== 'gregorian' ? new Adw.SwitchRow({title: 'Short English month names'}) : null;
+        if (shortMonth) {
+            row.add_row(shortMonth);
+            shortMonth.connect('notify::active', () => {
+                if (syncing) return;
+                const selected = new Set(settings.get_strv('pill-date-short-months'));
+                if (shortMonth.active) selected.add(id); else selected.delete(id);
+                settings.set_strv('pill-date-short-months', [...selected]);
+            });
+        }
         if (id === 'hijri') row.add_row(new Adw.ActionRow({title: 'Calculated Hijri dates',
             subtitle: 'Local moon-sighting dates may differ.'}));
         list.append(row);
-        const item = {row, shown, up, down, preset, custom, error, numerals, editing: false};
+        const item = {row, shown, up, down, preset, custom, error, numerals, shortMonth, editing: false};
         rows.set(id, item);
         shown.connect('notify::active', () => {
             if (syncing) return;
@@ -83,7 +93,7 @@ export function notchDatePreferences(settings, window) {
             // Preview drafts immediately; save only on Apply, keeping invalid
             // or unfinished edits out of the running Shell's date display.
             row.subtitle = message ? 'The saved format is still in use.' :
-                formatNotchDate(todayDay(), id, custom.text, readMap('pill-date-digits')[id]);
+                formatNotchDate(todayDay(), id, custom.text, readMap('pill-date-digits')[id], settings.get_boolean('calendar-use-calendar-language'), settings.get_strv('pill-date-short-months').includes(id));
         });
         custom.connect('apply', () => {
             if (dateFormatError(custom.text)) return;
@@ -104,7 +114,9 @@ export function notchDatePreferences(settings, window) {
         const calendars = settings.get_strv('pill-date-calendars');
         const order = dateOrder(settings.get_strv('pill-date-order'));
         const formats = readMap('pill-date-formats'), digits = readMap('pill-date-digits');
-        const entries = notchDates(todayDay(), {calendars, order, formats, digits});
+        const calendarLanguage = settings.get_boolean('calendar-use-calendar-language');
+        const shortMonths = settings.get_strv('pill-date-short-months');
+        const entries = notchDates(todayDay(), {calendars, order, formats, digits, calendarLanguage, shortMonths});
         preview.subtitle = enabled.active ? entries.length ? `\u200e${entries.map(entry => `\u2068${entry.text}\u2069`).join('  ·  ')}` : 'Choose at least one calendar below.' : 'Date display is off.';
         if (arranged !== order.join(',')) {
             const focus = window.get_focus();
@@ -133,12 +145,20 @@ export function notchDatePreferences(settings, window) {
                 item.error.visible = false; item.custom.remove_css_class('error');
             }
             item.numerals.selected = Math.max(0, numeralIds.indexOf(digits[id] ?? 'auto'));
-            item.row.subtitle = formatNotchDate(todayDay(), id, pattern, digits[id]);
+            item.numerals.sensitive = calendarLanguage;
+            item.numerals.subtitle = calendarLanguage ? '' : 'English date display uses Latin digits.';
+            if (item.shortMonth) {
+                item.shortMonth.active = shortMonths.includes(id);
+                item.shortMonth.sensitive = !calendarLanguage;
+                item.shortMonth.subtitle = calendarLanguage ? 'Turn off “Use calendar language” in Calendar settings to use English abbreviations.'
+                    : id === 'jalali' ? 'Farvardin → Far · Esfand → Esf' : 'Muharram → Muh · Rabi I → Rab I';
+            }
+            item.row.subtitle = formatNotchDate(todayDay(), id, pattern, digits[id], calendarLanguage, shortMonths.includes(id));
         }
         syncing = false;
     };
     enabled.connect('notify::active', sync);
-    const signals = ['pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits']
+    const signals = ['pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'pill-date-short-months', 'calendar-use-calendar-language']
         .map(key => settings.connect(`changed::${key}`, sync));
     window.connect('close-request', () => { signals.forEach(id => settings.disconnect(id)); return false; });
     sync();
@@ -153,6 +173,18 @@ export function calendarPreferences(settings, window) {
     const primary = new Adw.ComboRow({title: 'Main calendar',
         model: Gtk.StringList.new(ids.map(id => CALENDARS[id].title))});
     group.add(primary);
+    const language = new Adw.SwitchRow({title: 'Use calendar language',
+        subtitle: 'Turn off for English date text and Latin digits in the Calendar tab and notch.'});
+    settings.bind('calendar-use-calendar-language', language, 'active', Gio.SettingsBindFlags.DEFAULT);
+    group.add(language);
+    const holidays = new Adw.SwitchRow({title: 'Show holidays and observances',
+        subtitle: 'Show holiday notes and Google holiday-calendar events. Personal events stay visible.'});
+    settings.bind('calendar-show-holidays', holidays, 'active', Gio.SettingsBindFlags.DEFAULT);
+    group.add(holidays);
+    const titleSize = new Gtk.Adjustment({lower: 8, upper: 14, step_increment: 1, page_increment: 1});
+    settings.bind('calendar-event-title-size', titleSize, 'value', Gio.SettingsBindFlags.DEFAULT);
+    group.add(new Adw.SpinRow({title: 'Event title font size',
+        subtitle: 'pt · Smaller text shows more of each event title', adjustment: titleSize}));
     const extra = new Adw.PreferencesGroup({title: 'Additional dates',
         description: 'Show these calendars alongside the selected date in the header.'});
     let syncing = false;

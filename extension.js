@@ -257,7 +257,7 @@ export default class UbuntuIsland extends Extension {
         for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
-        for (const key of ['pill-show-date', 'pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits'])
+        for (const key of ['pill-show-date', 'pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'pill-date-short-months', 'calendar-use-calendar-language'])
             watch(key, () => this._renderPill());
         for (const key of ['calendar-events-enabled','calendar-event-sources','pill-show-event','pill-event-show-title','calendar-event-lead-minutes'])
             watch(key, () => { this._syncCalendarEvents(); this._updateUpcomingEvent(); });
@@ -350,10 +350,12 @@ export default class UbuntuIsland extends Extension {
             showTitle: this._settings.get_boolean('pill-show-title'),
             showDate: this._settings.get_boolean('pill-show-date'),
             dateOptions: {
+                calendarLanguage: this._settings.get_boolean('calendar-use-calendar-language'),
                 calendars: this._settings.get_strv('pill-date-calendars'),
                 order: this._settings.get_strv('pill-date-order'),
                 formats: this._settings.get_value('pill-date-formats').deepUnpack(),
                 digits: this._settings.get_value('pill-date-digits').deepUnpack(),
+                shortMonths: this._settings.get_strv('pill-date-short-months'),
             },
             titleMode: this._settings.get_string('pill-title-mode'),
             titleCharacters: this._settings.get_int('pill-title-characters'),

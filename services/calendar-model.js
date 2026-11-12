@@ -13,7 +13,8 @@ function formatter(calendar, options, locale = calendar === 'gregory' ? 'en-GB' 
         {...options, calendar, timeZone: 'UTC'}));
     return formatters.get(key);
 }
-export const calendarTodayLabel = id => ({jalali:'امروز', gregorian:'Today', hijri:'اليوم'}[id] ?? 'امروز');
+export const calendarTodayLabel = (id, calendarLanguage = true) => calendarLanguage
+    ? ({jalali:'امروز', gregorian:'Today', hijri:'اليوم'}[id] ?? 'امروز') : 'Today';
 export const primaryCalendar = id => CALENDARS[id]?.calendar ?? 'persian';
 export const shownCalendars = (primary, additional = []) => [...new Set([primary, ...additional])].filter(id => Object.hasOwn(CALENDARS, id));
 export function migrateCalendarSettings(settings) {
@@ -60,13 +61,13 @@ export function monthGrid(day, primary) {
 export function dateTitle(day, calendar) {
     return formatter(calendar, {day: 'numeric', month: 'long', year: 'numeric'}).format(new Date(day * DAY));
 }
-export function monthTitle(day, calendar) {
-    return formatter(calendar, {month: 'long', year: 'numeric'}).format(new Date(day * DAY));
+export function monthTitle(day, calendar, calendarLanguage = true) {
+    return formatter(calendar, {month: 'long', year: 'numeric'}, calendarLanguage ? undefined : 'en-GB').format(new Date(day * DAY));
 }
-export function fullDate(day, calendar, weekday = 'short') {
+export function fullDate(day, calendar, weekday = 'short', calendarLanguage = true) {
     const date = new Date(day * DAY);
-    const format = formatter(calendar, {weekday, day: 'numeric', month: 'long', year: 'numeric'});
-    if (weekday === 'long' && calendar !== 'gregory') {
+    const format = formatter(calendar, {weekday, day: 'numeric', month: 'long', year: 'numeric'}, calendarLanguage ? undefined : 'en-GB');
+    if (calendarLanguage && weekday === 'long' && calendar !== 'gregory') {
         const parts = Object.fromEntries(format.formatToParts(date).map(part => [part.type, part.value]));
         return `${parts.weekday}، ${parts.day} ${parts.month} ${parts.year}`;
     }
@@ -84,14 +85,14 @@ export function displayDate(day, id) {
 
 // A month name avoids ambiguous numeric month/day order in the narrow notch.
 // Keep the complete date (including the year) in its accessible description.
-export function notchDate(day, choice = 'main', main = 'jalali') {
+export function notchDate(day, choice = 'main', main = 'jalali', calendarLanguage = true) {
     const requested = choice === 'main' ? main : choice;
     const id = Object.hasOwn(CALENDARS, requested) ? requested : 'jalali';
     const calendar = primaryCalendar(id);
     return {
-        text: formatter(calendar, {day: 'numeric', month: 'short'}).format(new Date(day * DAY)),
-        description: `${CALENDARS[id].name}: ${fullDate(day, calendar)}${id === 'hijri' ? ' (calculated)' : ''}`,
-        rtl: id !== 'gregorian',
+        text: formatter(calendar, {day: 'numeric', month: 'short'}, calendarLanguage ? undefined : 'en-GB').format(new Date(day * DAY)),
+        description: `${CALENDARS[id].name}: ${fullDate(day, calendar, 'short', calendarLanguage)}${id === 'hijri' ? ' (calculated)' : ''}`,
+        rtl: calendarLanguage && id !== 'gregorian',
     };
 }
 
@@ -125,10 +126,20 @@ export function dateFormatError(pattern) {
 }
 export const dateOrder = value => [...new Set([...(Array.isArray(value) ? value : []), ...Object.keys(CALENDARS)])]
     .filter(id => Object.hasOwn(CALENDARS, id));
-export function formatNotchDate(day, id, pattern = '%d %mm', digits = 'auto') {
+// Compact notch labels; paired Hijri months stay distinguishable. Full dates
+// in tooltips and the Calendar tab continue to use ICU's complete names.
+const SHORT_ENGLISH_MONTHS = {
+    jalali: ['Far', 'Ord', 'Kho', 'Tir', 'Mor', 'Sha', 'Meh', 'Aba', 'Aza', 'Dey', 'Bah', 'Esf'],
+    hijri: ['Muh', 'Saf', 'Rab I', 'Rab II', 'Jum I', 'Jum II', 'Raj', 'Sha', 'Ram', 'Shaw', 'Dhu Q', 'Dhu H'],
+};
+export function formatNotchDate(day, id, pattern = '%d %mm', digits = 'auto', calendarLanguage = true, shortMonth = false) {
     if (dateFormatError(pattern)) pattern = '%d %mm';
     const calendar = primaryCalendar(id), p = dateParts(day, calendar), date = new Date(day * DAY);
-    const named = (part, width) => formatter(calendar, {[part]: width}).formatToParts(date).find(item => item.type === part)?.value ?? '';
+    const named = (part, width) => {
+        if (part === 'month' && shortMonth && !calendarLanguage && Object.hasOwn(SHORT_ENGLISH_MONTHS, id))
+            return SHORT_ENGLISH_MONTHS[id][p.month - 1];
+        return formatter(calendar, {[part]: width}, calendarLanguage ? undefined : 'en-GB').formatToParts(date).find(item => item.type === part)?.value ?? '';
+    };
     const values = {
         '%Y': String(p.year).padStart(4, '0'), '%y': String(p.year % 100).padStart(2, '0'),
         '%M': String(p.month).padStart(2, '0'), '%m': String(p.month),
@@ -138,14 +149,14 @@ export function formatNotchDate(day, id, pattern = '%d %mm', digits = 'auto') {
         '%w': () => Array.from(named('weekday', 'long'))[0], '%%': '%',
     };
     let text = pattern.replace(dateToken, token => typeof values[token] === 'function' ? values[token]() : values[token]);
-    // Only numerals change; month/weekday names retain their calendar's language.
+    // English display overrides numeral preferences without changing their saved values.
     text = text.replace(/[۰-۹٠-٩]/g, digit => String(digit.charCodeAt(0) - (digit >= '۰' ? 0x6f0 : 0x660)));
-    if (digits === 'persian' || (digits !== 'latin' && id !== 'gregorian')) text = persianDigits(text);
+    if (calendarLanguage && (digits === 'persian' || (digits !== 'latin' && id !== 'gregorian'))) text = persianDigits(text);
     return text;
 }
-export function notchDates(day, {main = 'jalali', calendars = [main], order = [], formats = {}, digits = {}} = {}) {
+export function notchDates(day, {main = 'jalali', calendars = [main], order = [], formats = {}, digits = {}, calendarLanguage = true, shortMonths = []} = {}) {
     return dateOrder(order).filter(id => calendars.includes(id)).map(id => ({id,
-        ...notchDate(day, id), text: formatNotchDate(day, id, formats[id], digits[id]),
+        ...notchDate(day, id, main, calendarLanguage), text: formatNotchDate(day, id, formats[id], digits[id], calendarLanguage, shortMonths.includes(id)),
     }));
 }
 export function migrateNotchDates(settings) {

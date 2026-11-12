@@ -25,6 +25,8 @@ async function run() {
     check(snapshot.status==='ready' && !service.timer && snapshots.every(s=>s.status!=='error'),'Stale generation ignored');
     check(snapshot.sources[0].color === '#aabb99' && snapshot.sources[1].color === null && snapshot.sources[2].color === null,
         'Source colors survive the pipe only after validation');
+    check(snapshot.sources[0].holiday && !snapshot.sources[1].holiday && !snapshot.sources[2].holiday,
+        'Holiday classification crosses the pipe only as an explicit boolean');
     const process=service.process, generation=service.generation;
     service.watch(request);check(service.process===process && service.generation===generation,'Identical watch reuses subscription');
     snapshot=await next({...request,timezone:'broken'});

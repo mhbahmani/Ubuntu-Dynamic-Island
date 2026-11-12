@@ -85,7 +85,8 @@ export class CalendarEventsService {
         const plain = text => String(text || '').replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/gu,' ').slice(0,128);
         const sources = value.sources.filter(source => typeof source.uid === 'string' && source.uid.length <= 1024)
             .map(source => ({uid:source.uid, name:plain(source.name),
-                account:plain(source.account), color:calendarColor(source.color), enabled:Boolean(source.enabled)}));
+                account:plain(source.account), color:calendarColor(source.color), enabled:Boolean(source.enabled),
+                holiday:source.holiday === true}));
         this.emit({status:value.status, ...batch, sources, coverage, receivedAt:Date.now()});
     }
     _fail() {
