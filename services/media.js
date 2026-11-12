@@ -37,6 +37,7 @@ export class MediaService {
         this._positionAt = 0;
         this._playing = false;
         this._lengthUs = 0;
+        this._live = false;
         this._canSeek = false;
         this._trackId = null;
         this._trackIdentity = null;
@@ -184,6 +185,7 @@ export class MediaService {
             this._playing = false;
             this._positionUs = 0;
             this._lengthUs = 0;
+            this._live = false;
             this._trackId = null;
             this._trackIdentity = null;
             this._canSeek = false;
@@ -218,8 +220,11 @@ export class MediaService {
             // until the event-driven live read (or an explicit sample) arrives.
             this._rebasePosition(proxy, playerChanged ? null : 0);
         }
-        const length = Number(unpack(meta['mpris:length']) ?? (changed ? 0 : this._lengthUs));
-        this._lengthUs = Number.isFinite(length) && length > 0 ? length : 0;
+        const length = Number(unpack(meta['mpris:length']) ?? 0);
+        // Chromium exports unbounded duration as INT64_MAX microseconds.
+        // JavaScript rounds that sentinel to 2**63; it is not a track length.
+        this._live = length >= 2 ** 63;
+        this._lengthUs = Number.isSafeInteger(length) && length > 0 ? length : 0;
         // Freeze the estimated position at pause and restart its clock at play.
         // A cached Position is often stale when only PlaybackStatus changes.
         if (!changed && playbackChanged) {
@@ -232,7 +237,7 @@ export class MediaService {
         else if (changed || playbackChanged) this._refreshPosition(proxy);
         const canControl = Boolean(this._prop(proxy, 'CanControl'));
         const artists = unpack(meta['xesam:artist']);
-        this._canSeek = canControl && Boolean(this._prop(proxy, 'CanSeek'));
+        this._canSeek = canControl && Boolean(this._prop(proxy, 'CanSeek')) && this._lengthUs > 0;
         const root = this._roots.get(name);
         const playerName = this._prop(root, 'Identity') || name.replace(PREFIX, '').split('.')[0];
         this._onChange({
@@ -259,6 +264,7 @@ export class MediaService {
             status,
             positionSec: this.positionSec(),
             lengthSec: this._lengthUs > 0 ? this._lengthUs / 1e6 : null,
+            live: this._live,
             canSeek: this._canSeek,
             canPrevious: canControl && Boolean(this._prop(proxy, 'CanGoPrevious')),
             canNext: canControl && Boolean(this._prop(proxy, 'CanGoNext')),

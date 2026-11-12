@@ -645,8 +645,9 @@ export class Card {
         const displayed = draggingCurrent && total ? clampFraction(this._progressTrack.value) * total : position ?? 0;
         this._elapsed.text = formatTime(displayed);
         this._mediaTools?.progress(displayed);
-        this._total.text = formatTime(total);
-        const fraction = total && position != null ? clampFraction(position / total) : 0;
+        this._total.text = this._mediaState?.live ? 'Live' : formatTime(total);
+        this._total.accessible_name = this._mediaState?.live ? 'Live stream; seek range unavailable' : this._total.text;
+        const fraction = this._mediaState?.live ? 1 : total && position != null ? clampFraction(position / total) : 0;
         // Keep the thumb under the pointer while a seek is being dragged.
         if (!draggingCurrent) {
             this._updatingProgress = true;

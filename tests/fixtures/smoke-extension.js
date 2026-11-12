@@ -155,6 +155,10 @@ export default class Smoke extends UbuntuIsland {
             slider.emit('drag-end');
             assert(seeks.length === 2, 'Reused track ID allowed an old drag to seek the new track');
             assert(card._elapsed.text === '0:04', 'Reused track ID retained the old seek preview');
+            state = {...state, live:true, lengthSec:null, canSeek:false, positionSec:8485}; render();
+            assert(card._total.text === 'Live' && slider.value === 1 && !slider.reactive, 'Unbounded stream has invalid duration or seek controls');
+            await this._capture('media-live');
+            state = {...state, live:false, lengthSec:301, canSeek:true, positionSec:4}; render();
             this._settings.set_int('expanded-width', 380);
             await delay(100);
             assert(adjustment.upper <= adjustment.page_size + 1, 'Narrow media scrolls');

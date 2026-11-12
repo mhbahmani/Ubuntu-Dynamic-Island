@@ -125,6 +125,22 @@ test('media updates render seek, pause, resume and new tracks without a zero fra
     card._lengthSec = null;
     card.renderProgress(324);
     assert.equal(card._elapsed.text, '5:24', 'Unknown-duration streams must retain their position');
+    props.Metadata['mpris:length'] = Number(2n ** 63n - 1n);
+    media._sync();
+    assert.equal(card._total.text, 'Live');
+    assert.equal(card._progressTrack.value, 1);
+    assert.equal(card._canSeek, false);
+    assert.equal(card._lengthSec, null);
+    media.seek(50);
+    assert.equal(calls.length, 1, 'Live stream emitted an invalid seek');
+    props.Metadata['mpris:length'] = 240e6;
+    media._sync();
+    assert.equal(card._total.text, '4:00');
+    assert.equal(card._canSeek, true);
+    delete props.Metadata['mpris:length'];
+    media._sync();
+    assert.equal(card._total.text, '–:––', 'Unknown duration must not inherit live or finite duration');
+
 });
 
 test('manual player selection can pin a paused app and falls back when it disappears', () => {
