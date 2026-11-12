@@ -89,8 +89,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   surfaces and Ricelin’s vermilion accent. Media opens as a compact
   horizontal artwork-and-controls face. A quiet navigation strip switches to
   system, sound, and Bluetooth faces; close and preferences remain available.
-  Background opacity defaults to 98% and supports 0–100%, without the previous
-  monitor-dependent backdrop path.
+  Background opacity (default 98%, 0–100%) sets the tint; matte tone sets a
+  real frosted-glass blur of the desktop behind the expanded card.
 - **Keyboard navigation**: Super+Alt+I opens/closes the island; Super+Alt+Right
   and Super+Alt+Left cycle available tabs. Ctrl+Tab and Ctrl+Shift+Tab also work
   while open. Customize or disable global bindings under **Appearance → Keyboard
@@ -152,8 +152,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   a last resort only without a Mapbox token. **Preferences → Commute → Open route in**
   independently chooses Google Maps, Balad or Neshan for driving directions.
 - **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
-  background opacity (0–100%, default 98%), matte tone (0–100%, default
-  60%) that flattens the gradient colors without changing transparency,
+  background opacity (0–100%, default 98%) for the tint layer only, matte tone
+  (0–100%, default 60%) for frosted-glass blur strength without changing transparency,
   a Notch order preview that uses smaller icons when labels would overflow,
   widths, animation duration,
   reduced animation, hover behavior, metrics interval, module toggles,
@@ -349,8 +349,14 @@ these hardware acceptance checks.
 
 ## Limitations
 
-- Background opacity defaults to 98% but supports 0–100%; wallpaper blur is not
-  used. Matte tone changes gradient colors, not transparency.
+- Matte tone uses GNOME Shell 46's `Shell.BlurEffect` in background mode on the
+  expanded card only (the collapsed notch never blurs). GNOME 46 blurs rectangles,
+  so the rounded corners are approximated by seven slices that stay inside the
+  arc; a few corner pixels stay unfrosted. Partial repaints are widened to the
+  whole card; an unexpected one can show a faint smudge for one frame before it
+  is corrected. Background blur previously failed to paint on some external
+  monitors: if it does, set matte tone to 0 to switch it off. At 100% opacity the
+  tint hides the blur, so the effect is switched off there.
 - While open, the island holds an input grab like a native menu: the one
   press that dismisses it is consumed rather than passed to the app.
 - The date-menu relocation uses GNOME 46 private panel boxes
@@ -436,13 +442,19 @@ Changes apply immediately. Previous **Offline badge** preferences migrate to
 Preferences are grouped into Appearance, Notch, Modules, Weather, Commute, Agents and Calendar tabs, with
 search across settings. The Notch tab controls the music name, weather icon and
 upload/download rates independently; changes apply immediately. Drag items in the
-Notch order preview to arrange Music, Weather, Network, CPU, Bluetooth, Commute, Agents and Dates.
+Notch order preview to arrange Music, Weather, Network, CPU, Bluetooth, Commute,
+Agents, Dates, Upcoming event and Time.
 Select an item and use the move buttons for keyboard reordering. Hidden items
 keep their place.
 
+**Notch → Time in the notch** adds a local clock with 24-hour or 12-hour AM/PM
+format and optional seconds. Its timer stops whenever the clock is hidden.
+In each Jalali/Hijri date row, **Short English month names** abbreviates months
+when **Calendar → Use calendar language** is off.
+
 The collapsed width is a minimum: the notch grows to fit enabled groups, with
 single-line rates, red download arrows and green upload arrows. Each rate keeps
-enough space for `500KB` plus 4 logical pixels (about 1 mm), measured in the current
+enough space for `500K` plus 4 logical pixels (about 1 mm), measured in the current
 font and scale. Ordinary traffic changes keep that width stable. Unusually long
 values can grow the slot temporarily; earlier traffic never leaves extra space.
 Weather shares the same 260px expanded height as the other tabs, retaining its

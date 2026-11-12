@@ -15,6 +15,19 @@ Jalali (شمسی), Gregorian (میلادی) or Hijri (قمری) as the main cale
 uses that calendar for its selected-day heading and monthly grid. Optional read-only desktop events use EDS;
 [the implementation record](GOOGLE_CALENDAR_PLAN.md) lists live acceptance gaps.
 
+Under **Calendar display**, **Show holidays and observances** controls both the
+short holiday note and events from recognized Google holiday calendars, including
+Holidays in Iran. It defaults on. Turning it off preserves personal events,
+calendar selections and nonworking-day colors. Other subscribed calendars can be
+hidden individually in **Events**; event titles are never used to guess holidays.
+
+**Event title font size** applies immediately to list titles, from 8 to 14 pt
+(default 9 pt). **Use calendar language** defaults on; turn it off for English
+weekday/month names, Today, built-in holiday descriptions and Latin date digits
+in the tab and notch. Calendar conversion and the start of the week stay the same.
+Saved notch numeral choices return when calendar language is enabled again.
+Personal event titles and custom literal text keep their original language.
+
 ### Desktop events
 
 1. Run `make install` as your desktop user. It installs missing Ubuntu packages
@@ -64,6 +77,8 @@ Meet metadata still require acceptance. Missing bindings leave date browsing usa
   month, and Shift+Page Up/Down changes year. Today returns to the current date.
 - Browsing months preserves the selected civil date and its heading. Event data
   outside the fetched month is marked incomplete until that range is available.
+- Reopening the island resets the selected day and displayed month to today.
+  Switching tabs within an open island preserves the selection.
 
 ### Holidays
 
@@ -91,6 +106,19 @@ calendar do not replace this explicit selection.
 Expand each calendar's row to choose a preset or **Custom**, edit its format and
 select automatic, Persian or Latin numerals. Custom edits have a preview and an
 **Apply** button. Move the complete Dates group in **Notch order**.
+
+Jalali and Hijri each offer **Short English month names**, for example Farvardin
+→ Far and Muharram → Muh. Turn off **Calendar → Use calendar language** to enable
+this option. It applies to named months in that calendar’s notch format; numeric
+formats, full-date tooltips and the main Calendar tab keep their existing form.
+The choice is remembered if you switch back to the calendar’s native language.
+
+Under **Notch → Time in the notch**, enable **Show time in notch**, choose
+**Use 24-hour time** or 12-hour time with AM/PM, and optionally **Show seconds**.
+Time has its own position in **Notch order** and uses the desktop’s local time zone.
+Dates and minute-only time share GNOME’s clock notifications. The seconds timer
+runs only while the clock is visible in the collapsed notch; opening, hiding or
+disabling it releases the timer. Only the time label updates each second.
 
 | Code | Output |
 | --- | --- |

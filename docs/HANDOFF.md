@@ -57,6 +57,21 @@ preserving stable navigation and focus; the current expansion remains the refere
 
 ## Recent UI changes
 
+- Frosted material: the island is now three layers. `IslandBackdrop`
+  (`ui/backdrop.js`) blurs the desktop behind the expanded card with
+  `Shell.BlurEffect` in background mode; `.ubuntu-island-material` carries the
+  theme tint, edge and opacity; content sits above both and stays sharp.
+  Matte tone was previously a near-invisible gradient flatten (the two stops
+  differed by about 20 levels, and nothing blurred), so 0 and 100 looked
+  alike. It now maps to a 13/23/32/40 px radius at 25/50/75/100 (×scale) with
+  slight dimming; opacity only sets tint alpha. The blur is off while collapsed,
+  at matte 0 and at 100% opacity. Corners use seven in-arc slices. Partial
+  repaints are widened up front (input, relayout, charts, weather frames,
+  progress, service updates) and any other partial paint gets one full
+  correction frame. Themes were refined (cards, borders, hover/pressed, accents,
+  tab markers, secondary text). Not yet verified on hardware: `make smoke`
+  captures `matte-*-opacity-75`, `opacity-*-matte-75` and `frosted-*`; check
+  them and an external monitor before calling the blur done.
 - Navigation tabs share spare width evenly across available modules. A caption
   slot reserves the longest available tab name, with padding before Settings;
   changing tabs never moves icons or changes caption visibility. The entire slot
@@ -153,7 +168,7 @@ preserving stable navigation and focus; the current expansion remains the refere
   Date text is now 10pt (single-calendar heading 12pt), with brighter text and
   reduced vertical padding. All three dates fit one line at 380/440px; enlarged text wraps
   and overflow remains reachable.
-- Network rates reserve `500KB` plus 4 logical pixels in the current font and
+- Network rates reserve `500K` plus 4 logical pixels in the current font and
   scale. Longer current values can expand temporarily, without retaining the
   session's widest value. This replaces traffic-dependent spacing that could
   appear different after login; no new polling timer is involved.
@@ -384,3 +399,49 @@ syntax and schema checks. Native full preview
 2/4/8 modules, 380/440/480px, 100/200% UI and text scale. It asserts unchanged
 icon positions/caption visibility, full label fit and at least 8 logical pixels
 between caption text and Settings. The ZIP was rebuilt; no host install.
+
+Calendar display preferences and notch spacing (2026-11-12): added live
+Show holidays and observances (default on), Event title font size (8–14 pt,
+default 9), and Use calendar language (default on). The holiday switch hides
+both built-in notes and recognized Google holiday-source events; personal
+all-day events and nonworking-day colors remain. Classification uses EDS resource
+identifiers, including Google's encoded IDs, not calendar names or event titles.
+A read-only live catalog check recognized the selected Holidays in Iran source.
+English display covers tab/notch dates, accessible descriptions, Today and
+built-in observance descriptions, preserving calendar conversion and saved
+notch numeral choices. Reopening resets the selected date/month to today.
+
+The network reference is now 500K plus 4 logical pixels, replacing 500KB. Current
+labels wider than that reference remain readable and shrink again afterward.
+Native Calendar checks passed at 380/440px, 100/200% scale, enlarged text and
+8/9/14pt event titles, including live holiday filtering, focus restoration,
+English dates and repeated reopen resets. GTK preferences and focused network
+width checks passed. The history-chart harness now provides the backdrop
+invalidation dependency and verifies that hidden charts do not invalidate it.
+`make check` passes all 190 tests, JavaScript/Python syntax and strict schemas.
+
+The event-reader failure was caused by waiting up to five seconds per EDS source
+for remote connectivity before reading the existing cache. Seven selected live
+sources took 29.5 seconds, exceeding the parent's 20-second request deadline.
+Using ECal's documented no-wait sentinel returned the same 28 cached occurrences
+across all seven sources in 0.259 seconds. Existing EDS view/online notifications
+still deliver subsequent changes. No new polling, worker or cache was added.
+A two-second idle probe measured zero CPU ticks and no unsolicited snapshots;
+closing its input terminated the helper cleanly. This checks cached availability,
+not a guarantee about subsequent remote synchronization latency.
+
+Jalali/Hijri notch rows now offer independent short English month names, effective
+only with calendar language disabled. The optional notch clock has 12/24-hour
+and seconds controls. Minute-only display shares GNOME's wall-clock signals;
+the seconds timer exists only while the collapsed clock is mapped and enabled.
+Native Calendar/clock preview `/tmp/ubuntu-island-preview-9yc1oep2` passes format,
+short-month, stable-width, accessibility and hidden/expanded/disabled cleanup
+checks. Screenshots were inspected. `make prefs-test` passes the new controls.
+
+The broader full preview still fails navigation-position/caption assertions
+while switching tabs at narrow widths or 200% scale; focused network checks pass.
+`make smoke` (`/tmp/ubuntu-island-smoke-eep0mwco`) passes media, Quick Ask, map
+editor and shortcut recorder checks, then stops at an Agents focus assertion.
+These broader native failures remain unresolved. The final ZIP was rebuilt and
+all 126 runtime source/assets compared byte-for-byte, with the compiled schema
+also present. No host installation was changed.
