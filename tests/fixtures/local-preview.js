@@ -117,6 +117,7 @@ export default class Preview extends UbuntuIsland {
             if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') this._openPreferencesLive('commute');
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_INPUT') === '1') this._checkInput().catch(error => console.error(`[Island Preview] INPUT FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') this._checkFullPreview().catch(error => console.error(`[Island Preview] FULL FAIL: ${error.message}`));
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_HOVER') === '1') this._checkAgentHover().catch(error => console.error(`[Island Preview] AGENT HOVER FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_CALENDAR') === '1') this._checkCalendar().catch(error => console.error(`[Island Preview] CALENDAR FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_COMMUTE') === '1') this._checkCommute().catch(error => console.error(`[Island Preview] COMMUTE FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_MOTION') === '1')
@@ -970,6 +971,42 @@ export default class Preview extends UbuntuIsland {
         adjustment.value = adjustment.lower;
         this._settings.set_int('expanded-width',440);
         console.log('[Island Preview] AUDIO PASS: category order, grouped modes, native click, stable focus, narrow layout and reachable overflow');
+    }
+
+    async _checkAgentHover() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT,ms,() => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const assert = (value,message) => { if (!value) throw new Error(message); };
+        const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        this._card.selectPage('agents'); this._island.expand(); await delay(500);
+        const view = this._card._agentsView, initial = this._states.agents;
+        const first = [...view.rows.values()][0];
+        const originalWindow = view.actions.agentWindow;
+        const context = St.ThemeContext.get_for_stage(global.stage), scale = context.scale_factor;
+        const width = this._settings.get_int('expanded-width');
+        try {
+            for (const currentScale of [1,2]) for (const currentWidth of [380,440]) {
+                context.scale_factor = currentScale;
+                this._settings.set_int('expanded-width',currentWidth); await delay(200);
+                const [hx,hy] = first.actor.get_transformed_position();
+                pointer.notify_absolute_motion(GLib.get_monotonic_time(), hx+50, hy+first.actor.height/2);
+                await delay(100);
+                for (const available of [true,false,true,false]) {
+                    view.actions.agentWindow = () => available ? {} : null;
+                    view.render(initial); await delay(80);
+                    assert(first.actor.hover && first.actor.get_theme_node().get_background_color().alpha > 0,
+                        'Session hover flickered when window availability changed');
+                    assert(first.open.reactive === available, 'Hover changed safe window activation behavior');
+                }
+                await this._capture(`agents-hover-${currentWidth}-${currentScale}`);
+                pointer.notify_absolute_motion(GLib.get_monotonic_time(),50,500);
+            }
+        } finally {
+            view.actions.agentWindow = originalWindow; view.render(initial);
+            context.scale_factor = scale; this._settings.set_int('expanded-width',width);
+        }
+        this._card.selectPage('media'); await delay(100);
+        assert(!first.actor.mapped && !first.glyph.get_transition('agent-working'), 'Hidden session retained hover work');
+        console.log('[Island Preview] AGENT HOVER PASS: stable highlight, safe activation, hidden cleanup');
     }
 
     async _checkAgents() {

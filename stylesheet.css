@@ -273,7 +273,7 @@
 .ubuntu-island-agent-editor { spacing: 6px; padding: 1px 4px; }
 .ubuntu-island-agent-row { spacing: 2px; border-radius: 10px; }
 .ubuntu-island-agent-session { padding: 2px 8px; border-radius: 9px; }
-.ubuntu-island-agent-session:hover { background-color: rgba(220,225,240,0.07); }
+.ubuntu-island-agent-row:hover { background-color: rgba(220,225,240,0.07); }
 .ubuntu-island-agent-session:focus { background-color: rgba(220,225,240,0.11); box-shadow: inset 0 0 0 1px #b7c5d7; }
 .ubuntu-island-agent-session:active { background-color: rgba(220,225,240,0.16); }
 .ubuntu-island-agent-session:disabled { background-color: transparent; box-shadow: none; }
@@ -452,7 +452,7 @@
 .ubuntu-island-theme-ocean .ubuntu-island-output:hover, .ubuntu-island-theme-ocean .ubuntu-island-device-button:hover,
 .ubuntu-island-theme-ocean .ubuntu-island-calendar-event:hover, .ubuntu-island-theme-ocean .ubuntu-island-ghost:hover,
 .ubuntu-island-theme-ocean .ubuntu-island-calendar-day:hover .ubuntu-island-calendar-date,
-.ubuntu-island-theme-ocean .ubuntu-island-agent-session:hover { background-color: rgba(176,206,236,0.11); }
+.ubuntu-island-theme-ocean .ubuntu-island-agent-row:hover { background-color: rgba(176,206,236,0.11); }
 .ubuntu-island-theme-ocean .ubuntu-island-output:active, .ubuntu-island-theme-ocean .ubuntu-island-device-button:active,
 .ubuntu-island-theme-ocean .ubuntu-island-ghost:active,
 .ubuntu-island-theme-ocean .ubuntu-island-calendar-event:active { background-color: rgba(176,206,236,0.17); }
@@ -484,7 +484,7 @@
 .ubuntu-island-theme-forest .ubuntu-island-output:hover, .ubuntu-island-theme-forest .ubuntu-island-device-button:hover,
 .ubuntu-island-theme-forest .ubuntu-island-calendar-event:hover, .ubuntu-island-theme-forest .ubuntu-island-ghost:hover,
 .ubuntu-island-theme-forest .ubuntu-island-calendar-day:hover .ubuntu-island-calendar-date,
-.ubuntu-island-theme-forest .ubuntu-island-agent-session:hover { background-color: rgba(186,222,198,0.11); }
+.ubuntu-island-theme-forest .ubuntu-island-agent-row:hover { background-color: rgba(186,222,198,0.11); }
 .ubuntu-island-theme-forest .ubuntu-island-output:active, .ubuntu-island-theme-forest .ubuntu-island-device-button:active,
 .ubuntu-island-theme-forest .ubuntu-island-ghost:active,
 .ubuntu-island-theme-forest .ubuntu-island-calendar-event:active { background-color: rgba(186,222,198,0.17); }
@@ -516,7 +516,7 @@
 .ubuntu-island-theme-ember .ubuntu-island-output:hover, .ubuntu-island-theme-ember .ubuntu-island-device-button:hover,
 .ubuntu-island-theme-ember .ubuntu-island-calendar-event:hover, .ubuntu-island-theme-ember .ubuntu-island-ghost:hover,
 .ubuntu-island-theme-ember .ubuntu-island-calendar-day:hover .ubuntu-island-calendar-date,
-.ubuntu-island-theme-ember .ubuntu-island-agent-session:hover { background-color: rgba(245,214,196,0.11); }
+.ubuntu-island-theme-ember .ubuntu-island-agent-row:hover { background-color: rgba(245,214,196,0.11); }
 .ubuntu-island-theme-ember .ubuntu-island-output:active, .ubuntu-island-theme-ember .ubuntu-island-device-button:active,
 .ubuntu-island-theme-ember .ubuntu-island-ghost:active,
 .ubuntu-island-theme-ember .ubuntu-island-calendar-event:active { background-color: rgba(245,214,196,0.17); }

@@ -405,6 +405,9 @@ export class AgentsView {
             let item = this.rows.get(session.id);
             if (!item) {
                 const actor = row('ubuntu-island-agent-row');
+                // Keep hover on the stable row while window matching updates
+                // the inner button's availability asynchronously.
+                actor.reactive = actor.track_hover = true;
                 const open = new St.Button({style_class:'ubuntu-island-agent-session', can_focus:true, reactive:true, track_hover:true, x_expand:true}); actor.add_child(open);
                 const face = row('ubuntu-island-agent-face'); face.x_expand = true; face.x_align = Clutter.ActorAlign.FILL; open.set_child(face);
                 const harness = new St.Icon({icon_size:24, y_align:Clutter.ActorAlign.CENTER,
