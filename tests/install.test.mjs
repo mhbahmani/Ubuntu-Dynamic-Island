@@ -9,7 +9,7 @@ import {execFileSync} from 'node:child_process';
 test('installer includes every runtime module and preserves the previous install', () => {
     const temporary = mkdtempSync(join(tmpdir(), 'island-install-test-'));
     const root = resolve(import.meta.dirname, '..');
-    const env = {...process.env, XDG_DATA_HOME: temporary};
+    const env = {...process.env, XDG_DATA_HOME: temporary, INSTALL_DEPS: '0'};
     const destination = join(temporary, 'gnome-shell/extensions/ubuntu-island@mhbahmani.github.io');
     try {
         execFileSync('sh', [join(root, 'scripts/install.sh')], {env});

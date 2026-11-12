@@ -1,8 +1,17 @@
 #!/bin/sh
-# Non-destructive per-user installation for Ubuntu Island.
+# Dependency setup and backed-up per-user installation for Ubuntu Island.
 set -eu
 UUID='ubuntu-island@mhbahmani.github.io'
 SRC=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+if [ "$(id -u)" -eq 0 ]; then
+    printf '%s\n' 'Run make install as your regular desktop user; only package installation requests administrator authentication.' >&2
+    exit 1
+fi
+case "${INSTALL_DEPS:-1}" in
+    1) sh "$SRC/scripts/install-dependencies.sh" ;;
+    0) printf '%s\n' 'Skipping system dependency installation (INSTALL_DEPS=0).' ;;
+    *) printf '%s\n' 'INSTALL_DEPS must be 0 or 1.' >&2; exit 2 ;;
+esac
 BASE="${XDG_DATA_HOME:-$HOME/.local/share}/gnome-shell/extensions"
 DEST="$BASE/$UUID"
 mkdir -p "$BASE"

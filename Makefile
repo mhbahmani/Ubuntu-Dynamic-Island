@@ -6,6 +6,7 @@ GJS ?= gjs
 PREVIEW_ARGS ?=
 WEATHER_PREVIEWS := preview-sun-day preview-clouds-day preview-rain-day preview-snow-day preview-night preview-clouds-night preview-rain-night preview-snow-night
 UUID := ubuntu-island@mhbahmani.github.io
+INSTALL_DEPS ?= 1
 
 .PHONY: help preview preview-offline preview-offline-edge preview-live preview-headless install build enable disable prefs status logs test syntax check-schema schemas check prefs-test weather-cache-test smoke verify media-test agents-test
 .PHONY: $(WEATHER_PREVIEWS)
@@ -24,7 +25,7 @@ help:
 	  '  make preview-snow-day        Animated snowy weather sample' \
 	  '  make preview-night       Animated clear-night weather sample' \
 	  '  make preview-clouds-night / preview-rain-night / preview-snow-night' \
-	  '  make install             Install per-user, backing up the previous version' \
+	  '  make install             Install Calendar dependencies and back up/update the extension' \
 	  '  make build               Build the versioned extension ZIP' \
 	  '  make enable / disable    Enable or disable the installed extension' \
 	  '  make prefs               Open installed extension preferences' \
@@ -63,7 +64,7 @@ $(WEATHER_PREVIEWS): preview-%:
 	$(PYTHON) tests/preview.py --tab weather --scene $(patsubst %-day,%,$*) --ignore-power-saver $(PREVIEW_ARGS)
 
 install:
-	./scripts/install.sh
+	INSTALL_DEPS=$(INSTALL_DEPS) ./scripts/install.sh
 
 build:
 	./scripts/build.sh
