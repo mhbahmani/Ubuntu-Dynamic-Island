@@ -1,4 +1,9 @@
-export const NOTCH_ITEMS = ['media', 'weather', 'network', 'cpu', 'bluetooth', 'commute', 'agents', 'date', 'event'];
+export const NOTCH_ITEMS = ['media', 'weather', 'network', 'cpu', 'bluetooth', 'commute', 'agents', 'date', 'event', 'time'];
+
+export function notchTime(date, {hour24 = true, seconds = false} = {}) {
+    const hour = date.getHours(), pad = n => String(n).padStart(2, '0');
+    return `${pad(hour24 ? hour : hour % 12 || 12)}:${pad(date.getMinutes())}${seconds ? `:${pad(date.getSeconds())}` : ''}${hour24 ? '' : hour < 12 ? ' AM' : ' PM'}`;
+}
 
 // Tolerate stale/hand-edited settings while keeping every item exactly once.
 export function notchOrder(value) {

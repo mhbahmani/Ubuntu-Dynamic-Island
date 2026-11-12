@@ -16,8 +16,8 @@ export function notchPreview(settings, window) {
     // the minimum width, so adding modules cannot force the settings window wider.
     const preview = new Adw.Squeezer({halign: Gtk.Align.FILL, homogeneous: false,
         switch_threshold_policy: Adw.FoldThresholdPolicy.NATURAL, transition_duration: 0});
-    const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth', commute: 'Commute', agents: 'Agents', date: 'Dates', event:'Upcoming event'};
-    const icons = {event:'x-office-calendar-symbolic',media: 'audio-x-generic-symbolic', weather: 'weather-clear-symbolic',
+    const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth', commute: 'Commute', agents: 'Agents', date: 'Dates', event:'Upcoming event', time:'Time'};
+    const icons = {time:'preferences-system-time-symbolic',event:'x-office-calendar-symbolic',media: 'audio-x-generic-symbolic', weather: 'weather-clear-symbolic',
         network: 'network-transmit-receive-symbolic', cpu: 'org.gnome.SystemMonitor-symbolic', bluetooth: 'bluetooth-symbolic', commute: 'find-location-symbolic', date: 'x-office-calendar-symbolic'};
     let selected = 'media';
     const controls = new Gtk.Box({spacing: 8, halign: Gtk.Align.CENTER});

@@ -125,9 +125,16 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         const titleModeId = settings.connect('changed::pill-title-mode', syncTitle);
         window.connect('close-request', () => { settings.disconnect(titleModeId); return false; });
         titles.add(titleMode); titles.add(characters);
+        const time = new Adw.PreferencesGroup({title: 'Time in the notch', description: 'Uses your desktop’s local time zone.'});
+        time.add(toggle(settings, 'pill-show-time', 'Show time in notch'));
+        const hour24 = toggle(settings, 'pill-time-24h', 'Use 24-hour time', 'Turn off for 12-hour time with AM/PM');
+        const seconds = toggle(settings, 'pill-time-seconds', 'Show seconds', 'Updates only while the time is visible in the collapsed notch');
+        settings.bind('pill-show-time', hour24, 'sensitive', Gio.SettingsBindFlags.GET);
+        settings.bind('pill-show-time', seconds, 'sensitive', Gio.SettingsBindFlags.GET);
+        time.add(hour24); time.add(seconds);
         const pages = [
             ['appearance', 'Appearance', 'preferences-desktop-appearance-symbolic', [appearance, shortcuts]],
-            ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, notchDatePreferences(settings, window), eventNotchPreferences(settings, window), titles, hover]],
+            ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, notchDatePreferences(settings, window), time, eventNotchPreferences(settings, window), titles, hover]],
             ['modules', 'Modules', 'application-x-addon-symbolic', [modules]],
             ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],
             ['commute', 'Commute', 'find-location-symbolic', commutePreferences(settings, window)],

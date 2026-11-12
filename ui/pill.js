@@ -6,7 +6,7 @@ import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {MediaTitle} from './media-title.js';
 import GLib from 'gi://GLib';
-import {notchOrder, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator} from '../services/notch-model.js';
+import {notchOrder, notchTime, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator} from '../services/notch-model.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {weatherSceneKind, temperature} from '../services/weather-model.js';
@@ -85,6 +85,9 @@ export class Pill {
         this._date = this._dates.actor;
         this._date.visible = false;
         content.add_child(this._date);
+        this._time = label('', 'ubuntu-island-pill-time', false);
+        this._time.hide(); content.add_child(this._time);
+        this._time.set_text_direction(Clutter.TextDirection.LTR);
         this._event = new St.Button({style_class:'ubuntu-island-pill-event',can_focus:true,reactive:true});
         const eventFace = row('ubuntu-island-pill-event-face');
         eventFace.add_child(icon('x-office-calendar-symbolic',13));
@@ -94,6 +97,7 @@ export class Pill {
         this._onChanged = onChanged;
         this.actor.connect('notify::mapped', () => { this._syncDateClock(); this._queueLayout(); });
         this._date.connect('style-changed', () => this._queueLayout());
+        this._time.connect('style-changed', () => this._queueLayout());
         this.actor.connect('destroy', () => {
             this._stopDateClock();
             if (this._layoutIdle) GLib.Source.remove(this._layoutIdle);
@@ -108,7 +112,7 @@ export class Pill {
         content.add_child(this._cpuDot);
         content.add_child(this._bluetooth);
         this._items = {media: this._media, weather: this._weather, network: this._network,
-            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents, date: this._date, event:this._event};
+            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents, date: this._date, event:this._event, time:this._time};
         const groups = [...Object.values(this._items), this._connection];
         for (const group of groups) {
             group.x_expand = true;
@@ -156,8 +160,11 @@ export class Pill {
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({agents, showAgents = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}}) {
+    render({agents, showAgents = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}, showTime = false, timeOptions = {}}) {
         this._expanded = expanded;
+        this._timeOptions = timeOptions;
+        this._time.visible = showTime && !expanded;
+        this._updateTime();
         this._event.visible = Boolean(event && !expanded);
         this._eventText.text = event?.text || '';
         this._event.accessible_name = event?.text || 'Upcoming event';
@@ -257,7 +264,8 @@ export class Pill {
         if (this._agents.visible) description.push(agentSummary(agents?.sessions));
         if (this._date.visible) description.push(this._date.accessible_name);
         if (this._event.visible) description.push(this._event.accessible_name);
-        this.actor.accessible_name = description.join('. ');
+        this._description = description;
+        this._updateDescription();
         return {connectionEdge: connectionState.edge};
     }
 
@@ -293,13 +301,14 @@ export class Pill {
     }
 
     _syncDateClock() {
-        if (!this.actor.mapped || !this._date.visible || this._expanded) {
+        if (!this.actor.mapped || !this._date.visible && !this._time.visible || this._expanded) {
             this._stopDateClock();
             return;
         }
+        this._syncSeconds();
         if (this._dateClock) return;
         // Reuse GNOME's clock notifications, which also handle resume and clock
-        // changes. No additional polling timer, and no repaint within a day.
+        // changes. Minute-only time and dates need no additional timer.
         this._dateClock = Main.panel.statusArea.dateMenu._clock;
         this._dateClockId = this._dateClock.connect('notify::clock', () => this._refreshDate());
         this._dateTimezoneId = this._dateClock.connect('notify::timezone', () => this._refreshDate());
@@ -307,10 +316,41 @@ export class Pill {
     }
 
     _refreshDate() {
+        this._updateTime();
         if (this._dateDay !== todayDay()) this._onChanged?.();
     }
 
+    _updateTime() {
+        if (!this.actor.mapped || !this._time.visible) return;
+        const value = notchTime(new Date(), this._timeOptions);
+        if (this._time.text === value) return;
+        this._time.text = value;
+        this._time.accessible_name = `Time ${value}`;
+        this._updateDescription();
+    }
+
+    _updateDescription() {
+        if (!this._description) return;
+        this.actor.accessible_name = [...this._description, ...(this._time.visible ? [this._time.accessible_name] : [])].join('. ');
+    }
+
+    _syncSeconds() {
+        const active = this.actor.mapped && !this._expanded && this._time.visible && this._timeOptions?.seconds;
+        if (!active) {
+            if (this._secondsTimer) GLib.Source.remove(this._secondsTimer);
+            this._secondsTimer = 0;
+        } else if (!this._secondsTimer) {
+            this._secondsTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1005 - Date.now() % 1000, () => {
+                this._secondsTimer = 0;
+                this._refreshDate(); this._syncSeconds();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
     _stopDateClock() {
+        if (this._secondsTimer) GLib.Source.remove(this._secondsTimer);
+        this._secondsTimer = 0;
         if (this._dateClock) {
             this._dateClock.disconnect(this._dateClockId);
             this._dateClock.disconnect(this._dateTimezoneId);

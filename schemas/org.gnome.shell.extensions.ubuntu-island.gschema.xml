@@ -30,6 +30,9 @@
     <key name="pill-show-weather" type="b"><default>false</default><summary>Show weather in the collapsed notch</summary></key>
     <key name="pill-show-network" type="b"><default>false</default><summary>Show network rates in the collapsed notch</summary></key>
     <key name="pill-show-date" type="b"><default>false</default><summary>Show today's date in the collapsed notch</summary></key>
+    <key name="pill-show-time" type="b"><default>false</default><summary>Show local time in the collapsed notch</summary></key>
+    <key name="pill-time-24h" type="b"><default>true</default><summary>Use 24-hour time in the notch</summary></key>
+    <key name="pill-time-seconds" type="b"><default>false</default><summary>Show seconds while the notch time is visible</summary></key>
     <key name="pill-date-calendar" type="s">
       <default>'main'</default>
       <choices><choice value="main"/><choice value="jalali"/><choice value="gregorian"/><choice value="hijri"/></choices>

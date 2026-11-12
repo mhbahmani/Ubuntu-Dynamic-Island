@@ -30,7 +30,7 @@
 .ubuntu-island-pill-media { spacing: 6px; }
 .ubuntu-island-pill StIcon { color: #d1d4dd; }
 .ubuntu-island-pill-title { color: #eceef2; font-size: 10pt; font-weight: 600; }
-.ubuntu-island-pill-date { font-size: 9.5pt; font-weight: 500; color: #d1d4dd; font-feature-settings: "tnum"; }
+.ubuntu-island-pill-date, .ubuntu-island-pill-time { font-size: 9.5pt; font-weight: 500; color: #d1d4dd; font-feature-settings: "tnum"; }
 .ubuntu-island-notch-dates { spacing: 8px; }
 .ubuntu-island-date-separator { font-size: 9pt; color: #7e8592; }
 .ubuntu-island-date-tooltip {

@@ -10,6 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
 import {themeAccent} from './services/appearance.js';
+import {notchTime} from './services/notch-model.js';
 import {civilDay, todayDay, fullDate, calendarTodayLabel, monthTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
 export default class Preview extends UbuntuIsland {
@@ -695,6 +696,34 @@ export default class Preview extends UbuntuIsland {
         const pill = this._pill, settings = this._settings, dates = pill._dates;
         const clock = Main.panel.statusArea.dateMenu._clock;
         const dateLabel = id => dates.items.get(id).date;
+        settings.set_boolean('pill-show-date',false);
+        settings.set_boolean('pill-show-time',true);
+        for (const hour24 of [true,false]) for (const seconds of [false,true]) {
+            settings.set_boolean('pill-time-24h',hour24); settings.set_boolean('pill-time-seconds',seconds);
+            await delay(120);
+            assert(pill._time.visible && pill._time.text === notchTime(new Date(),{hour24,seconds}), 'Notch clock format mismatch');
+            assert(Boolean(pill._secondsTimer) === seconds && pill._dateClock === clock, 'Clock must share minute notifications and only schedule requested seconds');
+        }
+        const firstTime = pill._time.text, firstWidth = pill._time.width;
+        await delay(1150);
+        assert(pill._time.text !== firstTime && pill._time.width === firstWidth, 'Seconds did not update in a stable slot');
+        assert(pill.actor.accessible_name.includes(pill._time.text), 'Clock time missing from accessible name');
+        await this._capture('notch-time-seconds');
+        this._island.expand(); await delay(350);
+        assert(!pill._secondsTimer && !pill._dateClock && !pill._time.visible, 'Expanded island retains a clock timer/subscription');
+        this._island.collapse(); await delay(350);
+        assert(pill._secondsTimer, 'Clock seconds did not resume when visible');
+        pill.actor.hide();
+        const hiddenTime = pill._time.text;
+        await delay(1150);
+        assert(!pill._secondsTimer && !pill._dateClock && pill._time.text === hiddenTime, 'Hidden notch performs clock work');
+        pill.actor.show(); await delay(120);
+        assert(pill._secondsTimer && pill._time.text !== hiddenTime, 'Clock did not refresh after remapping');
+        settings.set_boolean('pill-show-time',false);
+        assert(!pill._secondsTimer && !pill._dateClock, 'Disabled clock retains work');
+        settings.reset('pill-time-24h'); settings.reset('pill-time-seconds');
+        settings.set_boolean('pill-show-date',true);
+        console.log('[Island Preview] CLOCK PASS: 12/24h, seconds, stable width, accessible time, hidden/expanded/disabled cleanup');
         settings.reset('pill-date-formats');
         for (const calendar of ['jalali', 'gregorian', 'hijri']) {
             settings.set_strv('pill-date-calendars', [calendar]); await delay(180);

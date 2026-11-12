@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {notchOrder, NOTCH_ITEMS, connectionIndicator, migrateOfflineMode} from '../services/notch-model.js';
+import {notchOrder, notchTime, NOTCH_ITEMS, connectionIndicator, migrateOfflineMode} from '../services/notch-model.js';
+
+test('notch time handles midnight, noon, 24-hour time and optional seconds', () => {
+    const date = hour => new Date(2026,10,12,hour,4,9);
+    assert.equal(notchTime(date(0)),'00:04');
+    assert.equal(notchTime(date(0),{hour24:false}),'12:04 AM');
+    assert.equal(notchTime(date(12),{hour24:false,seconds:true}),'12:04:09 PM');
+    assert.equal(notchTime(date(23),{seconds:true}),'23:04:09');
+    assert.equal(notchTime(date(23),{hour24:false}),'11:04 PM');
+});
 
 test('connection icons keep disconnected, limited and captive portal descriptions accessible', () => {
     const enabled = {network: true};
@@ -55,7 +64,7 @@ test('legacy badge preference migrates to icon while edge and hide choices are p
 
 test('notch order preserves choices and repairs missing or duplicated items', () => {
     assert.deepEqual(notchOrder(['network', 'weather', 'network', 'unknown']),
-        ['network', 'weather', 'media', 'cpu', 'bluetooth', 'commute', 'agents', 'date', 'event']);
+        ['network', 'weather', 'media', 'cpu', 'bluetooth', 'commute', 'agents', 'date', 'event', 'time']);
     assert.deepEqual(notchOrder([]), NOTCH_ITEMS);
 });
 

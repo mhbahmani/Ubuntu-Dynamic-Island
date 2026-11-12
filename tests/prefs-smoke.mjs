@@ -113,6 +113,14 @@ if (!shortHijri.active) throw new Error('Short month control did not follow sett
 settings.set_boolean('calendar-use-calendar-language',true);
 if (shortJalali.sensitive || !shortJalali.active) throw new Error('Native language must disable, not discard short-month selection');
 settings.reset('pill-date-short-months');
+const showTime = find(window,'Show time in notch'), hour24 = find(window,'Use 24-hour time'), seconds = find(window,'Show seconds');
+if (!showTime || showTime.active || !hour24.active || seconds.active || hour24.sensitive || seconds.sensitive)
+    throw new Error('Notch time defaults/sensitivity incorrect');
+showTime.active = true; hour24.active = false; seconds.active = true;
+if (!hour24.sensitive || !settings.get_boolean('pill-show-time') || settings.get_boolean('pill-time-24h') || !settings.get_boolean('pill-time-seconds'))
+    throw new Error('Notch time options did not save');
+for (const key of ['pill-show-time','pill-time-24h','pill-time-seconds']) settings.reset(key);
+if (showTime.active || !hour24.active || seconds.active) throw new Error('Notch time controls did not follow settings');
 const shown = tooltip(jalaliNotch, 'Show Jalali in notch');
 if (!shown.active || !shown.sensitive || settings.get_strv('pill-date-calendars').join() !== 'jalali' ||
     tooltip(gregorianNotch, 'Show Gregorian in notch').active || tooltip(find(notchPage, 'Hijri · قمری'), 'Show Hijri in notch').active)
@@ -231,7 +239,7 @@ const checkOrderWidth = width => {
         const image = chip.get_child().get_first_child();
         if (image.pixel_size !== (width >= fullWidth ? 18 : 14)) throw new Error('Order icons did not adapt to available space');
     }
-    if (count !== 9) throw new Error('Compact order preview lost a module');
+    if (count !== 10) throw new Error('Compact order preview lost a module');
 };
 for (const width of [900, 560, 360, 300, 900]) checkOrderWidth(width);
 const largeType = new Gtk.CssProvider();
