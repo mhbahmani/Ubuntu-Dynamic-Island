@@ -71,6 +71,7 @@ def main():
         shutil.copytree(source / name, extension / name)
     for name in ('metadata.json', 'stylesheet.css'):
         shutil.copy2(source / name, extension / name)
+    shutil.copytree(source / 'assets/fonts', root / 'share/fonts/ubuntu-island', dirs_exist_ok=True)
     # Retain the user's Persian font in this isolated session, without changing
     # or installing any host fonts. Other machines exercise the CSS fallback.
     fonts = subprocess.run(['fc-list', '-f', '%{family}\t%{file}\n'],

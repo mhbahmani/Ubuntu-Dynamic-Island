@@ -23,3 +23,9 @@ printf 'Under Wayland, log out and back in; then run:\n  gnome-extensions enable
 
 mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/applications"
 cp "$SRC/assets/ubuntu-island.desktop" "${XDG_DATA_HOME:-$HOME/.local/share}/applications/ubuntu-island.desktop"
+
+# Own our font files: another extension may remove its fonts on disable.
+FONT_DIR="${XDG_DATA_HOME:-$HOME/.local/share}/fonts/ubuntu-island-vazir-v30.1.0"
+mkdir -p "$FONT_DIR"
+cp "$SRC"/assets/fonts/*.ttf "$SRC/assets/fonts/OFL.txt" "$FONT_DIR/"
+fc-cache "$FONT_DIR"

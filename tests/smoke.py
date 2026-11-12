@@ -24,6 +24,7 @@ def main():
         shutil.copytree(source / name, extension / name)
     for name in ("metadata.json", "stylesheet.css"):
         shutil.copy2(source / name, extension / name)
+    shutil.copytree(source / 'assets/fonts', root / 'share/fonts/ubuntu-island', dirs_exist_ok=True)
     (extension / "tests").mkdir()
     shutil.copy2(source / "tests/fixtures/preview-window.mjs", extension / "tests/preview-window.mjs")
     (extension / "extension.js").rename(extension / "implementation.js")

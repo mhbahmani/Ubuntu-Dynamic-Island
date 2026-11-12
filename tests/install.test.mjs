@@ -18,6 +18,9 @@ test('installer includes every runtime module and preserves the previous install
         assert.ok(existsSync(join(destination, 'schemas/gschemas.compiled')));
         verifyLegacySettings(destination);
         assert.ok(existsSync(join(temporary, 'applications/ubuntu-island.desktop')));
+        for (const name of ['Vazir-Regular.ttf','Vazir-Medium.ttf','Vazir-Bold.ttf','OFL.txt'])
+            assert.deepEqual(readFileSync(join(temporary,'fonts/ubuntu-island-vazir-v30.1.0',name)),
+                readFileSync(join(root,'assets/fonts',name)));
         execFileSync('sh', [join(root, 'scripts/install.sh')], {env});
         const backup = readdirSync(join(temporary, 'gnome-shell/extensions')).find(name => name.includes('.backup.'));
         assert.ok(backup, 'Reinstallation must preserve the old extension');
