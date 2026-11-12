@@ -4,7 +4,8 @@ import Atk from 'gi://Atk';
 import Pango from 'gi://Pango';
 import GLib from 'gi://GLib';
 import {column, row, label, button} from './widgets.js';
-import {primaryCalendar, todayDay, weekday, monthGrid, shiftMonths, monthTitle,
+import {HoverTip} from './hover-tip.js';
+import {CALENDARS, primaryCalendar, todayDay, weekday, monthGrid, shiftMonths, monthTitle,
     fullDate, calendarTodayLabel, formatNotchDate, persianDigits, migrateCalendarSettings} from '../services/calendar-model.js';
 import {calendarHolidays, holidayDescription, isCalendarWeekend} from '../services/calendar-holidays.js';
 import {CalendarAgenda} from './calendar-agenda.js';
@@ -28,6 +29,7 @@ export class CalendarView {
         this.actor.layout_manager.homogeneous = true;
         this.actor.y_expand = true;
         this.actor.set_text_direction(Clutter.TextDirection.LTR);
+        this.dayTip = new HoverTip(this.actor);
         this.agenda = new CalendarAgenda({...actions,restoreFocus:() => this.todayButton.grab_key_focus()});
         this.actor.add_child(this.agenda.actor);
         this.month = column('ubuntu-island-calendar-month');
@@ -75,6 +77,7 @@ export class CalendarView {
                 x_align:Clutter.ActorAlign.CENTER, opacity:0}); face.add_child(indicator);
             control.set_child(face);
             const cell = {control, main, indicator, day: null};
+            this.dayTip.addTarget(control, () => this._otherDates(cell.day));
             control.connect('clicked', () => this.select(cell.day, true));
             control.connect('key-press-event', (_actor, event) => this._key(event, cell.day));
             this.grid.add_child(control); return cell;
@@ -124,6 +127,13 @@ export class CalendarView {
         // number. Keep the selected civil date until the user chooses another.
         this.displayed = shiftMonths(this.displayed, primaryCalendar(this.primary), amount);
         this.render(); this.actions.relayout?.();
+    }
+    _otherDates(day) {
+        if (day == null) return '';
+        const native = this.settings.get_boolean('calendar-use-calendar-language');
+        return Object.entries(CALENDARS).filter(([id]) => id !== this.primary)
+            .map(([id, calendar]) => `${calendar.name}: \u2068${fullDate(day, calendar.calendar, 'short', native)}\u2069${id === 'hijri' ? ' (calculated)' : ''}`)
+            .join('\n');
     }
     _key(event, day) {
         const key = event.get_key_symbol(), rtl = this.primary !== 'gregorian';
@@ -195,9 +205,11 @@ export class CalendarView {
             if (selected) { cell.control.add_style_pseudo_class('checked'); cell.control.add_accessible_state(Atk.StateType.SELECTED); }
             else { cell.control.remove_style_pseudo_class('checked'); cell.control.remove_accessible_state(Atk.StateType.SELECTED); }
             cell.control.accessible_name = `${fullDate(data.day, calendar, 'short', calendarLanguage)}${today ? `; ${calendarTodayLabel(this.primary, calendarLanguage)}` : ''}${holiday.holiday && showHolidays ? `; ${holidayDescription(holiday, this.primary, calendarLanguage)}` : ''}`;
+            cell.control.accessible_description = '';
             cell.dateAccessible = cell.control.accessible_name;
         });
         this._renderEvents(); this.actions.calendarRangeChanged?.();
+        this.dayTip.refresh();
     }
     eventRange() {
         const days = this.gridData.filter(cell => cell.inMonth);

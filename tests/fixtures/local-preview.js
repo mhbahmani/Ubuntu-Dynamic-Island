@@ -392,6 +392,7 @@ export default class Preview extends UbuntuIsland {
             assert(!card._calendarView && !card._pages.has('calendar') && !card._tabs.get('calendar').visible,
                 'Disabled Calendar retained its view or navigation tab');
             assert(!previous.midnightTimer && !previous.layoutIdle, 'Disabled Calendar retained callbacks');
+            assert(previous.dayTip.destroyed, 'Disabled Calendar retained its date popup');
             assert(card._page !== 'calendar' && !card.actor.has_style_class_name('ubuntu-island-with-calendar'),
                 'Disabling Calendar did not restore the available page/layout');
             assert(card._tabs.get(card._page).has_key_focus(), 'Removing the focused calendar lost keyboard focus');
@@ -404,6 +405,31 @@ export default class Preview extends UbuntuIsland {
         this._card.selectPage('calendar'); this._island.expand(); await delay(600);
         const view = this._card._calendarView;
         view.select(todayDay()); await delay(200);
+        for (const primary of ['jalali','gregorian','hijri']) for (const native of [true,false]) {
+            this._settings.set_string('calendar-primary',primary);
+            this._settings.set_boolean('calendar-use-calendar-language',native);
+            view.todayButton.grab_key_focus(); await delay(100);
+            const cell = view.cells.find(item => item.day != null && item.day !== view.selected);
+            const [x,y] = cell.control.get_transformed_position(), [w,h] = cell.control.get_transformed_size();
+            const selected = view.selected;
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2); await delay(100);
+            const tip = view.dayTip.tip;
+            assert(tip.visible && tip.text.split('\n').length === 2 && !tip.text.includes(`${primary[0].toUpperCase()+primary.slice(1)}:`),
+                'Day hover did not show the other two calendars');
+            assert(view.selected === selected, 'Day hover changed the selection');
+            if (!native) assert(!/[\u0600-\u06ff]/.test(tip.text), 'Day hover ignored English dates');
+            if (primary === 'jalali' && native) await this._capture('calendar-day-hover');
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(),50,500); await delay(80);
+            assert(!tip.visible, 'Date popup survived pointer leave');
+            view.select(cell.day,true); await delay(100);
+            assert(tip.visible && cell.control.accessible_description === tip.text, 'Focused date lacks the alternate dates');
+            this._card.selectPage('media'); await delay(80);
+            assert(!tip.visible, 'Hidden Calendar retained the date popup');
+            this._card.selectPage('calendar'); view.todayButton.grab_key_focus(); view.select(todayDay());
+        }
+        this._settings.set_string('calendar-primary','jalali');
+        this._settings.set_boolean('calendar-use-calendar-language',true);
+        view.select(todayDay()); await delay(100);
         assert(!view.content.contains(view.agenda.actor) && view.actor.contains(view.agenda.actor), 'Events must have their own panel');
         assert(view.agenda.actor.visible && view.agenda.rows.size === 3, 'Inline selected-day events missing');
         assert(view.cells.find(cell => cell.day === todayDay()).indicator.opacity === 255, 'Event marker missing');
@@ -497,6 +523,15 @@ export default class Preview extends UbuntuIsland {
             this._settings.set_int('calendar-event-title-size',titleSize);
             eventContext.scale_factor = scale; eventText.set_double('text-scaling-factor',font);
             this._settings.set_int('expanded-width',width); view.select(todayDay()); await delay(100);
+            if (titleSize === 9) {
+                view.select(todayDay(),true); await delay(80);
+                const tip = view.dayTip.tip, [tx,ty] = tip.get_transformed_position(), [tw,th] = tip.get_transformed_size();
+                const monitor = Main.layoutManager.primaryMonitor;
+                assert(tip.visible && tx >= monitor.x && ty >= monitor.y && tx+tw <= monitor.x+monitor.width && ty+th <= monitor.y+monitor.height,
+                    'Scaled alternate-date popup exceeds the monitor');
+                if (scale === 2 && font === 2 && width === 380) await this._capture('calendar-day-hover-scaled');
+                view.todayButton.grab_key_focus();
+            }
             const rows = [...view.agenda.rows.values()], height = rows[0].control.height;
             for (const item of rows) {
                 assert(Math.abs(item.control.height - height) <= 1, 'Scaled event cards differ in height');
@@ -668,7 +703,7 @@ export default class Preview extends UbuntuIsland {
             view.select(todayDay() + 40);
             this._card.selectPage('media'); this._card.selectPage('calendar');
             assert(view.selected === todayDay() + 40, 'Tab switching reset the selected date');
-            this._island.collapse(); await delay(300); assert(!view.midnightTimer, 'Hidden calendar retains timer');
+            this._island.collapse(); await delay(300); assert(!view.midnightTimer && !view.dayTip.tip.visible, 'Hidden calendar retains timer or popup');
             this._island.expand(); await delay(300); assert(view.midnightTimer, 'Visible calendar clock missing');
             assert(view.selected === todayDay() && view.displayed === todayDay(), 'Reopening retained the browsed date/month');
             assert(view.agenda.adjustment.value === 0, 'Reopening retained the agenda scroll position');
@@ -701,6 +736,8 @@ export default class Preview extends UbuntuIsland {
         for (const hour24 of [true,false]) for (const seconds of [false,true]) {
             settings.set_boolean('pill-time-24h',hour24); settings.set_boolean('pill-time-seconds',seconds);
             await delay(120);
+            // The clock deliberately ticks 5ms after each second boundary.
+            if (seconds && Date.now() % 1000 < 20) await delay(25);
             assert(pill._time.visible && pill._time.text === notchTime(new Date(),{hour24,seconds}), 'Notch clock format mismatch');
             assert(Boolean(pill._secondsTimer) === seconds && pill._dateClock === clock, 'Clock must share minute notifications and only schedule requested seconds');
         }

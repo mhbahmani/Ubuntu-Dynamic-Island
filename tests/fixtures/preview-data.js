@@ -10,14 +10,17 @@ import {todayDay} from './services/calendar-model.js';
 export function sampleCalendar(preview) {
     preview._calendarEvents.stop();
     const sourceUid = 'sample-calendar', day = todayDay(), now = Date.now();
+    // Keep the long-title fixture on today even when previews run near midnight.
+    const dayEnd = localDayRange(day).endMs;
+    const laterStart = Math.min(now + 45 * 60000, dayEnd - 60000);
     const date = n => new Date(n * 86400000).toISOString().slice(0,10);
     preview._sampleCalendarColor = '#78aed4';
     preview._sampleCalendarRecords = [
         {sourceUid,uid:'all-day',allDay:true,title:'Focus day',startDate:date(day),endDateExclusive:date(day+1)},
         {sourceUid,uid:'review',allDay:false,title:'Design review',
-            startMs:now-5*60000,endMs:now+25*60000,location:'Online',joinUri:'https://meet.google.com/abc-defg-hij'},
+            startMs:now-5*60000,endMs:Math.min(now+25*60000,dayEnd),location:'Online',joinUri:'https://meet.google.com/abc-defg-hij'},
         {sourceUid,uid:'later',allDay:false,title:'Product planning and launch checklist for the next release',
-            startMs:now+45*60000,endMs:now+75*60000},
+            startMs:laterStart,endMs:Math.min(laterStart+30*60000,dayEnd)},
         {sourceUid,uid:'tomorrow',allDay:false,title:'Team lunch',
             startMs:localDayRange(day+1).startMs+12*3600000,endMs:localDayRange(day+1).startMs+13*3600000},
     ];
