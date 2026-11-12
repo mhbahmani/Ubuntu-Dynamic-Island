@@ -38,6 +38,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   name in the header. Jalali 1405 dates follow the published calendar; other lunar
   dates are labeled as calculated estimates.
   Select a day to convert it, browse months, or return to Today.
+  Hover or focus a day to open a box with its date in the other two calendars.
   Arrow keys move through dates; Page Up/Down changes month, Shift+Page Up/Down
   changes year, and Home/End moves to the start/end of the week.
   Enable it in **Preferences → Modules → Calendar**, or open Calendar in `make preview`
@@ -91,8 +92,9 @@ and [compact playing pill](screenshots/playing-pill.png).
   system, sound, and Bluetooth faces; close and preferences remain available.
   Background opacity (default 98%, 0–100%) sets the tint; matte tone sets a
   real frosted-glass blur of the desktop behind the expanded card.
-- **Keyboard navigation**: Super+Alt+I opens/closes the island; Super+Alt+Right
-  and Super+Alt+Left cycle available tabs. Ctrl+Tab and Ctrl+Shift+Tab also work
+- **Keyboard navigation**: Super+Alt+I opens/closes the island; Super+Alt+Page Down
+  and Super+Alt+Page Up cycle available tabs. These defaults avoid GNOME's
+  workspace-switching shortcuts. Ctrl+Tab and Ctrl+Shift+Tab also work
   while open. Customize or disable global bindings under **Appearance → Keyboard
   shortcuts**. Regular tabs and sections share a stable expanded size.
 - Click toggles; **Escape and outside clicks close** via the same modal-grab

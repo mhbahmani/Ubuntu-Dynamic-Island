@@ -79,6 +79,9 @@ Meet metadata still require acceptance. Missing bindings leave date browsing usa
   outside the fetched month is marked incomplete until that range is available.
 - Reopening the island resets the selected day and displayed month to today.
   Switching tabs within an open island preserves the selection.
+- Hovering or focusing a day shows the other two calendar dates in a small box,
+  following the calendar language preference. It does not select the hovered day.
+  The box disappears when the pointer/focus leaves or the Calendar is hidden.
 
 ### Holidays
 
@@ -366,14 +369,24 @@ skipped. Turning off backups uses only the first eligible provider. With a Mapbo
 token, automatic fallback avoids public FOSSGIS/OSRM. An explicitly selected
 provider is still tried first; custom priority orders the eligible backups.
 
-- Balad is an experimental, unofficial keyless adapter; traffic freshness is
-  unverified.
+- Balad uses an unofficial keyless adapter to the web routing endpoint. A working
+  response does not establish traffic freshness. The route view shows a warning
+  icon with **Live traffic freshness not confirmed** on hover or keyboard focus;
+  loading/error messages remain visible. The provider name is simply **Balad**.
 - Mapbox uses `driving-traffic` with `depart_at=now`; response metadata determines
   whether the result is traffic-informed or typical. Neshan's keyed route supports
   traffic estimates.
 - openrouteservice, GraphHopper and public OSRM routes are baseline estimates.
   The public OSRM/FOSSGIS hosts share infrastructure and are not independent
   outage protection. No provider is promised to match Google Maps.
+
+The footer follows the provider that supplied the displayed estimate, including
+fallback or saved estimates. The © symbol credits map data, not the selected
+routing engine. OpenStreetMap credit remains alongside provider credit; Balad's
+[own map footer](https://balad.ir/) also credits both. The attribution is clickable
+for details ([Mapbox](https://docs.mapbox.com/help/dive-deeper/attribution/),
+[GraphHopper](https://www.graphhopper.com/attribution/)). The separate preferences
+map always uses OpenStreetMap tiles, independently of the ETA provider.
 
 Preferences show key status without reading secrets back into text fields.
 **Validate & save** makes a provider request using public Tehran landmarks

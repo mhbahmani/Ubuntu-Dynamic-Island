@@ -156,8 +156,8 @@ preserving stable navigation and focus; the current expansion remains the refere
 - The Agents composer keeps its entry mapped while the gray inline harness button
   opens a menu. Selection restores typing focus. The larger prompt has a muted
   placeholder and an inline arrow to send; Ctrl+Enter submits multiline prompts.
-- Appearance settings expose open/close (Super+Alt+I), next tab (Super+Alt+Right)
-  and previous tab (Super+Alt+Left) shortcuts. Ctrl+Tab/Ctrl+Shift+Tab navigate
+- Appearance settings expose open/close (Super+Alt+I), next tab (Super+Alt+Page Down)
+  and previous tab (Super+Alt+Page Up) shortcuts. Ctrl+Tab/Ctrl+Shift+Tab navigate
   while open. Bindings update live and are released on disable. The informational
   Holiday markings and Hijri dates rows are removed from Calendar settings.
 - The notch and card keep their own layout sizes inside a centered native
@@ -445,3 +445,40 @@ editor and shortcut recorder checks, then stops at an Agents focus assertion.
 These broader native failures remain unresolved. The final ZIP was rebuilt and
 all 126 runtime source/assets compared byte-for-byte, with the compiled schema
 also present. No host installation was changed.
+
+Commute explanations, date hover and previous-tab shortcuts (2026-11-12): Balad
+now uses its plain name in the UI; settings still describe the unofficial keyless
+adapter. The footer credits the provider of the displayed estimate (including
+fallbacks) alongside OpenStreetMap, with a link to attribution details. Balad's
+own map also credits OSM. The preferences map keeps its separate OSM tile credit.
+Unverified traffic is an icon with “Live traffic freshness not confirmed” on
+hover/focus; loading and error messages remain visible.
+
+Calendar days share one popup displaying the other two full calendar dates,
+following the language preference and retaining the calculated-Hijri qualifier.
+Hover does not change selection. Popups support keyboard focus, remain within
+monitor bounds and are removed with their view; there are no timers or polling.
+The shared helper is `ui/hover-tip.js`, included by both recursive packaging paths.
+
+Both old default tab shortcuts overlapped GNOME workspace switching on this
+machine. Defaults now use Super+Alt+Page Down/Page Up; explicit custom bindings
+remain untouched. The shortcut editor rejects GNOME window-manager conflicts.
+Backward Tab also handles ISO_Left_Tab when Shift has been consumed by the
+keyboard layout. Native real-modal checks pass repeated global forward/backward
+cycling and Ctrl+Tab/Ctrl+Shift+Tab; GTK recorder conflict rejection passes.
+
+`make check` passes 191 tests plus syntax/schema checks; GTK preferences and both
+installer tests pass. Native Calendar preview `/tmp/ubuntu-island-preview-s4ovwns8`
+and Commute preview `/tmp/ubuntu-island-preview-dl0ko8t7` pass hover/focus, language,
+provider fallback credits, loading/errors, hidden/disabled cleanup, 380/440px,
+100/200% scale and enlarged text checks. Screenshots were inspected. Calendar
+fixtures now keep sample events on their intended day near midnight; the final
+Calendar run used UTC inside the isolated session. The clock check avoids its
+intentional 5ms second-boundary grace period.
+
+`make smoke` (`/tmp/ubuntu-island-smoke-_sd1prrs`) passes media, tab shortcuts,
+Quick Ask, Commute layout/recovery, map editor and shortcut recorder checks, then
+stops at the previously recorded Agents window-focus assertion. That broader
+failure remains unresolved. The ZIP matches all 127 runtime sources/assets and
+contains the compiled schema. No host install, account or system shortcut was
+changed, and no live route/provider-accuracy claim was made.
