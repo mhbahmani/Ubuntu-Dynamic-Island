@@ -42,7 +42,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   changes year, and Home/End moves to the start/end of the week.
   Enable it in **Preferences → Modules → Calendar**, or open Calendar in `make preview`
   without installing. Hijri uses tabular calculation; local moon-sighting dates
-  may differ. Appointments and account sync are not included.
+  may differ. Read-only desktop events are available through the optional EDS
+  integration; see [event setup](docs/MODULES.md#desktop-events).
   **Preferences → Notch → Dates in the notch** shows one or several calendars.
   Only the main calendar is selected initially; use the independent switches to
   choose and reorder Jalali, Gregorian and Hijri. Each has presets, custom Persian
@@ -50,7 +51,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   row to edit it and see a preview. Move the whole **Dates** group in **Notch order**.
   Long formats shorten to fit; hover over dates or focus the notch to read the full text.
   The Calendar module can remain off.
-  Persian text prefers installed Vazir/Vazirmatn fonts, with a DejaVu Sans fallback.
+  Vazir is bundled and installed per-user by `make install`, with a DejaVu Sans fallback.
   See [calendar design and checks](docs/MODULES.md#calendar).
 - **Agents (experimental, opt-in)**: local Claude Code/Codex/OpenCode status events,
   attention counts, automatic window matching, optional notifications, and Quick Ask
@@ -58,6 +59,10 @@ and [compact playing pill](screenshots/playing-pill.png).
   optional local hooks/plugins; executable and configuration paths are detected.
   Harness icons identify sessions; working indicators rotate while visible.
   Rows open a window only when process ancestry identifies one unique target.
+  Sessions reported as closed disappear automatically; finished tasks remain
+  available for more prompts. A closed session report does not prove its window closed.
+  A short session ID beside each status distinguishes sessions in the same
+  project. The three-dot menu exposes the full ID as selectable, read-only text.
   Three-dot menus keep Hide and last-activity details in the list, with Undo.
   Finished sessions stay in the same list. **Agents → Remove inactive sessions
   after** defaults to 60 minutes; cleanup runs only when opening the Agents tab.
@@ -270,9 +275,19 @@ make install
 make enable
 ```
 
+`make install` first installs missing `gir1.2-ecal-2.0` and
+`gir1.2-edataserver-1.2` packages through Ubuntu administrator authentication
+(`pkexec` runs only `apt-get`). Run it as your regular desktop user. Already
+installed packages are skipped; cancelling or failing package installation leaves
+the existing extension untouched. For offline/staging installs, use
+`make install INSTALL_DEPS=0`.
+
 `scripts/install.sh` compiles the GSettings schema and installs per-user under
 `~/.local/share/gnome-shell/extensions/`. `make build` produces a versioned,
-installable ZIP under `dist/`.
+installable ZIP under `dist/`. The installer also copies bundled Vazir fonts into
+`~/.local/share/fonts/ubuntu-island-vazir-v30.1.0` and refreshes their font cache.
+When installing the ZIP manually, install its `assets/fonts/*.ttf` with your font
+manager as well.
 
 ## Verify
 
@@ -380,12 +395,13 @@ Keep development commands at the repository root: `make install`, `make build`,
 `ui/`, `preferences/`, `services/` and `helpers/` beside the GNOME entry points;
 development scripts, tests and docs are not shipped.
 
-## Planned feature
+## Desktop calendar events
 
-The [Google Calendar plan](docs/GOOGLE_CALENDAR_PLAN.md) covers read-only GNOME
-Online Accounts/EDS events, a compact agenda and an optional upcoming-event notch
-indicator. It is ready for a separate implementation session. Current optional
-module setup and limitations are in [the module guide](docs/MODULES.md).
+Read-only account calendars, event markers, split-view daily events and an optional upcoming
+notch indicator are implemented through GNOME Online Accounts/EDS. Start with
+[event setup](docs/MODULES.md#desktop-events). Live Google synchronization remains
+unverified; the [implementation record](docs/GOOGLE_CALENDAR_PLAN.md) distinguishes
+native fixture coverage from the remaining live acceptance checks.
 
 ## Notch indicators
 
@@ -426,9 +442,9 @@ keep their place.
 
 The collapsed width is a minimum: the notch grows to fit enabled groups, with
 single-line rates, red download arrows and green upload arrows. Each rate keeps
-the width of its widest displayed value, with just 2px of extra room, so lower
-traffic does not repeatedly shrink the notch. Longer values can grow the slot;
-switching networks or turning the indicator off clears the saved widths.
+enough space for `500KB` plus 4 logical pixels (about 1 mm), measured in the current
+font and scale. Ordinary traffic changes keep that width stable. Unusually long
+values can grow the slot temporarily; earlier traffic never leaves extra space.
 Weather shares the same 260px expanded height as the other tabs, retaining its
 background artwork, four-hour forecast and current conditions.
 

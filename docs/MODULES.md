@@ -11,9 +11,41 @@ share their services; hidden consumers do not keep refreshing.
 ## Calendar
 
 Enable **Preferences → Modules → Calendar**. In **Preferences → Calendar**, choose
-Jalali (شمسی), Gregorian (میلادی) or Hijri (قمری) as the main calendar and optionally
-show dates in the other calendars. Account events are not implemented; the
-[Google Calendar plan](GOOGLE_CALENDAR_PLAN.md) describes the next feature.
+Jalali (شمسی), Gregorian (میلادی) or Hijri (قمری) as the main calendar. The popup
+uses that calendar for its selected-day heading and monthly grid. Optional read-only desktop events use EDS;
+[the implementation record](GOOGLE_CALENDAR_PLAN.md) lists live acceptance gaps.
+
+### Desktop events
+
+1. Run `make install` as your desktop user. It installs missing Ubuntu packages
+   `gir1.2-ecal-2.0` and `gir1.2-edataserver-1.2` through an administrator
+   authentication dialog, then backs up and installs the extension per-user.
+   `make install INSTALL_DEPS=0` skips system packages for offline/staging work.
+2. Add Google in **Ubuntu Settings → Online Accounts** and enable Calendars.
+   Confirm the events appear in GNOME Calendar first; GNOME handles sign-in/sync.
+3. Open **Preferences → Calendar → Events**, enable **Show desktop calendar events**,
+   and select calendars. Empty selection means none. **Manage accounts** opens
+   Online Accounts; it does not change another application's source selections.
+4. Select a date. Its full date and events appear in the left panel beside the
+   month grid. Compact cards show titles and times, with all-day events preserved.
+   The list scrolls independently; activating a card opens that date in GNOME
+   Calendar. Each card has a left accent in its source calendar’s color, or the
+   selected extension theme’s accent when no usable source color is available.
+   A single neutral line beneath a day number indicates available events.
+5. Optionally enable **Preferences → Notch → Upcoming event**. Titles default off;
+   choose 5/15/30/60 minutes lead time. Ongoing meetings take precedence. All-day
+   events stay in the inline list. Clicking the indicator reveals the relevant row.
+
+Partial/offline data is labeled and never treated as a definitive empty day or
+next event. Calendar navigation and the tab bar remain outside scrolling content.
+Empty days and unconfigured events show a compact “No events” message beneath the date.
+Turning events off, locking the session or hiding both consumers clears event
+state and stops the owned helper. No event cache, credentials or provider account
+writes are added. The Shell extension never installs packages itself; only the
+explicit installer performs that setup.
+
+Local EDS fixtures pass; Google synchronization, authentication recovery and live
+Meet metadata still require acceptance. Missing bindings leave date browsing usable.
 
 ### Dates and navigation
 
@@ -21,14 +53,15 @@ show dates in the other calendars. Account events are not implemented; the
   Monday-first, left-to-right grid. Only the required four, five or six weeks appear.
 - Neighboring-month cells are empty and inactive. Today is highlighted only in
   its actual month/year; selecting another date gives it a neutral outline.
-- Additional dates share one header line with the main date beside the month
-  controls. Brighter, larger date labels use compact vertical padding; a single
-  calendar retains its full date heading. Enlarged text can
-  wrap; the grid scrolls when needed with navigation and actions still reachable.
+- The left heading shows the full selected date and the Today button, labeled
+  “امروز”, “Today” or “اليوم” for Jalali, Gregorian or Hijri. The right header
+  centers the month/year between the previous/next controls. Additional
+  calendar dates are omitted from the popup. Enlarged text can wrap; each panel
+  retains reachable overflow while the bottom toolbar stays fixed.
 - Arrows move by day/week, Home/End move to the week's edges, Page Up/Down change
   month, and Shift+Page Up/Down changes year. Today returns to the current date.
-- Browsing months preserves the selected civil date; offscreen selection details
-  are hidden until the selection is visible again.
+- Browsing months preserves the selected civil date and its heading. Event data
+  outside the fetched month is marked incomplete until that range is available.
 
 ### Holidays
 
@@ -75,15 +108,16 @@ to read the full text. Separate text actors preserve mixed text direction.
 
 `services/calendar-model.js` uses ICU calendars and UTC civil-day arithmetic for
 date-only values, with local time determining Today. Hijri uses `islamic-civil`.
-Persian text prefers installed Vazir, then Vazirmatn, then DejaVu Sans; no font is
-installed or bundled. Latin text uses Noto Sans.
+Persian text uses bundled Vazir, with Vazirmatn/DejaVu Sans fallbacks. `make install`
+registers Vazir in an independently owned per-user directory; previews use private
+font directories. Latin text uses Noto Sans.
 
 The visible tab owns a midnight timer; notch dates reuse GNOME clock notifications.
 Suspend/timezone changes while the tab stays open still need live acceptance;
 reopening refreshes the date.
 
 ```sh
-node --test tests/calendar.test.mjs tests/calendar-holidays.test.mjs
+node --test tests/calendar*.test.mjs
 make preview-headless PREVIEW_ARGS="--tab calendar --check-calendar --size 1600x1200 --duration 60"
 make preview PREVIEW_ARGS="--tab calendar --card-width 380 --text-scale 1.5"
 ```
@@ -143,19 +177,43 @@ integration needs setup. Integration controls remain in Agents preferences.
 It never automatically focuses a window or expands the notch.
 Optional notch counts and notifications default off.
 
-Each row shows its harness icon and a state label. A row becomes clickable, with
-a small arrow, only when its reported process ancestry matches exactly one open
-application window. Unknown or ambiguous matches have no open action or window
-chooser. A shared terminal server with several windows is ambiguous. Matching
-identifies a window, not an exact terminal tab/pane; opening a window still requires
-a click. Closed windows immediately lose their activation affordance.
+Each row shows its harness icon, state and a short session ID. References use the
+last eight ID characters and extend when needed to distinguish matching suffixes
+or profiles. They do not depend on the row's position or last activity time.
+The project folder stays the heading; conversation titles are not collected.
+The three-dot menu exposes the full ID in a read-only field: Shift+Tab from Hide
+session focuses it, and Ctrl+A/Ctrl+C can select/copy it. Tab returns to Hide;
+tabbing out of the menu or pressing Escape restores the anchor's focus.
+A row becomes clickable, with a small arrow, only when it has one verified
+window target. Process ancestry remains mandatory. Terminator sessions also
+report their terminal UUID and D-Bus service; the extension verifies the service
+owner's PID and asks that terminal for its owning window's exact current title.
+This distinguishes multiple Terminator windows sharing one process. Duplicate
+titles within that process, missing metadata and unavailable services remain
+ambiguous, with no open action or chooser. Project labels and title substrings
+are never used to guess a target.
+
+Terminal metadata is queried asynchronously only while Agents is visible and is
+rechecked on click. Hiding the view cancels outstanding lookups; there is no
+polling worker. Matching identifies a window, not an exact terminal tab/pane.
+Closed windows immediately lose their activation affordance. Existing Codex and
+Claude hooks acquire the UUID metadata from the updated relay on their next
+status report; reconfigure an existing OpenCode plugin to refresh its generated
+metadata fields.
 
 The three-dot button opens a small anchored menu with last activity and **Hide
 session**; Escape restores focus to the button. **Clear** and the notch eye toggle
 stay in the main header. Hide and Clear finished offer Undo without stopping agent
 processes. There are no per-session options pages or separate Recent group.
 
-All sessions, including finished ones, stay in one list. **Preferences → Agents →
+Finished tasks stay in the list because their session may accept more prompts.
+Sessions explicitly reported as closed disappear immediately. This means the
+agent reported a session end, not that its desktop window was observed closing.
+Distinct sessions can share the same project-folder label. Closed records remain
+bounded internally for late-event checks and can reappear after fresh activity;
+they are not offered by Clear/Undo.
+
+**Preferences → Agents →
 Remove inactive sessions after** defaults to **60 minutes** and accepts 1–10,080
 minutes. Only opening the Agents tab (including reopening the island on that tab)
 checks for expiry. It removes records whose last report is older than the cutoff

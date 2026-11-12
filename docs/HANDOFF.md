@@ -1,11 +1,11 @@
 # Implementation handoff
 
-Updated 2026-11-11. Target: GNOME Shell 46 on Ubuntu Wayland.
+Updated 2026-11-12. Target: GNOME Shell 46 on Ubuntu Wayland.
 
 - [AGENTS.md](../AGENTS.md): engineering, packaging and commit rules.
 - [README](../README.md): installation, development commands and hardware checks.
 - [Module guide](MODULES.md): current Calendar, Agents, Weather and Commute behavior.
-- [Google Calendar plan](GOOGLE_CALENDAR_PLAN.md): the accepted next-session feature.
+- [Google Calendar plan](GOOGLE_CALENDAR_PLAN.md): implementation progress and remaining phases.
 
 ## Current implementation
 
@@ -17,7 +17,11 @@ Notch indicators reuse module state and respect consumer visibility.
 Calendar supports Jalali, Gregorian and calculated Hijri, holidays based on the
 main calendar, blank neighboring-month cells and custom notch date codes/order.
 Fresh notch settings select the main calendar once; later explicit selections
-remain independent. There is no account-event integration yet.
+remain independent. Read-only EDS account events now have explicit calendar
+selection, event lines, a split-view daily event list and an optional upcoming-event notch.
+The optional EDS bindings are now installed and the probe passes; live Google sync
+is unverified.
+See the plan for setup, architecture and acceptance gaps.
 
 Agents provides local hook/plugin status, unique process-to-window matching and Quick Ask.
 Clear and the notch eye toggle are in the main header. Session states are event
@@ -53,6 +57,51 @@ preserving stable navigation and focus; the current expansion remains the refere
 
 ## Recent UI changes
 
+- Fixed Agent activation with multiple Terminator windows sharing one PID.
+  Hooks retain bounded terminal UUID/service metadata. Lookups verify the D-Bus
+  owner's PID and compare the terminal's reported exact owning-window title only
+  within that process's windows. Duplicate matches remain disabled; project names
+  and title substrings are never used. Lookups run only while Agents is mapped,
+  are cancelled on hide/disable, and are refreshed before activation.
+
+- Calendar now uses two columns: a full main-calendar date and independent event
+  list on the left, with month navigation above the grid on the right. Today is
+  beside the selected date and follows the main calendar’s language. The month
+  label is centered between the arrows. Cards use the EDS source color as a left
+  accent, with a live theme accent fallback; grid indicators stay neutral.
+  Neutral lines beneath day numbers replace dots. Event cards retain activation,
+  all-day handling and service ordering; long titles wrap. The multi-calendar
+  popup heading is removed. Settings, event fetching and the bottom toolbar are
+  unchanged. Both panels retain overflow access with enlarged text.
+
+- Agents now keeps only the text status counts in its header. Working spinners
+  remain on individual session rows, with hidden/reduced-motion cleanup.
+
+- Restored navigation padding after the user clarified the gap was above the tab
+  bar. Regular cards share a 248px height; the reduction removes the surplus band
+  while preserving navigation spacing and reachable overflow.
+- Calendar events now appear directly below the grid in the same scroll area.
+  Removed the separate summary/setup footer and agenda/detail pages at the user's
+  request. With no selected sources the event section is absent. A richer UI is
+  deferred; the notch reveals the corresponding inline event row.
+- `make install` checks and installs missing ECal/EDataServer Ubuntu bindings via
+  `pkexec`, elevating only apt-get. It aborts before replacing the extension when
+  package setup fails or is cancelled. `INSTALL_DEPS=0` supports offline/staging
+  installs; tests never perform real package operations.
+- Vazir v30.1.0 Regular/Medium/Bold and its OFL license are bundled. The installer
+  registers an independently owned per-user font directory; previews isolate it.
+  Native Pango checks confirm Vazir renders Persian text.
+
+- Agent rows show a short session-ID suffix beside status so shared project names
+  remain distinguishable. Suffix collisions expand with session/profile context.
+  The anchored menu exposes a selectable read-only full ID with keyboard access;
+  row and menu accessible names include the reference. No prompt/transcript
+  content or window-title matching was added.
+- Agent sessions reported as closed are omitted from broker snapshots immediately,
+  including Undo counts. Finished tasks remain visible. Bounded closed records
+  retain timestamp/retired-turn guards until ordinary expiry or capacity eviction;
+  fresh activity can resume them. This does not infer session closure from a
+  missing/ambiguous window match or add any background polling.
 - An empty Agents list shows a waiting message and keeps Quick Ask available.
   It does not infer missing integration from a lack of sessions or show a setup
   button. Setup remains in Agents preferences. User-facing completion labels use
@@ -63,9 +112,9 @@ preserving stable navigation and focus; the current expansion remains the refere
   Inactivity expiry defaults to 60 minutes (configurable in Agents settings) and
   runs only when the Agents view maps; it clears cached and broker records without
   an idle timer. Fresh activity can recreate an expired session.
-- Regular tabs and sections share a 260px content height (scaled with the UI),
+- Regular tabs and sections share a 248px content height (scaled with the UI),
   including Calendar. Keep the expanded width/height stable across navigation;
-  with tighter footer padding to avoid a spare band above navigation. Use space
+  with the original navigation padding restored. Use space
   for the content, with scrolling for overflow. Standalone
   shortcut Quick Ask retains its compact size.
 - Agents uses CLI harnesses only. Settings fill unset executable/config paths,
@@ -95,9 +144,10 @@ preserving stable navigation and focus; the current expansion remains the refere
   Date text is now 10pt (single-calendar heading 12pt), with brighter text and
   reduced vertical padding. All three dates fit one line at 380/440px; enlarged text wraps
   and overflow remains reachable.
-- Network rates retain each direction's widest displayed value plus 2 logical
-  pixels. Widths reset on interface/indicator changes and are remeasured on
-  font/scale changes; no new polling timer is involved.
+- Network rates reserve `500KB` plus 4 logical pixels in the current font and
+  scale. Longer current values can expand temporarily, without retaining the
+  session's widest value. This replaces traffic-dependent spacing that could
+  appear different after login; no new polling timer is involved.
 - The preferences icon uses filled slider shapes with explicit cutouts so all
   parts recolor consistently on hover/focus.
 
@@ -118,6 +168,23 @@ The module guide replaces separate feature documents and the obsolete roadmap.
 Use Git history for earlier designs, research and session logs.
 
 ## Verification and remaining work
+
+Session references: `make check` passed 169 tests plus syntax/schema validation.
+The native full preview passed same-project differentiation, full-ID keyboard
+access, menu focus restoration, 380/440px layouts, enlarged text and 200% scale.
+Rows remain reused across status updates. Screenshots of the list and menu were
+inspected. An initial keyboard check caught and corrected Tab navigation into
+the read-only entry. The Shell smoke test passed on a separate rerun; the first
+run failed a Quick Ask shortcut assertion while another native preview was
+running. No shortcut code changed. The ZIP was rebuilt; no host installation
+was changed.
+
+Closed-session filtering: `make check` passed all 168 tests plus syntax/schema
+validation. The native GJS service/bridge test verifies closed sessions disappear
+from real pipe snapshots across repeated start/stop cycles. Regression checks
+cover stale reports, resumed activity, same-project sessions and Undo after
+closure. The ZIP was rebuilt; the host install was not changed. No actor layout
+changed, and the Shell UI smoke test was not rerun for this model-only change.
 
 Compact-layout follow-up: 155 Node tests and GTK preferences checks passed. The
 full native preview passed all eight tabs, the empty Agents state, a three-session
@@ -200,7 +267,91 @@ hotplug, Bluetooth, live player controls, suspend/fullscreen transitions, provid
 keys/GeoClue and live agent compatibility. Fixture success is not evidence for
 those external integrations.
 
-For Google Calendar, begin with the plan's GNOME Online Accounts/EDS integration
-probe. Verify optional bindings and a user-connected Google account before claiming
-live synchronization. Keep fixture work independent of host accounts. No packages
-or accounts have been changed to prepare that feature.
+Google Calendar integration (2026-11-11): 171 checks passed with extracted optional
+EDS typelibs, plus syntax/schema validation. Private EDS fixtures exercise source
+discovery, native recurrence, modifications/removals, complete empty queries and
+helper teardown; no host events or accounts are used. GTK preferences and native
+Calendar checks pass at 380/440px and 100/200% scale with enlarged-text overflow,
+event dots, agenda/details, removed events, Back/Escape, notch activation and
+hidden cleanup. `make smoke` passes. Native Pango resolves Persian text to Vazir.
+Live Google sync/authentication, cache freshness, Meet metadata and suspend/timezone
+changes remain acceptance gaps. See `docs/GOOGLE_CALENDAR_PLAN.md` for details.
+
+Delivery: the full sample preview passed all eight tabs and existing Agents/audio
+interactions. Installer and ZIP checks passed. `make install` installed this
+update and the bundled Vazir fonts per-user, preserving the previous extension as
+`ubuntu-island@mhbahmani.github.io.backup.20261111184949`. Wayland logout/login is
+still required to load the changed Shell code. That delivery did not change system
+EDS packages or account settings.
+
+Follow-up validation (2026-11-12): all 174 checks pass with the now-installed system
+EDS bindings, including private EDS fixtures, syntax and schema validation. GTK
+preferences, the inline Calendar at 380/440px and 100/200% scale with enlarged text,
+and the full eight-tab preview pass. Inline event focus, removal, notch activation,
+scrolling and hidden cleanup are covered. Agents checks retain individual working
+animations while verifying the header has only status counts. Installer tests
+cover missing dependencies, already-installed packages and cancelled authentication
+without changing system packages or the host install.
+
+The final smoke run passes after tightening Media and Commute content spacing to
+fit the restored navigation padding. An earlier run intermittently missed Quick
+Ask shortcut focus; the unchanged shortcut checks passed on the final rerun.
+The build ZIP was rebuilt after the last CSS adjustment. Live Google account sync
+remains unverified; tests use isolated fixture data.
+
+Follow-up delivery: `make install` completed on 2026-11-12. Both required EDS
+packages were already installed, so no privileged package action was needed.
+The previous per-user extension was preserved as
+`ubuntu-island@mhbahmani.github.io.backup.20261112133245`. Installed runtime files
+and the rebuilt ZIP match the working tree. Log out and back in under Wayland to
+load this version; account settings were not changed.
+
+Bandwidth spacing follow-up (2026-11-12): replaced the remembered widest value
+with a `500KB` reference plus 4 logical pixels. Native checks verify stable widths
+across ordinary values, recovery after a longer value, interface/toggle changes,
+enlarged text and 200% scale. The full eight-tab preview and all 174 automated
+checks pass. The rebuilt package and per-user install include this adjustment.
+
+
+Split-view Calendar validation (2026-11-12): `make check` passes all 175 tests,
+JavaScript/Python syntax and schema validation. Native Calendar checks pass for
+Jalali/Gregorian/Hijri, date and month selection, Today, all-day/empty days,
+event removal/focus restoration, long titles, independent event scrolling,
+notch activation, preferences, repeated toggles and hidden cleanup. Layouts pass
+at 380/440px and 100/200% scale, with reachable enlarged-text overflow. The six-week
+grid fits without scrolling at normal text size. Screenshots of the split view
+and all four themes were inspected. The ZIP was rebuilt and changed runtime
+files verified against its contents. No host installation or live Google sync
+was performed.
+
+The broader smoke test failed twice at “Next-tab shortcut did not advance,”
+with Calendar disabled in that fixture. Media checks passed before that assertion;
+the remaining smoke checks did not run. No shortcut or unrelated UI code was
+changed for the Calendar redesign.
+
+
+Calendar alignment/color follow-up (2026-11-12): 177 automated checks pass,
+including private EDS source-color propagation and invalid/missing color handling
+across the helper pipe. Native Calendar checks verify centered month text,
+localized Today selection, aligned event stripes, row reuse on source-color
+changes and live fallbacks across all four themes. Existing navigation, scrolling,
+380/440px widths, 100/200% scale and enlarged-text checks pass. Screenshots were
+inspected. Source colors are optional metadata only; event queries and account
+configuration are unchanged. The ZIP was rebuilt; no host install or live Google
+account validation was performed. The previously recorded general smoke shortcut
+failure was not re-investigated for this focused follow-up.
+
+
+Agent window follow-up (2026-11-12): both reported live agent processes share
+one Terminator process, explaining the prior ambiguous PID matches. Read-only
+lookups through the new adapter returned distinct owning-window metadata for both
+actual sessions, without logging titles or reading terminal contents. All 180
+checks pass, including metadata validation, relay propagation, private D-Bus
+owner verification, missing terminals, cancellation and timeout. The native full
+preview passes independently clickable shared-process sessions, duplicate-title
+rejection, fresh activation lookup, hidden cleanup, late-reply rejection and real
+window activation, plus existing eight-tab checks. Transient Clutter input-focus
+warnings occurred during the fixture's text-entry changes; no JS errors or failed
+assertions were reported. Installer/ZIP checks include the new runtime adapter.
+No host installation or live session activation was performed. The earlier
+general smoke shortcut failure remains recorded separately.

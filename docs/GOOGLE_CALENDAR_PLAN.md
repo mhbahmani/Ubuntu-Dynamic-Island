@@ -1,12 +1,102 @@
 # Google Calendar implementation plan
 
-Status: planned, not implemented. This is the accepted direction for a future
-implementation session.
+Status: the read-only EDS integration, account/calendar preferences, inline daily
+events and upcoming-event notch are implemented (2026-11-11). Native fixtures
+pass against EDS 3.52.3. Live Google account acceptance remains unverified.
 
 Connect Google Calendar through GNOME Online Accounts and Evolution Data Server
-(EDS). Add events to the existing Calendar tab and an optional upcoming-event
-indicator to the notch. Keep the extension's event access read-only, preserve the
-compact month view, and display event dates in the user's chosen calendar.
+(EDS). The extension does not implement OAuth or write events. Its optional
+bindings and explicitly selected calendars are required before events can appear.
+
+## Implementation record — 2026-11-11
+
+Environment: GNOME Shell 46.0, GJS 1.80.2, EDS 3.52.3-0ubuntu1.2 and GNOME Calendar
+46.1. The host lacks `gir1.2-ecal-2.0` and `gir1.2-edataserver-1.2` (with their ICal
+and Camel dependencies). Ubuntu packages were downloaded and extracted under
+`/tmp` for testing via `GI_TYPELIB_PATH`; no system packages/accounts were changed.
+`gjs -m scripts/calendar-probe.mjs` reports availability without reading accounts.
+The correct object namespace is **ICalGLib 3.0**, not the low-level ICal namespace.
+
+Implemented boundaries:
+
+- `services/calendar-events-model.js` owns bounded plain-text normalization,
+  composite identity, cancellation/decline filtering, local-day overlap, merged
+  query ranges, next-event selection and narrow structured Meet validation.
+- `helpers/calendar/` owns optional GI imports, asynchronous registry/client/view
+  and timezone queries, recurrence expansion, and change subscriptions. No EDS
+  imports enter Shell. No OAuth, provider HTTP, event writes or persistent event
+  cache is added. Read results may come from EDS's existing cache.
+- `services/calendar-events.js` owns a bounded newline protocol, generations,
+  coalesced writes, a 20-second outstanding-request deadline, and owned-child
+  shutdown with a 500ms force-exit fallback. Idle subscriptions do not time out.
+  Hidden/disabled/locked consumers clear data and release the helper/clock.
+- Preferences discover event sources grouped by account; stable source UIDs are
+  selected explicitly. Removed/disabled sources never imply selecting all.
+- The existing Calendar contains event dots and a selected-day event list below
+  the month grid, sharing its scroll area. Rows retain identity across updates
+  and open the selected date in GNOME Calendar. There is no separate summary
+  footer or agenda/detail page; no event section appears without selected sources.
+- The optional notch uses the selected sources, hides titles by default, suppresses
+  definitive next-event claims for partial/offline data, reuses GNOME's clock and
+  schedules one next boundary. Activation reveals the relevant inline event. Lock/hide
+  releases event state. All-day events remain in the inline list.
+
+EDS 3.52's asynchronous `Client.generate_instances` has no completion callback in
+GJS: it cannot establish a completed empty range. The reader instead awaits an
+asynchronous view/query and complete series retrieval, resolves timezones
+asynchronously, then calls **pure** `ECal.recur_generate_instances_sync` in the
+helper with an already-loaded timezone map. No synchronous EDS/network call is
+used. Expansion is capped at 500 occurrences; the parent deadline bounds native
+pathological expansion. THISANDFUTURE overrides are omitted as incomplete rather
+than displaying obsolete instances. Series/query result counts and wire sizes
+are bounded; EDS itself allocates its native query response before JS can inspect
+it, which remains an upstream memory-budget limitation.
+
+The native fixture suite uses a private session bus and temporary XDG directories.
+It verifies catalog discovery, local source connection, RRULE/EXDATE, moved and
+cancelled exceptions, declined attendees, floating Tehran time, all-day and timed
+missing ends, DST recurrence, truncation, additions/modifications/removals, proven
+empty coverage, and cleanup. A registry disposal crash found under GDB was fixed
+by releasing EDS registries while the JS context is still alive. Protocol tests
+cover UTF-8 chunk boundaries, malformed/oversize input, stale generations,
+repeated activation and teardown. Pure model tests cover Tehran, New York DST and
+Apia's skipped day.
+
+`make check` passes 171 tests when the optional test typelibs are available;
+without them the EDS integration case skips explicitly. GTK preferences, native
+Calendar checks at 380/440px and 100/200%, enlarged-text reachability, event
+navigation and hidden cleanup, and `make smoke` pass. Preview calendars are
+fixtures even with `--live`; host events never enter screenshots.
+
+Open-calendar intentionally targets the selected **date**, not an unverified
+exact-event identifier. [GNOME Calendar 46's implementation](https://raw.githubusercontent.com/GNOME/gnome-calendar/gnome-46/src/gui/gcal-application.c)
+uses EDS's translated date parser, so the launcher uses that domain's four-digit
+year format. The installed EDS parser was checked with this format. Actual live
+Google event opening, Meet field delivery, authentication recovery, offline cache
+freshness, removal/disable of a Google account and suspend/timezone transitions
+still need live acceptance. No claim of completed Google synchronization is made
+from local fixtures alone.
+
+UI revision requested after the implementation: show selected-day events directly
+below the month grid in the same scroll area. Remove the separate summary/setup
+button and agenda/detail pages. Clicking a row opens GNOME Calendar on that date;
+the notch reveals the matching inline row. A richer details/Join interface is
+deferred. The earlier phase/UI descriptions below are historical design context;
+this current user instruction takes precedence.
+
+`make install` now checks the two Ubuntu binding packages and installs only missing
+packages via `pkexec apt-get --assume-yes --no-remove install …`. Package failure or
+cancelled authentication aborts before replacing the user's extension. Automated
+installer tests use stub commands or `INSTALL_DEPS=0`; they never install system
+packages. Live phase 1/6 acceptance gaps remain as listed above.
+
+## Follow-up — 2026-11-12
+
+The host now has both Ubuntu binding packages installed. The dependency probe
+loads ECal 2.0, EDataServer 1.2 and ICalGLib 3.0 successfully. This confirms runtime
+availability; Google accounts/events have not been inspected for live acceptance.
+Current UI is the inline event list described above, with the former empty
+summary/setup footer removed.
 
 ## Scope and defaults
 
@@ -52,7 +142,7 @@ investigate are `gir1.2-ecal-2.0` and `gir1.2-edataserver-1.2`, including the IC
 namespace supplied by their dependencies. Require Goa bindings only if the probe
 shows they are needed; EDS source metadata and desktop account settings may suffice.
 
-No packages or accounts have been changed for this plan. Live Google access and
+No packages or accounts have been changed for this implementation. Live Google access and
 recurrence callbacks remain unverified. Online EDS references may
 describe a newer release; confirm exact signatures and callback behavior against
 the installed stack before implementing the adapter.
@@ -406,11 +496,12 @@ to these commands; Node tests cannot establish GJS/EDS or Google compatibility.
   is background for the deferred direct-API option, not an extra login requirement
   for this implementation.
 
-## Start the next session
+## Continue implementation
 
 > Implement the Google Calendar feature described in docs/GOOGLE_CALENDAR_PLAN.md.
 > Read AGENTS.md and docs/HANDOFF.md first. Start with the GNOME 46/EDS
-> integration probe, then follow the phases and preserve the existing compact
+> integration probe and the implementation record above. Finish the native EDS
+> adapter spike and phase 2 reader, then preserve the existing compact
 > Jalali/Gregorian/Hijri UI. Use fixtures without host account access for previews.
 > Keep the integration read-only and opt-in, record any live-account dependency,
 > and continue independent work if live validation needs my involvement.
