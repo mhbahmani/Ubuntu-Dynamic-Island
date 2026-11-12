@@ -155,7 +155,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   Automatic defaults to Balad, then Mapbox when configured, with public OSRM as
   a last resort only without a Mapbox token. **Preferences → Commute → Open route in**
   independently chooses Google Maps, Balad or Neshan for driving directions.
-- **Preferences** (`prefs.js` + GSettings): live Graphite/Ocean/Forest/Ember themes,
+- **Preferences** (`prefs.js` + GSettings): eleven live themes (Graphite, Ocean, Forest, Ember, Lagoon, Amethyst,
+  Berry, Midnight, Aurora, Sunset, Mocha),
   background opacity (0–100%, default 98%) for the tint layer only, matte tone
   (0–100%, default 60%) for frosted-glass blur strength without changing transparency,
   a Notch order preview that uses smaller icons when labels would overflow,

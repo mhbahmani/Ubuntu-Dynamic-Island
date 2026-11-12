@@ -9,7 +9,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
-import {themeAccent} from './services/appearance.js';
+import {THEME_IDS, themeAccent} from './services/appearance.js';
 import {notchTime} from './services/notch-model.js';
 import {civilDay, todayDay, fullDate, calendarTodayLabel, monthTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
@@ -579,7 +579,7 @@ export default class Preview extends UbuntuIsland {
         await click(view.todayButton);
         const originalTheme = this._settings.get_string('color-theme');
         this._sampleCalendarColor = null; this._calendarEvents.publish();
-        for (const theme of ['graphite', 'ocean', 'forest', 'ember']) {
+        for (const theme of THEME_IDS) {
             this._settings.set_string('color-theme', theme); await delay(150);
             assert([...view.agenda.rows.values()].every(item => item.color === themeAccent(theme)), 'Missing source color did not follow the live theme');
             await this._capture(`calendar-theme-${theme}`);

@@ -35,8 +35,8 @@ test('full matte flattens color while preserving chosen opacity', () => {
             assert.equal(start, end, theme); // both stops are the flat mid tone
         }
     }
-    // Graphite mid tone: mean of [50,52,58] and [27,29,34], rounded.
-    assert(surfaceStyle('graphite', 98, 100).includes('rgba(39,41,46,0.98)'));
+    // Graphite mid tone: mean of [46,48,56] and [24,26,32].
+    assert(surfaceStyle('graphite', 98, 100).includes('rgba(35,37,44,0.98)'));
 });
 
 test('every matte setting preserves the full opacity range', () => {
@@ -115,4 +115,103 @@ test('backdrop slices stay inside the rounded surface without overlapping', () =
     }
     assert.deepEqual(backdropSlices(0, 100, 20, 20), []);
     assert.deepEqual(backdropSlices(400, 300, 0, 0), [{x: 0, y: 0, width: 400, height: 300}]);
+});
+
+import {readFileSync} from 'node:fs';
+import {THEME_IDS, TEXT, BUTTON_TEXT, hexToRgb, contrast, mix, themeSwatchCss} from '../services/themes.js';
+import {themeCss, generatedRegion} from '../scripts/theme-css.mjs';
+
+const rgb = value => typeof value === 'string' ? hexToRgb(value) : value;
+const hex = /^#[0-9a-f]{6}$/;
+
+test('every theme is readable on its own tint at any opacity-backed blend', () => {
+    for (const id of THEME_IDS) {
+        const theme = THEMES[id];
+        for (const key of ['accent', 'secondary', 'strong', 'strongHover', 'strongPressed', 'history', 'chartDown', 'chartUp', 'todayBorder', 'marker', 'focus', 'heading'])
+            assert.match(theme[key], hex, `${id}.${key}`);
+        assert.notEqual(theme.chartDown, theme.chartUp, `${id}: distinct network series`);
+        // Check against both stops and the matte midpoint.
+        for (const tint of [theme.top, theme.bottom, mix(theme.top, theme.bottom, 0.5)]) {
+            assert(contrast(rgb(TEXT), tint) >= 7, `${id}: primary text`);
+            assert(contrast(rgb(theme.secondary), tint) >= 4.5, `${id}: secondary text`);
+            assert(contrast(rgb(theme.accent), tint) >= 4.5, `${id}: accent text`);
+            assert(contrast(rgb(theme.history), tint) >= 3, `${id}: chart line`);
+            assert(contrast(rgb(theme.chartDown), tint) >= 4.5, `${id}: download line and rate`);
+            assert(contrast(rgb(theme.chartUp), tint) >= 4.5, `${id}: upload line and rate`);
+            assert(contrast(rgb(theme.focus), tint) >= 3, `${id}: focus ring`);
+            assert(contrast(rgb(theme.heading), tint) >= 4.5, `${id}: section heading`);
+        }
+        for (const key of ['strong', 'strongHover', 'strongPressed'])
+            assert(contrast(rgb(theme[key]), rgb(BUTTON_TEXT)) >= 4.5, `${id}: text on ${key}`);
+    }
+});
+
+test('themes are distinct and colorful, with graphite kept neutral', () => {
+    const saturation = ([r, g, b]) => (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+    assert(THEME_IDS.length >= 10);
+    assert.equal(new Set(THEME_IDS.map(id => THEMES[id].accent)).size, THEME_IDS.length);
+    assert.equal(new Set(THEME_IDS.map(id => THEMES[id].label)).size, THEME_IDS.length);
+    for (const id of THEME_IDS.filter(id => id !== 'graphite')) {
+        assert(saturation(THEMES[id].top) >= 0.15, `${id}: tint is too grey`);
+        assert(saturation(rgb(THEMES[id].accent)) >= 0.35, `${id}: accent is too dull`);
+    }
+    assert(saturation(THEMES.graphite.surface) < 0.1 && saturation(THEMES.graphite.edge) < 0.1);
+    assert.deepEqual(THEME_IDS.slice(0, 4), ['graphite', 'ocean', 'forest', 'ember']); // keeps saved indices stable
+});
+
+test('schema choices and the stylesheet follow the theme list', () => {
+    const schema = readFileSync(new URL('../schemas/org.gnome.shell.extensions.ubuntu-island.gschema.xml', import.meta.url), 'utf8');
+    const key = schema.slice(schema.indexOf('<key name="color-theme"'), schema.indexOf('</key>', schema.indexOf('<key name="color-theme"')));
+    assert.deepEqual([...key.matchAll(/<choice value="([^"]+)"/g)].map(m => m[1]), [...THEME_IDS]);
+    const css = readFileSync(new URL('../stylesheet.css', import.meta.url), 'utf8');
+    assert.equal(generatedRegion(css), themeCss(), 'stylesheet.css is stale: run `node scripts/theme-css.mjs`');
+    for (const id of THEME_IDS) assert(css.includes(`.ubuntu-island-theme-${id} .ubuntu-island-tab-marker`) ||
+        css.includes(`.ubuntu-island-theme-${id} .ubuntu-island-tab-selected .ubuntu-island-tab-marker`), id);
+});
+
+test('generated CSS themes tabs, navigation, headings and focus rings', () => {
+    const css = themeCss();
+    assert(!css.includes(':hover .ubuntu-island-tab-marker'), 'no hover marker rule');
+    assert(!readFileSync(new URL('../stylesheet.css', import.meta.url), 'utf8')
+        .includes(':hover .ubuntu-island-tab-marker'), 'no base hover marker rule');
+    for (const id of THEME_IDS) {
+        const T = `.ubuntu-island-theme-${id}`;
+        const {accent, focus, heading, secondary, bottom} = THEMES[id];
+        assert(css.includes(`${T} .ubuntu-island-tab-slider { background-color: ${accent}; }`), `${id}: slider`);
+        assert(css.includes(`${T} .ubuntu-island-tab-selected { color: ${accent}; }`), `${id}: selected icon`);
+        assert(css.includes(`${T} .ubuntu-island-tab-selected .ubuntu-island-tab-marker { background-color: transparent; }`), `${id}: own marker`);
+        assert(css.includes(`${T} .ubuntu-island-tab:focus .ubuntu-island-tab-marker { background-color: ${focus}; }`), `${id}: focus marker`);
+        assert(css.includes(`${T} .ubuntu-island-navigation { background-color: rgba(${bottom.join(',')},0.32);`), `${id}: navigation`);
+        assert(css.includes(`${T} .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: ${accent}; }`), `${id}: caption`);
+        assert(new RegExp(`\\${T} \\.ubuntu-island-seal:focus[^{]*\\{ box-shadow: inset 0 0 0 2px ${focus}; \\}`).test(css), `${id}: seal focus`);
+        assert(css.includes(`${T} .ubuntu-island-header, ${T} .ubuntu-island-agent-heading { color: ${heading}; }`), `${id}: heading`);
+        assert(!css.includes(`${T} .ubuntu-island-header, ${T} .ubuntu-island-muted`), `${id}: header left the secondary list`);
+        assert(contrast(rgb(accent), bottom) >= 4.5, `${id}: caption on the bar`);
+    }
+    assert.equal(THEMES.graphite.heading, THEMES.graphite.secondary); // Graphite stays calm
+    assert.equal(THEMES.graphite.marker, THEMES.graphite.accent);
+    assert(!css.includes('#ffb38a'));
+    assert.equal(css.split('{').length, css.split('}').length);
+});
+
+test('generated CSS shares network colours between chart properties and rate labels', () => {
+    const css = themeCss();
+    for (const id of THEME_IDS) {
+        const T = `.ubuntu-island-theme-${id}`;
+        const {chartDown, chartUp} = THEMES[id];
+        assert(css.includes(`${T} .ubuntu-island-network-down { color: ${chartDown}; }`), `${id}: download rate`);
+        assert(css.includes(`${T} .ubuntu-island-network-up { color: ${chartUp}; }`), `${id}: upload rate`);
+        assert(css.includes(`${T} .ubuntu-island-history-network { -ubuntu-island-chart-down: ${chartDown}; ` +
+            `-ubuntu-island-chart-up: ${chartUp}; }`), `${id}: chart colours`);
+    }
+});
+
+test('preferences swatches preview every theme tint and accent', () => {
+    const css = themeSwatchCss();
+    for (const id of THEME_IDS) {
+        const {top, bottom, accent} = THEMES[id];
+        assert(css.includes(`.ubuntu-island-theme-swatch-${id} { background-image: linear-gradient(to bottom, rgb(${top.join(',')}), rgb(${bottom.join(',')}));`), id);
+        assert(css.includes(`.ubuntu-island-theme-swatch-${id} .ubuntu-island-theme-swatch-accent { background-color: ${accent}; }`), id);
+    }
+    assert.equal(css.split('{').length, css.split('}').length);
 });

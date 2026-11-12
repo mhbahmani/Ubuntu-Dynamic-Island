@@ -1,5 +1,6 @@
 import {formatTime} from './services/format.js';
 import {roundedCover} from './services/artwork-model.js';
+import {THEME_IDS} from './services/themes.js';
 // Runs only in the temporary Shell created by tests/smoke.py.
 import UbuntuIsland from './implementation.js';
 import {ConnectivityService} from './services/connectivity.js';
@@ -52,6 +53,33 @@ export default class Smoke extends UbuntuIsland {
         const preferences = caption.get_parent().get_last_child();
         assert(Math.abs(center(preferences.child) - expected) <= tolerance,
             'Preferences icon is not aligned with the navigation caption');
+    }
+
+    async _checkTabSlider() {
+        const card = this._card, slider = card._tabSlider;
+        const page = card._page;
+        const centreX = actor => actor.get_transformed_position()[0] + actor.get_transformed_size()[0] / 2;
+        const onTab = id => Math.abs(centreX(slider) - centreX(card._tabs.get(id))) <= 1;
+        const reducedMotion = this._settings.get_boolean('disable-animations');
+        this._settings.set_boolean('disable-animations', false);
+        try {
+            const duration = Math.round(0.75 * Math.max(0, Math.min(500, this._settings.get_int('animation-duration'))));
+            card.selectPage('system');
+            card.selectPage('audio');
+            if (duration > 0 && St.Settings.get().enable_animations)
+                assert(slider.get_transition('translation-x'), 'Tab slider did not glide between tabs');
+            await delay(duration + 150);
+            assert(card._page === 'audio' && slider.opacity === 255 && onTab('audio'),
+                'Tab slider did not settle under the selected tab');
+            this._settings.set_boolean('disable-animations', true);
+            card.selectPage('system');
+            assert(!slider.get_transition('translation-x') && onTab('system'),
+                'Reduced motion did not place the tab slider immediately');
+            console.log('[Island Smoke] Tab slider PASS: glide, settle and reduced-motion snap');
+        } finally {
+            card.selectPage(page);
+            this._settings.set_boolean('disable-animations', reducedMotion);
+        }
     }
 
     async _checkMediaFeatures(original, cover) {
@@ -512,6 +540,7 @@ export default class Smoke extends UbuntuIsland {
                 'More than one module surface is visible');
             await this._capture(name);
         }
+        await this._checkTabSlider();
         let weatherRequests = 0;
         this._weather.http.get = async () => {
             weatherRequests++;
@@ -925,7 +954,7 @@ export default class Smoke extends UbuntuIsland {
         await delay(100);
         this._island.suspendGrab();
         assert(this._island.expanded && !this._island._grab, 'Preview retained the modal grab');
-        for (const theme of ['ocean', 'forest', 'ember', 'graphite']) {
+        for (const theme of [...THEME_IDS.filter(id => id !== 'graphite'), 'graphite']) {
             this._settings.set_string('color-theme', theme);
             this._settings.set_int('surface-opacity', theme === 'graphite' ? 98 : 85);
             assert(this._island.actor.opacity === 255, 'Opacity faded text and controls');
@@ -1175,7 +1204,7 @@ export default class Smoke extends UbuntuIsland {
             assert(opacity === 100 ? !this._island._backdrop.visible : this._island.backdropRadius === matteRadius,
                 'Opacity changed the blur radius');
         }
-        for (const theme of ['ocean', 'forest', 'ember', 'graphite']) {
+        for (const theme of [...THEME_IDS.filter(id => id !== 'graphite'), 'graphite']) {
             this._settings.set_int('surface-opacity', 75);
             this._settings.set_string('color-theme', theme);
             await this._capture(`frosted-${theme}`);

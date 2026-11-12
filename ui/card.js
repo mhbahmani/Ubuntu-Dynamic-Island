@@ -36,6 +36,7 @@ export class Card {
         this._sectionCount = 0;
         this._pages = new Map();
         this._tabs = new Map();
+        this._tabMarkers = new Map();
         this._page = null;
         this._manualPage = false;
         this._outputRows = new Map();
@@ -100,6 +101,8 @@ export class Card {
             settings.disconnect(calendarChanged);
             if (this._navigationFit) GLib.Source.remove(this._navigationFit);
             this._navigationFit = 0;
+            if (this._sliderSnap) GLib.Source.remove(this._sliderSnap);
+            this._sliderSnap = 0;
         });
         // Hiding the card mid-hover never delivers a leave-event on Wayland,
         // so hover highlights survive into the next expand and read as a
@@ -108,9 +111,13 @@ export class Card {
             if (!this.actor.mapped) {
                 if (this._navigationFit) GLib.Source.remove(this._navigationFit);
                 this._navigationFit = 0;
+                this._resetSlider();
                 this._clearHover(this.actor);
                 if (this.quickAskOpen) { this.quickAskOpen = false; this._syncPages(); }
-            } else this._queueNavigationFit();
+            } else {
+                this._queueNavigationFit();
+                this._queueSliderSnap();
+            }
         });
     }
 
@@ -183,7 +190,19 @@ export class Card {
         this._tabStrip = row('ubuntu-island-tab-strip');
         this._tabStrip.x_expand = true;
         this._tabStrip.layout_manager.homogeneous = true;
-        navigation.add_child(this._tabStrip);
+        // One shared marker glides between tabs. It lives in a pass-through
+        // overlay so it never takes a slot in the homogeneous strip; the
+        // strip alone determines the overlay's size.
+        this._tabWrapper = new St.Widget({layout_manager: new Clutter.BinLayout(), x_expand: true});
+        this._tabWrapper.add_child(this._tabStrip);
+        this._tabSlider = new St.Widget({style_class: 'ubuntu-island-tab-slider', reactive: false,
+            can_focus: false, track_hover: false, opacity: 0,
+            x_align: Clutter.ActorAlign.START, y_align: Clutter.ActorAlign.END});
+        this._tabWrapper.add_child(this._tabSlider);
+        navigation.add_child(this._tabWrapper);
+        const queueSnap = () => this._queueSliderSnap();
+        this._tabWrapper.connect('notify::allocation', queueSnap);
+        this._tabSlider.connect('notify::allocation', queueSnap);
         const items = [
             ['media', 'audio-x-generic-symbolic', 'Now playing'],
             ['system', 'org.gnome.SystemMonitor-symbolic', 'System'],
@@ -206,12 +225,18 @@ export class Card {
             glyphActor.x_align = Clutter.ActorAlign.CENTER;
             glyphActor.y_align = Clutter.ActorAlign.CENTER;
             face.add_child(glyphActor);
-            face.add_child(new St.Widget({style_class: 'ubuntu-island-tab-marker',
-                x_expand: true, y_expand: true, y_align: Clutter.ActorAlign.END}));
+            // Centred at its CSS width (16px); FILL would stretch it to the face.
+            const marker = new St.Widget({style_class: 'ubuntu-island-tab-marker',
+                x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.END});
+            face.add_child(marker);
             tab.set_child(face);
             tab.accessible_role = Atk.Role.PAGE_TAB;
             this._tabStrip.add_child(tab);
             this._tabs.set(id, tab);
+            this._tabMarkers.set(id, marker);
+            // Tab visibility changes move siblings without resizing the strip.
+            tab.connect('notify::allocation', queueSnap);
+            marker.connect('notify::allocation', queueSnap);
         }
         this._pageCaption = label('', 'ubuntu-island-source ubuntu-island-navigation-caption');
         navigation.add_child(this._pageCaption);
@@ -266,16 +291,96 @@ export class Card {
         // A fixed-tab choice should not be overridden by a player appearing later.
         this._manualPage = true;
         // selectPage already preserves the last available page if the target is absent.
-        this.selectPage(preferred);
+        // Opening snaps the tab marker; only user page changes glide.
+        this.selectPage(preferred, false);
     }
 
-    selectPage(id) {
+    selectPage(id, animate = true) {
         if (!this._pages.get(id)?.available) return;
         this.quickAskOpen = false;
         this._manualPage = true;
         this._page = id;
-        this._syncPages();
+        this._syncPages(animate);
         this._actions.relayout?.();
+    }
+
+    // Tab marker glide: 75% of the opening duration, honouring both the
+    // extension and desktop reduced-motion settings (see Island._animationMs).
+    _sliderMs() {
+        if (this._settings.get_boolean('disable-animations')) return 0;
+        try {
+            if (!St.Settings.get().enable_animations) return 0;
+        } catch {
+            // St.Settings unavailable; the user preference still applies.
+        }
+        return Math.round(0.75 * Math.max(0, Math.min(500, this._settings.get_int('animation-duration'))));
+    }
+
+    // Slider translation that puts it over the selected tab's own marker, from
+    // actual allocations in wrapper coordinates (independent of the card's
+    // expansion scale). Null when no selected tab is visible.
+    _sliderTarget() {
+        const slider = this._tabSlider, wrapper = this._tabWrapper;
+        const tab = this._tabs.get(this._page), marker = this._tabMarkers.get(this._page);
+        if (!tab || !marker || this.quickAskOpen || !this.actor.mapped || !this._navigation.visible ||
+            !tab.visible || !wrapper.mapped) return null;
+        const box = marker.get_allocation_box();
+        const width = box.get_width(), height = box.get_height();
+        if (width <= 0 || height <= 0) return null;
+        let x = box.x1, y = box.y1, actor = marker.get_parent();
+        for (; actor && actor !== wrapper; actor = actor.get_parent()) {
+            const parentBox = actor.get_allocation_box();
+            x += parentBox.x1; y += parentBox.y1;
+        }
+        if (actor !== wrapper) return null;
+        const own = slider.get_allocation_box();
+        const sliderWidth = own.get_width() || slider.get_preferred_width(-1)[1];
+        const sliderHeight = own.get_height() || slider.get_preferred_height(-1)[1];
+        return [Math.round(x + (width - sliderWidth) / 2 - own.x1),
+            Math.round(y + height - sliderHeight - own.y1)];
+    }
+
+    _placeSlider(animate = false) {
+        const slider = this._tabSlider;
+        if (!slider) return;
+        const target = this._sliderTarget();
+        if (!target) { this._resetSlider(); return; }
+        const [x, y] = target;
+        const duration = animate && this._sliderPlaced ? this._sliderMs() : 0;
+        if (duration > 0) {
+            // Easing from the current translation keeps interruptions continuous.
+            slider.ease({translation_x: x, translation_y: y, duration,
+                mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+        } else if (!(slider.get_transition('translation-x') && this._sliderGoal?.[0] === x && this._sliderGoal?.[1] === y)) {
+            // A layout snap to the goal of a running glide lets it finish.
+            slider.remove_all_transitions();
+            slider.translation_x = x;
+            slider.translation_y = y;
+        }
+        this._sliderGoal = target;
+        this._sliderPlaced = true;
+        slider.opacity = 255;
+    }
+
+    _resetSlider() {
+        if (this._sliderSnap) GLib.Source.remove(this._sliderSnap);
+        this._sliderSnap = 0;
+        if (!this._tabSlider) return;
+        this._tabSlider.remove_all_transitions();
+        this._tabSlider.opacity = 0;
+        this._sliderPlaced = false;
+        this._sliderGoal = null;
+    }
+
+    _queueSliderSnap() {
+        if (this._sliderSnap || !this._tabSlider || !this.actor.mapped) return;
+        // Allocation notifications arrive during layout: coalesce them and
+        // place the slider afterwards. Translation never queues a relayout.
+        this._sliderSnap = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._sliderSnap = 0;
+            this._placeSlider(false);
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     cyclePage(direction = 1) {
@@ -287,7 +392,7 @@ export class Card {
         if (this.actor.mapped) this._tabs.get(id).grab_key_focus();
     }
 
-    _syncPages() {
+    _syncPages(animateSlider = false) {
         if (!this._pages.get(this._page)?.available)
             this._page = [...this._pages].find(([, page]) => page.available)?.[0] ?? null;
         this._scroll.visible = !this.quickAskOpen && !['agents', 'calendar'].includes(this._page);
@@ -323,6 +428,12 @@ export class Card {
         if (this._page !== 'media' && this._mediaTools?.mode)
             this._mediaTools.show(null);
         this._actions.pageChanged?.(this._page);
+        // Glide only for user page changes from an already placed marker.
+        const glide = animateSlider && this._sliderPlaced;
+        this._placeSlider(glide);
+        // Layout may still be pending (tabs shown or hidden, quick ask closed);
+        // re-snap once it settles. A glide is left to finish.
+        if (!glide) this._queueSliderSnap();
     }
 
     showQuickAsk() {

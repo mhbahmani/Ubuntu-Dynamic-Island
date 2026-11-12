@@ -7,6 +7,7 @@ import {commutePreferences} from './preferences/commute-prefs.js';
 import {migrateArrowStyle, migrateOfflineMode, OFFLINE_MODES} from './services/notch-model.js';
 import {notchPreview, notchStyles} from './preferences/notch-prefs.js';
 import {weatherPreferences} from './preferences/weather-prefs.js';
+import {THEMES, THEME_IDS, themeSwatchCss} from './services/themes.js';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
 import Gtk from 'gi://Gtk';
@@ -17,7 +18,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         // Latin keeps the established UI face; Persian falls through to the
         // user's Vazir/Vazirmatn font instead of the system's Arabic fallback.
         const fonts = new Gtk.CssProvider();
-        fonts.load_from_data('.ubuntu-island-preferences { font-family: "Noto Sans", "Vazir", "Vazirmatn", "DejaVu Sans"; } .ubuntu-island-notch-chip { min-width: 16px; padding-left: 6px; padding-right: 6px; }', -1);
+        fonts.load_from_data('.ubuntu-island-preferences { font-family: "Noto Sans", "Vazir", "Vazirmatn", "DejaVu Sans"; } .ubuntu-island-notch-chip { min-width: 16px; padding-left: 6px; padding-right: 6px; }\n' + themeSwatchCss(), -1);
         window.add_css_class('ubuntu-island-preferences');
         Gtk.StyleContext.add_provider_for_display(window.get_display(), fonts, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
         window.connect('close-request', () => {
@@ -45,10 +46,31 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         const openingId = settings.connect('changed::expand-tab', syncOpening);
         window.connect('close-request', () => { settings.disconnect(openingId); return false; });
         appearance.add(opening);
-        const themes = ['graphite', 'ocean', 'forest', 'ember'];
+        const themes = THEME_IDS;
         const theme = new Adw.ComboRow({title: 'Color theme',
-            model: Gtk.StringList.new(['Graphite', 'Ocean', 'Forest', 'Ember']),
+            model: Gtk.StringList.new(themes.map(id => THEMES[id].label)),
             selected: Math.max(0, themes.indexOf(settings.get_string('color-theme')))});
+        // Each option previews the theme: tint gradient chip, accent dot, name.
+        const themeFactory = new Gtk.SignalListItemFactory();
+        themeFactory.connect('setup', (_factory, item) => {
+            const row = new Gtk.Box({spacing: 10});
+            // hexpand: false stops the dot's expand flag propagating, so every
+            // chip keeps the same width whatever the theme name's length.
+            const swatch = new Gtk.Box({css_classes: ['ubuntu-island-theme-swatch'], valign: Gtk.Align.CENTER,
+                hexpand: false, width_request: 40});
+            swatch.append(new Gtk.Box({css_classes: ['ubuntu-island-theme-swatch-accent'],
+                hexpand: true, halign: Gtk.Align.END, valign: Gtk.Align.CENTER}));
+            row.append(swatch);
+            row.append(new Gtk.Label({xalign: 0, hexpand: true}));
+            item.set_child(row);
+        });
+        themeFactory.connect('bind', (_factory, item) => {
+            const id = themes[item.get_position()] ?? themes[0];
+            const swatch = item.get_child().get_first_child();
+            swatch.set_css_classes(['ubuntu-island-theme-swatch', `ubuntu-island-theme-swatch-${id}`]);
+            swatch.get_next_sibling().label = THEMES[id].label;
+        });
+        theme.factory = themeFactory;
         theme.connect('notify::selected', () => settings.set_string('color-theme', themes[theme.selected]));
         const themeChanged = settings.connect('changed::color-theme', () => {
             theme.selected = Math.max(0, themes.indexOf(settings.get_string('color-theme')));

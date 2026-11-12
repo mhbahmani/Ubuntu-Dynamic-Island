@@ -67,6 +67,11 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
   tabs. Current direction is matte graphite, 98–99% opacity, Noto Sans, and
   restrained vermilion controls. Do not restore the old brown palette or clear glass.
 - Theme and background opacity preferences apply live. Keep text fully opaque.
+- Palettes live in `services/themes.js`: each theme is a dark tint gradient and
+  one accent; all other tokens are derived. Add themes at the end of the list (saved
+  indices), add the schema choice, then run `node scripts/theme-css.mjs` to regenerate the
+  stylesheet block. Tests enforce contrast (text ≥ 7:1, secondary/accent ≥ 4.5:1,
+  button text ≥ 4.5:1) and that the generated CSS is current. Never hand-edit it.
 - Charts use the existing metrics sampler and four 60-sample typed buffers.
   Never add a per-frame animation, independent polling, or hidden repaint loop.
   CPU/memory use fixed percentage scales; network shares an automatic scale,
@@ -88,8 +93,13 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
   verify its allocated width at narrow card widths and enlarged text. At larger
   fonts, move the percentage below only when necessary. Measure against available
   card width, not an already oversized child; verify percentage bounds too.
-- Opening focuses the surface; Tab then enters the controls. Selected tabs use
-  a neutral indicator, never an orange focus/selection ring.
+- Opening focuses the surface; Tab then enters the controls. The selected tab
+  shows its theme accent (icon colour and one shared `ubuntu-island-tab-slider`
+  marker that glides between tabs at 75% of the opening duration, instant with
+  reduced motion, snapped on layout changes). Per-tab markers are only for
+  keyboard focus. Never show selection as a ring or button shadow.
+- Focus rings, headings and the navigation bar use theme tokens (`focus`,
+  `heading`, `bottom`/`accent`) from `services/themes.js`; never hardcode them.
 - Opacity supports 0–100% and only sets the tint layer's alpha (never the
   container). Handle zero alpha without dividing by zero; matte tone sets blur
   strength and gradient flatness, never final alpha or the opacity range. Tab markers are separate actors,

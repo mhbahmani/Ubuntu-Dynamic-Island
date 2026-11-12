@@ -1,14 +1,7 @@
-// Fixed palettes keep preference values out of CSS interpolation. `top` and
-// `bottom` are the tint gradient, `edge` the hairline border tone. All four
-// stay dark and slightly desaturated so text reads on any wallpaper.
-export const THEMES = Object.freeze({
-    graphite: {top: [50, 52, 58], bottom: [27, 29, 34], edge: [232, 236, 246], accent: '#cc624d'},
-    ocean: {top: [33, 50, 69], bottom: [17, 27, 40], edge: [176, 206, 236], accent: '#7fb3d5'},
-    forest: {top: [37, 54, 47], bottom: [20, 32, 28], edge: [186, 222, 198], accent: '#8db596'},
-    ember: {top: [61, 45, 38], bottom: [33, 25, 22], edge: [245, 214, 196], accent: '#dd9b72'},
-});
+import {THEMES, DEFAULT_THEME} from './themes.js';
 
-export const themeAccent = theme => (THEMES[theme] ?? THEMES.graphite).accent;
+// Palettes live in themes.js; re-exported for existing importers.
+export {THEMES, THEME_IDS, themeAccent} from './themes.js';
 
 const percent = (value, fallback) =>
     Math.max(0, Math.min(100, Number.isFinite(value) ? value : fallback));
@@ -17,7 +10,7 @@ const percent = (value, fallback) =>
 // final tint alpha. Matte flattens the glossy gradient toward its midpoint as
 // part of the frosted treatment; it must never override transparency.
 export function surfaceStyle(theme, opacity, matte = 0) {
-    const palette = THEMES[theme] ?? THEMES.graphite;
+    const palette = THEMES[theme] ?? THEMES[DEFAULT_THEME];
     const alpha = percent(opacity, 98) / 100;
     const flatten = percent(matte, 0) / 100;
     const mean = palette.top.map((channel, index) => (channel + palette.bottom[index]) / 2);

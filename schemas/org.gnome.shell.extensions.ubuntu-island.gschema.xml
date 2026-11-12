@@ -4,7 +4,7 @@
           path="/org/gnome/shell/extensions/ubuntu-island/">
     <key name="color-theme" type="s">
       <default>'graphite'</default>
-      <choices><choice value="graphite"/><choice value="ocean"/><choice value="forest"/><choice value="ember"/></choices>
+      <choices><choice value="graphite"/><choice value="ocean"/><choice value="forest"/><choice value="ember"/><choice value="lagoon"/><choice value="amethyst"/><choice value="berry"/><choice value="midnight"/><choice value="aurora"/><choice value="sunset"/><choice value="mocha"/></choices>
       <summary>Color theme</summary>
     </key>
     <key name="surface-opacity" type="i">

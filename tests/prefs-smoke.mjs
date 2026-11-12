@@ -330,6 +330,17 @@ const theme = find(window, 'Color theme');
 const opacity = find(window, 'Background opacity');
 const matte = find(window, 'Matte tone');
 if (!theme || !opacity || !matte) throw new Error('Appearance controls are missing');
+if (!theme.factory) throw new Error('Theme list has no color previews');
+{
+    // The selected value renders through the swatch factory too.
+    const swatches = [];
+    const walk = widget => { for (let c = widget.get_first_child(); c; c = c.get_next_sibling()) {
+        if (c.has_css_class?.('ubuntu-island-theme-swatch')) swatches.push(c); walk(c); } };
+    walk(theme);
+    if (!swatches.some(s => s.has_css_class(`ubuntu-island-theme-swatch-${settings.get_string('color-theme')}`)))
+        throw new Error('Selected theme does not show its color preview');
+    if (swatches.some(s => s.hexpand)) throw new Error('Theme color previews stretch with the name length');
+}
 theme.selected = 1;
 if (settings.get_string('color-theme') !== 'ocean') throw new Error('Theme selection did not save');
 settings.set_string('color-theme', 'forest');
