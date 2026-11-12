@@ -359,7 +359,7 @@ try {
     if (error.code !== 'location-disabled') throw error;
 }
 // Accessible provider ordering persists and follows external settings changes.
-const moveBalad = tooltip(window, 'Move down: Balad (experimental)');
+const moveBalad = tooltip(window, 'Move down: Balad');
 if (!moveBalad) throw new Error('Provider priority controls missing');
 moveBalad.emit('clicked');
 if (settings.get_strv('commute-provider-order')[1] !== 'balad') throw new Error('Provider order did not save');

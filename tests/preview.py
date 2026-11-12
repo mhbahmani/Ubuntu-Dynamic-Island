@@ -30,6 +30,7 @@ def main():
     parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], default='icon', help='Initial offline notch design; can also change it in preferences')
     parser.add_argument('--check-full', action='store_true', help='Check populated notch, all tabs and sample device controls (headless sample mode)')
     parser.add_argument('--check-calendar', action='store_true', help='Check calendar modes, keyboard access and scaled layouts (headless)')
+    parser.add_argument('--check-commute', action='store_true', help='Check provider credits and traffic tooltips (headless samples)')
     parser.add_argument('--check-motion', action='store_true', help='Check centered expansion, Quick Ask and interrupted motion (sample mode)')
     parser.add_argument('--check-input', action='store_true', help='Exercise dismissal, reopening and the top-bar menu')
     parser.add_argument('--live', action='store_true', help='Use live weather, routing and system metrics; media/audio/Bluetooth remain simulated')
@@ -41,6 +42,8 @@ def main():
     parser.add_argument('--calendar-date', type=date.fromisoformat, metavar='YYYY-MM-DD', help='Select a civil date in the calendar preview')
     parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
     args = parser.parse_args()
+    if args.check_commute and (not args.headless or args.live or args.check_full or args.check_calendar or args.check_input or args.check_motion):
+        parser.error('--check-commute requires headless sample mode without other checks')
     if args.edit_route and args.tab == 'notch':
         args.tab = 'commute'
     if args.check_full and (not args.headless or args.live or args.tab != 'notch' or args.check_input):
@@ -108,6 +111,7 @@ def main():
                        GSETTINGS_BACKEND='keyfile', ISLAND_PREVIEW_OUTPUT=str(root),
                        ISLAND_PREVIEW_CHECK_FULL='1' if args.check_full else '0',
                        ISLAND_PREVIEW_CHECK_CALENDAR='1' if args.check_calendar else '0',
+                       ISLAND_PREVIEW_CHECK_COMMUTE='1' if args.check_commute else '0',
                        ISLAND_PREVIEW_CHECK_MOTION='1' if args.check_motion else '0',
                        ISLAND_PREVIEW_CARD_WIDTH=str(args.card_width), ISLAND_PREVIEW_TEXT_SCALE=str(args.text_scale),
                        ISLAND_PREVIEW_CALENDAR_DATE=args.calendar_date.isoformat() if args.calendar_date else '',
@@ -157,6 +161,8 @@ def main():
     if args.check_full and ('[Island Preview] FULL PASS' not in output or '[Island Preview] FULL FAIL' in output):
         return 1
     if args.check_calendar and ('[Island Preview] CALENDAR PASS' not in output or '[Island Preview] CALENDAR FAIL' in output):
+        return 1
+    if args.check_commute and ('[Island Preview] COMMUTE PASS' not in output or '[Island Preview] COMMUTE FAIL' in output):
         return 1
     if args.check_motion and ('[Island Preview] MOTION PASS' not in output or '[Island Preview] MOTION FAIL' in output):
         return 1

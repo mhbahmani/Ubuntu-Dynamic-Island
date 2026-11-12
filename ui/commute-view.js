@@ -4,8 +4,9 @@ import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 import Atk from 'gi://Atk';
 import {label, row, column, icon, button, setEnabled} from './widgets.js';
+import {HoverTip} from './hover-tip.js';
 import {openLocationSettings} from '../services/commute-location.js';
-import {PROVIDERS, KEYLESS_PROVIDERS, PROVIDER_NAMES, ROUTE_APPS, routeLink, routeTitle, point} from '../services/commute-model.js';
+import {PROVIDERS, KEYLESS_PROVIDERS, PROVIDER_NAMES, PROVIDER_CREDITS, ROUTE_APPS, routeLink, routeTitle, point} from '../services/commute-model.js';
 
 function textButton(text, action, primary = false) {
     const control = new St.Button({label: text, can_focus: true, reactive: true, track_hover: true,
@@ -89,8 +90,12 @@ export class CommuteView {
         const feedback = row('ubuntu-island-commute-feedback');
         this.feedback = feedback;
         this.statusIcon = icon('dialog-information-symbolic', 12);
-        this.statusIcon.y_align = Clutter.ActorAlign.START;
-        feedback.add_child(this.statusIcon);
+        this.statusInfo = new St.Button({child: this.statusIcon, track_hover: true,
+            style_class: 'ubuntu-island-commute-info', y_align: Clutter.ActorAlign.START});
+        this.statusTip = new HoverTip(content);
+        this.statusTip.addTarget(this.statusInfo, () => this.unverified ? 'Live traffic freshness not confirmed' : '');
+        this.statusInfo.connect('clicked', () => this.statusInfo.grab_key_focus());
+        feedback.add_child(this.statusInfo);
         const messages = column('ubuntu-island-commute-messages');
         this.messages = messages;
         messages.x_expand = true;
@@ -124,7 +129,13 @@ export class CommuteView {
         this.credit.x_expand = true;
         this.credit.clutter_text.line_wrap = true;
         this.credit.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
-        source.add_child(this.credit);
+        this.creditLink = new St.Button({child: this.credit, reactive: true, can_focus: true, track_hover: true,
+            style_class: 'ubuntu-island-commute-credit-link', x_expand: true});
+        this.creditLink.connect('clicked', () => {
+            const url = PROVIDER_CREDITS[this.state.data?.provider]?.url;
+            if (url) Gio.AppInfo.launch_default_for_uri(url, null);
+        });
+        source.add_child(this.creditLink);
         this.controls.add_child(source);
         this.open = textButton('Open route', () => this._openRoute(), true);
         const openFace = row('ubuntu-island-commute-open-face');
@@ -189,14 +200,14 @@ export class CommuteView {
         this.summary.vertical = needed > width;
         this.driving.visible = !this.summary.vertical;
         this.arrivalBox.x_align = this.summary.vertical ? Clutter.ActorAlign.START : Clutter.ActorAlign.END;
-        const messageWidth = this.status.get_preferred_width(-1)[1]
+        const messageWidth = (this.status.visible ? this.status.get_preferred_width(-1)[1] : 0)
             + (this.freshness.visible ? this.freshness.get_preferred_width(-1)[1]
-                + this.metadataDivider.get_preferred_width(-1)[1]
-                + 2 * this.messages.get_theme_node().get_length('spacing') : 0);
+                + (this.status.visible ? this.metadataDivider.get_preferred_width(-1)[1]
+                    + 2 * this.messages.get_theme_node().get_length('spacing') : 0) : 0);
         const messageSpace = width - this.feedback.get_theme_node().get_horizontal_padding()
-            - this.statusIcon.get_preferred_width(-1)[1] - this.feedback.get_theme_node().get_length('spacing');
+            - this.statusInfo.get_preferred_width(-1)[1] - this.feedback.get_theme_node().get_length('spacing');
         this.messages.vertical = messageWidth > messageSpace;
-        this.metadataDivider.visible = this.freshness.visible && !this.messages.vertical;
+        this.metadataDivider.visible = this.status.visible && this.freshness.visible && !this.messages.vertical;
     }
 
     render(state) {
@@ -229,13 +240,20 @@ export class CommuteView {
             : route ? 'Your driving estimate will appear here.' : 'Choose your start and destination in Settings.';
         if (locationFailure) this.status.text = state.errorCode === 'location-disabled'
             ? 'Location Services are off.' : 'Location unavailable. Select a start in Settings.';
+        this.unverified = Boolean(data?.trafficUnverified && !loading && !state.error && !locationFailure);
+        this.status.visible = !this.unverified;
+        this.statusInfo.reactive = this.statusInfo.can_focus = this.unverified;
+        this.statusInfo.accessible_name = this.unverified ? 'Live traffic freshness not confirmed' : '';
+        if (!this.unverified) this.statusInfo.accessible_description = '';
+        this.statusInfo.accessible_role = this.unverified ? Atk.Role.PUSH_BUTTON : Atk.Role.REDUNDANT_OBJECT;
+        this.statusTip.refresh();
         this.freshness.text = [state.sample ? 'Sample' : '', state.stale && !state.error ? 'Saved estimate' : '',
             data ? age === 0 ? 'Updated just now' : `Updated ${age} min ago` : '',
             data?.fallback ? 'Backup source' : ''].filter(Boolean).join(' · ');
         this.freshness.visible = Boolean(this.freshness.text);
         this.status.accessible_name = [data?.trafficUnverified && !state.error && !loading
             ? 'Traffic freshness unverified' : this.status.text, this.freshness.text].filter(Boolean).join('. ');
-        this.statusIcon.icon_name = state.error || state.stale ? 'dialog-warning-symbolic'
+        this.statusIcon.icon_name = state.error || state.stale || this.unverified ? 'dialog-warning-symbolic'
             : loading ? 'view-refresh-symbolic' : 'dialog-information-symbolic';
         this.statusIcon.set_style_class_name(`ubuntu-island-commute-status-icon${state.error || state.stale ? ' ubuntu-island-commute-warning' : ''}`);
         this.statusIcon.accessible_role = Atk.Role.REDUNDANT_OBJECT;
@@ -269,7 +287,9 @@ export class CommuteView {
         }
         this.fallback.label = `Backup providers: ${state.allowFallback !== false ? 'On' : 'Off'}`;
         this.fallback.accessible_name = `${this.fallback.label}. ${state.allowFallback !== false ? 'Disable to use only the selected provider' : 'Enable automatic fallback if the selected provider fails'}`;
-        this.credit.text = `© OpenStreetMap${data?.provider === 'neshan' ? ' / Neshan' : data?.provider === 'mapbox' ? ' / Mapbox' : ''}`;
+        this.credit.text = PROVIDER_CREDITS[data?.provider]?.text || '';
+        this.creditLink.visible = Boolean(this.credit.text);
+        this.creditLink.accessible_name = `${this.credit.text}. Open attribution details`;
         this.credit.accessible_name = this.credit.text;
         this.provider.child.ellipsize = Pango.EllipsizeMode.END;
         this.provider.child.x_align = Clutter.ActorAlign.START;

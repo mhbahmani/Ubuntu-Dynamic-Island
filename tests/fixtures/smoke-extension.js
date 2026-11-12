@@ -594,7 +594,7 @@ export default class Smoke extends UbuntuIsland {
         this._card.selectPage('commute');
         await delay(150);
         assert(this._card._commuteView.eta.text === '32' && this._card._commuteView.unit.text === 'min', 'Commute estimate failed to render');
-        assert(this._card._commuteView.status.accessible_name.includes('Traffic freshness unverified'), 'Commute misrepresented traffic');
+        assert(!this._card._commuteView.status.visible && this._card._commuteView.statusInfo.accessible_name === 'Live traffic freshness not confirmed', 'Commute traffic icon lost its explanation');
         assert(this._card._commuteView.name.get_parent().get_n_children() === 2, 'Redundant Commute heading controls remain');
         await this._capture('commute');
         const commute = this._card._commuteView;

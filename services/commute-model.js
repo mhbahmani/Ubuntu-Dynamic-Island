@@ -1,5 +1,16 @@
 export const PROVIDERS = ['balad', 'mapbox', 'neshan', 'ors', 'graphhopper', 'fossgis', 'osrm'];
-export const PROVIDER_NAMES = {balad: 'Balad (experimental)', neshan: 'Neshan', mapbox: 'Mapbox', ors: 'openrouteservice', graphhopper: 'GraphHopper', fossgis: 'FOSSGIS / OSRM', osrm: 'OSRM demo'};
+export const PROVIDER_NAMES = {balad: 'Balad', neshan: 'Neshan', mapbox: 'Mapbox', ors: 'openrouteservice', graphhopper: 'GraphHopper', fossgis: 'FOSSGIS / OSRM', osrm: 'OSRM demo'};
+// The route provider and its underlying map data are separate credits. The
+// preferences map uses its own OSM tiles regardless of the route provider.
+export const PROVIDER_CREDITS = {
+    balad: {text: '© Balad · © OpenStreetMap', url: 'https://balad.ir/'},
+    neshan: {text: '© Neshan · © OpenStreetMap', url: 'https://neshan.org/'},
+    mapbox: {text: '© Mapbox · © OpenStreetMap', url: 'https://docs.mapbox.com/help/dive-deeper/attribution/'},
+    ors: {text: 'openrouteservice · © OpenStreetMap', url: 'https://openrouteservice.org/terms-of-service/'},
+    graphhopper: {text: 'GraphHopper · © OpenStreetMap', url: 'https://www.graphhopper.com/attribution/'},
+    fossgis: {text: 'FOSSGIS / OSRM · © OpenStreetMap', url: 'https://routing.openstreetmap.de/'},
+    osrm: {text: 'OSRM · © OpenStreetMap', url: 'https://www.openstreetmap.org/copyright'},
+};
 export const ROUTE_APPS = {google: 'Google Maps', balad: 'Balad', neshan: 'Neshan'};
 
 // Public browser links, independent of the service used to calculate the ETA.

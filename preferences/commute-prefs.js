@@ -10,7 +10,7 @@ import {validateRoutingKey} from '../services/commute-validation.js';
 
 export function commutePreferences(settings, window, dependencies = {}) {
     const group = new Adw.PreferencesGroup({title: 'Driving routes',
-        description: 'Opt in to send endpoints to routing services while the Commute tab or its notch indicator is visible. OSRM estimates exclude traffic; Balad is an experimental keyless source. Map setup uses OpenStreetMap tiles and address search.'});
+        description: 'Opt in to send endpoints to routing services while the Commute tab or its notch indicator is visible. OSRM estimates exclude traffic; Balad uses an unofficial keyless integration. Map setup uses OpenStreetMap tiles and address search.'});
     const enabled = new Adw.SwitchRow({title: 'Enable Commute', subtitle: 'Applies after disabling and re-enabling the extension'});
     settings.bind('enable-commute', enabled, 'active', Gio.SettingsBindFlags.DEFAULT); group.add(enabled);
     const interval = new Adw.SpinRow({title: 'ETA refresh interval', subtitle: 'Minutes · minimum 10 · only while visible',
@@ -19,7 +19,7 @@ export function commutePreferences(settings, window, dependencies = {}) {
     const providers = ['auto', 'fossgis', 'osrm', 'ors', 'graphhopper', 'neshan', 'mapbox', 'balad'];
     const provider = new Adw.ComboRow({title: 'Preferred routing source', model: Gtk.StringList.new([
         'Automatic — use provider priority', 'FOSSGIS — public, no key', 'OSRM demo — public, no key',
-        'openrouteservice — free-plan key', 'GraphHopper — free-plan key', 'Neshan — traffic, key required', 'Mapbox — traffic-aware, free-plan token', 'Balad — experimental, no key'])});
+        'openrouteservice — free-plan key', 'GraphHopper — free-plan key', 'Neshan — traffic, key required', 'Mapbox — traffic-aware, free-plan token', 'Balad — no key'])});
     provider.subtitle = 'Traffic-aware ETA: configure Neshan or Mapbox. Public OSRM has no live traffic.';
     const syncProvider = () => { provider.selected = Math.max(0, providers.indexOf(settings.get_string('commute-provider'))); };
     syncProvider(); provider.connect('notify::selected', () => settings.set_string('commute-provider', providers[provider.selected]));

@@ -118,13 +118,14 @@ export default class Preview extends UbuntuIsland {
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_INPUT') === '1') this._checkInput().catch(error => console.error(`[Island Preview] INPUT FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') this._checkFullPreview().catch(error => console.error(`[Island Preview] FULL FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_CALENDAR') === '1') this._checkCalendar().catch(error => console.error(`[Island Preview] CALENDAR FAIL: ${error.message}`));
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_COMMUTE') === '1') this._checkCommute().catch(error => console.error(`[Island Preview] COMMUTE FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_MOTION') === '1')
                 import('./motion-check.js').then(module => module.checkMotion(this))
                     .catch(error => console.error(`[Island Preview] MOTION FAIL: ${error.message}: ${error.stack}`));
             const monitor = Main.layoutManager.primaryMonitor;
             const uiScale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             console.log(`[Island Preview] READY: ${monitor.width}x${monitor.height}, ${uiScale * 100}% UI; all modules enabled; ${tab === 'notch' ? 'collapsed notch' : tab} visible. Device controls use sample data.`);
-            if (['FULL', 'CALENDAR', 'MOTION'].some(check => GLib.getenv(`ISLAND_PREVIEW_CHECK_${check}`) === '1')) return GLib.SOURCE_REMOVE;
+            if (['FULL', 'CALENDAR', 'COMMUTE', 'MOTION'].some(check => GLib.getenv(`ISLAND_PREVIEW_CHECK_${check}`) === '1')) return GLib.SOURCE_REMOVE;
             this._captureTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 20000 : GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1' || preferences ? 8000 : 1500, () => {
                 this._captureTimer = 0;
                 this._capture().catch(error => console.warn(`[Island Preview] Screenshot: ${error.message}`));
@@ -359,6 +360,64 @@ export default class Preview extends UbuntuIsland {
             this._settings.set_boolean('disable-animations', animations);
             this._settings.set_boolean('pill-show-network', true);
             this._renderSystem(state);
+        }
+    }
+
+    async _checkCommute() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT,ms,() => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const assert = (condition,message) => { if (!condition) throw new Error(message); };
+        this._card.selectPage('commute'); this._island.expand(); await delay(500);
+        const view = this._card._commuteView, ready = this._states.commute;
+        assert(ready.data, 'Sample route missing');
+        const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        const context = St.ThemeContext.get_for_stage(global.stage), scale = context.scale_factor;
+        const text = new Gio.Settings({schema_id:'org.gnome.desktop.interface'}), font = text.get_double('text-scaling-factor');
+        const width = this._settings.get_int('expanded-width');
+        try {
+            for (const [provider,name] of [['balad','Balad'],['mapbox','Mapbox'],['neshan','Neshan'],['ors','openrouteservice'],['graphhopper','GraphHopper'],['fossgis','FOSSGIS'],['osrm','OSRM']]) {
+                view.render({...ready,preferred:'balad',data:{...ready.data,provider,fallback:provider!=='balad',trafficUnverified:provider==='balad'}});
+                assert(view.credit.text.includes(name) && view.credit.text.includes('OpenStreetMap') && view.creditLink.visible,
+                    'Credit does not follow the actual provider');
+            }
+            view.render({...ready,data:null}); assert(!view.creditLink.visible, 'No estimate has a fabricated credit');
+            view.render(ready); await delay(100);
+            assert(!view.status.visible && !view.metadataDivider.visible && view.statusInfo.can_focus, 'Unverified traffic is not icon-only');
+            const [x,y] = view.statusInfo.get_transformed_position(), [w,h] = view.statusInfo.get_transformed_size();
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2); await delay(100);
+            assert(view.statusTip.tip.visible && view.statusTip.tip.text === 'Live traffic freshness not confirmed', 'Traffic hover explanation missing');
+            await this._capture('commute-traffic-tooltip');
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(),50,500); await delay(80);
+            assert(!view.statusTip.tip.visible, 'Traffic tooltip survived pointer leave');
+            view.statusInfo.grab_key_focus(); await delay(80);
+            assert(view.statusTip.tip.visible, 'Traffic tooltip is inaccessible from the keyboard');
+            view.render({...ready,status:'loading'});
+            assert(view.status.visible && !view.statusTip.tip.visible, 'Traffic tooltip hid the loading state');
+            view.render({...ready,status:'error',stale:true,error:'Routing unavailable'});
+            assert(view.status.visible && view.status.text.includes('Routing unavailable'), 'Traffic tooltip hid the error');
+            this._island.actor.grab_key_focus(); view.render(ready);
+            for (const uiScale of [1,2]) for (const typeScale of [1,2]) for (const cardWidth of [380,440]) {
+                context.scale_factor=uiScale; text.set_double('text-scaling-factor',typeScale);
+                this._settings.set_int('expanded-width',cardWidth); await delay(150);
+                const scroll = this._card._scroll, [left] = scroll.get_transformed_position(), [available] = scroll.get_transformed_size();
+                if (typeScale === 1) {
+                    const adjustment = scroll.get_vscroll_bar().get_adjustment();
+                    assert(adjustment.upper-adjustment.lower <= adjustment.page_size+1, 'Default Commute requires scrolling');
+                }
+                const [cx] = view.credit.get_transformed_position(), [cw] = view.credit.get_transformed_size();
+                assert(cx >= left && cx+cw <= left+available+1, 'Attribution overflows the card');
+                view.statusInfo.grab_key_focus(); await delay(100);
+                const tip = view.statusTip.tip, [tx,ty] = tip.get_transformed_position(), [tw,th] = tip.get_transformed_size();
+                const monitor = Main.layoutManager.primaryMonitor;
+                assert(tip.visible && tx >= monitor.x && ty >= monitor.y && tx+tw <= monitor.x+monitor.width && ty+th <= monitor.y+monitor.height,
+                    'Traffic popup exceeds the monitor');
+                this._island.actor.grab_key_focus();
+            }
+            view.statusInfo.grab_key_focus(); this._card.selectPage('media'); await delay(100);
+            assert(!view.statusTip.tip.visible, 'Hidden Commute retains tooltip');
+            console.log('[Island Preview] COMMUTE PASS: actual provider credits, hover/focus explanation, error/loading states, narrow/scaled text and hidden cleanup');
+        } finally {
+            context.scale_factor=scale; text.set_double('text-scaling-factor',font); this._settings.set_int('expanded-width',width);
+            view.render(ready);
         }
     }
 
