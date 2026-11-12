@@ -3,7 +3,8 @@ import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
 import {column, row, label} from './widgets.js';
 import {fullDate, primaryCalendar, todayDay} from '../services/calendar-model.js';
-import {eventsForDay} from '../services/calendar-events-model.js';
+import {eventsForDay, calendarColor} from '../services/calendar-events-model.js';
+import {themeAccent} from '../services/appearance.js';
 import {CALENDAR_MESSAGES} from '../services/calendar-events.js';
 
 const wrapped = (text, css = 'ubuntu-island-calendar-event-title') => {
@@ -38,7 +39,7 @@ export class CalendarAgenda {
         this.list = column('ubuntu-island-calendar-event-list'); this.content.add_child(this.list);
         this.message = wrapped('', 'ubuntu-island-calendar-event-meta'); this.content.add_child(this.message);
     }
-    update(snapshot, day, primary) {
+    update(snapshot, day, primary, theme = 'graphite') {
         this.day = day;
         this.heading.text = fullDate(day,primaryCalendar(primary),'long');
         const direction = primary === 'gregorian' ? Clutter.TextDirection.LTR : Clutter.TextDirection.RTL;
@@ -56,16 +57,26 @@ export class CalendarAgenda {
             let item = this.rows.get(event.id);
             if (!item) {
                 const control = new St.Button({style_class:'ubuntu-island-calendar-event',reactive:true,can_focus:true,track_hover:true,x_expand:true});
-                const face = column(); face.x_expand = true; face.x_align = Clutter.ActorAlign.FILL; control.set_child(face);
+                const card = row('ubuntu-island-calendar-event-card');
+                card.x_expand = true; card.x_align = Clutter.ActorAlign.FILL;
+                card.set_text_direction(Clutter.TextDirection.LTR);
+                control.set_child(card);
+                const accent = new St.Widget({style_class:'ubuntu-island-calendar-event-accent', y_expand:true});
+                card.add_child(accent);
+                const face = column(); face.x_expand = true; card.add_child(face);
                 const title = wrapped(''), time = wrapped('','ubuntu-island-calendar-event-meta');
                 face.add_child(title); face.add_child(time);
-                item = {control,title,time,event}; this.rows.set(event.id,item); this.list.add_child(control);
+                item = {control,title,time,accent,event}; this.rows.set(event.id,item); this.list.add_child(control);
                 control.connect('clicked', () => this._openCalendar());
             }
             item.event = event; item.title.text = event.title || 'Untitled event';
             item.time.text = eventTime(event);
-            const source = snapshot.sources?.find(source => source.uid === event.sourceUid)?.name;
-            const detail = [source,event.location].filter(Boolean).join(' · ');
+            const source = snapshot.sources?.find(source => source.uid === event.sourceUid);
+            const color = calendarColor(source?.color) || themeAccent(theme);
+            if (item.color !== color) {
+                item.accent.set_style(`background-color: ${color};`); item.color = color;
+            }
+            const detail = [source?.name,event.location].filter(Boolean).join(' · ');
             item.control.accessible_name = `${item.title.text}, ${eventDateTime(event,primaryCalendar(primary))}, ${detail}. Open in Calendar`;
         }
         agenda.occurrences.forEach((event,index) => this.list.set_child_at_index(this.rows.get(event.id).control,index));

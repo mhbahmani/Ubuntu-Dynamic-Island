@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
 import {civilDay, numericDate} from '../services/calendar-model.js';
 import {EVENT_LIMITS, normalizeOccurrences, validateMeetUri, localDayRange,
-    eventQueryRanges, eventsForDay, upcomingEvents} from '../services/calendar-events-model.js';
+    eventQueryRanges, eventsForDay, upcomingEvents, calendarColor} from '../services/calendar-events-model.js';
 
 const day = civilDay(2026, 11, 11);
 const now = localDayRange(day).startMs + 12 * 3600000;
@@ -166,4 +166,12 @@ test('native GJS model handles DST, Tehran time and skipped dates without option
             cwd: new URL('..', import.meta.url), env: {...process.env, TZ: timezone}, timeout: 10000, encoding: 'utf8'});
         assert.match(output, /Calendar event native checks passed/);
     }
+});
+
+
+test('calendar source colors normalize RGB hex and reject unsafe or missing specifications', () => {
+    assert.equal(calendarColor('#12aBcD'), '#12abcd');
+    assert.equal(calendarColor('#aB9'), '#aabb99');
+    for (const value of [null, undefined, 123, '', 'red', '#12345', '#12345678', '#000; padding: 99px', '#123456\n'])
+        assert.equal(calendarColor(value), null);
 });

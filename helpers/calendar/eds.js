@@ -4,7 +4,7 @@ import EData from 'gi://EDataServer?version=1.2';
 import ECal from 'gi://ECal?version=2.0';
 import ICal from 'gi://ICalGLib?version=3.0';
 import {builtinZone, timezoneIds, expandSeries} from './occurrences.js';
-import {normalizeOccurrences} from '../../services/calendar-events-model.js';
+import {normalizeOccurrences, calendarColor} from '../../services/calendar-events-model.js';
 
 const resultValue = result => Array.isArray(result) && typeof result[0] === 'boolean' ? result[1] : result;
 const call = (object, name, args, cancel) => new Promise((resolve, reject) => object[name](...args, cancel,
@@ -65,7 +65,9 @@ export class EDSReader {
                 account = parent.get_display_name();
             }
             return {uid:source.get_uid(), name:source.get_display_name().slice(0,128),
-                account:account.slice(0,128), enabled:this.registry.check_enabled(source)};
+                account:account.slice(0,128),
+                color:calendarColor(source.get_extension(EData.SOURCE_EXTENSION_CALENDAR).get_color()),
+                enabled:this.registry.check_enabled(source)};
         });
         return {sources, incomplete:all.length > 64};
     }

@@ -80,7 +80,7 @@ export class CalendarView {
             this.grid.add_child(control); return cell;
         });
         this.eventSnapshot = {status:'disabled',occurrences:[],coverage:[],sources:[],incomplete:true};
-        const changed = ['calendar-primary', 'calendar-events-enabled', 'calendar-event-sources'].map(key => settings.connect(`changed::${key}`, () => {
+        const changed = ['calendar-primary', 'calendar-events-enabled', 'calendar-event-sources', 'color-theme'].map(key => settings.connect(`changed::${key}`, () => {
             this.primary = settings.get_string('calendar-primary');
             this.render(); this.actions.relayout?.();
         }));
@@ -209,7 +209,7 @@ export class CalendarView {
         if (!configured) this.pendingEvent = null;
         this.agenda.update(configured ? snapshot : {status:'ready', occurrences:[],
             coverage:[{startDay:this.selected,endDayExclusive:this.selected + 1}], incomplete:false},
-        this.selected,this.primary);
+        this.selected,this.primary,this.settings.get_string('color-theme'));
         if (this.pendingEvent && this.actions.calendarFocusReady?.() && !this.focusIdle) {
             this.focusIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
                 this.focusIdle = 0; this.focusRequestedEvent(); return GLib.SOURCE_REMOVE;

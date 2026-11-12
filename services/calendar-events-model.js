@@ -166,3 +166,14 @@ export function upcomingEvents(batch, {nowMs, leadMinutes = 15, covered = false}
     if (!future.length) return null;
     return {ongoing: false, occurrences: future.filter(event => event.startMs === future[0].startMs)};
 }
+
+
+// Source colors cross the helper boundary and become CSS. Accept only RGB hex;
+// missing or unsupported provider specifications use the selected theme instead.
+export function calendarColor(value) {
+    if (typeof value !== 'string') return null;
+    if (/^#[0-9a-f]{6}$/i.test(value)) return value.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(value))
+        return '#' + [...value.slice(1)].map(channel => channel.repeat(2)).join('').toLowerCase();
+    return null;
+}

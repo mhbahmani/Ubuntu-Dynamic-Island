@@ -23,6 +23,8 @@ async function run() {
     const request={catalog:false,sources:['fixture'],ranges:[],timezone:'UTC'};
     let snapshot=await next(request);
     check(snapshot.status==='ready' && !service.timer && snapshots.every(s=>s.status!=='error'),'Stale generation ignored');
+    check(snapshot.sources[0].color === '#aabb99' && snapshot.sources[1].color === null && snapshot.sources[2].color === null,
+        'Source colors survive the pipe only after validation');
     const process=service.process, generation=service.generation;
     service.watch(request);check(service.process===process && service.generation===generation,'Identical watch reuses subscription');
     snapshot=await next({...request,timezone:'broken'});

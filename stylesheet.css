@@ -82,6 +82,8 @@
 .ubuntu-island-calendar-event-indicator { width: 10px; height: 2px; border-radius: 1px; background-color: #c2c7cf; }
 .ubuntu-island-calendar-agenda { spacing: 6px; }
 .ubuntu-island-calendar-day-header { spacing: 6px; }
+.ubuntu-island-calendar-event-card { spacing: 6px; }
+.ubuntu-island-calendar-event-accent { width: 3px; border-radius: 2px; }
 .ubuntu-island-calendar-event-list { spacing: 4px; }
 .ubuntu-island-calendar-event { padding: 5px 6px; border-radius: 7px; text-align: left; background-color: rgba(235,239,255,0.05); border: 1px solid rgba(235,239,255,0.07); }
 .ubuntu-island-calendar-event:focus { border-color: #bac7d9; }

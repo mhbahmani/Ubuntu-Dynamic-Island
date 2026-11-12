@@ -1,7 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import {readLines, write, encode} from '../helpers/calendar/io.js';
-import {normalizeOccurrences} from './calendar-events-model.js';
+import {normalizeOccurrences, calendarColor} from './calendar-events-model.js';
 
 export const CALENDAR_MESSAGES = {
     disabled: 'Desktop calendar events are off', loading: 'Loading desktop calendars…',
@@ -85,7 +85,7 @@ export class CalendarEventsService {
         const plain = text => String(text || '').replace(/[\x00-\x1f\x7f\u202a-\u202e\u2066-\u2069]/gu,' ').slice(0,128);
         const sources = value.sources.filter(source => typeof source.uid === 'string' && source.uid.length <= 1024)
             .map(source => ({uid:source.uid, name:plain(source.name),
-                account:plain(source.account), enabled:Boolean(source.enabled)}));
+                account:plain(source.account), color:calendarColor(source.color), enabled:Boolean(source.enabled)}));
         this.emit({status:value.status, ...batch, sources, coverage, receivedAt:Date.now()});
     }
     _fail() {

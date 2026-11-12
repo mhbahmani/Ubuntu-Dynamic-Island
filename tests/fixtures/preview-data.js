@@ -11,6 +11,7 @@ export function sampleCalendar(preview) {
     preview._calendarEvents.stop();
     const sourceUid = 'sample-calendar', day = todayDay(), now = Date.now();
     const date = n => new Date(n * 86400000).toISOString().slice(0,10);
+    preview._sampleCalendarColor = '#78aed4';
     preview._sampleCalendarRecords = [
         {sourceUid,uid:'all-day',allDay:true,title:'روز برنامه‌ریزی',startDate:date(day),endDateExclusive:date(day+1)},
         {sourceUid,uid:'review',allDay:false,title:'جلسه بررسی طرح · Design review',
@@ -28,7 +29,7 @@ export function sampleCalendar(preview) {
         },
         publish() {
             if (!this.request) return;
-            preview._renderCalendarEvents({status:'ready',sources:[{uid:sourceUid,name:'Personal (sample)',enabled:true}],
+            preview._renderCalendarEvents({status:'ready',sources:[{uid:sourceUid,name:'Personal (sample)',color:preview._sampleCalendarColor,enabled:true}],
                 coverage:this.request.ranges,...normalizeOccurrences(preview._sampleCalendarRecords,{sourceUids:[sourceUid]})});
         },
         stop() { this.signature = null; this.request = null; },

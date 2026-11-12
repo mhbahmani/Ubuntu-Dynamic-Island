@@ -9,6 +9,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
+import {themeAccent} from './services/appearance.js';
 import {civilDay, todayDay, fullDate, calendarTodayLabel, monthTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
 export default class Preview extends UbuntuIsland {
@@ -320,7 +321,16 @@ export default class Preview extends UbuntuIsland {
         assert(view.agenda.actor.visible && view.agenda.rows.size === 3, 'Inline selected-day events missing');
         assert(view.cells.find(cell => cell.day === todayDay()).indicator.opacity === 255, 'Event marker missing');
         const eventRow = [...view.agenda.rows.values()].find(row => row.event.uid === 'review');
+        assert(eventRow.color === '#78aed4', 'Provider calendar color missing');
+        const originalColor = this._sampleCalendarColor;
+        this._sampleCalendarColor = '#e79a62'; this._calendarEvents.publish(); await delay(80);
+        assert(view.agenda.rows.get(eventRow.event.id) === eventRow && eventRow.color === '#e79a62', 'Color update rebuilt or missed the event row');
+        this._sampleCalendarColor = originalColor; this._calendarEvents.publish();
         assert(view.agenda.header.contains(view.todayButton) && !view.header.contains(view.todayButton), 'Today remains in the month navigation');
+        const stripeX = eventRow.accent.get_transformed_position()[0];
+        for (const item of view.agenda.rows.values())
+            assert(Math.abs(item.accent.get_transformed_position()[0] - stripeX) <= 1 && stripeX < item.title.get_transformed_position()[0],
+                'Event stripes do not share the left edge');
         eventRow.control.grab_key_focus(); await delay(150);
         assert(view.header.mapped && view.grid.mapped && navigation.mapped, 'Events replaced the month/navigation');
         assert(view.agenda.scroll.contains(eventRow.control), 'Event focus left the independent scroll area');
@@ -369,11 +379,14 @@ export default class Preview extends UbuntuIsland {
         assert(!view.agenda.rows.size && view.agenda.message.text === 'No events', 'Empty selected day is not clear');
         await click(view.todayButton);
         const originalTheme = this._settings.get_string('color-theme');
+        this._sampleCalendarColor = null; this._calendarEvents.publish();
         for (const theme of ['graphite', 'ocean', 'forest', 'ember']) {
             this._settings.set_string('color-theme', theme); await delay(150);
+            assert([...view.agenda.rows.values()].every(item => item.color === themeAccent(theme)), 'Missing source color did not follow the live theme');
             await this._capture(`calendar-theme-${theme}`);
         }
         this._settings.set_string('color-theme', originalTheme);
+        this._sampleCalendarColor = originalColor; this._calendarEvents.publish();
         // Grid sizing remains independent of whether event data is configured.
         this._settings.set_boolean('calendar-events-enabled',false);
         const sample = civilDay(2025, 3, 20);
