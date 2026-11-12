@@ -56,7 +56,6 @@ export class Pill {
         this._network.y_align = Clutter.ActorAlign.CENTER;
         this._down = label('↓ —', 'ubuntu-island-pill-rate', false);
         this._up = label('↑ —', 'ubuntu-island-pill-rate', false);
-        this._rateWidthTexts = [];
         for (const rate of [this._down, this._up])
             rate.connect('style-changed', () => { this._networkWidthKey = null; this._queueLayout(); });
         this._arrows = [];
@@ -207,11 +206,6 @@ export class Pill {
         this._weather.opacity = weather?.stale ? 140 : 255;
         this._network.visible = Boolean(!connectionState.visible && showNetwork && showMetrics && system &&
             !(connectionState.hideUnavailable && (connection === 'offline' || system.rxBytes == null || system.txBytes == null)));
-        if (!showNetwork || !showMetrics || this._networkInterface !== system?.iface) {
-            this._rateWidthTexts = [];
-            this._networkWidthKey = null;
-        }
-        this._networkInterface = system?.iface;
         const commuteState = commuteIndicator(commute);
         this._commute.visible = !connectionState.visible && showCommute && commuteState.visible &&
             !(connectionState.hideUnavailable && (!commute.data || commuteState.stale));
@@ -258,17 +252,16 @@ export class Pill {
         const key = `${scale}:${this._down.text}:${this._up.text}`;
         if (key === this._networkWidthKey) return;
         this._networkWidthKey = key;
-        [this._down, this._up].forEach((rate, index) => {
-            const natural = rate.clutter_text.get_preferred_width(-1)[1];
+        [this._down, this._up].forEach(rate => {
             const layout = rate.clutter_text.get_layout().copy();
             layout.set_width(-1);
-            layout.set_text(this._rateWidthTexts[index] ?? rate.text, -1);
-            const previous = layout.get_pixel_size()[0];
-            if (!this._rateWidthTexts[index] || natural >= previous) this._rateWidthTexts[index] = rate.text;
-            // Hold each direction independently instead of shrinking on every
-            // sample. Remeasure the saved text for font/scale changes; do not
-            // carry a large pixel width into a smaller font or another network.
-            const width = Math.ceil(Math.max(natural, previous)) + 2 * scale;
+            layout.set_text('500KB', -1);
+            const reference = layout.get_pixel_size()[0];
+            layout.set_text(rate.text, -1);
+            // Reserve three digits and a two-letter unit plus about 1 mm.
+            // An unusually long current value can grow, but never leaves a
+            // session-dependent high-water mark after traffic falls again.
+            const width = Math.ceil(Math.max(reference, layout.get_pixel_size()[0])) + 4 * scale;
             if (rate.width !== width) rate.width = width;
         });
     }

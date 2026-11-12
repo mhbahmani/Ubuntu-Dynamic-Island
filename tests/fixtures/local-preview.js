@@ -218,41 +218,53 @@ export default class Preview extends UbuntuIsland {
         const pill = this._pill, state = this._states.system;
         const text = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
         const originalText = text.get_double('text-scaling-factor');
+        const context = St.ThemeContext.get_for_stage(global.stage);
+        const originalScale = context.scale_factor;
         const animations = this._settings.get_boolean('disable-animations');
         const render = (rx, tx, iface = state.iface) => this._renderSystem({...state, rx, tx, iface});
         const fits = () => {
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             for (const rate of [pill._down, pill._up])
-                assert(rate.width >= rate.clutter_text.get_preferred_width(-1)[1] + 2 * scale,
+                assert(rate.width >= rate.clutter_text.get_preferred_width(-1)[1] + 4 * scale,
                     'Network rate is clipped after a value or font change');
+        };
+        const compact = () => {
+            for (const rate of [pill._down, pill._up]) {
+                const layout = rate.clutter_text.get_layout().copy();
+                layout.set_width(-1);
+                layout.set_text('500KB', -1);
+                assert(rate.width === Math.ceil(layout.get_pixel_size()[0]) + 4 * context.scale_factor,
+                    'Bandwidth slot differs from the fixed reference plus 4px');
+            }
         };
         try {
             this._settings.set_boolean('disable-animations', true);
-            render('888.8 MiB/s', '888.8 MiB/s'); await delay(150);
+            render('500 KiB/s', '500 KiB/s'); await delay(150); compact();
             const width = this._island.actor.width, networkWidth = pill._network.width;
-            for (const value of ['0 B/s', '9 B/s', '999 B/s', '9.9 KiB/s', '99.9 KiB/s', '999.9 KiB/s', '1.0 MiB/s', '1.0 GiB/s', '—']) {
+            for (const value of ['0 B/s', '9 B/s', '999 B/s', '9.9 KiB/s', '99.9 KiB/s', '500 KiB/s', '1.0 MiB/s', '1.0 GiB/s', '—']) {
                 render(value, value); await delay(60);
                 assert(this._island.actor.width === width && pill._network.width === networkWidth,
                     `Bandwidth refresh resized the notch for ${value}`);
-                fits();
+                fits(); compact();
             }
             await this._capture('notch-stable-idle-rates');
             render('8888.8 GiB/s', '8888.8 GiB/s'); await delay(100);
             assert(pill._network.width > networkWidth, 'Longer rates could not expand their slots'); fits();
-            render('0 B/s', '0 B/s', 'new-network'); await delay(100);
-            assert(pill._network.width < networkWidth, 'Changing networks retained oversized rate slots');
-            for (const rate of [pill._down, pill._up])
-                assert(rate.width <= Math.ceil(rate.clutter_text.get_preferred_width(-1)[1]) + 3,
-                    'Fresh bandwidth slot has excessive padding');
-            render('888.8 MiB/s', '888.8 MiB/s'); await delay(100);
-            text.set_double('text-scaling-factor', 1.5); await delay(250); fits();
+            render('7.2 KiB/s', '2.5 KiB/s'); await delay(100);
+            assert(pill._network.width === networkWidth, 'Earlier traffic left oversized rate slots'); compact();
+            await this._capture('notch-compact-rates');
+            render('0 B/s', '0 B/s', 'new-network'); await delay(100); compact();
+            text.set_double('text-scaling-factor', 1.5); await delay(250); fits(); compact();
             await this._capture('notch-stable-large-text');
-            text.set_double('text-scaling-factor', originalText); await delay(250); fits();
+            context.scale_factor = 2; await delay(250); fits(); compact();
+            context.scale_factor = originalScale;
+            text.set_double('text-scaling-factor', originalText); await delay(250); fits(); compact();
             this._settings.set_boolean('pill-show-network', false);
-            assert(pill._rateWidthTexts.length === 0, 'Disabled bandwidth kept its width history');
             this._settings.set_boolean('pill-show-network', true);
-            console.log('[Island Preview] NETWORK PASS: stable refreshed widths, 2px padding, longer values, interface reset and font changes');
+            await delay(100); compact();
+            console.log('[Island Preview] NETWORK PASS: fixed 500KB slots plus 4px, no traffic history, longer values, interface/toggle stability, font and 200% scale changes');
         } finally {
+            context.scale_factor = originalScale;
             text.set_double('text-scaling-factor', originalText);
             this._settings.set_boolean('disable-animations', animations);
             this._settings.set_boolean('pill-show-network', true);
