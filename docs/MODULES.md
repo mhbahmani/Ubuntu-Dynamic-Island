@@ -28,6 +28,8 @@ uses that calendar for its selected-day heading and monthly grid. Optional read-
    Online Accounts; it does not change another application's source selections.
 4. Select a date. Its full date and events appear in the left panel beside the
    month grid. Compact cards show titles and times, with all-day events preserved.
+   Titles stay on one line and ellipsize; each card has the same font-scaled
+   height, including days with only one event. Full titles remain accessible.
    The list scrolls independently; activating a card opens that date in GNOME
    Calendar. Each card has a left accent in its source calendar’s color, or the
    selected extension theme’s accent when no usable source color is available.

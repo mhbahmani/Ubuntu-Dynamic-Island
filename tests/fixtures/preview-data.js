@@ -13,12 +13,12 @@ export function sampleCalendar(preview) {
     const date = n => new Date(n * 86400000).toISOString().slice(0,10);
     preview._sampleCalendarColor = '#78aed4';
     preview._sampleCalendarRecords = [
-        {sourceUid,uid:'all-day',allDay:true,title:'روز برنامه‌ریزی',startDate:date(day),endDateExclusive:date(day+1)},
-        {sourceUid,uid:'review',allDay:false,title:'جلسه بررسی طرح · Design review',
+        {sourceUid,uid:'all-day',allDay:true,title:'Focus day',startDate:date(day),endDateExclusive:date(day+1)},
+        {sourceUid,uid:'review',allDay:false,title:'Design review',
             startMs:now-5*60000,endMs:now+25*60000,location:'Online',joinUri:'https://meet.google.com/abc-defg-hij'},
-        {sourceUid,uid:'later',allDay:false,title:'Planning · برنامه‌ریزی هفته آینده',
+        {sourceUid,uid:'later',allDay:false,title:'Product planning and launch checklist for the next release',
             startMs:now+45*60000,endMs:now+75*60000},
-        {sourceUid,uid:'tomorrow',allDay:false,title:'Tomorrow',
+        {sourceUid,uid:'tomorrow',allDay:false,title:'Team lunch',
             startMs:localDayRange(day+1).startMs+12*3600000,endMs:localDayRange(day+1).startMs+13*3600000},
     ];
     preview._calendarEvents = {

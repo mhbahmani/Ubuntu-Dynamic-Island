@@ -402,6 +402,11 @@ export default class Preview extends UbuntuIsland {
         assert(eventCell.indicator.get_transformed_position()[1] >= eventCell.main.get_transformed_position()[1] + eventCell.main.height,
             'Event indicator overlaps the day number');
         assert(view.month.get_theme_node().get_border_width(St.Side.LEFT) > 0, 'Panel divider missing');
+        const compactHeight = eventRow.control.height;
+        assert([...view.agenda.rows.values()].every(item => Math.abs(item.control.height - compactHeight) <= 1),
+            'Event cards have different heights');
+        const longEvent = [...view.agenda.rows.values()].find(item => item.event.uid === 'later');
+        assert(longEvent.title.clutter_text.get_layout().is_ellipsized(), 'Long sample title does not demonstrate truncation');
         await this._capture('calendar-inline-events');
         const sampleRecords = this._sampleCalendarRecords;
         this._sampleCalendarRecords = sampleRecords.filter(event => event.uid !== 'review'); this._calendarEvents.publish(); await delay(50);
@@ -423,7 +428,7 @@ export default class Preview extends UbuntuIsland {
         this._card.selectPage('calendar'); await delay(150);
         const gridY = view.grid.get_transformed_position()[1], gridScroll = view.adjustment.value;
         const many = Array.from({length:12}, (_, index) => ({...sampleRecords.find(event => event.uid === 'review'),
-            uid:`overflow-${index}`, title:`Planning ${index} · A long event title that must wrap inside its card برنامه‌ریزی`,
+            uid:`overflow-${index}`, title:`Planning ${index} · A long event title that must stay on one line برنامه‌ریزی`,
             startMs:sampleRecords[1].startMs + index * 60000, endMs:sampleRecords[1].endMs + index * 60000}));
         this._sampleCalendarRecords = [...sampleRecords, ...many]; this._calendarEvents.publish(); await delay(150);
         const finalRow = view.agenda.list.get_last_child(); finalRow.grab_key_focus(); await delay(150);
@@ -433,12 +438,16 @@ export default class Preview extends UbuntuIsland {
             'Last event is unreachable');
         for (const item of view.agenda.rows.values()) {
             assert(item.control.width <= view.agenda.scroll.width, 'Long event title widened the panel');
-            assert(item.title.height + 1 >= item.title.clutter_text.get_preferred_height(item.title.width)[1], 'Long event title was clipped');
+            assert(item.title.clutter_text.get_layout().get_line_count() === 1, 'Event title wrapped onto another line');
+            assert(Math.abs(item.control.height - compactHeight) <= 1,
+                `A long title changed the card height: ${item.control.height}/${compactHeight}`);
         }
         await this._capture('calendar-long-events');
         this._sampleCalendarRecords = sampleRecords; this._calendarEvents.publish();
         await click(view.cells.find(cell => cell.day === todayDay() + 1).control);
         assert(view.agenda.rows.size === 1 && [...view.agenda.rows.values()][0].event.uid === 'tomorrow', 'Day selection did not filter events');
+        assert(Math.abs([...view.agenda.rows.values()][0].control.height - compactHeight) <= 1, 'One event stretched to fill its panel');
+        await this._capture('calendar-single-event');
         await click(view.cells.find(cell => cell.day === todayDay() + 2).control);
         assert(!view.agenda.rows.size && view.agenda.message.text === 'No events', 'Empty selected day is not clear');
         await click(view.todayButton);
@@ -451,6 +460,26 @@ export default class Preview extends UbuntuIsland {
         }
         this._settings.set_string('color-theme', originalTheme);
         this._sampleCalendarColor = originalColor; this._calendarEvents.publish();
+        const eventContext = St.ThemeContext.get_for_stage(global.stage);
+        const eventText = new Gio.Settings({schema_id:'org.gnome.desktop.interface'});
+        const eventSize = {scale:eventContext.scale_factor, text:eventText.get_double('text-scaling-factor'),
+            width:this._settings.get_int('expanded-width')};
+        for (const scale of [1,2]) for (const font of [1,2]) for (const width of [380,440]) {
+            eventContext.scale_factor = scale; eventText.set_double('text-scaling-factor',font);
+            this._settings.set_int('expanded-width',width); view.select(todayDay()); await delay(100);
+            const rows = [...view.agenda.rows.values()], height = rows[0].control.height;
+            for (const item of rows) {
+                assert(Math.abs(item.control.height - height) <= 1, 'Scaled event cards differ in height');
+                assert(item.title.clutter_text.get_layout().get_line_count() === 1 && item.time.clutter_text.get_layout().get_line_count() === 1,
+                    'Scaled event text wrapped');
+                assert(item.title.height + 1 >= item.title.clutter_text.get_preferred_height(item.title.width)[1], 'Scaled event text clipped vertically');
+                assert(item.control.accessible_name.includes(item.event.title), 'Truncation lost the accessible full title');
+            }
+            view.select(todayDay()+1); await delay(100);
+            assert(Math.abs([...view.agenda.rows.values()][0].control.height - height) <= 1, 'Scaled single event fills its panel');
+        }
+        eventContext.scale_factor = eventSize.scale; eventText.set_double('text-scaling-factor',eventSize.text);
+        this._settings.set_int('expanded-width',eventSize.width); view.select(todayDay()); await delay(100);
         // Grid sizing remains independent of whether event data is configured.
         this._settings.set_boolean('calendar-events-enabled',false);
         const sample = civilDay(2025, 3, 20);

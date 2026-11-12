@@ -36,7 +36,9 @@ export class CalendarAgenda {
         this.actor.add_child(this.scroll);
         this.content = column('ubuntu-island-calendar-event-list'); this.scroll.set_child(this.content);
         this.holiday = wrapped('', 'ubuntu-island-calendar-holiday-label'); this.content.add_child(this.holiday);
-        this.list = column('ubuntu-island-calendar-event-list'); this.content.add_child(this.list);
+        this.list = column('ubuntu-island-calendar-event-list');
+        this.list.y_expand = false; this.list.y_align = Clutter.ActorAlign.START;
+        this.content.add_child(this.list);
         this.message = wrapped('', 'ubuntu-island-calendar-event-meta'); this.content.add_child(this.message);
     }
     update(snapshot, day, primary, theme = 'graphite') {
@@ -56,7 +58,8 @@ export class CalendarAgenda {
         for (const event of agenda.occurrences) {
             let item = this.rows.get(event.id);
             if (!item) {
-                const control = new St.Button({style_class:'ubuntu-island-calendar-event',reactive:true,can_focus:true,track_hover:true,x_expand:true});
+                const control = new St.Button({style_class:'ubuntu-island-calendar-event',reactive:true,can_focus:true,
+                    track_hover:true,x_expand:true,y_expand:false,y_align:Clutter.ActorAlign.START});
                 const card = row('ubuntu-island-calendar-event-card');
                 card.x_expand = true; card.x_align = Clutter.ActorAlign.FILL;
                 card.set_text_direction(Clutter.TextDirection.LTR);
@@ -64,7 +67,10 @@ export class CalendarAgenda {
                 const accent = new St.Widget({style_class:'ubuntu-island-calendar-event-accent', y_expand:true});
                 card.add_child(accent);
                 const face = column(); face.x_expand = true; card.add_child(face);
-                const title = wrapped(''), time = wrapped('','ubuntu-island-calendar-event-meta');
+                const title = label('','ubuntu-island-calendar-event-title');
+                const time = label('','ubuntu-island-calendar-event-meta');
+                title.x_expand = time.x_expand = true;
+                title.clutter_text.single_line_mode = time.clutter_text.single_line_mode = true;
                 face.add_child(title); face.add_child(time);
                 item = {control,title,time,accent,event}; this.rows.set(event.id,item); this.list.add_child(control);
                 control.connect('clicked', () => this._openCalendar());

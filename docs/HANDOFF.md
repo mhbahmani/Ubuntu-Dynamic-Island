@@ -76,7 +76,9 @@ preserving stable navigation and focus; the current expansion remains the refere
   label is centered between the arrows. Cards use the EDS source color as a left
   accent, with a live theme accent fallback; grid indicators stay neutral.
   Neutral lines beneath day numbers replace dots. Event cards retain activation,
-  all-day handling and service ordering; long titles wrap. The multi-calendar
+  all-day handling and service ordering; long titles ellipsize on one line.
+  Title and time slots scale with fonts and keep every card the same compact
+  height, even when a date has only one event. The multi-calendar
   popup heading is removed. Settings, event fetching and the bottom toolbar are
   unchanged. Both panels retain overflow access with enlarged text.
 
@@ -369,3 +371,8 @@ modules at 380/440/480px, 100/200% UI and text scale, caption hiding/restoration
 and stable geometry through opacity/theme changes. The initial mapping warnings
 were fixed by deferring caption visibility changes; the existing transient
 Clutter input-focus warnings still occur in the Agents typing fixture.
+
+Event-card sizing follow-up (2026-11-12): native Calendar preview `/tmp/ubuntu-island-preview-4b5bpeu7` passes single-line title
+ellipsis, equal card heights for long/mixed-script titles and one-event days,
+font scaling, full accessible titles, independent scrolling and the existing
+calendar/preferences checks. No host install or live-provider behavior was tested.
