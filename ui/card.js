@@ -50,7 +50,7 @@ export class Card {
                 this._commuteView.fit(width - this._body.get_theme_node().get_horizontal_padding());
             // One regular card size across tabs and subviews. Overflow belongs
             // in each page's scroll area; compact shortcut Quick Ask is separate.
-            return 260 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            return 248 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
         };
         this.actor._islandFocus = () => {
             if (!this.quickAskOpen) return false;

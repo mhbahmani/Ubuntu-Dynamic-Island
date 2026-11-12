@@ -186,6 +186,12 @@ export default class Preview extends UbuntuIsland {
             this._card.selectPage(tab);
             this._island.expand();
             await delay(400);
+            if (tab === 'weather') {
+                const surface = this._card._weatherView.surface, nav = this._card._navigation;
+                const gap = nav.get_transformed_position()[1] - (surface.get_transformed_position()[1] + surface.height);
+                const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+                assert(gap <= 8 * scale, `Surplus band above navigation: ${gap / scale}px`);
+            }
             await this._capture(`preview-${tab}`);
         }
         this._media.command('PlayPause');

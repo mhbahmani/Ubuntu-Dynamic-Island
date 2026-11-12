@@ -84,7 +84,7 @@
 .ubuntu-island-with-calendar.ubuntu-island-with-agents .ubuntu-island-tab { padding-left: 5px; padding-right: 5px; }
 /* Artwork-led media face. Color is sampled once when a cover loads. */
 .ubuntu-island-card-media .ubuntu-island-section-box { border-radius: 19px 19px 0 0; }
-.ubuntu-island-media-main { padding: 8px 14px 4px; spacing: 4px; }
+.ubuntu-island-media-main { padding: 6px 14px 2px; spacing: 2px; }
 .ubuntu-island-media-row { spacing: 14px; }
 .ubuntu-island-cover { width: 112px; height: 112px; border-radius: 13px; background-color: rgba(210,220,240,0.07); border: 1px solid rgba(220,230,250,0.13); }
 .ubuntu-island-artwork { width: 112px; height: 112px; }
@@ -96,7 +96,7 @@
 .ubuntu-island-player-picker { border-radius: 5px; padding: 2px 4px; color: #bac7d9; }
 .ubuntu-island-player-picker:hover { background-color: rgba(235,239,255,0.08); }
 .ubuntu-island-player-picker .ubuntu-island-source { font-size: 8.5pt; color: #bac7d9; }
-.ubuntu-island-transport { spacing: 2px; margin-top: 4px; }
+.ubuntu-island-transport { spacing: 2px; margin-top: 0; }
 .ubuntu-island-transport .ubuntu-island-ghost { padding: 7px; }
 .ubuntu-island-source { color: #b7bbc5; font-size: 9pt; }
 .ubuntu-island-seal {
@@ -248,15 +248,15 @@
 .ubuntu-island-with-agents .ubuntu-island-tab { padding: 7px 7px; }
 .ubuntu-island-with-agents .ubuntu-island-navigation { spacing: 2px; }
 /* Agents: fixed header and footer, only the content scrolls. */
-.ubuntu-island-agents { padding: 6px 12px 0; spacing: 3px; }
-.ubuntu-island-agent-header { spacing: 8px; min-height: 28px; padding: 0 4px; }
+.ubuntu-island-agents { padding: 4px 12px 0; spacing: 3px; }
+.ubuntu-island-agent-header { spacing: 8px; min-height: 26px; padding: 0 4px; }
 .ubuntu-island-agent-button.ubuntu-island-agent-clear { padding: 4px 6px; font-size: 9pt; }
 .ubuntu-island-agent-heading { font-size: 11pt; font-weight: 700; color: #f1f3f7; }
 .ubuntu-island-agents-content { spacing: 6px; }
 .ubuntu-island-agent-list { spacing: 2px; }
 .ubuntu-island-agent-editor { spacing: 6px; padding: 1px 4px; }
 .ubuntu-island-agent-row { spacing: 2px; border-radius: 10px; }
-.ubuntu-island-agent-session { padding: 3px 8px; border-radius: 9px; }
+.ubuntu-island-agent-session { padding: 2px 8px; border-radius: 9px; }
 .ubuntu-island-agent-session:hover { background-color: rgba(220,225,240,0.07); }
 .ubuntu-island-agent-session:focus { background-color: rgba(220,225,240,0.11); box-shadow: inset 0 0 0 1px #b7c5d7; }
 .ubuntu-island-agent-session:active { background-color: rgba(220,225,240,0.16); }
@@ -274,7 +274,7 @@
 .ubuntu-island-agent-error { color: #ffada5; }
 .ubuntu-island-agent-idle, .ubuntu-island-agent-unknown, .ubuntu-island-agent-closed, .ubuntu-island-agent-interrupted { color: #bcc3cf; }
 .ubuntu-island-agent-toolbar { spacing: 8px; }
-.ubuntu-island-agent-footer { spacing: 4px; padding: 3px 2px; border-top: 1px solid rgba(220,225,240,0.09); }
+.ubuntu-island-agent-footer { spacing: 4px; padding: 2px; border-top: 1px solid rgba(220,225,240,0.09); }
 .ubuntu-island-agent-button { padding: 7px 10px; border-radius: 8px; font-size: 9pt; background-color: rgba(220,225,240,0.06); color: #eef0f4; }
 .ubuntu-island-agent-button:hover, .ubuntu-island-agent-button:focus { background-color: rgba(220,225,240,0.14); }
 .ubuntu-island-agent-button:focus { box-shadow: inset 0 0 0 1px #b7c5d7; }
@@ -294,7 +294,7 @@
 .ubuntu-island-agent-prompt, .ubuntu-island-agent-entry { background-color: rgba(10,12,16,0.4); color: #f5f6f9; border: 1px solid rgba(220,225,240,0.18); border-radius: 8px; padding: 8px; font-size: 10pt; }
 .ubuntu-island-agent-composer { background-color: rgba(10,12,16,0.4); border: 1px solid rgba(220,225,240,0.18); border-radius: 12px; }
 .ubuntu-island-agent-composer:focus { border-color: #b7c5d7; }
-.ubuntu-island-agent-composer-face { padding: 6px 8px; spacing: 4px; }
+.ubuntu-island-agent-composer-face { padding: 3px 8px; spacing: 3px; }
 .ubuntu-island-agent-composer .ubuntu-island-agent-prompt { min-height: 80px; border: none; background-color: transparent; padding: 3px; }
 .ubuntu-island-agent-prompt StLabel, .ubuntu-island-quick-ask-entry StLabel { color: #939aa6; }
 .ubuntu-island-agent-composer-toolbar { spacing: 8px; }
@@ -361,7 +361,7 @@
 
 /* Commute: a compact estimate, inline endpoints and quiet provenance. */
 .ubuntu-island-card-commute { padding: 0; }
-.ubuntu-island-commute { padding: 10px 14px 6px; spacing: 3px; }
+.ubuntu-island-commute { padding: 8px 14px 4px; spacing: 3px; }
 .ubuntu-island-commute-heading { spacing: 8px; }
 .ubuntu-island-commute-summary { spacing: 12px; }
 .ubuntu-island-commute-driving { padding: 11px; border-radius: 15px; color: #ffae96; background-gradient-direction: vertical; background-gradient-start: rgba(224,86,59,0.28); background-gradient-end: rgba(224,86,59,0.08); border: 1px solid rgba(240,161,141,0.28); box-shadow: inset 0 1px 0 rgba(255,212,198,0.10); }

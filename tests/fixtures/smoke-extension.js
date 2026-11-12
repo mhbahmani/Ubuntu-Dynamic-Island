@@ -167,7 +167,7 @@ export default class Smoke extends UbuntuIsland {
                 this._settings.set_int('expanded-width', width);
                 await delay(100);
                 assert(adjustment.upper <= adjustment.page_size + 1,
-                    `Media scrolls at ${width}px with 125% text`);
+                    `Media scrolls at ${width}px with 125% text: ${adjustment.upper}/${adjustment.page_size}`);
             }
             await this._capture('media-modern-medium-text');
             textSettings.set_double('text-scaling-factor', 1.5);
@@ -314,7 +314,7 @@ export default class Smoke extends UbuntuIsland {
             await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_j]);
             assert(!this._island.expanded && !this._quickAskBinding, 'Disabled shortcut still opened the prompt');
             this._island.expand(); await delay(200);
-            assert(!card.quickAskOpen && card._navigation.mapped && card._page === page && this._island.actor.height >= 260 * scale,
+            assert(!card.quickAskOpen && card._navigation.mapped && card._page === page && this._island.actor.height >= 248 * scale,
                 'Normal opening did not restore the full card');
             settings.set_strv(key, ['<Super><Alt>space']);
             await chord(hotkey);
