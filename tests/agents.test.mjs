@@ -103,13 +103,42 @@ test('hide and undo retain live status without resurfacing hidden sessions on ev
     store.control({control:'restore',token:undo.token});
     assert.equal(store.snapshot().sessions[0].state,'input'); assert.equal(store.snapshot().undo,null);
 });
+test('ended sessions disappear while finished tasks and distinct sessions in the same project remain',()=>{
+    const store = new AgentStore();
+    store.apply(event('finished',{session:'first',label:'same-project',at:1}));
+    store.apply(event('working',{session:'second',label:'same-project',at:1}));
+    assert.equal(store.snapshot().sessions.length,2);
+    store.apply(fromAgentHook('claude',{hook_event_name:'SessionEnd',session_id:'second'},{at:3}));
+    assert.deepEqual(store.snapshot().sessions.map(s=>s.session),['first']);
+    assert.equal(store.snapshot().counts.finished,1);
+    assert.equal(store.apply(event('working',{session:'second',at:2})),false,'Late activity must not revive a closed session');
+    store.apply(event('working',{session:'second',at:4,start:true}));
+    assert.equal(store.snapshot().sessions.length,2,'New activity may resume a session');
+});
+test('closing hidden sessions removes them from undo without losing other hidden sessions',()=>{
+    const store = new AgentStore();
+    for (const session of ['first','second']) store.apply(event('finished',{session,at:1}));
+    store.clearFinished();
+    const token = store.snapshot().undo.token;
+    store.apply(event('closed',{session:'first',at:2}));
+    assert.equal(store.snapshot().undo.count,1);
+    store.restore(token);
+    assert.deepEqual(store.snapshot().sessions.map(s=>s.session),['second']);
+    store.clearFinished();
+    store.apply(event('closed',{session:'second',at:2}));
+    assert.equal(store.snapshot().undo,null);
+    assert.equal(store.snapshot().sessions.length,0);
+    store.dismiss([...store.rows.keys()][0]);
+    assert.equal(store.snapshot().undo,null,'Closed records cannot be manually hidden/restored');
+});
 test('inactivity cleanup is explicit, uses the last report, and includes every state',()=>{
     const store=new AgentStore(), before=100000;
     for (const state of ['working','approval','input','finished','closed','idle'])
         store.apply(event(state,{session:state}),before-1);
     store.apply(event('working',{session:'boundary'}),before);
     store.apply(event('working',{session:'fresh'}),before+1);
-    assert.equal(store.snapshot().sessions.length,8,'Reading a snapshot performed background expiry');
+    assert.equal(store.rows.size,8,'Reading a snapshot performed background expiry');
+    assert.equal(store.snapshot().sessions.length,7,'Closed sessions must not appear in the list');
     assert.equal(store.control({control:'expire',before}),true);
     assert.deepEqual(store.snapshot().sessions.map(s=>s.session),['boundary','fresh']);
     store.apply(event('working',{session:'working'}),before+2);
@@ -139,6 +168,7 @@ test('clear finished uses current states, leaves active work alone and bounds un
     for (const state of ['finished','closed','working','input','approval','error']) store.apply(event(state,{session:state}));
     store.control({control:'clear-finished'});
     assert.deepEqual(store.snapshot().sessions.map(s=>s.state),['working','input','approval','error']);
+    assert.equal(store.snapshot().undo.count,1,'Clear only hides the visible finished task');
     const token = store.snapshot().undo.token;
     store.apply(event('working',{session:'finished',start:true}));
     store.restore(token);
@@ -146,7 +176,7 @@ test('clear finished uses current states, leaves active work alone and bounds un
     store.dismiss(store.snapshot().sessions[0].id);
     const older = store.snapshot().undo.token;
     store.dismiss(store.snapshot().sessions[0].id);
-    store.restore(older); assert.equal(store.snapshot().sessions.length,4);
+    store.restore(older); assert.equal(store.snapshot().sessions.length,3);
     for (let i=0;i<40;i++) store.apply(event('working',{session:`extra-${i}`}));
     assert.equal(store.rows.size,32); assert.equal(store.snapshot().undo,null);
     store.clear(); assert.equal(store.snapshot().undo,null);

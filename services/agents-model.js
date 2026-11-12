@@ -46,13 +46,13 @@ export class AgentStore {
     constructor() { this.rows = new Map(); this.dropped = 0; this.undo = null; this.sequence = 0; }
     clear() { this.rows.clear(); this.dropped = 0; this.undo = null; }
     hide(ids) {
-        const rows = ids.map(id => this.rows.get(id)).filter(row => row && !row.hidden);
+        const rows = ids.map(id => this.rows.get(id)).filter(row => row && !row.hidden && row.state !== 'closed');
         if (!rows.length) return;
         for (const row of rows) row.hidden = true;
         this.undo = {token: ++this.sequence, ids: rows.map(row => row.id)};
     }
     dismiss(id) { this.hide([id]); }
-    clearFinished() { this.hide([...this.rows.values()].filter(row => ['finished', 'closed'].includes(row.state)).map(row => row.id)); }
+    clearFinished() { this.hide([...this.rows.values()].filter(row => row.state === 'finished').map(row => row.id)); }
     restore(token) {
         if (!this.undo || token !== this.undo.token) return;
         for (const id of this.undo.ids) { const row = this.rows.get(id); if (row) row.hidden = false; }
@@ -115,10 +115,17 @@ export class AgentStore {
         const state = pending.includes('approval') ? 'approval' : pending.includes('input') ? 'input' : event.state;
         if (state !== row.state || event.start) row.revision++;
         Object.assign(row, {...event, turn: event.turn || row.turn, state, updated: now});
+        if (state === 'closed' && this.undo) {
+            this.undo.ids = this.undo.ids.filter(hiddenId => hiddenId !== id);
+            if (!this.undo.ids.length) this.undo = null;
+        }
         return true;
     }
     snapshot() {
-        const sessions = [...this.rows.values()].filter(row => !row.hidden).map(({pending, retired, hidden, ...row}) => ({...row}));
+        // SessionEnd is a provider report, not proof that a desktop window
+        // closed. Keep the bounded record for late-event guards, but stop
+        // showing ended sessions. New activity can make them visible again.
+        const sessions = [...this.rows.values()].filter(row => !row.hidden && row.state !== 'closed').map(({pending, retired, hidden, ...row}) => ({...row}));
         const count = this.undo?.ids.filter(id => this.rows.has(id)).length || 0;
         return {v: 1, connected: true, sessions, dropped: this.dropped, counts: agentCounts(sessions),
             undo: count ? {token: this.undo.token, count} : null};

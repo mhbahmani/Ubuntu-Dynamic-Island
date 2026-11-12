@@ -20,6 +20,9 @@ try {
         await until(() => latest?.connected);
         await service.send({provider:'codex', session:`fixture-${cycle}`, state:'working', label:'fixture'});
         await until(() => latest.sessions?.length === 1);
+        await service.send({provider:'codex', session:`fixture-${cycle}`, state:'closed'});
+        await until(() => latest.sessions?.length === 0);
+        assert(latest.undo === null, 'Ended session offered Undo');
         await service.send({control:'clear'});
         await until(() => latest.sessions?.length === 0);
         service.stop();
