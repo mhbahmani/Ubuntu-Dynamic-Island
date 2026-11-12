@@ -1,4 +1,5 @@
 import St from 'gi://St';
+import Cairo from 'cairo';
 import {History} from '../services/history.js';
 import {invalidateBackdrop} from './backdrop.js';
 
@@ -43,12 +44,20 @@ export class HistoryChart {
             cr.moveTo(0, baseline);
             cr.lineTo(width, baseline);
             cr.stroke();
-            const foreground = this.actor.get_theme_node().get_foreground_color();
-            const colors = this.network ? [[0.42, 0.8, 0.92], [0.85, 0.66, 0.98]]
+            const node = this.actor.get_theme_node();
+            const foreground = node.get_foreground_color();
+            const colors = this.network ? ['down', 'up'].map((name, index) => {
+                const [found, color] = node.lookup_color(`-ubuntu-island-chart-${name}`, false);
+                return found ? [color.red / 255, color.green / 255, color.blue / 255]
+                    : [[0.42, 0.8, 0.92], [0.85, 0.66, 0.98]][index];
+            })
                 : [[foreground.red / 255, foreground.green / 255, foreground.blue / 255]];
             this.series.forEach((history, seriesIndex) => {
                 const amplitude = this.network ? height / 2 - pad : height - 2 * pad;
                 const direction = seriesIndex === 1 ? 1 : -1;
+                const fill = new Cairo.LinearGradient(0, baseline + direction * amplitude, 0, baseline);
+                fill.addColorStopRGBA(0, ...colors[seriesIndex], 0.32);
+                fill.addColorStopRGBA(1, ...colors[seriesIndex], 0);
                 const points = [];
                 const flush = () => {
                     if (!points.length) return;
@@ -56,7 +65,7 @@ export class HistoryChart {
                     for (const [x, y] of points) cr.lineTo(x, y);
                     cr.lineTo(points[points.length - 1][0], baseline);
                     cr.closePath();
-                    cr.setSourceRGBA(...colors[seriesIndex], 0.16);
+                    cr.setSource(fill);
                     cr.fill();
                     cr.moveTo(...points[0]);
                     for (const point of points.slice(1)) cr.lineTo(...point);
