@@ -268,8 +268,8 @@
 .ubuntu-island-agent-details { spacing: 1px; }
 .ubuntu-island-agent-title { font-size: 10pt; font-weight: 600; color: #f1f3f7; }
 .ubuntu-island-agent-state, .ubuntu-island-agent-message { font-size: 9pt; color: #bcc3cf; }
-.ubuntu-island-agent-input, .ubuntu-island-agent-approval { color: #ffc47d; }
 .ubuntu-island-agent-working { color: #a3c7f0; }
+.ubuntu-island-agent-input, .ubuntu-island-agent-approval { color: #ffc47d; }
 .ubuntu-island-agent-finished { color: #a9d9b9; }
 .ubuntu-island-agent-error { color: #ffada5; }
 .ubuntu-island-agent-idle, .ubuntu-island-agent-unknown, .ubuntu-island-agent-closed, .ubuntu-island-agent-interrupted { color: #bcc3cf; }

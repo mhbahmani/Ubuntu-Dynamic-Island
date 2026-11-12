@@ -661,16 +661,17 @@ export default class Preview extends UbuntuIsland {
         assert(view.activeList.get_children().every((actor,i)=>actor === order[i]), 'Status update reordered click targets');
         const motionBefore = this._settings.get_boolean('disable-animations');
         this._settings.set_boolean('disable-animations', true);
-        assert(!view.activity.get_transition('agent-working') && !first.glyph.get_transition('agent-working'), 'Reduced motion retained an animation');
+        assert(!view.activity && view.summary.text.includes('working'), 'Header should contain status counts without a spinner');
+        assert(!first.glyph.get_transition('agent-working'), 'Reduced motion retained an animation');
         this._settings.set_boolean('disable-animations', false);
         if (view.stSettings.enable_animations) {
-            assert(view.activity.get_transition('agent-working') && first.glyph.get_transition('agent-working'), 'Visible working indicators did not animate');
+            assert(first.glyph.get_transition('agent-working'), 'Visible working indicators did not animate');
             const angle = first.glyph.rotation_angle_z; await delay(200);
             assert(first.glyph.rotation_angle_z !== angle, 'Session working ring is static');
         }
         this._card.selectPage('media');
         await delay(100);
-        assert(!view.activity.get_transition('agent-working') && !first.glyph.get_transition('agent-working'), 'Hidden Agents view retained its animation');
+        assert(!first.glyph.get_transition('agent-working'), 'Hidden Agents view retained its animation');
         const text = first.status.text;
         this._renderAgents(initial);
         assert(first.status.text === text, 'Hidden session view repainted');
@@ -679,7 +680,7 @@ export default class Preview extends UbuntuIsland {
         assert(first.status.text.includes('Needs approval'), 'Remapped view did not catch up');
         await click(view.askButton);
         assert(view.mode === 'ask' && view.prompt.clutter_text.has_key_focus(), 'Quick Ask pointer click failed');
-        assert(!view.activity.get_transition('agent-working'), 'Composer retained the list animation');
+        assert(!first.glyph.get_transition('agent-working'), 'Composer retained a row animation');
         await this._capture('agents-composer-empty');
         assert(view.adjustment.upper <= view.adjustment.page_size, `Default composer needs unnecessary scrolling: ${view.adjustment.upper}/${view.adjustment.page_size}`);
         view.prompt.text = 'A sample multiline request\nKeep this as one prompt.';

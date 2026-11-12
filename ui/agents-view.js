@@ -31,8 +31,6 @@ export class AgentsView {
         this.back = button('go-previous-symbolic', 'Back to sessions', () => this.handleEscape(), 14, 'ubuntu-island-agent-menu-button');
         this.header.add_child(this.back);
         this.heading = label('Agents', 'ubuntu-island-agent-heading'); this.header.add_child(this.heading);
-        this.activity = new St.Icon({gicon:icons.get('working'), icon_size:14, style_class:'ubuntu-island-agent-working', y_align:Clutter.ActorAlign.CENTER});
-        this.activity.set_pivot_point(0.5, 0.5); this.header.add_child(this.activity);
         this.summary = label('', 'ubuntu-island-source'); this.summary.x_expand = true; this.header.add_child(this.summary);
         this.clearButton = textButton('Clear', () => this._control({control:'clear-finished'}), 'ubuntu-island-agent-clear');
         this.clearButton.accessible_name = 'Clear finished sessions'; this.header.add_child(this.clearButton);
@@ -184,7 +182,7 @@ export class AgentsView {
             });
         });
         this.actor.connect('destroy', () => {
-            this.dead = true; this.activity.remove_transition('agent-working');
+            this.dead = true;
             if (this.menuCapture) global.stage.disconnect(this.menuCapture);
             this.menuCapture = 0;
             this._cancelFocus();
@@ -222,7 +220,6 @@ export class AgentsView {
         if (this.dead) return;
         const run = this.actor.mapped && this.mode === 'list' && this.snapshot?.connected &&
             this.stSettings?.enable_animations && !this.settings.get_boolean('disable-animations');
-        this._spin(this.activity, run && this.snapshot.sessions.some(s => s.state === 'working'));
         if (!run) {
             for (const item of this.rows.values()) this._spin(item.glyph, false);
             return;
@@ -298,7 +295,6 @@ export class AgentsView {
         this.back.accessible_name = 'Back to sessions';
         this.heading.text = mode === 'ask' ? 'Quick Ask' : 'Agents';
         this.back.visible = mode !== 'list'; this.clearButton.visible = this.notchButton.visible = mode === 'list'; this.summary.visible = mode === 'list';
-        this.activity.visible = mode === 'list' && Boolean(this.snapshot?.sessions.some(s => s.state === 'working'));
         this.list.visible = mode === 'list'; this.editor.visible = mode === 'ask';
         this.askButton.visible = mode === 'list';
         this.footer.visible = mode === 'list'; this.undoRow.visible = mode === 'list' && Boolean(this.snapshot?.undo);
@@ -391,7 +387,6 @@ export class AgentsView {
         setEnabled(this.clearButton, !this.pending && sessions.some(s => RECENT.has(s.state)));
         this.summary.text = snapshot?.connected ? agentSummary(sessions) : 'Observer offline';
         this.summary.accessible_name = `Last reported: ${this.summary.text}`;
-        this.activity.visible = sessions.some(s => s.state === 'working');
         this.provider = this.settings.get_string('agents-provider');
         this.askTarget.text = this.provider === 'claude' ? 'Claude' : AGENTS[this.provider];
         this.askButton.accessible_name = `Quick Ask with ${AGENTS[this.provider]}`;
