@@ -13,6 +13,7 @@ function formatter(calendar, options, locale = calendar === 'gregory' ? 'en-GB' 
         {...options, calendar, timeZone: 'UTC'}));
     return formatters.get(key);
 }
+export const calendarTodayLabel = id => ({jalali:'امروز', gregorian:'Today', hijri:'اليوم'}[id] ?? 'امروز');
 export const primaryCalendar = id => CALENDARS[id]?.calendar ?? 'persian';
 export const shownCalendars = (primary, additional = []) => [...new Set([primary, ...additional])].filter(id => Object.hasOwn(CALENDARS, id));
 export function migrateCalendarSettings(settings) {

@@ -58,7 +58,7 @@
 .ubuntu-island-calendar { padding: 6px 10px 2px; spacing: 8px; }
 .ubuntu-island-calendar-month { padding-left: 8px; spacing: 4px; border-color: rgba(235,239,255,0.10); border-left-width: 1px; }
 .ubuntu-island-calendar-header { spacing: 2px; }
-.ubuntu-island-calendar-title { font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; font-size: 10pt; font-weight: 500; color: #f5f6f9; }
+.ubuntu-island-calendar-title { text-align: center; font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; font-size: 10pt; font-weight: 500; color: #f5f6f9; }
 .ubuntu-island-calendar-control { padding: 3px 2px; min-height: 18px; border-radius: 6px; color: #c0c6d0; font-size: 8.5pt; }
 .ubuntu-island-calendar-control:hover { background-color: rgba(235,239,255,0.08); color: #f8f9fc; }
 .ubuntu-island-calendar-control:active { background-color: rgba(235,239,255,0.14); }
@@ -81,6 +81,7 @@
 .ubuntu-island-calendar-holiday-label { font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; font-size: 8.5pt; color: #f0a38f; }
 .ubuntu-island-calendar-event-indicator { width: 10px; height: 2px; border-radius: 1px; background-color: #c2c7cf; }
 .ubuntu-island-calendar-agenda { spacing: 6px; }
+.ubuntu-island-calendar-day-header { spacing: 6px; }
 .ubuntu-island-calendar-event-list { spacing: 4px; }
 .ubuntu-island-calendar-event { padding: 5px 6px; border-radius: 7px; text-align: left; background-color: rgba(235,239,255,0.05); border: 1px solid rgba(235,239,255,0.07); }
 .ubuntu-island-calendar-event:focus { border-color: #bac7d9; }

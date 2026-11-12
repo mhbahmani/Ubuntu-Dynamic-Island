@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {civilDay, dateParts, monthBounds, shiftMonths, monthGrid, todayDay, numericDate, dateTitle, fullDate, primaryCalendar, shownCalendars, migrateCalendarSettings, notchDate, notchDates, formatNotchDate, dateFormatError, dateOrder, migrateNotchDates} from '../services/calendar-model.js';
+import {civilDay, dateParts, monthBounds, shiftMonths, monthGrid, todayDay, numericDate, dateTitle, fullDate, calendarTodayLabel, primaryCalendar, shownCalendars, migrateCalendarSettings, notchDate, notchDates, formatNotchDate, dateFormatError, dateOrder, migrateNotchDates} from '../services/calendar-model.js';
 
 test('date format tokens, literal text and numerals work for each calendar', () => {
     const day = civilDay(2026, 11, 10);
@@ -164,4 +164,11 @@ test('prominent day headings use full weekdays and main-calendar date order', ()
     assert.match(hijri, /^دوشنبه، /u);
     assert.ok(hijri.includes(persianYear(dateParts(day, primaryCalendar('hijri')).year)));
     function persianYear(year) { return String(year).replace(/\d/g, digit => '۰۱۲۳۴۵۶۷۸۹'[digit]); }
+});
+
+
+test('Today follows the main calendar language', () => {
+    assert.equal(calendarTodayLabel('jalali'), 'امروز');
+    assert.equal(calendarTodayLabel('gregorian'), 'Today');
+    assert.equal(calendarTodayLabel('hijri'), 'اليوم');
 });

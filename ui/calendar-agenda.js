@@ -1,7 +1,7 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Pango from 'gi://Pango';
-import {column, label} from './widgets.js';
+import {column, row, label} from './widgets.js';
 import {fullDate, primaryCalendar, todayDay} from '../services/calendar-model.js';
 import {eventsForDay} from '../services/calendar-events-model.js';
 import {CALENDAR_MESSAGES} from '../services/calendar-events.js';
@@ -26,8 +26,9 @@ export class CalendarAgenda {
         this.actor = column('ubuntu-island-calendar-agenda');
         this.actor.x_expand = this.actor.y_expand = true;
         this.actor.set_text_direction(Clutter.TextDirection.LTR);
+        this.header = row('ubuntu-island-calendar-day-header');
         this.heading = wrapped('', 'ubuntu-island-calendar-event-date');
-        this.actor.add_child(this.heading);
+        this.header.add_child(this.heading); this.actor.add_child(this.header);
         this.scroll = new St.ScrollView({x_expand:true, y_expand:true, overlay_scrollbars:true});
         this.scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
         this.adjustment = this.scroll.get_vscroll_bar().get_adjustment();

@@ -1,4 +1,5 @@
 // Development-only wrapper; never packaged or installed.
+import Pango from 'gi://Pango';
 import UbuntuIsland from './implementation.js';
 import Gio from 'gi://Gio';
 import St from 'gi://St';
@@ -8,7 +9,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
-import {civilDay, todayDay, fullDate, monthTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
+import {civilDay, todayDay, fullDate, calendarTodayLabel, monthTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
 export default class Preview extends UbuntuIsland {
     enable() {
@@ -319,6 +320,7 @@ export default class Preview extends UbuntuIsland {
         assert(view.agenda.actor.visible && view.agenda.rows.size === 3, 'Inline selected-day events missing');
         assert(view.cells.find(cell => cell.day === todayDay()).indicator.opacity === 255, 'Event marker missing');
         const eventRow = [...view.agenda.rows.values()].find(row => row.event.uid === 'review');
+        assert(view.agenda.header.contains(view.todayButton) && !view.header.contains(view.todayButton), 'Today remains in the month navigation');
         eventRow.control.grab_key_focus(); await delay(150);
         assert(view.header.mapped && view.grid.mapped && navigation.mapped, 'Events replaced the month/navigation');
         assert(view.agenda.scroll.contains(eventRow.control), 'Event focus left the independent scroll area');
@@ -381,6 +383,7 @@ export default class Preview extends UbuntuIsland {
         for (const primary of ['jalali', 'gregorian', 'hijri']) {
             this._settings.set_string('calendar-primary', primary); await delay(180);
             assert(view.primary === primary && view.selected === sample, 'Preference switch lost selected date');
+            assert(view.todayButton.label === calendarTodayLabel(primary), 'Today language did not follow the main calendar');
             assert(view.title.text === monthTitle(sample, primaryCalendar(primary)), 'Month heading does not match the displayed month');
             assert(view.agenda.heading.text === fullDate(sample, primaryCalendar(primary), 'long'), 'Selected date does not use the main calendar');
             assert(view.cells.filter(cell => cell.control.visible && cell.main.text).length === view.gridData.filter(day => day.inMonth).length, 'Other-month dates still visible');
@@ -456,6 +459,10 @@ export default class Preview extends UbuntuIsland {
                 const [x] = actor.get_transformed_position();
                 assert(x >= left - 1 && x + actor.width <= right + 1, `Control outside card width: ${actor.style_class}`);
             }
+            const titleCenter = view.title.get_transformed_position()[0] + view.title.width / 2;
+            const arrowsCenter = (view.previous.get_transformed_position()[0] + view.previous.width + view.next.get_transformed_position()[0]) / 2;
+            assert(Math.abs(titleCenter - arrowsCenter) <= 1, 'Month title is not centered between the arrows');
+            assert(view.title.clutter_text.line_alignment === Pango.Alignment.CENTER, 'Month text is not centered');
             const [dayX] = view.agenda.actor.get_transformed_position();
             const [monthX] = view.month.get_transformed_position();
             assert(dayX + view.agenda.actor.width <= monthX, 'Day and month panels overlap');

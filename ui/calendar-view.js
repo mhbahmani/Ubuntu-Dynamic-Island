@@ -5,7 +5,7 @@ import Pango from 'gi://Pango';
 import GLib from 'gi://GLib';
 import {column, row, label, button} from './widgets.js';
 import {primaryCalendar, todayDay, weekday, monthGrid, shiftMonths, monthTitle,
-    fullDate, formatNotchDate, persianDigits, migrateCalendarSettings} from '../services/calendar-model.js';
+    fullDate, calendarTodayLabel, formatNotchDate, persianDigits, migrateCalendarSettings} from '../services/calendar-model.js';
 import {calendarHolidays, holidayDescription, isCalendarWeekend} from '../services/calendar-holidays.js';
 import {CalendarAgenda} from './calendar-agenda.js';
 import {eventsForDay} from '../services/calendar-events-model.js';
@@ -48,8 +48,9 @@ export class CalendarView {
         this.header.add_child(this.previous);
         this.header.add_child(this.title);
         this.header.add_child(this.next);
-        this.todayButton = textButton('Today', () => this.select(todayDay()));
-        this.header.add_child(this.todayButton);
+        this.todayButton = textButton('', () => this.select(todayDay()));
+        this.todayButton.y_align = Clutter.ActorAlign.START;
+        this.agenda.header.add_child(this.todayButton);
 
         this.scroll = new St.ScrollView({style_class: 'ubuntu-island-calendar-scroll',
             x_expand: true, y_expand: true, overlay_scrollbars: true});
@@ -138,6 +139,9 @@ export class CalendarView {
         this.gridData = monthGrid(this.displayed, this.primary);
         const selectedInMonth = this.gridData.some(data => data.inMonth && data.day === this.selected);
         const focusDay = selectedInMonth ? this.selected : this.gridData.find(data => data.inMonth).day;
+        this.todayButton.label = calendarTodayLabel(this.primary);
+        this.todayButton.accessible_name = this.todayButton.label;
+        this.todayButton.set_text_direction(rtl ? Clutter.TextDirection.RTL : Clutter.TextDirection.LTR);
         this.title.text = monthTitle(this.displayed, calendar);
         this.title.accessible_name = this.title.text;
         this.title.set_text_direction(rtl ? Clutter.TextDirection.RTL : Clutter.TextDirection.LTR);
@@ -181,7 +185,7 @@ export class CalendarView {
             cell.control.can_focus = data.day === focusDay;
             if (selected) { cell.control.add_style_pseudo_class('checked'); cell.control.add_accessible_state(Atk.StateType.SELECTED); }
             else { cell.control.remove_style_pseudo_class('checked'); cell.control.remove_accessible_state(Atk.StateType.SELECTED); }
-            cell.control.accessible_name = `${fullDate(data.day, calendar)}${today ? '; Today' : ''}${holiday.holiday ? `; ${holidayDescription(holiday, this.primary)}` : ''}`;
+            cell.control.accessible_name = `${fullDate(data.day, calendar)}${today ? `; ${calendarTodayLabel(this.primary)}` : ''}${holiday.holiday ? `; ${holidayDescription(holiday, this.primary)}` : ''}`;
             cell.dateAccessible = cell.control.accessible_name;
         });
         this._renderEvents(); this.actions.calendarRangeChanged?.();
