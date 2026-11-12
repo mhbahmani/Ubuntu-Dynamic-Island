@@ -74,8 +74,13 @@ export class HoverTip {
         if (!monitor) { this.tip.hide(); return; }
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         const gap = 6 * scale, margin = 8 * scale;
+        // A hidden popup may still have its default font on the first hover.
+        this.tip.ensure_style();
         this.tip.width = -1;
+        // Measure complete lines, not the previous allocation's wrapped layout.
+        this.tip.clutter_text.line_wrap = false;
         const width = Math.min(this.tip.get_preferred_width(-1)[1], 360 * scale, monitor.width - 2 * margin);
+        this.tip.clutter_text.line_wrap = true;
         this.tip.width = width;
         const height = this.tip.get_preferred_height(width)[1];
         const [x, y] = target.get_transformed_position(), [w, h] = target.get_transformed_size();

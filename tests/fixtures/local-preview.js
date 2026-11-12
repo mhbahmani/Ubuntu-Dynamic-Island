@@ -481,6 +481,12 @@ export default class Preview extends UbuntuIsland {
             assert(!/Hijri:|Gregorian:|Jalali:|calculated|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/.test(tip.text), 'Day popup has unnecessary labels');
             assert(tip.visible && tip.text.split('\n').length === 2 && !tip.text.includes(`${primary[0].toUpperCase()+primary.slice(1)}:`),
                 'Day hover did not show the other two calendars');
+            assert(tip.clutter_text.line_alignment === Pango.Alignment.CENTER && tip.clutter_text.get_layout().get_line_count() === 2,
+                'First hover did not show two centered dates');
+            const firstSize = tip.get_transformed_size();
+            view.dayTip.refresh(); await delay(40);
+            assert(tip.get_transformed_size().every((value,index) => Math.abs(value-firstSize[index]) < 1),
+                'First hover size changed after applying its style');
             assert(view.selected === selected, 'Day hover changed the selection');
             if (!native) assert(!/[\u0600-\u06ff]/.test(tip.text), 'Day hover ignored English dates');
             if (primary === 'jalali' && native) await this._capture('calendar-day-hover');
@@ -592,6 +598,8 @@ export default class Preview extends UbuntuIsland {
                 view.select(todayDay(),true); await delay(80);
                 const tip = view.dayTip.tip, [tx,ty] = tip.get_transformed_position(), [tw,th] = tip.get_transformed_size();
                 const monitor = Main.layoutManager.primaryMonitor;
+                assert(tip.clutter_text.line_alignment === Pango.Alignment.CENTER && tip.clutter_text.get_layout().get_line_count() === 2,
+                    'Alternate dates must remain two centered lines at enlarged text sizes');
                 assert(tip.visible && tx >= monitor.x && ty >= monitor.y && tx+tw <= monitor.x+monitor.width && ty+th <= monitor.y+monitor.height,
                     'Scaled alternate-date popup exceeds the monitor');
                 if (scale === 2 && font === 2 && width === 380) await this._capture('calendar-day-hover-scaled');

@@ -31,10 +31,12 @@ provider limits and privacy details.
 
 ## Latest interaction fixes (2026-11-13)
 
-- Calendar day popups wait 450 ms, then show two smaller, muted dates without
+- Calendar day popups wait 450 ms, then show two centered, muted 8pt dates without
   calendar labels, weekdays or calculation notes. Keyboard focus is immediate.
   One cancellable timeout belongs to the current hover; hiding/destroying the
-  view cancels it. Commute keeps its immediate explanation popup.
+  view cancels it. Popups apply their style before measuring complete lines,
+  so the first hover has the correct size even after font/scale changes.
+  Commute keeps its immediate explanation popup.
 - Hijri dates and lunar holidays use the published Iranian 1405 month starts
   in `services/iran-hijri.js`. Outside 21 March 2026–20 March 2027, conversion
   is an aligned tabular estimate. Preferences explain this coverage. No new
@@ -50,6 +52,9 @@ provider limits and privacy details.
 Validation: `make check` (192 tests), `make prefs-test`, `make media-test`, install
 tests and ZIP byte comparison passed. Native Calendar passed at 380/440px,
 100/200% scale and enlarged text (`/tmp/ubuntu-island-preview-herdtt7z`).
+Popup sizing/centering checks also pass on the first hover and at enlarged text
+sizes (`/tmp/ubuntu-island-preview-7754ctk3`); shared Commute tooltip checks pass
+after the measurement fix (`/tmp/ubuntu-island-preview-2ts7ku_9`).
 Commute tooltip checks passed (`/tmp/ubuntu-island-preview-hwy2b2f6`).
 `ISLAND_PREVIEW_CHECK_AGENT_HOVER=1` checks stationary hover through changing
 window availability at both widths/scales; it passed with 1.5× text
