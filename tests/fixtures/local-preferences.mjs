@@ -1,5 +1,6 @@
 import Gio from 'gi://Gio';
 import Adw from 'gi://Adw';
+import Gtk from 'gi://Gtk';
 import GLib from 'gi://GLib';
 Gio.Resource.load('/usr/share/gnome-shell/org.gnome.Shell.Extensions.src.gresource')._register();
 const {default: Preferences} = await import('./prefs.js');
@@ -16,6 +17,21 @@ window._islandCalendarReader = emit => ({watch() {emit({status:'ready',sources:[
 new Preferences(metadata).fillPreferencesWindow(window);
 window.connect('close-request', () => { finish(); return false; });
 window.present();
+if (GLib.getenv('ISLAND_PREVIEW_CHECK_OPENING') === '1') {
+    const labels = widget => {
+        const result = widget instanceof Gtk.Label && widget.label === 'Last used tab' ? [widget] : [];
+        for (let child=widget.get_first_child(); child; child=child.get_next_sibling()) result.push(...labels(child));
+        return result;
+    };
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT,700,() => {
+        const values = labels(window).filter(label => label.get_mapped());
+        if (!values.length || values.some(label => label.get_layout().is_ellipsized()))
+            console.error('[Island Preview] OPENING FAIL: selected value was clipped');
+        else console.log('[Island Preview] OPENING PASS: Last used tab is fully visible');
+        return GLib.SOURCE_REMOVE;
+    });
+}
+
 if (GLib.getenv('ISLAND_PREVIEW_PREFERENCES') === 'notch') {
     const find = (widget, title) => {
         if (widget instanceof Adw.PreferencesRow && widget.title === title) return widget;

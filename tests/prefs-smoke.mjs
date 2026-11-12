@@ -315,7 +315,7 @@ weatherStyle.selected = 1;
 if (settings.get_string('pill-weather-style') !== 'minimal') throw new Error('Weather style did not save');
 settings.set_string('pill-weather-style', 'colorful');
 if (weatherStyle.selected !== 0) throw new Error('Weather style did not follow settings');
-const opening = find(window, 'Open on expand');
+const opening = find(window, 'Opening tab');
 if (!opening || opening.selected !== 0 || settings.get_string('expand-tab') !== 'last')
     throw new Error('Default opening tab is not last used');
 opening.selected = 6;

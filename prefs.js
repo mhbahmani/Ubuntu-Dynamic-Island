@@ -33,9 +33,12 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
 
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
         const tabs = ['last', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar'];
-        const opening = new Adw.ComboRow({title: 'Open on expand',
-            subtitle: 'Applies on the next opening. Unavailable tabs keep the last available tab.',
+        const opening = new Adw.ComboRow({title: 'Opening tab',
             model: Gtk.StringList.new(['Last used tab', 'Media', 'System', 'Sound', 'Bluetooth', 'Weather', 'Commute', 'Agents', 'Calendar'])});
+        const openingFactory = new Gtk.SignalListItemFactory();
+        openingFactory.connect('setup', (_factory, item) => item.set_child(new Gtk.Label({xalign: 0})));
+        openingFactory.connect('bind', (_factory, item) => { item.get_child().label = item.get_item().get_string(); });
+        opening.factory = openingFactory;
         const syncOpening = () => { opening.selected = Math.max(0, tabs.indexOf(settings.get_string('expand-tab'))); };
         syncOpening();
         opening.connect('notify::selected', () => settings.set_string('expand-tab', tabs[opening.selected]));
