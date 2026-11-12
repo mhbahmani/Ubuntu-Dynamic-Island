@@ -18,20 +18,30 @@ function eventDateTime(event, primary) {
     const dates = first === last ? fullDate(first,primary) : `${fullDate(first,primary)} – ${fullDate(last,primary)}`;
     return `${dates}\n${eventTime(event)}`;
 }
-// A plain selected-day list inside the month view's scroll area. Stable rows
-// preserve keyboard focus while events change; no separate agenda/detail page.
+// The selected-day panel scrolls independently of the month. Stable rows retain
+// keyboard focus during service updates; event activation opens the desktop app.
 export class CalendarAgenda {
     constructor(actions) {
         this.actions = actions; this.rows = new Map();
         this.actor = column('ubuntu-island-calendar-agenda');
+        this.actor.x_expand = this.actor.y_expand = true;
+        this.actor.set_text_direction(Clutter.TextDirection.LTR);
         this.heading = wrapped('', 'ubuntu-island-calendar-event-date');
         this.actor.add_child(this.heading);
-        this.list = column('ubuntu-island-calendar-event-list'); this.actor.add_child(this.list);
-        this.message = wrapped('', 'ubuntu-island-calendar-event-meta'); this.actor.add_child(this.message);
+        this.scroll = new St.ScrollView({x_expand:true, y_expand:true, overlay_scrollbars:true});
+        this.scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+        this.adjustment = this.scroll.get_vscroll_bar().get_adjustment();
+        this.actor.add_child(this.scroll);
+        this.content = column('ubuntu-island-calendar-event-list'); this.scroll.set_child(this.content);
+        this.holiday = wrapped('', 'ubuntu-island-calendar-holiday-label'); this.content.add_child(this.holiday);
+        this.list = column('ubuntu-island-calendar-event-list'); this.content.add_child(this.list);
+        this.message = wrapped('', 'ubuntu-island-calendar-event-meta'); this.content.add_child(this.message);
     }
     update(snapshot, day, primary) {
         this.day = day;
-        this.heading.text = `Events · ${fullDate(day,primaryCalendar(primary))}`;
+        this.heading.text = fullDate(day,primaryCalendar(primary),'long');
+        const direction = primary === 'gregorian' ? Clutter.TextDirection.LTR : Clutter.TextDirection.RTL;
+        this.heading.set_text_direction(direction); this.holiday.set_text_direction(direction);
         const covered = snapshot.coverage?.some(r => r.startDay <= day && day < r.endDayExclusive);
         const agenda = eventsForDay(snapshot,day,{covered});
         this.message.text = !agenda.complete ? CALENDAR_MESSAGES[snapshot.status] || 'Calendar data is incomplete' :
@@ -44,23 +54,20 @@ export class CalendarAgenda {
         for (const event of agenda.occurrences) {
             let item = this.rows.get(event.id);
             if (!item) {
-                const control = new St.Button({style_class:'ubuntu-island-calendar-event',reactive:true,can_focus:true,x_expand:true});
+                const control = new St.Button({style_class:'ubuntu-island-calendar-event',reactive:true,can_focus:true,track_hover:true,x_expand:true});
                 const face = column(); face.x_expand = true; face.x_align = Clutter.ActorAlign.FILL; control.set_child(face);
                 const title = wrapped(''), time = wrapped('','ubuntu-island-calendar-event-meta');
-                const detail = wrapped('','ubuntu-island-calendar-event-meta');
-                face.add_child(title); face.add_child(time); face.add_child(detail);
-                item = {control,title,time,detail,event}; this.rows.set(event.id,item); this.list.add_child(control);
+                face.add_child(title); face.add_child(time);
+                item = {control,title,time,event}; this.rows.set(event.id,item); this.list.add_child(control);
                 control.connect('clicked', () => this._openCalendar());
             }
             item.event = event; item.title.text = event.title || 'Untitled event';
             item.time.text = eventTime(event);
             const source = snapshot.sources?.find(source => source.uid === event.sourceUid)?.name;
-            item.detail.text = [source,event.location].filter(Boolean).join(' · ');
-            item.detail.visible = Boolean(item.detail.text);
-            item.control.accessible_name = `${item.title.text}, ${eventDateTime(event,primaryCalendar(primary))}, ${item.detail.text}. Open in Calendar`;
+            const detail = [source,event.location].filter(Boolean).join(' · ');
+            item.control.accessible_name = `${item.title.text}, ${eventDateTime(event,primaryCalendar(primary))}, ${detail}. Open in Calendar`;
         }
-        if (![...this.rows.values()].some(item => item.control.contains(global.stage.get_key_focus())))
-            agenda.occurrences.forEach((event,index) => this.list.set_child_at_index(this.rows.get(event.id).control,index));
+        agenda.occurrences.forEach((event,index) => this.list.set_child_at_index(this.rows.get(event.id).control,index));
     }
     async _openCalendar() {
         try { await this.actions.calendarOpen(this.day); }

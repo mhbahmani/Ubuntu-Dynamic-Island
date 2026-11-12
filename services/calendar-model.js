@@ -62,9 +62,14 @@ export function dateTitle(day, calendar) {
 export function monthTitle(day, calendar) {
     return formatter(calendar, {month: 'long', year: 'numeric'}).format(new Date(day * DAY));
 }
-export function fullDate(day, calendar) {
-    return formatter(calendar, {weekday: 'short', day: 'numeric', month: 'long', year: 'numeric'})
-        .format(new Date(day * DAY));
+export function fullDate(day, calendar, weekday = 'short') {
+    const date = new Date(day * DAY);
+    const format = formatter(calendar, {weekday, day: 'numeric', month: 'long', year: 'numeric'});
+    if (weekday === 'long' && calendar !== 'gregory') {
+        const parts = Object.fromEntries(format.formatToParts(date).map(part => [part.type, part.value]));
+        return `${parts.weekday}، ${parts.day} ${parts.month} ${parts.year}`;
+    }
+    return format.format(date);
 }
 export function numericDate(day, calendar) {
     const p = dateParts(day, calendar);

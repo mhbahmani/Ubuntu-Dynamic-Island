@@ -1,16 +1,15 @@
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import Atk from 'gi://Atk';
+import Pango from 'gi://Pango';
 import GLib from 'gi://GLib';
 import {column, row, label, button} from './widgets.js';
-import {primaryCalendar, todayDay, weekday, monthGrid, shiftMonths, dateTitle, monthTitle,
-    fullDate, displayDate, persianDigits, shownCalendars, migrateCalendarSettings} from '../services/calendar-model.js';
+import {primaryCalendar, todayDay, weekday, monthGrid, shiftMonths, monthTitle,
+    fullDate, formatNotchDate, persianDigits, migrateCalendarSettings} from '../services/calendar-model.js';
 import {calendarHolidays, holidayDescription, isCalendarWeekend} from '../services/calendar-holidays.js';
 import {CalendarAgenda} from './calendar-agenda.js';
 import {eventsForDay} from '../services/calendar-events-model.js';
 
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const PERSIAN_WEEKDAYS = ['ی', 'د', 'س', 'چ', 'پ', 'ج', 'ش'];
 function textButton(text, action) {
     const actor = new St.Button({label: text, style_class: 'ubuntu-island-calendar-control',
         can_focus: true, reactive: true, track_hover: true});
@@ -18,51 +17,45 @@ function textButton(text, action) {
     return actor;
 }
 
-// One date selection shared by all three calendars. The date heading and month
-// controls stay outside the scrollable grid, including on small displays.
+// One civil-date selection shared by the independent day and month panels.
 export class CalendarView {
     constructor(settings, actions) {
         this.settings = settings; this.actions = actions;
         this.displayed = this.selected = this.today = todayDay();
         migrateCalendarSettings(settings);
         this.primary = settings.get_string('calendar-primary');
-        this.additional = settings.get_strv('calendar-additional');
-        this.actor = column('ubuntu-island-calendar');
+        this.actor = row('ubuntu-island-calendar');
+        this.actor.layout_manager.homogeneous = true;
         this.actor.y_expand = true;
         this.actor.set_text_direction(Clutter.TextDirection.LTR);
-        this.header = row('ubuntu-island-calendar-header'); this.actor.add_child(this.header);
-        this.dates = column('ubuntu-island-calendar-dates');
-        this.dates.x_expand = true; this.dates.y_align = Clutter.ActorAlign.CENTER;
-        this.header.add_child(this.dates);
+        this.agenda = new CalendarAgenda({...actions,restoreFocus:() => this.todayButton.grab_key_focus()});
+        this.actor.add_child(this.agenda.actor);
+        this.month = column('ubuntu-island-calendar-month');
+        this.month.x_expand = this.month.y_expand = true;
+        this.actor.add_child(this.month);
+        this.header = row('ubuntu-island-calendar-header');
+        this.month.add_child(this.header);
         this.title = label('', 'ubuntu-island-calendar-title', false);
+        this.title.x_expand = true;
         this.title.clutter_text.line_wrap = true;
-        this.dates.add_child(this.title);
-        // The combined date line replaces the heading when conversions are
-        // shown. Larger text can wrap without clipping dates or controls.
-        this.selectedDate = label('', 'ubuntu-island-calendar-selected', false);
-        this.selectedDate.clutter_text.line_wrap = true;
-        this.dates.add_child(this.selectedDate);
-        this.holidayLabel = label('', 'ubuntu-island-calendar-holiday-label', false);
-        this.holidayLabel.clutter_text.line_wrap = true;
-        this.dates.add_child(this.holidayLabel);
-        this.controls = row('ubuntu-island-calendar-controls');
-        this.controls.y_align = Clutter.ActorAlign.START;
-        this.header.add_child(this.controls);
+        this.title.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
         this.previous = button('go-previous-symbolic', 'Previous month', () => {
             this.previous.grab_key_focus(); this.moveMonth(-1);
         }, 14, 'ubuntu-island-calendar-control');
         this.next = button('go-next-symbolic', 'Next month', () => {
             this.next.grab_key_focus(); this.moveMonth(1);
         }, 14, 'ubuntu-island-calendar-control');
-        this.controls.add_child(this.previous);
+        this.header.add_child(this.previous);
+        this.header.add_child(this.title);
+        this.header.add_child(this.next);
         this.todayButton = textButton('Today', () => this.select(todayDay()));
-        this.controls.add_child(this.todayButton); this.controls.add_child(this.next);
+        this.header.add_child(this.todayButton);
 
         this.scroll = new St.ScrollView({style_class: 'ubuntu-island-calendar-scroll',
             x_expand: true, y_expand: true, overlay_scrollbars: true});
-        this.scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
+        this.scroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.AUTOMATIC);
         this.adjustment = this.scroll.get_vscroll_bar().get_adjustment();
-        this.actor.add_child(this.scroll);
+        this.month.add_child(this.scroll);
         this.grid = new St.Widget({style_class: 'ubuntu-island-calendar-grid',
             layout_manager: new Clutter.GridLayout({column_homogeneous: true}), x_expand: true});
         this.content = column(); this.content.add_child(this.grid); this.scroll.set_child(this.content);
@@ -74,23 +67,20 @@ export class CalendarView {
             const control = new St.Button({style_class: 'ubuntu-island-calendar-day',
                 reactive: true, track_hover: true, x_expand: true});
             const main = label('', 'ubuntu-island-calendar-number', false);
-            const face = new St.Widget({style_class: 'ubuntu-island-calendar-date', layout_manager:new Clutter.BinLayout(),
-                x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER});
+            const face = column('ubuntu-island-calendar-date');
+            face.x_expand = true;
             main.x_align = main.y_align = Clutter.ActorAlign.CENTER; face.add_child(main);
-            const dot = new St.Widget({style_class:'ubuntu-island-calendar-event-dot',
-                x_align:Clutter.ActorAlign.END,y_align:Clutter.ActorAlign.END,visible:false}); face.add_child(dot);
+            const indicator = new St.Widget({style_class:'ubuntu-island-calendar-event-indicator',
+                x_align:Clutter.ActorAlign.CENTER, opacity:0}); face.add_child(indicator);
             control.set_child(face);
-            const cell = {control, main, dot, day: null};
+            const cell = {control, main, indicator, day: null};
             control.connect('clicked', () => this.select(cell.day, true));
             control.connect('key-press-event', (_actor, event) => this._key(event, cell.day));
             this.grid.add_child(control); return cell;
         });
         this.eventSnapshot = {status:'disabled',occurrences:[],coverage:[],sources:[],incomplete:true};
-        this.agenda = new CalendarAgenda({...actions,restoreFocus:() => this.todayButton.grab_key_focus()});
-        this.content.add_child(this.agenda.actor); this.agenda.actor.hide();
-        const changed = ['calendar-primary', 'calendar-additional', 'calendar-events-enabled', 'calendar-event-sources'].map(key => settings.connect(`changed::${key}`, () => {
+        const changed = ['calendar-primary', 'calendar-events-enabled', 'calendar-event-sources'].map(key => settings.connect(`changed::${key}`, () => {
             this.primary = settings.get_string('calendar-primary');
-            this.additional = settings.get_strv('calendar-additional');
             this.render(); this.actions.relayout?.();
         }));
         const focus = global.stage.connect('notify::key-focus', () => this._revealFocus());
@@ -115,14 +105,9 @@ export class CalendarView {
         this.render();
     }
 
-    preferredHeight(width) {
-        const padding = this.actor.get_theme_node().get_vertical_padding();
-        const inner = width - this.actor.get_theme_node().get_horizontal_padding();
-        const spacing = this.actor.get_theme_node().get_length('spacing');
-        return padding + spacing + [this.header, this.content]
-            .reduce((sum, actor) => sum + actor.get_preferred_height(inner)[1], 0);
-    }
     select(day, focus = false) {
+        if (day == null) return;
+        if (day !== this.selected) this.agenda.adjustment.value = 0;
         this.displayed = this.selected = day; this.render();
         this.actions.relayout?.();
         if (focus) this.cells.find(cell => cell.day === day)?.control.grab_key_focus();
@@ -153,24 +138,18 @@ export class CalendarView {
         this.gridData = monthGrid(this.displayed, this.primary);
         const selectedInMonth = this.gridData.some(data => data.inMonth && data.day === this.selected);
         const focusDay = selectedInMonth ? this.selected : this.gridData.find(data => data.inMonth).day;
-        const shown = shownCalendars(this.primary, this.additional).filter(id => id !== this.primary);
-        this.title.text = selectedInMonth && !shown.length ? dateTitle(this.selected, calendar) : monthTitle(this.displayed, calendar);
-        this.title.visible = !selectedInMonth || !shown.length;
-        this.title.accessible_name = selectedInMonth ? fullDate(this.selected, calendar) : this.title.text;
-        // Directional isolates keep mixed Persian/Latin dates in their own order.
-        const dates = [this.primary, ...shown];
-        this.selectedDate.text = dates.map(id => `\u2068${displayDate(this.selected, id).replace(/ /g, '\u00a0')}\u2069`).join(' · ');
-        this.selectedDate.accessible_name = dates.map(id => fullDate(this.selected, primaryCalendar(id))).join('; ');
-        this.selectedDate.visible = selectedInMonth && shown.length > 0;
+        this.title.text = monthTitle(this.displayed, calendar);
+        this.title.accessible_name = this.title.text;
+        this.title.set_text_direction(rtl ? Clutter.TextDirection.RTL : Clutter.TextDirection.LTR);
         const selectedHoliday = calendarHolidays(this.selected, this.primary);
-        this.holidayLabel.text = holidayDescription(selectedHoliday, this.primary);
-        // Ordinary dates and weekly weekends do not add another header line.
-        this.holidayLabel.visible = selectedInMonth && selectedHoliday.names.length > 0;
+        this.agenda.holiday.text = holidayDescription(selectedHoliday, this.primary);
+        this.agenda.holiday.visible = selectedHoliday.names.length > 0;
         const layout = this.grid.layout_manager;
         for (let i = 0; i < 7; i++) {
             const day = (i + (rtl ? 6 : 1)) % 7;
-            this.headings[i].text = rtl ? PERSIAN_WEEKDAYS[day] : WEEKDAYS[day].slice(0, 2);
-            this.headings[i].accessible_name = WEEKDAYS[day];
+            const date = this.displayed + day - weekday(this.displayed);
+            this.headings[i].text = formatNotchDate(date, this.primary, rtl ? '%w' : '%ww').slice(0, rtl ? 1 : 2);
+            this.headings[i].accessible_name = formatNotchDate(date, this.primary, '%WW');
             this.headings[i].set_style_class_name(`ubuntu-island-calendar-weekday${isCalendarWeekend(day, this.primary) ? ' ubuntu-island-calendar-weekend-heading' : ''}`);
             const meta = layout.get_child_meta(this.grid, this.headings[i]);
             meta.left_attach = rtl ? 6 - i : i; meta.top_attach = 0;
@@ -215,16 +194,18 @@ export class CalendarView {
     _renderEvents() {
         if (!this.agenda) return;
         const enabled = this.settings.get_boolean('calendar-events-enabled'), snapshot = this.eventSnapshot;
+        const configured = enabled && this.settings.get_strv('calendar-event-sources').length > 0;
         const covered = day => snapshot.coverage?.some(r => r.startDay <= day && day < r.endDayExclusive);
         for (const cell of this.cells) {
-            const agenda = enabled && cell.day != null ? eventsForDay(snapshot,cell.day,{covered:covered(cell.day)}) : null;
-            cell.dot.visible = Boolean(agenda?.occurrences.length);
+            const agenda = configured && cell.day != null ? eventsForDay(snapshot,cell.day,{covered:covered(cell.day)}) : null;
+            cell.indicator.opacity = agenda?.occurrences.length ? 255 : 0;
             if (cell.day != null) cell.control.accessible_name = `${cell.dateAccessible || ''}${agenda?.count != null
                 ? `; ${agenda.count} events` : agenda?.occurrences.length ? '; Events available, incomplete coverage' : ''}`;
         }
-        this.agenda.actor.visible = enabled && this.settings.get_strv('calendar-event-sources').length > 0;
-        if (!this.agenda.actor.visible) this.pendingEvent = null;
-        this.agenda.update(snapshot,this.selected,this.primary);
+        if (!configured) this.pendingEvent = null;
+        this.agenda.update(configured ? snapshot : {status:'ready', occurrences:[],
+            coverage:[{startDay:this.selected,endDayExclusive:this.selected + 1}], incomplete:false},
+        this.selected,this.primary);
         if (this.pendingEvent && this.actions.calendarFocusReady?.() && !this.focusIdle) {
             this.focusIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
                 this.focusIdle = 0; this.focusRequestedEvent(); return GLib.SOURCE_REMOVE;
@@ -244,15 +225,20 @@ export class CalendarView {
     }
     _revealFocus() {
         const target = global.stage.get_key_focus();
-        const scroll = this.scroll, content = this.content;
-        if (!this.actor.mapped || !target?.mapped || !content.contains(target)) return;
-        const adjustment = scroll.get_vscroll_bar().get_adjustment();
-        const top = scroll.get_transformed_position()[1], y = target.get_transformed_position()[1];
-        const bottom = top + scroll.get_transformed_size()[1];
-        const offset = y < top ? y - top : Math.max(0, y + target.height - bottom);
-        if (!Number.isFinite(offset)) return; // Focus can arrive before a newly shown page is allocated.
-        adjustment.value = Math.max(adjustment.lower,
-            Math.min(adjustment.upper - adjustment.page_size, adjustment.value + offset));
+        if (!this.actor.mapped || !target?.mapped) return;
+        const scroll = this.agenda.actor.contains(target) ? this.agenda.scroll : this.scroll;
+        if (!scroll.contains(target)) return;
+        // Reveal keyboard focus in its own viewport, including horizontal overflow
+        // at enlarged text sizes. The other panel keeps its scroll position.
+        const position = scroll.get_transformed_position(), size = scroll.get_transformed_size();
+        const targetPosition = target.get_transformed_position(), targetSize = target.get_transformed_size();
+        [scroll.get_hscroll_bar(), scroll.get_vscroll_bar()].forEach((bar, axis) => {
+            const adjustment = bar.get_adjustment();
+            const offset = targetPosition[axis] < position[axis] ? targetPosition[axis] - position[axis] :
+                Math.max(0, targetPosition[axis] + targetSize[axis] - position[axis] - size[axis]);
+            if (Number.isFinite(offset)) adjustment.value = Math.max(adjustment.lower,
+                Math.min(adjustment.upper - adjustment.page_size, adjustment.value + offset));
+        });
     }
     _refreshToday() {
         const current = todayDay();

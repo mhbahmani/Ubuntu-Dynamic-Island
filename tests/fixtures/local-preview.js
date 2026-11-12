@@ -8,7 +8,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
-import {civilDay, todayDay, dateTitle, monthTitle, displayDate, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
+import {civilDay, todayDay, fullDate, monthTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
 export default class Preview extends UbuntuIsland {
     enable() {
@@ -315,25 +315,29 @@ export default class Preview extends UbuntuIsland {
         this._card.selectPage('calendar'); this._island.expand(); await delay(600);
         const view = this._card._calendarView;
         view.select(todayDay()); await delay(200);
-        assert(!view.eventSummary && view.content.contains(view.agenda.actor), 'Events must share the month scroll area');
+        assert(!view.content.contains(view.agenda.actor) && view.actor.contains(view.agenda.actor), 'Events must have their own panel');
         assert(view.agenda.actor.visible && view.agenda.rows.size === 3, 'Inline selected-day events missing');
-        assert(view.cells.find(cell => cell.day === todayDay()).dot.visible, 'Event marker missing');
+        assert(view.cells.find(cell => cell.day === todayDay()).indicator.opacity === 255, 'Event marker missing');
         const eventRow = [...view.agenda.rows.values()].find(row => row.event.uid === 'review');
         eventRow.control.grab_key_focus(); await delay(150);
         assert(view.header.mapped && view.grid.mapped && navigation.mapped, 'Events replaced the month/navigation');
-        assert(view.adjustment.value > 0, 'Focused events were not scrolled into view');
+        assert(view.agenda.scroll.contains(eventRow.control), 'Event focus left the independent scroll area');
+        const eventCell = view.cells.find(cell => cell.day === todayDay());
+        assert(eventCell.indicator.get_transformed_position()[1] >= eventCell.main.get_transformed_position()[1] + eventCell.main.height,
+            'Event indicator overlaps the day number');
+        assert(view.month.get_theme_node().get_border_width(St.Side.LEFT) > 0, 'Panel divider missing');
         await this._capture('calendar-inline-events');
         const sampleRecords = this._sampleCalendarRecords;
         this._sampleCalendarRecords = sampleRecords.filter(event => event.uid !== 'review'); this._calendarEvents.publish(); await delay(50);
         assert(view.agenda.rows.size === 2 && view.todayButton.has_key_focus(), 'Removed focused event did not restore focus');
         this._sampleCalendarRecords = sampleRecords; this._calendarEvents.publish();
         this._settings.set_strv('calendar-event-sources',[]); await delay(100);
-        assert(!view.agenda.actor.visible && !view.eventSummary, 'Unconfigured events retained a blank footer');
+        assert(view.agenda.actor.visible && view.agenda.message.text === 'No events' && !view.agenda.rows.size, 'Unconfigured day panel must retain its date and empty state');
         this._settings.set_strv('calendar-event-sources',['sample-calendar']);
         this._island.collapse(); await delay(350);
         assert(this._pill._event.visible && this._eventIndicator?.text === 'Event now', 'Private upcoming event label missing');
         await click(this._pill._event); await delay(350);
-        assert(this._island.expanded && view.agenda.actor.visible && view.header.mapped && view.adjustment.value > 0,
+        assert(this._island.expanded && view.agenda.actor.visible && view.header.mapped && view.agenda.actor.contains(global.stage.get_key_focus()),
             'Event click did not reveal inline events');
         await key(Clutter.KEY_Escape); await delay(250);
         assert(!this._island.expanded, 'Inline calendar Escape did not close the island');
@@ -341,7 +345,34 @@ export default class Preview extends UbuntuIsland {
         this._card.selectPage('media');
         assert(!this._calendarClock && !this._calendarDeadline && !this._calendarEvents.request, 'Hidden calendar retains subscriptions');
         this._card.selectPage('calendar'); await delay(150);
-        // Grid-only sizing remains independent of whether event data is configured.
+        const gridY = view.grid.get_transformed_position()[1], gridScroll = view.adjustment.value;
+        const many = Array.from({length:12}, (_, index) => ({...sampleRecords.find(event => event.uid === 'review'),
+            uid:`overflow-${index}`, title:`Planning ${index} · A long event title that must wrap inside its card برنامه‌ریزی`,
+            startMs:sampleRecords[1].startMs + index * 60000, endMs:sampleRecords[1].endMs + index * 60000}));
+        this._sampleCalendarRecords = [...sampleRecords, ...many]; this._calendarEvents.publish(); await delay(150);
+        const finalRow = view.agenda.list.get_last_child(); finalRow.grab_key_focus(); await delay(150);
+        assert(view.agenda.adjustment.value > 0 && view.adjustment.value === gridScroll && view.grid.get_transformed_position()[1] === gridY,
+            'Scrolling events moved the month');
+        assert(finalRow.get_transformed_position()[1] + finalRow.height <= view.agenda.scroll.get_transformed_position()[1] + view.agenda.scroll.height + 1,
+            'Last event is unreachable');
+        for (const item of view.agenda.rows.values()) {
+            assert(item.control.width <= view.agenda.scroll.width, 'Long event title widened the panel');
+            assert(item.title.height + 1 >= item.title.clutter_text.get_preferred_height(item.title.width)[1], 'Long event title was clipped');
+        }
+        await this._capture('calendar-long-events');
+        this._sampleCalendarRecords = sampleRecords; this._calendarEvents.publish();
+        await click(view.cells.find(cell => cell.day === todayDay() + 1).control);
+        assert(view.agenda.rows.size === 1 && [...view.agenda.rows.values()][0].event.uid === 'tomorrow', 'Day selection did not filter events');
+        await click(view.cells.find(cell => cell.day === todayDay() + 2).control);
+        assert(!view.agenda.rows.size && view.agenda.message.text === 'No events', 'Empty selected day is not clear');
+        await click(view.todayButton);
+        const originalTheme = this._settings.get_string('color-theme');
+        for (const theme of ['graphite', 'ocean', 'forest', 'ember']) {
+            this._settings.set_string('color-theme', theme); await delay(150);
+            await this._capture(`calendar-theme-${theme}`);
+        }
+        this._settings.set_string('color-theme', originalTheme);
+        // Grid sizing remains independent of whether event data is configured.
         this._settings.set_boolean('calendar-events-enabled',false);
         const sample = civilDay(2025, 3, 20);
         view.select(sample);
@@ -350,9 +381,8 @@ export default class Preview extends UbuntuIsland {
         for (const primary of ['jalali', 'gregorian', 'hijri']) {
             this._settings.set_string('calendar-primary', primary); await delay(180);
             assert(view.primary === primary && view.selected === sample, 'Preference switch lost selected date');
-            assert(view.title.text === (view.selectedDate.visible ? monthTitle : dateTitle)(sample, primaryCalendar(primary)), 'Calendar heading does not match the displayed month/date');
-            if (view.selectedDate.visible)
-                assert(view.selectedDate.text.replace(/\u00a0/g, ' ').includes(displayDate(sample, primary)), 'Date strip omits the main calendar');
+            assert(view.title.text === monthTitle(sample, primaryCalendar(primary)), 'Month heading does not match the displayed month');
+            assert(view.agenda.heading.text === fullDate(sample, primaryCalendar(primary), 'long'), 'Selected date does not use the main calendar');
             assert(view.cells.filter(cell => cell.control.visible && cell.main.text).length === view.gridData.filter(day => day.inMonth).length, 'Other-month dates still visible');
             for (const cell of view.cells.filter(cell => cell.day === null))
                 assert(!cell.control.reactive && !cell.control.can_focus, 'Blank date cell is interactive');
@@ -361,7 +391,7 @@ export default class Preview extends UbuntuIsland {
         this._settings.set_string('calendar-primary', 'jalali');
         this._settings.set_strv('calendar-additional', ['jalali', 'gregorian', 'hijri']);
         await delay(150); await this._capture('calendar-all-dates');
-        assert(view.selectedDate.text.includes('ق'), 'Additional Hijri date missing');
+        assert(view.agenda.heading.text === fullDate(sample, primaryCalendar('jalali'), 'long'), 'Additional calendar changed the day heading');
         this._settings.set_string('calendar-primary', 'gregorian'); await delay(150);
         await click(view.cells.find(c => c.day === sample).control);
         await key(Clutter.KEY_Left); assert(view.selected === sample - 1, 'Gregorian arrow did not move left');
@@ -374,24 +404,24 @@ export default class Preview extends UbuntuIsland {
         await click(view.cells.find(c => c.day === sample).control);
         await key(Clutter.KEY_Left); assert(view.selected === sample + 1, 'RTL arrow did not cross Nowruz');
         await key(Clutter.KEY_Right); assert(view.selected === sample, 'RTL arrow did not return');
-        assert(view.selectedDate.text.replace(/\u00a0/g, ' ').includes(displayDate(sample, 'jalali')), 'Keyboard selection did not update the date strip');
+        assert(view.agenda.heading.text === fullDate(sample, primaryCalendar('jalali'), 'long'), 'Keyboard selection did not update the day heading');
         // Iranian published dates differ from the tabular Hijri calendar.
         const holidayDay = civilDay(2026, 11, 13);
         view.select(holidayDay - 1); await delay(150);
         await click(view.cells.find(c => c.day === holidayDay).control);
-        assert(view.holidayLabel.visible && view.holidayLabel.text === 'شهادت حضرت فاطمه', 'Selected Iranian holiday name missing');
+        assert(view.agenda.holiday.visible && view.agenda.holiday.text === 'شهادت حضرت فاطمه', 'Selected Iranian holiday name missing');
         const marked = () => view.cells.filter(cell => cell.control.visible && cell.control.has_style_class_name('ubuntu-island-calendar-holiday')).map(cell => cell.day).join(',');
         const beforeAdditional = marked();
         this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);
         assert(marked() === beforeAdditional, 'Additional dates changed holiday markings');
         await delay(150); await this._capture('calendar-iran-holiday');
         this._settings.set_string('calendar-primary', 'gregorian'); await delay(150);
-        assert(!view.holidayLabel.visible && !view.cells.find(cell => cell.day === holidayDay).control.has_style_class_name('ubuntu-island-calendar-holiday'), 'Gregorian inherited Iranian holiday');
+        assert(!view.agenda.holiday.visible && !view.cells.find(cell => cell.day === holidayDay).control.has_style_class_name('ubuntu-island-calendar-holiday'), 'Gregorian inherited Iranian holiday');
         assert(view.cells.find(cell => cell.day === holidayDay + 1).control.has_style_class_name('ubuntu-island-calendar-holiday'), 'Gregorian weekend missing');
         await this._capture('calendar-gregorian-weekends');
         this._settings.set_string('calendar-primary', 'hijri');
         view.select(holidayDay + 1); await delay(150);
-        assert(view.holidayLabel.text.includes('محاسبه‌ای'), 'Calculated lunar holiday is not identified');
+        assert(view.agenda.holiday.text.includes('محاسبه‌ای'), 'Calculated lunar holiday is not identified');
         await this._capture('calendar-hijri-holiday');
         this._settings.set_string('calendar-primary', 'jalali');
         this._settings.set_strv('calendar-additional', ['gregorian']);
@@ -403,11 +433,11 @@ export default class Preview extends UbuntuIsland {
             return color.red === 0xb7 && color.green === 0x47 && color.blue === 0x32;
         });
         assert(redCells().length === 1 && redCells()[0].day === now, 'Today does not own the red fill');
-        const controlsY = view.controls.get_transformed_position()[1];
+        const controlsY = view.header.get_transformed_position()[1];
         await click(view.next);
         assert(view.selected === now && redCells().length === 0, 'Red Today highlight carried into the next month');
-        assert(view.controls.get_transformed_position()[1] === controlsY, 'Month controls moved while browsing');
-        assert(!view.selectedDate.visible && !view.holidayLabel.visible, 'Browsing shows details for an offscreen selection');
+        assert(view.header.get_transformed_position()[1] === controlsY, 'Month controls moved while browsing');
+        assert(view.agenda.heading.text === fullDate(now, primaryCalendar(view.primary), 'long'), 'Month browsing changed the selected date heading');
         await this._capture('calendar-next-month');
         await click(view.previous);
         assert(redCells().length === 1 && redCells()[0].day === now, 'Today highlight did not return with its actual month');
@@ -421,22 +451,18 @@ export default class Preview extends UbuntuIsland {
         const verifyBounds = () => {
             const nav = this._card._navigation, [left] = this._island.actor.get_transformed_position();
             const right = left + this._island.actor.width;
-            for (const actor of [view.previous, view.next, view.todayButton,
-                ...(view.title.visible ? [view.title] : []), ...(view.selectedDate.visible ? [view.selectedDate] : []),
-                ...(view.holidayLabel.visible ? [view.holidayLabel] : []),
-                ...view.headings, ...view.cells.filter(cell => cell.control.visible).map(cell => cell.control),
-                ...this._card._tabs.values(), nav.get_last_child()]) {
+            for (const actor of [view.previous, view.next, view.todayButton, view.title, view.agenda.heading,
+                view.agenda.scroll, view.scroll, ...this._card._tabs.values(), nav.get_last_child()]) {
                 const [x] = actor.get_transformed_position();
-                assert(x >= left - 1 && x + actor.width <= right + 1, 'Control outside card width');
+                assert(x >= left - 1 && x + actor.width <= right + 1, `Control outside card width: ${actor.style_class}`);
             }
-            const [dateX, dateY] = view.dates.get_transformed_position();
-            const [controlsX] = view.controls.get_transformed_position();
-            assert(dateX + view.dates.width <= controlsX, 'Date heading overlaps month controls');
-            assert(dateY + view.dates.height <= view.scroll.get_transformed_position()[1], 'Date heading overlaps grid');
-            for (const label of [...(view.title.visible ? [view.title] : []), ...(view.selectedDate.visible ? [view.selectedDate] : []),
-                ...(view.holidayLabel.visible ? [view.holidayLabel] : [])])
+            const [dayX] = view.agenda.actor.get_transformed_position();
+            const [monthX] = view.month.get_transformed_position();
+            assert(dayX + view.agenda.actor.width <= monthX, 'Day and month panels overlap');
+            for (const label of [view.title, view.agenda.heading])
                 assert(label.height + 1 >= label.clutter_text.get_preferred_height(label.width)[1], 'Date text is clipped');
-            assert(view.scroll.get_transformed_position()[1] + view.scroll.height <= nav.get_transformed_position()[1] + 1, 'Grid overlaps navigation');
+            for (const scroll of [view.scroll, view.agenda.scroll])
+                assert(scroll.get_transformed_position()[1] + scroll.height <= nav.get_transformed_position()[1] + 1, 'Panel overlaps navigation');
         };
         this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);
         for (const scale of [1, 2]) {
@@ -446,8 +472,8 @@ export default class Preview extends UbuntuIsland {
                 verifyBounds();
                 await this._capture(`calendar-${width}-scale${scale}`);
                 assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Common month scrolls at ${width}/${scale}: ${view.adjustment.upper}/${view.adjustment.page_size}`);
-                assert(view.selectedDate.clutter_text.get_layout().get_line_count() === 1, `Calendar dates do not share one line at ${width}/${scale}`);
-                console.log(`[Island Preview] Calendar layout: ${width}px / ${scale * 100}%, height ${this._island.actor.height / scale}px, all dates on one line`);
+                assert(view.scroll.get_hscroll_bar().get_adjustment().upper <= view.scroll.width + 1, 'Common month needs horizontal scrolling');
+                console.log(`[Island Preview] Calendar layout: ${width}px / ${scale * 100}%, height ${this._island.actor.height / scale}px, independent day and month panels`);
             }
         }
         this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);
@@ -466,7 +492,7 @@ export default class Preview extends UbuntuIsland {
         text.set_double('text-scaling-factor', originalText); context.scale_factor = originalScale;
         this._settings.set_int('expanded-width', originalWidth); this._island.applyDimensions(); await delay(300);
         this._settings.set_strv('calendar-additional', []); await delay(200);
-        assert(!view.selectedDate.visible, 'Empty additional-date line still occupies the header');
+        assert(!view.selectedDate, 'Redundant multi-calendar header remains');
         verifyBounds(); await this._capture('calendar-single-date');
         this._settings.set_strv('calendar-additional', ['gregorian']); await delay(200);
         view.select(todayDay()); await delay(200);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {civilDay, dateParts, monthBounds, shiftMonths, monthGrid, todayDay, numericDate, dateTitle, primaryCalendar, shownCalendars, migrateCalendarSettings, notchDate, notchDates, formatNotchDate, dateFormatError, dateOrder, migrateNotchDates} from '../services/calendar-model.js';
+import {civilDay, dateParts, monthBounds, shiftMonths, monthGrid, todayDay, numericDate, dateTitle, fullDate, primaryCalendar, shownCalendars, migrateCalendarSettings, notchDate, notchDates, formatNotchDate, dateFormatError, dateOrder, migrateNotchDates} from '../services/calendar-model.js';
 
 test('date format tokens, literal text and numerals work for each calendar', () => {
     const day = civilDay(2026, 11, 10);
@@ -153,4 +153,15 @@ test('prototype preferences migrate once without overwriting newer choices', () 
     assert.equal(values.get('calendar-primary'), 'hijri');
     assert.deepEqual(values.get('calendar-additional'), ['jalali']);
     assert.ok(!values.has('calendar-mode'));
+});
+
+
+test('prominent day headings use full weekdays and main-calendar date order', () => {
+    const day = civilDay(2026, 11, 9);
+    assert.equal(fullDate(day, primaryCalendar('gregorian'), 'long'), 'Monday, 9 November 2026');
+    assert.equal(fullDate(day, primaryCalendar('jalali'), 'long'), 'دوشنبه، ۱۸ آبان ۱۴۰۵');
+    const hijri = fullDate(day, primaryCalendar('hijri'), 'long');
+    assert.match(hijri, /^دوشنبه، /u);
+    assert.ok(hijri.includes(persianYear(dateParts(day, primaryCalendar('hijri')).year)));
+    function persianYear(year) { return String(year).replace(/\d/g, digit => '۰۱۲۳۴۵۶۷۸۹'[digit]); }
 });
