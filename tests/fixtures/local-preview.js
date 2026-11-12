@@ -262,6 +262,23 @@ export default class Preview extends UbuntuIsland {
                         'Appearance update discarded module layout classes');
                     assert(tabs.every((tab,i) => bounds(tab).every((v,j) => Math.abs(v-before[i][j]) <= 1)),
                         'Appearance update changed navigation geometry');
+                    const captionShown = card._pageCaption.visible;
+                    for (const id of enabled) {
+                        card.selectPage(id); await delay(40);
+                        assert(card._pageCaption.visible === captionShown, 'Changing tab names changed caption visibility');
+                        assert(tabs.every((tab,i) => bounds(tab).every((v,j) => Math.abs(v-before[i][j]) <= 1)),
+                            `Changing to ${id} moved navigation icons at ${width}px/${scale}x/${font} text`);
+                        if (captionShown) {
+                            const caption = card._pageCaption, node = caption.get_theme_node();
+                            const layout = caption.clutter_text.get_layout().copy(); layout.set_width(-1);
+                            assert(caption.width - node.get_horizontal_padding() + 1 >= layout.get_pixel_size()[0],
+                                `Reserved caption slot cannot fit ${id}`);
+                            const textEnd = bounds(caption.clutter_text)[0] + layout.get_pixel_size()[0];
+                            assert(bounds(card._preferencesButton)[0] - textEnd >= 8 * scale - 1,
+                                'Tab name is too close to Settings');
+                        }
+                    }
+                    card.selectPage('bluetooth'); await delay(40);
                     if (scale === 1 && width === 440 && count === 8)
                         await this._capture(`navigation-text-${font}`);
                     if (scale === 1 && width === 380 && font === 2 && count === 8)
@@ -269,7 +286,7 @@ export default class Preview extends UbuntuIsland {
                 }
             }
             assert(shown && hidden, 'Caption did not adapt to available space');
-            console.log('[Island Preview] NAVIGATION PASS: even tab spacing, optional captions, 2/4/8 tabs, 380/440/480px, 100/200% scale and text, live appearance stability');
+            console.log('[Island Preview] NAVIGATION PASS: fixed caption slots, Settings separation, stable tab switching, 2/4/8 tabs, 380/440/480px, 100/200% scale and text, live appearance stability');
         } finally {
             context.scale_factor = original.scale; text.set_double('text-scaling-factor',original.text);
             settings.set_int('expanded-width',original.width); settings.set_int('surface-opacity',original.opacity);

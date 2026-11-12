@@ -165,6 +165,7 @@
 /* Module navigation is secondary to the current face. */
 .ubuntu-island-navigation { spacing: 4px; padding: 6px 12px; border-top: 1px solid rgba(235, 239, 255, 0.09); border-radius: 0 0 19px 19px; background-color: rgba(15, 17, 22, 0.18); }
 .ubuntu-island-tab-strip { spacing: 2px; }
+.ubuntu-island-navigation-caption { padding: 0 8px; }
 /* System face */
 .ubuntu-island-metrics { spacing: 8px; }
 .ubuntu-island-metric {

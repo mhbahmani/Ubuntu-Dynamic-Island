@@ -57,9 +57,10 @@ preserving stable navigation and focus; the current expansion remains the refere
 
 ## Recent UI changes
 
-- Navigation tabs share spare width evenly across available modules. The current
-  tab caption appears only when its full text fits beside the icons and settings
-  button. Appearance updates preserve module layout classes, so changing opacity
+- Navigation tabs share spare width evenly across available modules. A caption
+  slot reserves the longest available tab name, with padding before Settings;
+  changing tabs never moves icons or changes caption visibility. The entire slot
+  hides when it cannot fit. Appearance updates preserve module layout classes, so changing opacity
   or theme no longer changes tab spacing. Caption fitting is coalesced after
   layout/style changes and cancelled when hidden or destroyed.
 
@@ -376,3 +377,10 @@ Event-card sizing follow-up (2026-11-12): native Calendar preview `/tmp/ubuntu-i
 ellipsis, equal card heights for long/mixed-script titles and one-event days,
 font scaling, full accessible titles, independent scrolling and the existing
 calendar/preferences checks. No host install or live-provider behavior was tested.
+
+Caption stability follow-up (2026-11-12): `make check` passes all 180 tests,
+syntax and schema checks. Native full preview
+`/tmp/ubuntu-island-preview-hgk1de6b` passes switching every available tab at
+2/4/8 modules, 380/440/480px, 100/200% UI and text scale. It asserts unchanged
+icon positions/caption visibility, full label fit and at least 8 logical pixels
+between caption text and Settings. The ZIP was rebuilt; no host install.

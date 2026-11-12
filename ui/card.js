@@ -213,7 +213,7 @@ export class Card {
             this._tabStrip.add_child(tab);
             this._tabs.set(id, tab);
         }
-        this._pageCaption = label('', 'ubuntu-island-source');
+        this._pageCaption = label('', 'ubuntu-island-source ubuntu-island-navigation-caption');
         navigation.add_child(this._pageCaption);
         this._preferencesButton = button(settingsIcon, 'Island preferences',
             () => this._actions.preferences(this._page === 'calendar' ? 'calendar' : undefined), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab');
@@ -242,11 +242,18 @@ export class Card {
         const stripSpacing = this._tabStrip.get_theme_node().get_length('spacing');
         const tabWidth = Math.max(0, ...tabs.map(tab => tab.get_preferred_width(-1)[1]));
         const stripWidth = tabWidth * tabs.length + stripSpacing * Math.max(0, tabs.length - 1);
-        // Measure the full text independently of its last allocation/visibility.
-        // That keeps hiding and restoring the caption stable at the breakpoint.
+        // Reserve the longest available tab name, independent of the selection.
+        // Both the icon positions and the caption breakpoint stay fixed while
+        // switching pages. CSS padding separates the text from its neighbours.
         const layout = this._pageCaption.clutter_text.get_layout().copy();
         layout.set_width(-1);
-        const captionWidth = layout.get_pixel_size()[0];
+        let textWidth = 0;
+        for (const tab of tabs) {
+            layout.set_text(tab.accessible_name, -1);
+            textWidth = Math.max(textWidth, layout.get_pixel_size()[0]);
+        }
+        const captionWidth = Math.ceil(textWidth + this._pageCaption.get_theme_node().get_horizontal_padding());
+        if (this._pageCaption.width !== captionWidth) this._pageCaption.width = captionWidth;
         const available = width - node.get_horizontal_padding() -
             this._preferencesButton.get_preferred_width(-1)[1] - stripWidth - 2 * spacing;
         this._pageCaption.visible = Boolean(this._pageCaption.text) && captionWidth <= available;
