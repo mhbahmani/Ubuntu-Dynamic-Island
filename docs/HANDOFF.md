@@ -1,6 +1,6 @@
 # Implementation handoff
 
-Updated 2026-11-12. Target: GNOME Shell 46 on Ubuntu Wayland.
+Updated 2026-11-13. Target: GNOME Shell 46 on Ubuntu Wayland.
 
 - [AGENTS.md](../AGENTS.md): engineering, packaging and commit rules.
 - [README](../README.md): installation, development commands and hardware checks.
@@ -14,7 +14,7 @@ Weather, Commute, Agents and Calendar are opt-in. Calendar's module toggle appli
 live; other module toggles still require disabling/re-enabling the extension.
 Notch indicators reuse module state and respect consumer visibility.
 
-Calendar supports Jalali, Gregorian and calculated Hijri, holidays based on the
+Calendar supports Jalali, Gregorian and Iranian Hijri, holidays based on the
 main calendar, blank neighboring-month cells and custom notch date codes/order.
 Fresh notch settings select the main calendar once; later explicit selections
 remain independent. Read-only EDS account events now have explicit calendar
@@ -28,6 +28,40 @@ Clear and the notch eye toggle are in the main header. Session states are event
 reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
+
+## Latest interaction fixes (2026-11-13)
+
+- Calendar day popups wait 450 ms, then show two smaller, muted dates without
+  calendar labels, weekdays or calculation notes. Keyboard focus is immediate.
+  One cancellable timeout belongs to the current hover; hiding/destroying the
+  view cancels it. Commute keeps its immediate explanation popup.
+- Hijri dates and lunar holidays use the published Iranian 1405 month starts
+  in `services/iran-hijri.js`. Outside 21 March 2026–20 March 2027, conversion
+  is an aligned tabular estimate. Preferences explain this coverage. No new
+  requests, background timers or dependencies were added.
+- Chromium's unbounded-duration sentinel is no longer treated as track length.
+  Such streams show **Live**, with the marker at the end and seeking disabled
+  because MPRIS supplies no usable seek window. Finite recordings keep normal
+  progress. See [Chromium's MPRIS export](https://chromium.googlesource.com/chromium/src/+/8ba1bad80dc22235693a0dd41fe55c0fd2dbdabd/components/system_media_controls/linux/system_media_controls_linux.cc).
+- Agents hover belongs to the stable row, independently of asynchronous window
+  matching that enables/disables its activation button. Opening preferences now
+  says **Opening tab**, with no subtitle and a value label that does not ellipsize.
+
+Validation: `make check` (192 tests), `make prefs-test`, `make media-test`, install
+tests and ZIP byte comparison passed. Native Calendar passed at 380/440px,
+100/200% scale and enlarged text (`/tmp/ubuntu-island-preview-herdtt7z`).
+Commute tooltip checks passed (`/tmp/ubuntu-island-preview-hwy2b2f6`).
+`ISLAND_PREVIEW_CHECK_AGENT_HOVER=1` checks stationary hover through changing
+window availability at both widths/scales; it passed with 1.5× text
+(`/tmp/ubuntu-island-preview-bmuytft2`). `ISLAND_PREVIEW_CHECK_OPENING=1` with
+`--preferences appearance` confirmed the complete value in mapped GTK labels
+(`/tmp/ubuntu-island-preview-uogxxio7`). Media smoke rendering passed, including
+the live-stream fixture (`/tmp/ubuntu-island-smoke-mij3l952/media-live.png`).
+Full smoke still fails later at “Shortcut did not replace an already open tab”;
+full preview fails its Calendar navigation-position assertion at 380px. Neither
+suite is a full pass. Live browser playback and physical hardware were not
+retested, and the host installation was not replaced. User reference `1.png`
+remains untracked.
 
 ## Motion baseline
 
