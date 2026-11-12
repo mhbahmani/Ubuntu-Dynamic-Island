@@ -17,6 +17,10 @@ metadata.dir = root;
 Adw.init();
 const prefs = new Preferences(metadata);
 const settings = prefs.getSettings();
+const desktopBindings = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.keybindings'});
+for (const [island, desktop] of [['island-next-tab-shortcut','switch-to-workspace-right'], ['island-previous-tab-shortcut','switch-to-workspace-left']])
+    if (settings.get_strv(island).some(binding => desktopBindings.get_strv(desktop).includes(binding)))
+        throw new Error('Default Island tab shortcuts conflict with workspace switching');
 if (GLib.getenv('GSETTINGS_BACKEND') !== 'memory') throw new Error('Preferences tests require isolated settings');
 const agentTestDir = GLib.dir_make_tmp('island-prefs-agents-XXXXXX');
 for (const provider of ['claude', 'codex', 'opencode']) {

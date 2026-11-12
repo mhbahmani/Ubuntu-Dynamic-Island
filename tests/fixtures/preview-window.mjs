@@ -79,6 +79,8 @@ const run = async () => {
     let recorder = await record();
     recorder.controller.emit('key-pressed', Gdk.KEY_a, 0, 0);
     if (settings.get_strv('island-quick-ask-shortcut').length) throw new Error('Recorder accepted a bare letter');
+    recorder.controller.emit('key-pressed', Gdk.KEY_Left, 0, Gdk.ModifierType.SUPER_MASK | Gdk.ModifierType.ALT_MASK);
+    if (settings.get_strv('island-quick-ask-shortcut').length) throw new Error('Recorder accepted GNOME workspace switching');
     recorder.controller.emit('key-pressed', Gdk.KEY_space, 0, Gdk.ModifierType.SUPER_MASK | Gdk.ModifierType.ALT_MASK);
     if (settings.get_strv('island-quick-ask-shortcut').length !== 1) throw new Error('Recorder did not save a valid shortcut');
     recorder = await record();

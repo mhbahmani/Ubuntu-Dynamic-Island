@@ -23,7 +23,7 @@ function harness(animation = 220, backdrop = null) {
         set_style_class_name(value) { this.style_class = value; }
         ease(options) { this.transition = options; }
         remove_all_transitions() { this.transition = null; }
-        navigate_focus() {}
+        navigate_focus(_from, direction) { this.focusDirection = direction; }
         grab_key_focus() { this.focused = true; }
         get_transformed_position() { return [this.x ?? 0, this.y ?? 0]; }
         get_transformed_size() { return [this.width, this.height]; }
@@ -50,15 +50,16 @@ function harness(animation = 220, backdrop = null) {
     const source = readFileSync(new URL('../ui/island.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replaceAll('export ', '');
     const Surface = vm.runInNewContext(`${source}\nIslandSurface`, {
-        St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1}},
+        St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1, TAB_BACKWARD: -1}},
         Clutter: {Actor, BinLayout: class {}, FixedLayout: class {}, AlignConstraint: class {}, AlignAxis: {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0, EASE_OUT_QUART: 1, EASE_OUT_CUBIC: 2},
             EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2, KEY_PRESS: 3, BUTTON_RELEASE: 4,
-                TOUCH_END: 5, TOUCH_CANCEL: 6}, KEY_Escape: 27,
+                TOUCH_END: 5, TOUCH_CANCEL: 6}, KEY_Escape: 27, KEY_Tab: 9, KEY_ISO_Left_Tab: 65056,
+            ModifierType: {SHIFT_MASK: 1, CONTROL_MASK: 4},
             EVENT_STOP: true, EVENT_PROPAGATE: false},
         GLib: {PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false,
             idle_add: addSource, timeout_add: addSource,
             Source: {remove: id => idle.delete(id)}},
-        Shell: {ActionMode: {POPUP: 1}}, Main, containsPoint, console,
+        Shell: {ActionMode: {POPUP: 1}}, Main, containsPoint, console, global: {stage: {key_focus: null}},
     });
     const settings = {get_int: name => ({'pill-width': 170, 'expanded-width': 440, 'animation-duration': animation})[name],
         get_boolean: () => false};
@@ -76,6 +77,21 @@ test('thirty interrupted toggles settle collapsed and release every modal grab',
     assert.equal(surface.actor.width, 170);
     assert.equal(card.visible, false);
     assert.equal(modal.size, 0);
+});
+
+test('backward Tab works with Shift or ISO_Left_Tab, including consumed Shift modifiers', () => {
+    const {surface, card} = harness(0);
+    surface.expand();
+    const directions = [];
+    surface._onSwitchTab = direction => directions.push(direction);
+    for (const [symbol, modifiers, expected] of [[9, 4, 1], [9, 5, -1], [65056, 4, -1], [65056, 5, -1]]) {
+        assert.equal(surface._onCapturedEvent(surface.actor, {
+            type: () => 3, get_key_symbol: () => symbol, get_state: () => modifiers,
+        }), true);
+        assert.equal(directions.at(-1), expected);
+    }
+    surface._onCapturedEvent(surface.actor, {type: () => 3, get_key_symbol: () => 65056, get_state: () => 0});
+    assert.equal(card.focusDirection, -1);
 });
 
 test('offline edge hides through expansion and collapse transitions, and clears on reconnect', () => {

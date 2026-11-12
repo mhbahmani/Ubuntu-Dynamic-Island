@@ -236,14 +236,21 @@ export default class Smoke extends UbuntuIsland {
             await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_i]);
             assert(this._island.expanded && !card.quickAskOpen, 'Island shortcut did not expand the regular card');
             const initialPage = card._page, regularHeight = this._island.actor.height;
-            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_Right]);
+            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_Page_Down]);
             assert(card._page !== initialPage, 'Next-tab shortcut did not advance');
-            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_Left]);
+            await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_Page_Up]);
             assert(card._page === initialPage, 'Previous-tab shortcut did not return');
             await chord([Clutter.KEY_Control_L, Clutter.KEY_Tab]);
             assert(card._page !== initialPage, 'Ctrl+Tab did not advance');
             await chord([Clutter.KEY_Control_L, Clutter.KEY_Shift_L, Clutter.KEY_Tab]);
             assert(card._page === initialPage && this._island.actor.height === regularHeight, 'Tab cycling changed regular card size');
+            for (let i = 0; i < 3; i++) {
+                await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_Page_Up]);
+                assert(card._page !== initialPage, 'Repeated previous-tab shortcut did not go backward');
+                await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_Page_Down]);
+                assert(card._page === initialPage, 'Repeated next-tab shortcut did not return');
+            }
+            console.log('[Island Smoke] Shortcuts PASS: global next/previous and Ctrl+Tab/Ctrl+Shift+Tab');
             await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_i]);
             assert(!this._island.expanded, 'Island shortcut did not close');
             settings.set_strv(key, ['<Super><Alt>space']);

@@ -379,7 +379,8 @@ export class IslandSurface {
             return Clutter.EVENT_STOP;
         } else if (type === Clutter.EventType.KEY_PRESS &&
             (event.get_key_symbol() === Clutter.KEY_Tab || event.get_key_symbol() === Clutter.KEY_ISO_Left_Tab)) {
-            const backward = Boolean(event.get_state() & Clutter.ModifierType.SHIFT_MASK);
+            const backward = event.get_key_symbol() === Clutter.KEY_ISO_Left_Tab ||
+                Boolean(event.get_state() & Clutter.ModifierType.SHIFT_MASK);
             if (event.get_state() & Clutter.ModifierType.CONTROL_MASK) {
                 this._onSwitchTab?.(backward ? -1 : 1);
                 return Clutter.EVENT_STOP;

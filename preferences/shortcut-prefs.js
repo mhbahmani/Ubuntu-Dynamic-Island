@@ -1,6 +1,7 @@
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gdk from 'gi://Gdk';
+import Gio from 'gi://Gio';
 
 export function shortcutRow(settings, window, key, title, subtitle) {
     const row = new Adw.ActionRow({title, subtitle});
@@ -44,6 +45,15 @@ export function shortcutRow(settings, window, key, title, subtitle) {
             };
             if (otherKeys.some(other => other !== key && settings.get_strv(other).some(value => canonical(value) === accelerator))) {
                 hint.label = 'Another Island action already uses this shortcut. Choose a different combination.';
+                return true;
+            }
+            const desktop = new Gio.Settings({schema_id: 'org.gnome.desktop.wm.keybindings'});
+            const conflict = desktop.settings_schema.list_keys().some(name => {
+                const value = desktop.get_value(name);
+                return value.get_type_string() === 'as' && value.deepUnpack().some(binding => canonical(binding) === accelerator);
+            });
+            if (conflict) {
+                hint.label = 'GNOME already uses this shortcut. Choose a different combination.';
                 return true;
             }
             settings.set_strv(key, [accelerator]); dialog.close(); return true;
