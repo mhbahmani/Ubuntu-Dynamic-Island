@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {containsPoint} from '../services/presentation.js';
 
-function harness(animation = 220) {
+function harness(animation = 220, backdrop = null) {
     class Actor {
         constructor(props = {}) {
             Object.assign(this, {visible: true, opacity: 255, width: 170, height: 34,
@@ -64,7 +64,7 @@ function harness(animation = 220) {
         get_boolean: () => false};
     const pill = new Actor();
     const card = new Actor();
-    const surface = new Surface({settings, pill, card});
+    const surface = new Surface({settings, pill, card, backdrop});
     return {surface, modal, pill, card, flushIdle};
 }
 
@@ -249,4 +249,34 @@ test('reversing a close preserves the current content pose and ignores its old c
     assert.equal(card.visible, true);
     surface.actor.finish();
     assert.equal(surface.state, 'expanded');
+});
+
+test('backdrop blur runs only while the card is open and follows appearance', () => {
+    const calls = [];
+    const backdrop = {active: false, setRadiusSource: source => { backdrop.source = source; },
+        setActive: active => { backdrop.active = active; calls.push(active); },
+        configure: options => { backdrop.options = {...backdrop.options, ...options}; },
+        queue_relayout() {}, invalidate: () => { backdrop.invalidations = (backdrop.invalidations ?? 0) + 1; },
+        get blurRadius() { return 7; }};
+    const {surface} = harness(220, backdrop);
+    assert.equal(backdrop.source, surface.material);
+    assert.equal(backdrop.active, false);
+    surface.material.set_style = style => { surface.material.style = style; };
+    surface.setAppearance('tint', 80, 60);
+    assert.deepEqual(backdrop.options, {scale: 1, matte: 80, opacity: 60});
+    assert.equal(surface.material.style, 'tint');
+    assert.equal(surface.backdropRadius, 7);
+    surface.expand();
+    assert.equal(backdrop.active, true);
+    surface.actor.finish();
+    assert.equal(backdrop.active, true);
+    surface.collapse();
+    assert.equal(backdrop.active, true); // still visible while the card closes
+    surface.actor.finish();
+    assert.equal(backdrop.active, false);
+    for (let i = 0; i < 10; i++) surface.toggle();
+    surface._snapCollapsed();
+    assert.equal(backdrop.active, false);
+    surface._onCapturedEvent(surface.actor, {type: () => 0});
+    assert(backdrop.invalidations >= 1);
 });

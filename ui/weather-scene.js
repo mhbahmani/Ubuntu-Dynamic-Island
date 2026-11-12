@@ -5,6 +5,11 @@ import {ArtLoader} from '../services/art.js';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import {invalidateBackdrop} from './backdrop.js';
+
+// The scene is a tonal layer over the island tint, not a second opaque
+// panel, so the frosted backdrop stays visible through the weather face.
+const SCENE_TINT = 0.7;
 
 // Pre-rendered, licensed animation atlas. One selected texture; no runtime drawing.
 // No animation source survives hiding, power saver, reduced motion or destruction.
@@ -99,7 +104,8 @@ export class WeatherScene {
             'clouds-night': ['32,42,67', '17,24,40'], 'rain-night': ['27,37,58', '13,21,35'],
             'snow-night': ['39,49,74', '22,31,49']}[this.kind];
         const alpha = this.settings.get_int('surface-opacity') / 100;
-        this.actor.set_style(`background-gradient-start: rgba(${colors[0]},${alpha}); background-gradient-end: rgba(${colors[1]},${alpha});`);
+        const tint = Math.round(SCENE_TINT * alpha * 1000) / 1000;
+        this.actor.set_style(`background-gradient-start: rgba(${colors[0]},${tint}); background-gradient-end: rgba(${colors[1]},${tint});`);
         this.sprite.opacity = Math.round(220 * alpha);
     }
     isPowerSaving() { return this.power?.get_cached_property('ActiveProfile')?.deep_unpack() === 'power-saver'; }
@@ -133,6 +139,7 @@ export class WeatherScene {
         if (this.image.width !== size * 8 || this.image.height !== size * 6)
             this.image.set_size(size * 8, size * 6);
         this.image.set_translation(-(frame % 8) * size, -Math.floor(frame / 8) * size, 0);
+        invalidateBackdrop(this.actor);
         this.frames++;
     }
     destroy() {

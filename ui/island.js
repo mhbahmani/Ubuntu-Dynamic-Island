@@ -24,9 +24,11 @@ const clampRange = (value, lower, upper) => Math.max(lower, Math.min(upper, valu
 // The island is a single chrome-managed St.Widget surface: the compact pill
 // and expanded card keep stable layouts in a centered content viewport while
 // the surface grows and their transforms blend, without a separate popup menu.
-// The opaque surface paints reliably on mixed-scale monitors without backdrop sampling.
+// Layers, bottom to top: an optional backdrop that blurs the desktop behind
+// the surface (Matte tone), the theme tint and hairline edge (Background
+// opacity), then sharp content. Only the tint layer carries transparency.
 export class IslandSurface {
-    constructor({settings, pill, card, onStateChange, onBeforeExpand, onEscape, onSwitchTab}) {
+    constructor({settings, pill, card, backdrop = null, onStateChange, onBeforeExpand, onEscape, onSwitchTab}) {
         this._settings = settings;
         this._onStateChange = onStateChange;
         this._onBeforeExpand = onBeforeExpand;
@@ -52,6 +54,14 @@ export class IslandSurface {
             can_focus: true,
             clip_to_allocation: true,
         });
+        this._backdrop = backdrop;
+        if (backdrop) {
+            this.actor.add_child(backdrop);
+            this.actor._islandBackdrop = backdrop;
+        }
+        this._material = new St.Widget({style_class: 'ubuntu-island-material', x_expand: true, y_expand: true});
+        this.actor.add_child(this._material);
+        backdrop?.setRadiusSource(this._material);
         this._pill = pill;
         this._card = card;
         // BinLayout clamps children to its changing allocation. Keep the two
@@ -95,6 +105,9 @@ export class IslandSurface {
             this._connections.push([owner, owner.connect(signal, handler)]);
         if (this._themeContext) track(this._themeContext, 'notify::scale-factor', () => this.applyDimensions());
         track(this.actor, 'notify::width', () => this._recenter());
+        // Hover, press, focus, typing and resizes repaint parts of the
+        // island. Widen those frames to a full backdrop repaint up front.
+        track(this.actor, 'queue-relayout', () => this._backdrop?.invalidate());
         track(this.actor, 'notify::visible', () => {
             // Chrome hides us over fullscreen windows; never reappear expanded.
             if (!this.actor.visible) this._snapCollapsed();
@@ -116,6 +129,25 @@ export class IslandSurface {
             track(part, 'enter-event', () => this._hoverEnter());
             track(part, 'leave-event', () => this._hoverLeave());
         }
+    }
+
+    get material() {
+        return this._material;
+    }
+
+    get backdropRadius() {
+        return this._backdrop?.blurRadius ?? 0;
+    }
+
+    // Tint style (theme colors, opacity alpha) and frosting strength apply
+    // live to their own layers; content and layout are untouched.
+    setAppearance(style, matte, opacity) {
+        this._material.set_style(style);
+        this._backdrop?.configure({matte, opacity, scale: this._scale});
+    }
+
+    invalidateBackdrop() {
+        this._backdrop?.invalidate();
     }
 
     get expanded() {
@@ -157,10 +189,15 @@ export class IslandSurface {
         this._scale = this._themeContext?.scale_factor ?? 1;
         this._collapsedHeight = COLLAPSED_HEIGHT * this._scale;
         this._border = 2 * this._scale;
+        // The 1px edge lives on the tint layer, so inset content to keep the
+        // geometry the surface's own border used to give it.
+        for (const side of ['margin_top', 'margin_right', 'margin_bottom', 'margin_left'])
+            this._content[side] = this._scale;
         this._collapsedWidth = Math.max(
             this._scale * clampRange(this._settings.get_int('pill-width'), 150, 210),
             Math.ceil(this._pill._islandMinimumWidth?.() ?? 0) + this._border);
         this._expandedWidth = this._scale * clampRange(this._settings.get_int('expanded-width'), 380, 480);
+        this._backdrop?.configure({scale: this._scale});
         if (this.expanded) this.relayout();
         else this._snapCollapsed();
     }
@@ -264,6 +301,10 @@ export class IslandSurface {
         this.actor.set_style_class_name(open
             ? 'ubuntu-island-surface ubuntu-island-surface-open'
             : 'ubuntu-island-surface ubuntu-island-surface-collapsed');
+        // Blur only while the card is open or animating; the collapsed notch
+        // and a hidden surface run no backdrop effects.
+        this._backdrop?.setActive(state !== IslandState.COLLAPSED);
+        this._backdrop?.queue_relayout(); // corner radii follow the state class
         this._recenter();
         this._onStateChange?.(state);
     }
@@ -310,6 +351,7 @@ export class IslandSurface {
     }
 
     _onCapturedEvent(actor, event) {
+        this._backdrop?.invalidate();
         if (!this.expanded || this._grabSuspended) return Clutter.EVENT_PROPAGATE;
         const type = event.type();
         if (type === Clutter.EventType.BUTTON_PRESS || type === Clutter.EventType.TOUCH_BEGIN) {

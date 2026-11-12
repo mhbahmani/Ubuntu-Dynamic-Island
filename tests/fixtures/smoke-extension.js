@@ -449,6 +449,7 @@ export default class Smoke extends UbuntuIsland {
         assert(this._pill._title.translation_x === 0 && !this._pill._mediaTitle.animationKey, 'Expanded notch kept scrolling');
         this._island.collapse(); await delay(300);
         assert(Boolean(this._pill._mediaTitle.animationKey), 'Collapsed title did not resume');
+        assert(!this._island._backdrop.visible, 'Collapsed notch kept the backdrop blur running');
         this._island.actor.hide();
         assert(!this._pill._mediaTitle.animationKey, 'Hidden notch kept scrolling');
         this._island.actor.show();
@@ -1136,10 +1137,39 @@ export default class Smoke extends UbuntuIsland {
         for (const opacity of [0, 20, 50, 70, 100]) {
             this._settings.set_int('surface-opacity', opacity);
             await this._capture(`opacity-${opacity}`);
-            const [, start, end] = this._island.actor.get_theme_node().get_background_gradient();
+            const [, start, end] = this._island.material.get_theme_node().get_background_gradient();
             assert(Math.abs(start.alpha - opacity * 255 / 100) <= 1, 'Rendered start alpha differs from opacity');
             assert(Math.abs(end.alpha - opacity * 255 / 100) <= 1, 'Rendered end alpha differs from opacity');
+            assert(this._island.actor.opacity === 255 && this._card.actor.opacity === 255, 'Opacity faded content');
         }
+        // Frosted glass: matte drives only the backdrop blur; opacity only the tint.
+        const originalMatte = this._settings.get_int('surface-matte');
+        this._settings.set_int('surface-opacity', 75);
+        let previousRadius = -1;
+        for (const matte of [0, 25, 50, 75, 100]) {
+            this._settings.set_int('surface-matte', matte);
+            await this._capture(`matte-${matte}-opacity-75`);
+            const radius = this._island.backdropRadius;
+            assert(matte === 0 ? radius === 0 : radius > previousRadius, 'Matte did not strengthen the backdrop blur');
+            assert(this._island._backdrop.visible === (matte > 0 && radius > 0), 'Backdrop visibility does not follow matte');
+            const [, start] = this._island.material.get_theme_node().get_background_gradient();
+            assert(Math.abs(start.alpha - 191) <= 1, 'Matte changed the tint opacity');
+            previousRadius = radius;
+        }
+        this._settings.set_int('surface-matte', 75);
+        const matteRadius = this._island.backdropRadius;
+        for (const opacity of [25, 50, 75, 100]) {
+            this._settings.set_int('surface-opacity', opacity);
+            await this._capture(`opacity-${opacity}-matte-75`);
+            assert(opacity === 100 ? !this._island._backdrop.visible : this._island.backdropRadius === matteRadius,
+                'Opacity changed the blur radius');
+        }
+        for (const theme of ['ocean', 'forest', 'ember', 'graphite']) {
+            this._settings.set_int('surface-opacity', 75);
+            this._settings.set_string('color-theme', theme);
+            await this._capture(`frosted-${theme}`);
+        }
+        this._settings.set_int('surface-matte', originalMatte);
         this._settings.set_int('surface-opacity', 98);
         this._card.selectPage('media');
         this._renderMedia({...media, title: 'A long track title that must ellipsize inside the narrow island without pushing controls away'});

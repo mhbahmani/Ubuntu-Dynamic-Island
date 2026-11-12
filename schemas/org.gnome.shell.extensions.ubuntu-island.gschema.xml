@@ -11,12 +11,13 @@
       <default>98</default>
       <range min="0" max="100"/>
       <summary>Background opacity percentage</summary>
+      <description>Alpha of the theme tint layer only; content stays opaque and the blur radius is unchanged.</description>
     </key>
     <key name="surface-matte" type="i">
       <default>60</default>
       <range min="0" max="100"/>
       <summary>Matte tone percentage</summary>
-      <description>Flattens the background gradient; opacity independently controls transparency.</description>
+      <description>Frosted-glass intensity: background blur radius behind the expanded island, softer gradient and slight dimming. Never changes the tint opacity.</description>
     </key>
     <key name="pill-title-mode" type="s"><default>'fixed'</default><choices><choice value="fixed"/><choice value="scroll"/><choice value="fit"/></choices><summary>Collapsed media title behavior</summary></key>
     <key name="pill-title-characters" type="i"><default>12</default><range min="5" max="40"/><summary>Character limit for fixed media titles</summary></key>

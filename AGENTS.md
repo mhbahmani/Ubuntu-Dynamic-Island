@@ -90,8 +90,9 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
   card width, not an already oversized child; verify percentage bounds too.
 - Opening focuses the surface; Tab then enters the controls. Selected tabs use
   a neutral indicator, never an orange focus/selection ring.
-- Opacity supports 0–100%. Handle zero alpha without dividing by zero; matte
-  tone only affects RGB, never final alpha. Tab markers are separate actors,
+- Opacity supports 0–100% and only sets the tint layer's alpha (never the
+  container). Handle zero alpha without dividing by zero; matte tone sets blur
+  strength and gradient flatness, never final alpha or the opacity range. Tab markers are separate actors,
   not rounded shadows that change with focus.
 - Opening preferences keeps the panel open and suspends its modal grab and
   hover-close behavior. Track the actual preferences window by title (including
@@ -112,8 +113,14 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
   The lowercase Shell resource path is wrong for the preferences process.
 - Scale explicit actor dimensions by `St.ThemeContext.scale_factor`, matching
   CSS lengths. Recalculate on scale and monitor changes.
-- Avoid backdrop blur: it previously failed to paint on external monitors.
-  The high-opacity gradient supplies the matte finish without backdrop sampling.
+- Matte tone is real background blur: one `IslandBackdrop` (`ui/backdrop.js`)
+  with `Shell.BlurEffect` in `BACKGROUND` mode, below the tint layer and content.
+  Never `ACTOR` mode, `backdrop-filter`, or wallpaper screenshots. It runs only
+  while the card is open and matte > 0 and opacity < 100. Rounded corners use
+  non-overlapping slices from `backdropSlices()`. Background blur reads back the
+  framebuffer, so partial repaints must be widened: call `invalidateBackdrop()`
+  from new periodic updaters. It once failed to paint on external monitors;
+  verify mixed-monitor setups before claiming it works there.
 - Gvc has no synchronous UI-device list. Seed from sinks and maintain devices
   with output signals. Filter unavailable ports using `has_ports()` and
   `port_available`, retaining the active output and portless devices. Watch

@@ -53,9 +53,9 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         window.connect('close-request', () => { settings.disconnect(themeChanged); return false; });
         appearance.add(theme);
         appearance.add(spin(settings, 'surface-opacity', 'Background opacity',
-            '% · Text and controls stay fully opaque', 0, 100, 1));
+            '% · Tint strength; text and controls stay fully opaque', 0, 100, 1));
         appearance.add(spin(settings, 'surface-matte', 'Matte tone',
-            '% · Flattens the color gradient without changing opacity', 0, 100, 1));
+            '% · Frosted-glass blur behind the panel; opacity is unchanged', 0, 100, 1));
         appearance.add(spin(settings, 'pill-width', 'Minimum collapsed width', 'px · Grows to fit enabled indicators', 150, 210, 2));
         appearance.add(spin(settings, 'expanded-width', 'Expanded width', 'px', 380, 480, 4));
         appearance.add(spin(settings, 'animation-duration', 'Animation duration', 'ms', 0, 500, 10));

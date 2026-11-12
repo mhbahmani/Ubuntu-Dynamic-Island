@@ -21,10 +21,10 @@ test('history stays bounded and preserves gaps and chronological order', () => {
 });
 
 test('hidden charts store samples without requesting redraws', () => {
-    let redraws = 0;
+    let redraws = 0, invalidations = 0;
     const source = readFileSync(new URL('../ui/charts.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
-    const Chart = vm.runInNewContext(`${source}\nHistoryChart`, {History,
+    const Chart = vm.runInNewContext(`${source}\nHistoryChart`, {History, invalidateBackdrop: () => invalidations++,
         St: {DrawingArea: class {
             mapped = false;
             connect() {}
@@ -34,12 +34,15 @@ test('hidden charts store samples without requesting redraws', () => {
     const chart = new Chart(true);
     for (let i = 0; i < 10000; i++) chart.push(i, i / 2);
     assert.equal(redraws, 0);
+    assert.equal(invalidations, 0);
     assert.equal(chart.series[0].count, 60);
     chart.actor.mapped = true;
     chart.push(20, 10);
     assert.equal(redraws, 1);
+    assert.equal(invalidations, 1);
     chart.actor.mapped = false;
     chart.push(40, 30);
     assert.equal(redraws, 1);
+    assert.equal(invalidations, 1);
 });
 

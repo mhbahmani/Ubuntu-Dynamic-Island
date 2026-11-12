@@ -17,6 +17,7 @@ import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {IslandSurface, IslandState} from './ui/island.js';
+import {IslandBackdrop} from './ui/backdrop.js';
 import {Pill} from './ui/pill.js';
 import {Card} from './ui/card.js';
 import {SystemMonitor} from './services/system.js';
@@ -98,6 +99,7 @@ export default class UbuntuIsland extends Extension {
             settings: this._settings,
             pill: this._pill.actor,
             card: this._card.actor,
+            backdrop: new IslandBackdrop(),
             onBeforeExpand: () => { if (!this._card.quickAskOpen) this._card.selectExpansionPage(); },
             onSwitchTab: direction => this._card.cyclePage(direction),
             onEscape: () => !this._card.quickAskOpen && this._card._page === 'agents' && this._card._agentsView.handleEscape(),
@@ -327,10 +329,9 @@ export default class UbuntuIsland extends Extension {
     _applyAppearance() {
         this._card?.updateMediaTint();
         const theme = this._settings.get_string('color-theme');
-        this._island.actor.set_style(surfaceStyle(
-            theme,
-            this._settings.get_int('surface-opacity'),
-            this._settings.get_int('surface-matte')));
+        const opacity = this._settings.get_int('surface-opacity');
+        const matte = this._settings.get_int('surface-matte');
+        this._island.setAppearance(surfaceStyle(theme, opacity, matte), matte, opacity);
         const classes = this._card.actor.get_style_class_name().split(/\s+/)
             .filter(name => !name.startsWith('ubuntu-island-theme-'));
         this._card.actor.set_style_class_name([...classes, `ubuntu-island-theme-${theme}`].join(' '));
@@ -379,7 +380,9 @@ export default class UbuntuIsland extends Extension {
         }
     }
 
+    // Service updates repaint parts of the card: keep the frosted backdrop whole.
     _renderMedia(state) {
+        this._island?.invalidateBackdrop();
         if (!this._enabled) return;
         this._states.media = state;
         this._card.renderMedia(state);
@@ -450,6 +453,7 @@ export default class UbuntuIsland extends Extension {
         }
     }
     _renderCalendarEvents(state) {
+        this._island?.invalidateBackdrop();
         if (!this._enabled) return;
         this._states.calendarEvents = state;
         this._card?._calendarView?.setEvents(state); this._updateUpcomingEvent();
@@ -516,6 +520,7 @@ export default class UbuntuIsland extends Extension {
     }
 
     _renderSystem(state) {
+        this._island?.invalidateBackdrop();
         if (!this._enabled) return;
         this._states.system = state;
         this._card.renderSystem(state);
@@ -523,12 +528,14 @@ export default class UbuntuIsland extends Extension {
     }
 
     _renderConnectivity(state) {
+        this._island?.invalidateBackdrop();
         if (!this._enabled) return;
         this._states.connection = state;
         this._renderPill();
     }
 
     _renderAudio(state) {
+        this._island?.invalidateBackdrop();
         if (!this._enabled) return;
         this._states.audio = state;
         this._card.renderAudio(state);
@@ -536,6 +543,7 @@ export default class UbuntuIsland extends Extension {
     }
 
     _renderBluetooth(state) {
+        this._island?.invalidateBackdrop();
         if (!this._enabled) return;
         this._states.bluetooth = state;
         this._card.renderBluetooth(state);
@@ -563,6 +571,7 @@ export default class UbuntuIsland extends Extension {
                     return GLib.SOURCE_REMOVE;
                 }
                 this._card.renderProgress(this._media?.positionSec() ?? null);
+                this._island?.invalidateBackdrop();
                 return GLib.SOURCE_CONTINUE;
             };
             this._progressTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, tick);
@@ -574,6 +583,7 @@ export default class UbuntuIsland extends Extension {
     }
 
     _renderAgents(state) {
+        this._island?.invalidateBackdrop();
         if (!this._enabled) return;
         const previous = this._states.agents?.sessions || [];
         if (this._settings.get_boolean('agents-notify') && !Main.sessionMode.isLocked) {

@@ -1,5 +1,6 @@
 import St from 'gi://St';
 import {History} from '../services/history.js';
+import {invalidateBackdrop} from './backdrop.js';
 
 // One native drawing actor per chart. Samples use the existing metrics clock;
 // only mapped charts request repaints. No animation or extra sampling timer.
@@ -24,7 +25,9 @@ export class HistoryChart {
     }
 
     _redraw() {
-        if (this.actor.mapped) this.actor.queue_repaint();
+        if (!this.actor.mapped) return;
+        this.actor.queue_repaint();
+        invalidateBackdrop(this.actor);
     }
 
     _paint() {
