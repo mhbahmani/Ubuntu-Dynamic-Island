@@ -8,6 +8,7 @@ import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
+import {formatRate} from './services/proc.js';
 import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
 import {THEME_IDS, themeAccent} from './services/appearance.js';
 import {notchTime} from './services/notch-model.js';
@@ -308,7 +309,8 @@ export default class Preview extends UbuntuIsland {
         const context = St.ThemeContext.get_for_stage(global.stage);
         const originalScale = context.scale_factor;
         const animations = this._settings.get_boolean('disable-animations');
-        const render = (rx, tx, iface = state.iface) => this._renderSystem({...state, rx, tx, iface});
+        const render = (rxBytes, txBytes, iface = state.iface) => this._renderSystem({...state,
+            rxBytes, txBytes, rx:formatRate(rxBytes), tx:formatRate(txBytes), iface});
         const fits = () => {
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             for (const rate of [pill._down, pill._up])
@@ -319,33 +321,32 @@ export default class Preview extends UbuntuIsland {
             for (const rate of [pill._down, pill._up]) {
                 const layout = rate.clutter_text.get_layout().copy();
                 layout.set_width(-1);
-                layout.set_text('500K', -1);
-                assert(rate.width === Math.ceil(layout.get_pixel_size()[0]) + 4 * context.scale_factor,
+                let widest = 0;
+                for (const template of ['888B', '888K', '8.8K', '8.8M', '888M', '8.8G', '888G']) {
+                    layout.set_text(template, -1);
+                    widest = Math.max(widest, layout.get_pixel_size()[0]);
+                }
+                assert(rate.width === Math.ceil(widest) + 4 * context.scale_factor,
                     'Bandwidth slot differs from the fixed reference plus 4px');
             }
         };
         try {
             this._settings.set_boolean('disable-animations', true);
-            render('500 KiB/s', '500 KiB/s'); await delay(150); compact();
+            render(500 * 1024, 500 * 1024); await delay(150); compact();
             const width = this._island.actor.width, networkWidth = pill._network.width;
-            for (const value of ['0 B/s', '9 B/s', '9.9 KiB/s', '500 KiB/s', '1.0 MiB/s', '1.0 GiB/s', '—']) {
+            for (const value of [0, 9, 888, 9.9 * 1024, 999.4 * 1024, 1000.3 * 1024, 120 * 1024 ** 2, 1024 ** 3, 999 * 1024 ** 3, null]) {
                 render(value, value); await delay(60);
                 assert(this._island.actor.width === width && pill._network.width === networkWidth,
                     `Bandwidth refresh resized the notch for ${value}`);
                 fits(); compact();
             }
             await this._capture('notch-stable-idle-rates');
-            // Some current labels (a decimal or wider B glyph) exceed 500K.
-            // They may grow only for that value, and must remain readable.
-            for (const value of ['999 B/s','99.9 KiB/s']) {
-                render(value,value); await delay(100); fits();
-            }
-            render('8888.8 GiB/s', '8888.8 GiB/s'); await delay(100);
-            assert(pill._network.width > networkWidth, 'Longer rates could not expand their slots'); fits();
-            render('7.2 KiB/s', '2.5 KiB/s'); await delay(100);
+            render(8888.8 * 1024 ** 3, 8888.8 * 1024 ** 3); await delay(100);
+            assert(pill._network.width === networkWidth, 'Saturated GiB rates resized their slots'); fits(); compact();
+            render(7.2 * 1024, 2.5 * 1024); await delay(100);
             assert(pill._network.width === networkWidth, 'Earlier traffic left oversized rate slots'); compact();
             await this._capture('notch-compact-rates');
-            render('0 B/s', '0 B/s', 'new-network'); await delay(100); compact();
+            render(0, 0, 'new-network'); await delay(100); compact();
             text.set_double('text-scaling-factor', 1.5); await delay(250); fits(); compact();
             await this._capture('notch-stable-large-text');
             context.scale_factor = 2; await delay(250); fits(); compact();
@@ -354,7 +355,7 @@ export default class Preview extends UbuntuIsland {
             this._settings.set_boolean('pill-show-network', false);
             this._settings.set_boolean('pill-show-network', true);
             await delay(100); compact();
-            console.log('[Island Preview] NETWORK PASS: fixed 500K slots plus 4px, no traffic history, longer values, interface/toggle stability, font and 200% scale changes');
+            console.log('[Island Preview] NETWORK PASS: fixed compact-rate slots plus 4px, no traffic resizing, GiB saturation, interface/toggle stability, font and 200% scale changes');
         } finally {
             context.scale_factor = originalScale;
             text.set_double('text-scaling-factor', originalText);

@@ -459,9 +459,10 @@ when **Calendar → Use calendar language** is off.
 
 The collapsed width is a minimum: the notch grows to fit enabled groups, with
 single-line rates, red download arrows and green upload arrows. Each rate keeps
-enough space for `500K` plus 4 logical pixels (about 1 mm), measured in the current
-font and scale. Ordinary traffic changes keep that width stable. Unusually long
-values can grow the slot temporarily; earlier traffic never leaves extra space.
+a fixed slot for the widest four-character rate plus 4 logical pixels, measured
+in the current font and scale. Rates promote units before rounding to 1000
+(for example, `999K` → `1.0M`), so traffic never changes the notch width.
+The compact display caps at `999G`; its accessible description retains the full rate.
 Weather shares the same 260px expanded height as the other tabs, retaining its
 background artwork, four-hour forecast and current conditions.
 

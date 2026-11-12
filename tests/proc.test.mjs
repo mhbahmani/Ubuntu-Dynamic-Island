@@ -73,3 +73,15 @@ test('Rate units', () => {
     assert.equal(formatRate(1.5 * 1024 * 1024 * 1024), '1.5 GiB/s');
     assert.equal(formatRate(-1), '—');
 });
+
+test('Rate units advance before rounding would display 1000', () => {
+    for (const [bytes, expected] of [
+        [0, '0 B/s'], [999.4, '999 B/s'], [999.6, '1.0 KiB/s'],
+        [999.4 * 1024, '999.4 KiB/s'], [999.6 * 1024, '999.6 KiB/s'],
+        [999.94 * 1024, '999.9 KiB/s'], [999.95 * 1024, '1.0 MiB/s'],
+        [1000.3 * 1024, '1.0 MiB/s'], [1023.9 * 1024, '1.0 MiB/s'],
+        [9.95 * 1024 ** 2, '10.0 MiB/s'], [1000 * 1024 ** 2, '1.0 GiB/s'],
+        [1000 * 1024 ** 3, '1.0 TiB/s'],
+    ]) assert.equal(formatRate(bytes), expected, String(bytes));
+    for (const value of [NaN, Infinity, -Infinity, -1]) assert.equal(formatRate(value), '—');
+});

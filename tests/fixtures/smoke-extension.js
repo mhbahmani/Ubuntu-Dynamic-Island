@@ -1,6 +1,7 @@
 import {formatTime} from './services/format.js';
 import {roundedCover} from './services/artwork-model.js';
 import {THEME_IDS} from './services/themes.js';
+import {formatRate} from './services/proc.js';
 // Runs only in the temporary Shell created by tests/smoke.py.
 import UbuntuIsland from './implementation.js';
 import {ConnectivityService} from './services/connectivity.js';
@@ -79,6 +80,60 @@ export default class Smoke extends UbuntuIsland {
         } finally {
             card.selectPage(page);
             this._settings.set_boolean('disable-animations', reducedMotion);
+        }
+    }
+
+    async _checkNetworkWidths() {
+        const pill = this._pill, state = this._states.system;
+        const context = St.ThemeContext.get_for_stage(global.stage);
+        const text = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const original = {scale:context.scale_factor, text:text.get_double('text-scaling-factor')};
+        const rates = [[0, '0B'], [999.4 * 1024, '999K'], [1000.3 * 1024, '1.0M'],
+            [120 * 1024 ** 2, '120M'], [1024 ** 3, '1.0G'], [999 * 1024 ** 3, '999G'], [888, '888B']];
+        const render = (rxBytes, txBytes) => this._renderSystem({...state, rxBytes, txBytes,
+            rx:formatRate(rxBytes), tx:formatRate(txBytes)});
+        assert(!this._island.expanded && pill._network.visible, 'Rate sizing needs a visible collapsed notch');
+        try {
+            for (const scale of [1, 2]) for (const textScale of [1, 1.5]) {
+                context.scale_factor = scale;
+                // Manually changing the headless St scale does not update
+                // font DPI as a real HiDPI monitor does. Scale text too, so
+                // the 200% case exercises doubled glyphs as well as geometry.
+                text.set_double('text-scaling-factor', textScale * scale);
+                render(0, 0);
+                await delay(200);
+                const width = this._island.actor.width, pillWidth = pill.actor.width;
+                const networkWidth = pill._network.width;
+                const reserved = [pill._down.width, pill._up.width];
+                for (let i = 0; i < rates.length; i++) {
+                    const [rx, down] = rates[i], [tx, up] = rates[rates.length - 1 - i];
+                    render(rx, tx);
+                    await delay(60);
+                    assert(pill._down.text === down && pill._up.text === up, 'Notch did not format raw rate samples');
+                    assert(this._island.actor.width === width && pill.actor.width === pillWidth && pill._network.width === networkWidth,
+                        `Traffic resized notch at scale=${scale} text=${textScale}: ${down}/${up}`);
+                    for (const [index, rate] of [pill._down, pill._up].entries()) {
+                        assert(rate.width === reserved[index], 'Traffic changed a reserved rate width');
+                        const layout = rate.clutter_text.get_layout().copy();
+                        layout.set_width(-1);
+                        assert(layout.get_pixel_size()[0] + 4 * scale <= rate.width,
+                            `Rate clipped at scale=${scale} text=${textScale}: ${rate.text}`);
+                        let widest = 0;
+                        for (const template of ['888B', '888K', '8.8K', '8.8M', '888M', '8.8G', '888G']) {
+                            layout.set_text(template, -1);
+                            widest = Math.max(widest, layout.get_pixel_size()[0]);
+                        }
+                        assert(rate.width === Math.ceil(widest) + 4 * scale, 'Rate reservation has unnecessary space');
+                    }
+                }
+                console.log(`[Island Smoke] Network width PASS: scale=${scale} text=${textScale} reserved=${reserved.join('/')}px notch=${width}px`);
+                await this._capture(`network-width-${scale}-${textScale}`);
+            }
+        } finally {
+            context.scale_factor = original.scale;
+            text.set_double('text-scaling-factor', original.text);
+            this._renderSystem(state);
+            await delay(200);
         }
     }
 
@@ -912,6 +967,7 @@ export default class Smoke extends UbuntuIsland {
         this._island.actor.show();
         this._settings.set_boolean('pill-show-commute', false);
         assert(!this._pill._commute.visible && !this._commute.controller.timer, 'Disabled Commute notch retained timer');
+        await this._checkNetworkWidths();
         for (const shape of ['classic', 'chevron']) {
             this._settings.set_string('pill-arrow-style', shape);
             await delay(70);

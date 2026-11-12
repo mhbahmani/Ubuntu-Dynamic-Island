@@ -11,6 +11,7 @@ import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {weatherSceneKind, temperature} from '../services/weather-model.js';
 import {icon, label, row} from './widgets.js';
+import {compactRate} from '../services/format.js';
 
 // Compact notch content shown while collapsed. The St.Button gives keyboard
 // focus semantics and an accessibility name for the toggle action.
@@ -118,8 +119,8 @@ export class Pill {
             group.x_expand = true;
             group.x_align = Clutter.ActorAlign.CENTER;
         }
-        // The configured width is a minimum. Rate slots retain only their
-        // measured peak width; other groups keep their content-based sizing.
+        // The configured width is a minimum. Rate slots reserve the format's
+        // widest templates; other groups keep their content-based sizing.
         this.actor._islandMinimumWidth = () => {
             if (!this.actor.mapped) return 0;
             this._fitNetwork();
@@ -243,7 +244,6 @@ export class Pill {
             !(connectionState.hideUnavailable && (!commute.data || commuteState.stale));
         this._commuteValue.text = commuteState.text;
         this._commute.opacity = commuteState.stale ? 160 : 255;
-        const compactRate = rate => String(rate ?? '—').replace(/ Ki?B\/s$/, 'K').replace(/ Mi?B\/s$/, 'M').replace(/ Gi?B\/s$/, 'G').replace(/ B\/s$/, 'B');
         const arranged = notchOrder(order);
         const key = `${arranged.join(',')}:${connectionState.anchor ?? ''}`;
         if (key !== this._orderKey) {
@@ -253,8 +253,8 @@ export class Pill {
             if (!connectionState.visible) children.push(this._connection);
             children.forEach((child, index) => this.actor.get_child().set_child_at_index(child, index));
         }
-        this._down.text = compactRate(system?.rx);
-        this._up.text = compactRate(system?.tx);
+        this._down.text = compactRate(system?.rxBytes);
+        this._up.text = compactRate(system?.txBytes);
         const description = [expanded ? 'Close Ubuntu Island' : 'Open Ubuntu Island'];
         if (available && showTitle) description.push(String(media.title ?? ''));
         if (this._connection.visible) description.push(connectionState.description);
@@ -283,19 +283,20 @@ export class Pill {
     _fitNetwork() {
         if (!this._network.visible || this._expanded) return;
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        const key = `${scale}:${this._down.text}:${this._up.text}`;
+        const key = scale;
         if (key === this._networkWidthKey) return;
         this._networkWidthKey = key;
         [this._down, this._up].forEach(rate => {
             const layout = rate.clutter_text.get_layout().copy();
             layout.set_width(-1);
-            layout.set_text('500K', -1);
-            const reference = layout.get_pixel_size()[0];
-            layout.set_text(rate.text, -1);
-            // Reserve three digits and a one-letter unit plus about 1 mm.
-            // An unusually long current value can grow, but never leaves a
-            // session-dependent high-water mark after traffic falls again.
-            const width = Math.ceil(Math.max(reference, layout.get_pixel_size()[0])) + 4 * scale;
+            // Include every unit's integer and decimal shape, even when a
+            // different font makes G or K wider than M. Never measure traffic.
+            let reference = 0;
+            for (const template of ['888B', '888K', '8.8K', '8.8M', '888M', '8.8G', '888G']) {
+                layout.set_text(template, -1);
+                reference = Math.max(reference, layout.get_pixel_size()[0]);
+            }
+            const width = Math.ceil(reference) + 4 * scale;
             if (rate.width !== width) rate.width = width;
         });
     }

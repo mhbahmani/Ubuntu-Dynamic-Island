@@ -96,8 +96,14 @@ export function defaultInterface(text, ipv6 = '') {
 
 export function formatRate(bytesPerSecond) {
     if (!Number.isFinite(bytesPerSecond) || bytesPerSecond < 0) return '—';
-    if (bytesPerSecond < 1024) return `${Math.round(bytesPerSecond)} B/s`;
-    if (bytesPerSecond < 1024 * 1024) return `${(bytesPerSecond / 1024).toFixed(1)} KiB/s`;
-    if (bytesPerSecond < 1024 * 1024 * 1024) return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MiB/s`;
-    return `${(bytesPerSecond / (1024 * 1024 * 1024)).toFixed(1)} GiB/s`;
+    const units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+    let value = bytesPerSecond, unit = 0;
+    const rounded = () => unit === 0 ? Math.round(value) : Math.round(value * 10) / 10;
+    while (rounded() >= 1000 && unit < units.length - 1) {
+        value /= 1024;
+        unit++;
+    }
+    const number = unit === 0 ? String(rounded())
+        : rounded() >= 1000 ? value.toExponential(1) : rounded().toFixed(1);
+    return `${number} ${units[unit]}/s`;
 }
