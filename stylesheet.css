@@ -34,6 +34,9 @@
     border: 1px solid rgba(235, 239, 255, 0.2);
 }
 .ubuntu-island-cpu-dot { width: 6px; height: 6px; border-radius: 3px; background-color: #87ad8b; }
+.ubuntu-island-pill-event { padding: 0; border: none; background-color: transparent; color: #e3e8f0; }
+.ubuntu-island-pill-event-face { spacing: 6px; }
+.ubuntu-island-pill-event:hover, .ubuntu-island-pill-event:focus { color: #ffffff; }
 .ubuntu-island-dot-low { background-color: #87ad8b; }
 .ubuntu-island-dot-mid { background-color: #d4a75d; }
 .ubuntu-island-dot-high { background-color: #e0563b; }
@@ -78,6 +81,14 @@
 .ubuntu-island-calendar-blank .ubuntu-island-calendar-date { background-color: transparent; border-color: transparent; box-shadow: none; }
 .ubuntu-island-calendar-holiday-label { font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; font-size: 8.5pt; color: #f0a38f; }
 .ubuntu-island-calendar-selected { font-family: "Noto Sans, Vazir, Vazirmatn, DejaVu Sans"; font-size: 10pt; color: #e3e8f0; }
+.ubuntu-island-calendar-event-dot { width: 3px; height: 3px; margin: 0 1px 1px 0; border-radius: 2px; background-color: #c2c7cf; }
+.ubuntu-island-calendar-agenda { spacing: 5px; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(235,239,255,0.08); }
+.ubuntu-island-calendar-event-list { spacing: 4px; }
+.ubuntu-island-calendar-event { padding: 4px 6px; border-radius: 6px; text-align: left; }
+.ubuntu-island-calendar-event:hover, .ubuntu-island-calendar-event:focus { background-color: rgba(225,230,240,0.08); }
+.ubuntu-island-calendar-event-title { font-size: 10pt; color: #f1f3f7; }
+.ubuntu-island-calendar-event-meta { font-size: 8.5pt; color: #bbc3cf; }
+.ubuntu-island-calendar-event-date { font-size: 10pt; color: #e3e8f0; }
 /* Eight optional modules still leave room for the active caption at 380px. */
 .ubuntu-island-with-calendar .ubuntu-island-navigation { spacing: 2px; padding-left: 8px; padding-right: 8px; }
 .ubuntu-island-with-calendar .ubuntu-island-tab,

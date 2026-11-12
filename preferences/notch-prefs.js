@@ -16,8 +16,8 @@ export function notchPreview(settings, window) {
     // the minimum width, so adding modules cannot force the settings window wider.
     const preview = new Adw.Squeezer({halign: Gtk.Align.FILL, homogeneous: false,
         switch_threshold_policy: Adw.FoldThresholdPolicy.NATURAL, transition_duration: 0});
-    const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth', commute: 'Commute', agents: 'Agents', date: 'Dates'};
-    const icons = {media: 'audio-x-generic-symbolic', weather: 'weather-clear-symbolic',
+    const names = {media: 'Music', weather: 'Weather', network: 'Network', cpu: 'CPU', bluetooth: 'Bluetooth', commute: 'Commute', agents: 'Agents', date: 'Dates', event:'Upcoming event'};
+    const icons = {event:'x-office-calendar-symbolic',media: 'audio-x-generic-symbolic', weather: 'weather-clear-symbolic',
         network: 'network-transmit-receive-symbolic', cpu: 'org.gnome.SystemMonitor-symbolic', bluetooth: 'bluetooth-symbolic', commute: 'find-location-symbolic', date: 'x-office-calendar-symbolic'};
     let selected = 'media';
     const controls = new Gtk.Box({spacing: 8, halign: Gtk.Align.CENTER});
@@ -42,6 +42,7 @@ export function notchPreview(settings, window) {
         const chips = new Map();
         for (const id of Object.keys(names)) {
             const chip = new Gtk.ToggleButton({active: selected === id, tooltip_text: names[id]});
+            if (compact) chip.add_css_class('ubuntu-island-notch-chip');
             chip.update_property([Gtk.AccessibleProperty.LABEL], [names[id]]);
             const content = new Gtk.Box({orientation: Gtk.Orientation.VERTICAL, spacing: 5,
                 margin_start: compact ? 0 : 4, margin_end: compact ? 0 : 4,

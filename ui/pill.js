@@ -15,7 +15,7 @@ import {icon, label, row} from './widgets.js';
 // Compact notch content shown while collapsed. The St.Button gives keyboard
 // focus semantics and an accessibility name for the toggle action.
 export class Pill {
-    constructor(onToggle, onToggleTitle, onChanged) {
+    constructor(onToggle, onToggleTitle, onChanged, onEvent) {
         this.actor = new St.Button({
             style_class: 'ubuntu-island-pill',
             can_focus: true,
@@ -85,6 +85,12 @@ export class Pill {
         this._date = this._dates.actor;
         this._date.visible = false;
         content.add_child(this._date);
+        this._event = new St.Button({style_class:'ubuntu-island-pill-event',can_focus:true,reactive:true});
+        const eventFace = row('ubuntu-island-pill-event-face');
+        eventFace.add_child(icon('x-office-calendar-symbolic',13));
+        this._eventText = label('','ubuntu-island-pill-date'); eventFace.add_child(this._eventText);
+        this._event.set_child(eventFace); this._event.hide(); content.add_child(this._event);
+        this._event.connect('clicked', () => onEvent?.());
         this._onChanged = onChanged;
         this.actor.connect('notify::mapped', () => { this._syncDateClock(); this._queueLayout(); });
         this._date.connect('style-changed', () => this._queueLayout());
@@ -102,7 +108,7 @@ export class Pill {
         content.add_child(this._cpuDot);
         content.add_child(this._bluetooth);
         this._items = {media: this._media, weather: this._weather, network: this._network,
-            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents, date: this._date};
+            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents, date: this._date, event:this._event};
         const groups = [...Object.values(this._items), this._connection];
         for (const group of groups) {
             group.x_expand = true;
@@ -115,16 +121,32 @@ export class Pill {
             this._fitNetwork();
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             const monitor = Main.layoutManager.primaryMonitor;
-            if (this._date.visible) {
-                const fixed = groups.filter(g => g.visible && ![this._media, this._date].includes(g));
-                const fixedWidth = fixed.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0);
-                const room = (monitor?.width ?? 1000 * scale) * 0.85 - fixedWidth - (100 + fixed.length * 12) * scale;
-                this._dates.setBudget(Math.max(100 * scale, Math.min(320 * scale, room)));
+            if (this._event.visible) {
+                const fixed = groups.filter(g => g.visible && ![this._media,this._date,this._event].includes(g));
+                const visibleCount = groups.filter(g => g.visible).length;
+                const overhead = (26 + Math.max(0,visibleCount - 1) * 12 + 19 + (this._media.visible ? 20 : 0)) * scale;
+                let room = Math.max(0,(monitor?.width ?? 1000 * scale) - 32 * scale - overhead -
+                    fixed.reduce((sum,g) => sum + g.get_preferred_width(-1)[1],0));
+                if (this._date.visible) {
+                    this._dates.setBudget(Math.min(320 * scale,room * 0.55));
+                    room = Math.max(0,room - this._date.get_preferred_width(-1)[1]);
+                }
+                const eventWidth = Math.min(160 * scale,room * (this._title.visible ? 0.65 : 1),
+                    this._eventText.clutter_text.get_preferred_width(-1)[1]);
+                this._eventText.width = Math.max(0,Math.floor(eventWidth));
+                this._mediaTitle.setBudget(Math.max(0,Math.min(240 * scale,room - eventWidth)));
+            } else {
+                if (this._date.visible) {
+                    const fixed = groups.filter(g => g.visible && ![this._media, this._date].includes(g));
+                    const fixedWidth = fixed.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0);
+                    const room = (monitor?.width ?? 1000 * scale) * 0.85 - fixedWidth - (100 + fixed.length * 12) * scale;
+                    this._dates.setBudget(Math.max(100 * scale, Math.min(320 * scale, room)));
+                }
+                const others = groups.filter(g => g !== this._media && g.visible);
+                const otherWidth = others.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0) + (52 + others.length * 12) * scale;
+                const maximum = Math.min(600 * scale, (monitor?.width ?? 1000 * scale) * 0.6);
+                this._mediaTitle.setBudget(Math.max(20 * scale, Math.min(240 * scale, maximum - otherWidth)));
             }
-            const others = groups.filter(g => g !== this._media && g.visible);
-            const otherWidth = others.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0) + (52 + others.length * 12) * scale;
-            const maximum = Math.min(600 * scale, (monitor?.width ?? 1000 * scale) * 0.6);
-            this._mediaTitle.setBudget(Math.max(20 * scale, Math.min(240 * scale, maximum - otherWidth)));
             const visible = groups.filter(g => g.visible);
             return visible.reduce((sum, g) => sum + (g === this._media
                 ? 14 * scale + (this._title.visible ? 6 * scale + this._mediaTitle.desiredWidth : 0)
@@ -134,8 +156,11 @@ export class Pill {
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({agents, showAgents = false, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}}) {
+    render({agents, showAgents = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}}) {
         this._expanded = expanded;
+        this._event.visible = Boolean(event && !expanded);
+        this._eventText.text = event?.text || '';
+        this._event.accessible_name = event?.text || 'Upcoming event';
         this._dateDay = todayDay();
         const dateKey = `${this._dateDay}:${showDate}:${expanded}:${JSON.stringify(dateOptions)}`;
         if (dateKey !== this._dateKey) {
@@ -231,6 +256,7 @@ export class Pill {
         if (this._commute.visible) description.push(commuteState.description);
         if (this._agents.visible) description.push(agentSummary(agents?.sessions));
         if (this._date.visible) description.push(this._date.accessible_name);
+        if (this._event.visible) description.push(this._event.accessible_name);
         this.actor.accessible_name = description.join('. ');
         return {connectionEdge: connectionState.edge};
     }

@@ -24,6 +24,8 @@ for (const provider of ['claude', 'codex', 'opencode']) {
     settings.set_string(`agents-${provider}-executable`, '/usr/bin/true');
 }
 const window = new Adw.PreferencesWindow();
+let calendarEmit;
+window._islandCalendarReader = emit => { calendarEmit = emit; return {watch() {},stop() {}}; };
 prefs.fillPreferencesWindow(window);
 function find(widget, title) {
     if (widget instanceof Adw.PreferencesRow && widget.title === title) return widget;
@@ -45,6 +47,17 @@ if (settings.get_int('agents-inactive-minutes') !== 120) throw new Error('Sessio
 settings.set_int('agents-inactive-minutes', 60);
 if (inactive.value !== 60) throw new Error('Session expiry did not follow settings');
 const calendarEnabled = find(window, 'Calendar');
+const eventsEnabled = find(window,'Show desktop calendar events');
+if (!eventsEnabled || eventsEnabled.active) throw new Error('Calendar events must default off');
+eventsEnabled.active = true;
+calendarEmit({status:'ready',sources:[{uid:'fixture-calendar',name:'Personal fixture',account:'Fixture account',enabled:true}]});
+const fixtureCalendar = find(window,'Personal fixture');
+fixtureCalendar.active = true;
+if (settings.get_strv('calendar-event-sources')[0] !== 'fixture-calendar') throw new Error('Calendar selection did not save');
+settings.set_strv('calendar-event-sources',[]);
+if (fixtureCalendar.active) throw new Error('Calendar selection did not update');
+settings.set_boolean('calendar-events-enabled',false);
+if (eventsEnabled.active) throw new Error('Calendar events switch did not update');
 if (!calendarEnabled || settings.get_boolean('enable-calendar')) throw new Error('Calendar must default off');
 calendarEnabled.active = true;
 if (!settings.get_boolean('enable-calendar')) throw new Error('Calendar toggle did not save');
@@ -190,7 +203,7 @@ const checkOrderWidth = width => {
         const image = chip.get_child().get_first_child();
         if (image.pixel_size !== (width >= fullWidth ? 18 : 14)) throw new Error('Order icons did not adapt to available space');
     }
-    if (count !== 8) throw new Error('Compact order preview lost a module');
+    if (count !== 9) throw new Error('Compact order preview lost a module');
 };
 for (const width of [900, 560, 360, 300, 900]) checkOrderWidth(width);
 const largeType = new Gtk.CssProvider();

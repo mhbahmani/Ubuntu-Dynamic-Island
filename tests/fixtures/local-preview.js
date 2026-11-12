@@ -7,7 +7,7 @@ import Shell from 'gi://Shell';
 import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
-import {sampleDevices, sampleAgents} from './preview-data.js';
+import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
 import {civilDay, todayDay, dateTitle, monthTitle, displayDate, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
 export default class Preview extends UbuntuIsland {
@@ -37,6 +37,7 @@ export default class Preview extends UbuntuIsland {
         const sample = GLib.getenv('ISLAND_PREVIEW_LIVE') !== '1';
         sampleDevices(this, sample);
         sampleAgents(this);
+        sampleCalendar(this);
         const connection = GLib.getenv('ISLAND_PREVIEW_CONNECTION') || 'online';
         if (connection !== 'auto') {
             this._connectivity.stop();
@@ -313,6 +314,35 @@ export default class Preview extends UbuntuIsland {
         }
         this._card.selectPage('calendar'); this._island.expand(); await delay(600);
         const view = this._card._calendarView;
+        view.select(todayDay()); await delay(200);
+        assert(!view.eventSummary && view.content.contains(view.agenda.actor), 'Events must share the month scroll area');
+        assert(view.agenda.actor.visible && view.agenda.rows.size === 3, 'Inline selected-day events missing');
+        assert(view.cells.find(cell => cell.day === todayDay()).dot.visible, 'Event marker missing');
+        const eventRow = [...view.agenda.rows.values()].find(row => row.event.uid === 'review');
+        eventRow.control.grab_key_focus(); await delay(150);
+        assert(view.header.mapped && view.grid.mapped && navigation.mapped, 'Events replaced the month/navigation');
+        assert(view.adjustment.value > 0, 'Focused events were not scrolled into view');
+        await this._capture('calendar-inline-events');
+        const sampleRecords = this._sampleCalendarRecords;
+        this._sampleCalendarRecords = sampleRecords.filter(event => event.uid !== 'review'); this._calendarEvents.publish(); await delay(50);
+        assert(view.agenda.rows.size === 2 && view.todayButton.has_key_focus(), 'Removed focused event did not restore focus');
+        this._sampleCalendarRecords = sampleRecords; this._calendarEvents.publish();
+        this._settings.set_strv('calendar-event-sources',[]); await delay(100);
+        assert(!view.agenda.actor.visible && !view.eventSummary, 'Unconfigured events retained a blank footer');
+        this._settings.set_strv('calendar-event-sources',['sample-calendar']);
+        this._island.collapse(); await delay(350);
+        assert(this._pill._event.visible && this._eventIndicator?.text === 'Event now', 'Private upcoming event label missing');
+        await click(this._pill._event); await delay(350);
+        assert(this._island.expanded && view.agenda.actor.visible && view.header.mapped && view.adjustment.value > 0,
+            'Event click did not reveal inline events');
+        await key(Clutter.KEY_Escape); await delay(250);
+        assert(!this._island.expanded, 'Inline calendar Escape did not close the island');
+        this._island.expand(); await delay(250);
+        this._card.selectPage('media');
+        assert(!this._calendarClock && !this._calendarDeadline && !this._calendarEvents.request, 'Hidden calendar retains subscriptions');
+        this._card.selectPage('calendar'); await delay(150);
+        // Grid-only sizing remains independent of whether event data is configured.
+        this._settings.set_boolean('calendar-events-enabled',false);
         const sample = civilDay(2025, 3, 20);
         view.select(sample);
         assert(!view.modes && !view.modeButtons, 'Calendar choices must stay in preferences');
@@ -332,7 +362,7 @@ export default class Preview extends UbuntuIsland {
         this._settings.set_strv('calendar-additional', ['jalali', 'gregorian', 'hijri']);
         await delay(150); await this._capture('calendar-all-dates');
         assert(view.selectedDate.text.includes('ق'), 'Additional Hijri date missing');
-        this._settings.set_string('calendar-primary', 'gregorian');
+        this._settings.set_string('calendar-primary', 'gregorian'); await delay(150);
         await click(view.cells.find(c => c.day === sample).control);
         await key(Clutter.KEY_Left); assert(view.selected === sample - 1, 'Gregorian arrow did not move left');
         await key(Clutter.KEY_Right); assert(view.selected === sample, 'Gregorian arrow did not return');

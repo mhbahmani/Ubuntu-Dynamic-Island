@@ -12,6 +12,7 @@ Adw.init();
 let finish;
 const finished = new Promise(resolve => { finish = resolve; });
 const window = new Adw.PreferencesWindow({title: 'Ubuntu Island', default_width: 650, default_height: 750});
+window._islandCalendarReader = emit => ({watch() {emit({status:'ready',sources:[{uid:'sample-calendar',name:'Personal (sample)',account:'Sample account',enabled:true}]});},stop() {}});
 new Preferences(metadata).fillPreferencesWindow(window);
 window.connect('close-request', () => { finish(); return false; });
 window.present();

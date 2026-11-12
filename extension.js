@@ -1,4 +1,6 @@
 import {AgentsService} from './services/agents.js';
+import {CalendarEventsService} from './services/calendar-events.js';
+import {eventQueryRanges, upcomingEvents, validateMeetUri} from './services/calendar-events-model.js';
 import {AgentWindows} from './services/agent-windows.js';
 import {launchAgent, initializeAgentSettings} from './services/agent-launch.js';
 import {AGENTS, AGENT_STATES} from './services/agents-model.js';
@@ -7,13 +9,14 @@ import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
 import {LyricsService} from './services/lyrics.js';
 import {migrateArrowStyle, migrateOfflineMode} from './services/notch-model.js';
-import {migrateCalendarSettings, migrateNotchDates} from './services/calendar-model.js';
+import {migrateCalendarSettings, migrateNotchDates, todayDay} from './services/calendar-model.js';
 import {CommuteService} from './services/commute.js';
 import {WeatherService} from './services/weather.js';
 import GLib from 'gi://GLib';
+import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
-import {IslandSurface} from './ui/island.js';
+import {IslandSurface, IslandState} from './ui/island.js';
 import {Pill} from './ui/pill.js';
 import {Card} from './ui/card.js';
 import {SystemMonitor} from './services/system.js';
@@ -54,7 +57,7 @@ export default class UbuntuIsland extends Extension {
 
         if (this._settings.get_boolean('move-clock')) this._moveCalendar();
 
-        this._pill = new Pill(() => this._island?.toggle(), () => this._togglePillTitle(), () => this._renderPill());
+        this._pill = new Pill(() => this._island?.toggle(), () => this._togglePillTitle(), () => this._renderPill(), () => this._openUpcomingEvent());
         this._card = new Card(this._settings, {
             agentOpen: session => this._openAgent(session),
             agentWindow: session => this._agentWindows?.resolve(session),
@@ -62,6 +65,9 @@ export default class UbuntuIsland extends Extension {
             agentAsk: input => this._askAgent(input),
             closeQuickAsk: () => this._leaveAgents(),
             agentControl: value => this._agentControl(value),
+            calendarRangeChanged: () => this._syncCalendarEvents(),
+            calendarOpen: (day,uri) => this._openCalendar(day,uri),
+            calendarFocusReady: () => this._island?.state === IslandState.EXPANDED,
             mediaCommand: method => this._media?.command(method),
             selectPlayer: id => this._media?.select(id),
             mediaProperty: (key, value) => this._media?.setProperty(key, value),
@@ -85,7 +91,7 @@ export default class UbuntuIsland extends Extension {
             togglePillTitle: () => this._togglePillTitle(),
             relayout: () => this._island?.relayout(),
             weatherRefresh: () => this._weather?.refresh(),
-            pageChanged: () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); },
+            pageChanged: () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); this._syncCalendarEvents(); },
         });
         this._island = new IslandSurface({
             settings: this._settings,
@@ -94,18 +100,21 @@ export default class UbuntuIsland extends Extension {
             onBeforeExpand: () => { if (!this._card.quickAskOpen) this._card.selectExpansionPage(); },
             onSwitchTab: direction => this._card.cyclePage(direction),
             onEscape: () => !this._card.quickAskOpen && this._card._page === 'agents' && this._card._agentsView.handleEscape(),
-            onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); },
+            onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); this._syncCalendarEvents(); },
         });
         this._island.setHoverEnabled(
             this._settings.get_boolean('hover-open'),
             this._settings.get_int('hover-open-delay'),
             this._settings.get_int('hover-close-delay'));
         this._card.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); });
-        this._island.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); });
+        this._island.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); this._syncCalendarEvents(); });
+        this._calendarEvents = new CalendarEventsService(this.path,state => this._renderCalendarEvents(state));
+        this._calendarSessionSignal = Main.sessionMode.connect('updated', () => this._syncCalendarEvents());
         this._watchSettings();
         this._bindQuickAsk();
         this._bindIslandShortcuts();
         this._applyAppearance();
+        this._syncCalendarEvents();
 
         // Model events drive isolated UI updates; no UI code in the services.
         if (this._settings.get_boolean('enable-media')) {
@@ -246,6 +255,8 @@ export default class UbuntuIsland extends Extension {
         watch('color-theme', () => this._applyAppearance());
         for (const key of ['pill-show-date', 'pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits'])
             watch(key, () => this._renderPill());
+        for (const key of ['calendar-events-enabled','calendar-event-sources','pill-show-event','pill-event-show-title','calendar-event-lead-minutes'])
+            watch(key, () => { this._syncCalendarEvents(); this._updateUpcomingEvent(); });
         watch('surface-opacity', () => this._applyAppearance());
         watch('surface-matte', () => this._applyAppearance());
         watch('pill-width', () => this._island?.applyDimensions());
@@ -347,6 +358,7 @@ export default class UbuntuIsland extends Extension {
             showNetwork: this._settings.get_boolean('pill-show-network'),
             agents: this._states.agents,
             showAgents: this._settings.get_boolean('pill-show-agents'),
+            event: this._eventIndicator,
             commute: this._states.commute,
             showCommute: this._settings.get_boolean('pill-show-commute'),
             units: this._settings.get_string('weather-units'),
@@ -404,6 +416,99 @@ export default class UbuntuIsland extends Extension {
             (this._island.expanded && !this._card?.quickAskOpen && this._card?._page === 'commute' && this._card.actor.mapped) ||
             (!this._island.expanded && this._settings.get_boolean('pill-show-commute')))));
         this._card?._weatherView?.scene.setActive(active);
+    }
+
+    _syncCalendarEvents(refresh = false) {
+        if (!this._calendarEvents || !this._enabled) return;
+        const enabled = this._settings.get_boolean('calendar-events-enabled');
+        const sources = this._settings.get_strv('calendar-event-sources');
+        const visible = this._island?.actor.mapped && !Main.sessionMode.isLocked && !Main.sessionMode.isGreeter;
+        const calendar = visible && this._island.expanded && !this._card.quickAskOpen && this._card._page === 'calendar';
+        const notch = visible && !this._island.expanded && this._settings.get_boolean('pill-show-event');
+        if (!enabled || !sources.length || !calendar && !notch) {
+            this._calendarEvents.stop(); this._stopCalendarClock();
+            this._renderCalendarEvents({status:!enabled ? 'disabled' : !sources.length ? 'no-selection' : 'loading',
+                occurrences:[],coverage:[],sources:[],incomplete:true});
+            return;
+        }
+        const day = todayDay(), ranges = [];
+        if (calendar) ranges.push(this._card._calendarView.eventRange());
+        if (notch) ranges.push({startDay:day,endDayExclusive:day + 7});
+        this._calendarEvents.watch({catalog:false,sources,ranges:eventQueryRanges(ranges),timezone:GLib.TimeZone.new_local().get_identifier()},{refresh});
+        if (!this._calendarClock) {
+            this._calendarClock = Main.panel.statusArea.dateMenu._clock;
+            this._calendarClockIds = ['notify::clock','notify::timezone'].map(signal => this._calendarClock.connect(signal, () => {
+                const now = Date.now();
+                const refresh = signal === 'notify::timezone' || Math.abs(now - (this._calendarTick || now)) > 90000;
+                this._calendarTick = now; this._syncCalendarEvents(refresh); this._updateUpcomingEvent();
+            }));
+            this._calendarTick = Date.now();
+        }
+    }
+    _renderCalendarEvents(state) {
+        if (!this._enabled) return;
+        this._states.calendarEvents = state;
+        this._card?._calendarView?.setEvents(state); this._updateUpcomingEvent();
+    }
+    _updateUpcomingEvent() {
+        if (this._calendarDeadline) GLib.Source.remove(this._calendarDeadline);
+        this._calendarDeadline = 0; this._eventIndicator = null;
+        if (!this._enabled) return;
+        const state = this._states.calendarEvents, now = Date.now();
+        const lead = this._settings.get_int('calendar-event-lead-minutes');
+        const minutes = [5,15,30,60].includes(lead) ? lead : 15;
+        const active = this._settings.get_boolean('calendar-events-enabled') && this._settings.get_boolean('pill-show-event') &&
+            this._island?.actor.mapped && !this._island.expanded && !Main.sessionMode.isLocked;
+        if (active && state) {
+            const covered = state.coverage?.some(range => range.startMs <= now && range.endMs >= now + minutes * 60000);
+            const next = upcomingEvents(state,{nowMs:now,leadMinutes:minutes,covered});
+            if (next) {
+                const event = next.occurrences[0], count = next.occurrences.length;
+                const when = next.ongoing ? 'now' : `in ${Math.ceil((event.startMs - now) / 60000)} min`;
+                const title = this._settings.get_boolean('pill-event-show-title');
+                const text = count > 1 ? `${count} events ${when}` : title && event.title ? `${event.title} · ${when}` : `Event ${when}`;
+                this._eventIndicator = {text,day:todayDay(new Date(next.ongoing ? now : event.startMs)),id:count === 1 ? event.id : null};
+            }
+            const boundaries = state.occurrences.filter(event => !event.allDay).flatMap(event => [event.startMs - minutes * 60000,event.startMs,event.endMs])
+                .filter(value => value > now);
+            if (boundaries.length && this._calendarClock) this._calendarDeadline = GLib.timeout_add(GLib.PRIORITY_DEFAULT,
+                Math.max(10,Math.min(...boundaries) - now + 10), () => {
+                    this._calendarDeadline = 0; this._updateUpcomingEvent(); return GLib.SOURCE_REMOVE;
+                });
+        }
+        this._renderPill();
+    }
+    _stopCalendarClock() {
+        if (this._calendarDeadline) GLib.Source.remove(this._calendarDeadline);
+        this._calendarDeadline = 0;
+        for (const id of this._calendarClockIds || []) this._calendarClock.disconnect(id);
+        this._calendarClockIds = []; this._calendarClock = null;
+    }
+    _openUpcomingEvent() {
+        const event = this._eventIndicator;
+        if (!event) return;
+        if (!this._card._calendarView) { void this._openCalendar(event.day).catch(() => Main.notify('Ubuntu Island','Could not open the desktop calendar')); return; }
+        this._card.selectPage('calendar'); this._island.expand(); this._card.selectPage('calendar');
+        this._card._calendarView.showEvents(event.day,event.id);
+    }
+    async _openCalendar(day, uri = null) {
+        if (uri && !validateMeetUri(uri)) throw Error('Invalid meeting link');
+        await new Promise(resolve => GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {resolve(); return GLib.SOURCE_REMOVE;}));
+        if (!this._enabled) return;
+        this._island.suspendGrab();
+        try {
+            if (uri) await new Promise((resolve,reject) => Gio.AppInfo.launch_default_for_uri_async(uri,null,null, (_s,r) => {
+                try { Gio.AppInfo.launch_default_for_uri_finish(r); resolve(); } catch (e) { reject(e); }
+            }));
+            else {
+                // GNOME Calendar 46 uses EDS's translated strptime format,
+                // not ISO-8601. Match that domain and use a four-digit year.
+                const date = GLib.DateTime.new_from_unix_utc(day * 86400 + 12 * 3600);
+                const format = GLib.dgettext('evolution-data-server','%m/%d/%Y %H:%M:%S');
+                Gio.Subprocess.new(['gnome-calendar','--date',date.format(format)],Gio.SubprocessFlags.NONE);
+            }
+            this._island.collapse();
+        } finally { this._island?.resumeGrab(); }
     }
 
     _renderSystem(state) {
@@ -564,6 +669,9 @@ export default class UbuntuIsland extends Extension {
         if (this._agentFocus) GLib.Source.remove(this._agentFocus);
         this._agentFocus = 0;
         this._agents?.stop(); this._agents = null;
+        this._calendarEvents?.stop(); this._calendarEvents = null; this._stopCalendarClock();
+        if (this._calendarSessionSignal) Main.sessionMode.disconnect(this._calendarSessionSignal);
+        this._calendarSessionSignal = 0;
         this._agentWindows?.stop(); this._agentWindows = null;
         this._connectivity?.stop();
         this._connectivity = null;

@@ -109,6 +109,11 @@
       <choices><choice value="both"/><choice value="jalali"/><choice value="gregorian"/></choices>
       <summary>Legacy calendar display mode, migrated to primary and additional calendars</summary>
     </key>
+    <key name="calendar-events-enabled" type="b"><default>false</default><summary>Read events from selected desktop calendars</summary></key>
+    <key name="calendar-event-sources" type="as"><default>[]</default><summary>Explicit EDS calendar source UIDs</summary></key>
+    <key name="pill-show-event" type="b"><default>false</default><summary>Show upcoming timed events in the notch</summary></key>
+    <key name="pill-event-show-title" type="b"><default>false</default><summary>Reveal event titles in the collapsed notch</summary></key>
+    <key name="calendar-event-lead-minutes" type="i"><default>15</default><range min="5" max="60"/><summary>Minutes before an event to show its indicator</summary></key>
     <key name="calendar-primary" type="s">
       <default>'jalali'</default>
       <choices><choice value="jalali"/><choice value="gregorian"/><choice value="hijri"/></choices>

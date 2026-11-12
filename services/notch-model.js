@@ -1,4 +1,4 @@
-export const NOTCH_ITEMS = ['media', 'weather', 'network', 'cpu', 'bluetooth', 'commute', 'agents', 'date'];
+export const NOTCH_ITEMS = ['media', 'weather', 'network', 'cpu', 'bluetooth', 'commute', 'agents', 'date', 'event'];
 
 // Tolerate stale/hand-edited settings while keeping every item exactly once.
 export function notchOrder(value) {

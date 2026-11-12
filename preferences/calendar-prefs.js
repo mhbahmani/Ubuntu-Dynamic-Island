@@ -2,6 +2,7 @@ import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
+import {calendarEventPreferences} from './calendar-events-prefs.js';
 import {CALENDARS, migrateCalendarSettings, migrateNotchDates, DATE_PRESETS, DATE_TOKENS, dateFormatError, dateOrder, formatNotchDate, notchDates, todayDay} from '../services/calendar-model.js';
 
 export function notchDatePreferences(settings, window) {
@@ -182,5 +183,5 @@ export function calendarPreferences(settings, window) {
     const signals = ['calendar-primary', 'calendar-additional'].map(key => settings.connect(`changed::${key}`, sync));
     window.connect('close-request', () => { signals.forEach(id => settings.disconnect(id)); return false; });
     sync();
-    return [group, extra];
+    return [group, extra, calendarEventPreferences(settings,window)];
 }

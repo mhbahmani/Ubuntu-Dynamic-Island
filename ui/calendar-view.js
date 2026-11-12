@@ -6,6 +6,8 @@ import {column, row, label, button} from './widgets.js';
 import {primaryCalendar, todayDay, weekday, monthGrid, shiftMonths, dateTitle, monthTitle,
     fullDate, displayDate, persianDigits, shownCalendars, migrateCalendarSettings} from '../services/calendar-model.js';
 import {calendarHolidays, holidayDescription, isCalendarWeekend} from '../services/calendar-holidays.js';
+import {CalendarAgenda} from './calendar-agenda.js';
+import {eventsForDay} from '../services/calendar-events-model.js';
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const PERSIAN_WEEKDAYS = ['ی', 'د', 'س', 'چ', 'پ', 'ج', 'ش'];
@@ -72,15 +74,21 @@ export class CalendarView {
             const control = new St.Button({style_class: 'ubuntu-island-calendar-day',
                 reactive: true, track_hover: true, x_expand: true});
             const main = label('', 'ubuntu-island-calendar-number', false);
-            const face = new St.Bin({style_class: 'ubuntu-island-calendar-date', child: main,
+            const face = new St.Widget({style_class: 'ubuntu-island-calendar-date', layout_manager:new Clutter.BinLayout(),
                 x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER});
+            main.x_align = main.y_align = Clutter.ActorAlign.CENTER; face.add_child(main);
+            const dot = new St.Widget({style_class:'ubuntu-island-calendar-event-dot',
+                x_align:Clutter.ActorAlign.END,y_align:Clutter.ActorAlign.END,visible:false}); face.add_child(dot);
             control.set_child(face);
-            const cell = {control, main, day: null};
+            const cell = {control, main, dot, day: null};
             control.connect('clicked', () => this.select(cell.day, true));
             control.connect('key-press-event', (_actor, event) => this._key(event, cell.day));
             this.grid.add_child(control); return cell;
         });
-        const changed = ['calendar-primary', 'calendar-additional'].map(key => settings.connect(`changed::${key}`, () => {
+        this.eventSnapshot = {status:'disabled',occurrences:[],coverage:[],sources:[],incomplete:true};
+        this.agenda = new CalendarAgenda({...actions,restoreFocus:() => this.todayButton.grab_key_focus()});
+        this.content.add_child(this.agenda.actor); this.agenda.actor.hide();
+        const changed = ['calendar-primary', 'calendar-additional', 'calendar-events-enabled', 'calendar-event-sources'].map(key => settings.connect(`changed::${key}`, () => {
             this.primary = settings.get_string('calendar-primary');
             this.additional = settings.get_strv('calendar-additional');
             this.render(); this.actions.relayout?.();
@@ -94,11 +102,14 @@ export class CalendarView {
         });
         this.actor.connect('notify::mapped', () => {
             this._stopClock();
+            if (!this.actor.mapped) this.pendingEvent = null;
             if (this.actor.mapped) { this._refreshToday(); this._scheduleMidnight(); }
+            this.actions.calendarRangeChanged?.();
         });
         this.actor.connect('destroy', () => {
             this._stopClock(); changed.forEach(id => settings.disconnect(id)); global.stage.disconnect(focus);
             if (this.layoutIdle) GLib.Source.remove(this.layoutIdle);
+            if (this.focusIdle) GLib.Source.remove(this.focusIdle);
             this.layoutIdle = 0;
         });
         this.render();
@@ -108,7 +119,7 @@ export class CalendarView {
         const padding = this.actor.get_theme_node().get_vertical_padding();
         const inner = width - this.actor.get_theme_node().get_horizontal_padding();
         const spacing = this.actor.get_theme_node().get_length('spacing');
-        return padding + spacing + [this.header, this.grid]
+        return padding + spacing + [this.header, this.content]
             .reduce((sum, actor) => sum + actor.get_preferred_height(inner)[1], 0);
     }
     select(day, focus = false) {
@@ -192,16 +203,56 @@ export class CalendarView {
             if (selected) { cell.control.add_style_pseudo_class('checked'); cell.control.add_accessible_state(Atk.StateType.SELECTED); }
             else { cell.control.remove_style_pseudo_class('checked'); cell.control.remove_accessible_state(Atk.StateType.SELECTED); }
             cell.control.accessible_name = `${fullDate(data.day, calendar)}${today ? '; Today' : ''}${holiday.holiday ? `; ${holidayDescription(holiday, this.primary)}` : ''}`;
+            cell.dateAccessible = cell.control.accessible_name;
         });
+        this._renderEvents(); this.actions.calendarRangeChanged?.();
+    }
+    eventRange() {
+        const days = this.gridData.filter(cell => cell.inMonth);
+        return {startDay:days[0].day,endDayExclusive:days.at(-1).day + 1};
+    }
+    setEvents(snapshot) { this.eventSnapshot = snapshot; this._renderEvents(); }
+    _renderEvents() {
+        if (!this.agenda) return;
+        const enabled = this.settings.get_boolean('calendar-events-enabled'), snapshot = this.eventSnapshot;
+        const covered = day => snapshot.coverage?.some(r => r.startDay <= day && day < r.endDayExclusive);
+        for (const cell of this.cells) {
+            const agenda = enabled && cell.day != null ? eventsForDay(snapshot,cell.day,{covered:covered(cell.day)}) : null;
+            cell.dot.visible = Boolean(agenda?.occurrences.length);
+            if (cell.day != null) cell.control.accessible_name = `${cell.dateAccessible || ''}${agenda?.count != null
+                ? `; ${agenda.count} events` : agenda?.occurrences.length ? '; Events available, incomplete coverage' : ''}`;
+        }
+        this.agenda.actor.visible = enabled && this.settings.get_strv('calendar-event-sources').length > 0;
+        if (!this.agenda.actor.visible) this.pendingEvent = null;
+        this.agenda.update(snapshot,this.selected,this.primary);
+        if (this.pendingEvent && this.actions.calendarFocusReady?.() && !this.focusIdle) {
+            this.focusIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                this.focusIdle = 0; this.focusRequestedEvent(); return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+    showEvents(day = this.selected, occurrenceId = null) {
+        this.pendingEvent = occurrenceId || '*';
+        this.select(day);
+    }
+    focusRequestedEvent() {
+        if (!this.pendingEvent || !this.actor.mapped || !this.actions.calendarFocusReady?.()) return false;
+        const target = this.agenda.rows.get(this.pendingEvent)?.control || this.agenda.rows.values().next().value?.control;
+        if (!target?.mapped || !target.has_allocation()) return false;
+        target.grab_key_focus(); this._revealFocus(); this.pendingEvent = null;
+        return true;
     }
     _revealFocus() {
         const target = global.stage.get_key_focus();
-        if (!this.actor.mapped || !target?.mapped || !this.grid.contains(target)) return;
-        const top = this.scroll.get_transformed_position()[1], y = target.get_transformed_position()[1];
-        const bottom = top + this.scroll.get_transformed_size()[1];
+        const scroll = this.scroll, content = this.content;
+        if (!this.actor.mapped || !target?.mapped || !content.contains(target)) return;
+        const adjustment = scroll.get_vscroll_bar().get_adjustment();
+        const top = scroll.get_transformed_position()[1], y = target.get_transformed_position()[1];
+        const bottom = top + scroll.get_transformed_size()[1];
         const offset = y < top ? y - top : Math.max(0, y + target.height - bottom);
-        this.adjustment.value = Math.max(this.adjustment.lower,
-            Math.min(this.adjustment.upper - this.adjustment.page_size, this.adjustment.value + offset));
+        if (!Number.isFinite(offset)) return; // Focus can arrive before a newly shown page is allocated.
+        adjustment.value = Math.max(adjustment.lower,
+            Math.min(adjustment.upper - adjustment.page_size, adjustment.value + offset));
     }
     _refreshToday() {
         const current = todayDay();

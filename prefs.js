@@ -1,6 +1,7 @@
 import {shortcutRow} from './preferences/shortcut-prefs.js';
 import {agentsPreferences} from './preferences/agents-prefs.js';
 import {calendarPreferences, notchDatePreferences} from './preferences/calendar-prefs.js';
+import {eventNotchPreferences} from './preferences/calendar-events-prefs.js';
 import {AGENT_ICON_NAME, agentIconDirectory} from './ui/agent-icon.js';
 import {commutePreferences} from './preferences/commute-prefs.js';
 import {migrateArrowStyle, migrateOfflineMode, OFFLINE_MODES} from './services/notch-model.js';
@@ -16,7 +17,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         // Latin keeps the established UI face; Persian falls through to the
         // user's Vazir/Vazirmatn font instead of the system's Arabic fallback.
         const fonts = new Gtk.CssProvider();
-        fonts.load_from_data('.ubuntu-island-preferences { font-family: "Noto Sans", "Vazir", "Vazirmatn", "DejaVu Sans"; }', -1);
+        fonts.load_from_data('.ubuntu-island-preferences { font-family: "Noto Sans", "Vazir", "Vazirmatn", "DejaVu Sans"; } .ubuntu-island-notch-chip { min-width: 16px; padding-left: 6px; padding-right: 6px; }', -1);
         window.add_css_class('ubuntu-island-preferences');
         Gtk.StyleContext.add_provider_for_display(window.get_display(), fonts, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
         window.connect('close-request', () => {
@@ -126,7 +127,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         titles.add(titleMode); titles.add(characters);
         const pages = [
             ['appearance', 'Appearance', 'preferences-desktop-appearance-symbolic', [appearance, shortcuts]],
-            ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, notchDatePreferences(settings, window), titles, hover]],
+            ['notch', 'Notch', 'view-reveal-symbolic', [notchStyles(settings, window), notchPreview(settings, window), notch, notchDatePreferences(settings, window), eventNotchPreferences(settings, window), titles, hover]],
             ['modules', 'Modules', 'application-x-addon-symbolic', [modules]],
             ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],
             ['commute', 'Commute', 'find-location-symbolic', commutePreferences(settings, window)],

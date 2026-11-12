@@ -3,6 +3,40 @@ import {roundedCover} from './services/artwork-model.js';
 // Development fixtures only. Controls update these snapshots, never real devices.
 import St from 'gi://St';
 import Cogl from 'gi://Cogl';
+import {normalizeOccurrences, localDayRange} from './services/calendar-events-model.js';
+import {todayDay} from './services/calendar-model.js';
+
+// Calendar samples stay isolated even in --live previews.
+export function sampleCalendar(preview) {
+    preview._calendarEvents.stop();
+    const sourceUid = 'sample-calendar', day = todayDay(), now = Date.now();
+    const date = n => new Date(n * 86400000).toISOString().slice(0,10);
+    preview._sampleCalendarRecords = [
+        {sourceUid,uid:'all-day',allDay:true,title:'روز برنامه‌ریزی',startDate:date(day),endDateExclusive:date(day+1)},
+        {sourceUid,uid:'review',allDay:false,title:'جلسه بررسی طرح · Design review',
+            startMs:now-5*60000,endMs:now+25*60000,location:'Online',joinUri:'https://meet.google.com/abc-defg-hij'},
+        {sourceUid,uid:'later',allDay:false,title:'Planning · برنامه‌ریزی هفته آینده',
+            startMs:now+45*60000,endMs:now+75*60000},
+        {sourceUid,uid:'tomorrow',allDay:false,title:'Tomorrow',
+            startMs:localDayRange(day+1).startMs+12*3600000,endMs:localDayRange(day+1).startMs+13*3600000},
+    ];
+    preview._calendarEvents = {
+        watch(request) {
+            this.request = request;
+            if (this.signature === JSON.stringify(request)) return;
+            this.signature = JSON.stringify(request); this.publish();
+        },
+        publish() {
+            if (!this.request) return;
+            preview._renderCalendarEvents({status:'ready',sources:[{uid:sourceUid,name:'Personal (sample)',enabled:true}],
+                coverage:this.request.ranges,...normalizeOccurrences(preview._sampleCalendarRecords,{sourceUids:[sourceUid]})});
+        },
+        stop() { this.signature = null; this.request = null; },
+    };
+    preview._settings.set_strv('calendar-event-sources',[sourceUid]);
+    preview._settings.set_boolean('calendar-events-enabled',true);
+    preview._settings.set_boolean('pill-show-event',true);
+}
 
 export function sampleDevices(preview, sampleMetrics) {
     for (const service of [preview._media, preview._audio, preview._bluetooth]) service.stop();

@@ -53,7 +53,7 @@ export class Card {
             return 248 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
         };
         this.actor._islandFocus = () => {
-            if (!this.quickAskOpen) return false;
+            if (!this.quickAskOpen) return this._page === 'calendar' && this._calendarView.focusRequestedEvent();
             this._quickAsk.focus(); return true;
         };
         this.actor._islandKeepOpen = () => this.quickAskOpen;
