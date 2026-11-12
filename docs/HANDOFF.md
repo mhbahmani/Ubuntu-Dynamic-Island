@@ -29,6 +29,96 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Commit review validation (2026-11-13)
+
+Reviewed the combined theme/navigation, chart fill, compact network rate and
+agent metadata changes. `make check` passed: 214 tests passed, one ancestry test
+was skipped because the runner has a real agent ancestor, and none failed.
+JavaScript/Python syntax and strict schema checks passed. `make prefs-test`,
+`make smoke` and `make build` passed. The smoke artifacts are in
+`/tmp/ubuntu-island-smoke-elnksao4`. Packaging tests passed with a temporary
+installation; ZIP runtime files were compared with the working tree.
+Live providers and physical mixed-monitor behavior were not tested. Historical
+briefs in `docs/briefs/` retain their original instructions and findings; use the
+implementation notes below for current behavior.
+
+## Agent session metadata (2026-11-13)
+
+Implemented the authorized `briefs/agent-session-metadata.md` scope over the
+existing themes, backdrop, slider, charts, network-rate and smoke work.
+
+- Session titles are separate from a stable initial project fallback. Provider
+  `session_title` fields and Claude's bounded per-session `custom-title.json`
+  metadata supply headings; ordinary cwd changes cannot overwrite them. A title
+  update changes neither activity time nor completion notification state.
+- `helpers/agents/titles.js` owns asynchronous metadata reads and narrow directory
+  monitors in the broker subprocess. Reads are capped at 8 KiB/one second; events
+  coalesce for 60 ms. Monitors/read callbacks stop on hide, composer, expiry and
+  disable, with a fresh read on reopening. Locators never enter Shell snapshots;
+  transcripts are never opened. No new periodic scan/polling or SDK was added.
+- Waiting is derived from the parent's response lifecycle plus bounded task IDs,
+  kinds/statuses and verified active children. Stop snapshots are authoritative
+  when present; missing fields retain known work. Child-context hooks do not
+  mutate parent lifecycle/title. Completion/failure/cancellation of one child
+  never clears others or finishes the parent. Waiting has separate summary and
+  notch counts, no completion notification, and is excluded from Clear finished.
+- Parent links use inherited `CLAUDE_CODE_SESSION_ID`, matching profile/session
+  identity and PID/birth-token evidence from the existing 16-hop hook ancestry.
+  An outer Codex bounds the immediate delegation chain. HOST_SESSION_ID, labels,
+  project/window sharing and title matching are excluded. Only Claude-to-Codex
+  links resolve, including child-first arrival. Hidden/finished parent renames
+  update the cue; removed parents leave bounded historical attribution.
+- The child keeps its icon, session reference and existing activation path.
+  A wrapping **⤷ From Claude** cue shares the status line; hover/focus, accessible
+  labels and the anchored menu expose the parent title. Rows are reused without
+  reordering on updates. Waiting uses the existing static idle icon and theme
+  color. Shared hover tips prioritize keyboard focus over unrelated pointer
+  allocation events. No theme/style generation changes were needed.
+- Claude setup upgrades add owned SubagentStart/SubagentStop handlers. PreToolUse
+  stays limited to AskUserQuestion: a relay before every tool cost about 50 ms
+  per call, so resumed work shows when its first tool finishes. Use **Reconfigure…**, then restart the provider,
+  when installation/setup is authorized. No live hook/config/installation was
+  changed in this task. Unsupported provider versions/layouts keep stable project
+  labels and legacy Stop behavior when no task evidence exists. The local title
+  layout, process names and inherited variable are compatibility observations,
+  not guaranteed provider protocols; live versions still need acceptance.
+
+Validation: `node --test` and `make check` pass 215 tests, JavaScript/Python
+syntax checks and strict schema validation. The native tests use temporary
+provider configuration, title files and sockets: they cover broker/client
+visibility end to end, bounded/malformed/missing/symlink metadata, atomic rename,
+late callback cancellation, native process ancestry, profile matching, rejection
+of inherited IDs without a matching ancestor and no HOST_SESSION_ID fallback.
+The model suite covers stable headings, renames, waiting/attention/finished
+counts and notifications, multiple tasks/children, terminal task outcomes,
+duplicate/late/child-context events, older payloads and parent relationship cases.
+`node --test tests/agents-native.test.mjs tests/install.test.mjs` also passes all
+10 native/packaging checks; installer targets and ZIP byte comparisons were
+private and include the new metadata reader.
+
+The focused native metadata preview passes at 380/440px, 100/200% UI and
+100/150% text, including wrapping, focus, stationary hover, live rename,
+unchanged row/order/activation identity, reachable session details, waiting notch
+count and hidden cleanup. Inspected screenshots and logs are in
+`/tmp/ubuntu-island-preview-dprawrtb`. The checks exposed and fixed focus loss when
+mapping the menu clamped the list scroll position, plus hover-tip focus priority.
+An earlier preview failed to initialize; it was rerun successfully.
+Full `make smoke` passes after the UI fixes, including verified process/window
+activation, stale-PID rejection, repeated enable/disable, themes/backdrop,
+network widths, outside dismissal and Escape:
+`/tmp/ubuntu-island-smoke-ctk2gi8z`. No preferences implementation was changed by
+this task, so a separate `make prefs-test` was not required. Live Claude/Codex
+payloads, provider upgrades, real desktop delegation/window routing and physical
+mixed-monitor behavior remain untested. No host installation, live hooks,
+provider configuration, push or commit was performed.
+
+Files changed for this task (other agents' existing edits remain intact):
+`extension.js`; `helpers/agents/{bridge,relay,titles}.js`;
+`services/{agents,agents-model,agents-setup-model}.js`;
+`ui/{agents-view,hover-tip,pill}.js`; `scripts/{build,install}.sh`;
+`tests/{agents-metadata.test,agents-native.test,agents-service,agent-titles-native}.mjs`;
+`tests/fixtures/local-preview.js`; `docs/{MODULES,HANDOFF}.md`.
+
 ## Latest interaction fixes (2026-11-13)
 
 - Calendar day popups wait 450 ms, then show two centered, muted 8pt dates without
@@ -91,11 +181,58 @@ clear spatial continuity. New interactions should fit this motion language.
   compact/full notches, narrow/default widths, 100/200% scale, enlarged text,
   reversals and reduced motion. Run the native smoke test for input and cleanup.
 
-Tab transitions are future work. When requested, extend these principles while
-preserving stable navigation and focus; the current expansion remains the reference.
+Tab transitions: the selection marker glides between tabs (see Recent UI
+changes). Page content still switches instantly; extend these principles if
+content transitions are added later.
 
 ## Recent UI changes
 
+- Task 3 smoke diagnosis: clean `HEAD` (`699089b`) reproduced the same Agent focus
+  failure (`/tmp/ubuntu-island-smoke-xs54y7ew`). The fixture left Agents before
+  activation (disabling the resolver) and changed only the call argument's PIDs,
+  which failed current-session revalidation. It now keeps Agents mapped and
+  publishes the target PIDs through `_renderAgents`, verifies stale arguments
+  remain rejected, and checks collapse, grab release, focus and idle cleanup.
+  Product activation guards remain intact. The slider check restores its page
+  as well as its animation preference; its native transitions add no focus idle.
+
+  Validation: `node --test` and `make check` passed all 200 tests plus syntax and
+  schema checks. The corrected activation fixture passed full smoke before the
+  bandwidth change (`/tmp/ubuntu-island-smoke-p_wws7cl`). Network checks cycle
+  zero, `999K`, `1.0M`, `120M`, `1.0G`, `999G` and `888B` through raw samples,
+  checking both rate slots and the whole notch for resizing and clipping.
+  Reserved widths per label (including the 4 logical-pixel gap) are 36px at
+  100% and 72px at 200%; with 150% text they are 50px and 104px respectively.
+  The headless test scales font DPI through the desktop text factor as well as
+  St geometry, since changing St scale alone leaves glyph sizes unchanged.
+  These are isolated native measurements, not physical-monitor acceptance.
+  Final `make smoke` passed end to end, including lifecycle cleanup; logs and
+  inspected rate screenshots: `/tmp/ubuntu-island-smoke-11vcrke6`. No host
+  installation or live-provider/hardware checks were performed.
+
+- Tab colouring (options A, D and E from the 2026-11-13 review): the selected tab's
+  icon takes the theme accent, and one `ubuntu-island-tab-slider` in a pass-through
+  BinLayout wrapper glides under it (`EASE_OUT_CUBIC`, 0.75 × opening duration,
+  both reduced-motion settings honoured). Opening, layout changes and quick ask
+  snap it instead of animating. Hovering a tab changes its text colour only;
+  per-tab markers indicate keyboard focus. The navigation bar is shaded with
+  the theme's bottom tint, an accent hairline and an accent caption. Also themed: keyboard focus rings (`focus` token, ≥ 3:1, same
+  widths as before) and section headings (`heading` token, ≥ 4.5:1; Graphite
+  stays neutral). Not yet verified in a live session: `make smoke` runs
+  `_checkTabSlider()` (centred after a glide, instant with animations disabled).
+  Next, via Codex briefs in `docs/briefs/`: themed chart fill and themed notch.
+- Themes: palettes moved to `services/themes.js` and grew from four to eleven
+  (new: Lagoon, Amethyst, Berry, Midnight, Aurora and Sunset as two-hue
+  gradients, and Mocha). Tints and accents are more saturated. Each theme is
+  seeds only: a dark tint gradient and one accent. Secondary text, card
+  surfaces, borders, hover/pressed, strong buttons (saturation capped at 62%,
+  ≥ 5.4:1 with button text), chart line, today marker and tab marker are
+  derived. Graphite keeps neutral surfaces; the selected tab marker uses its accent.
+  `scripts/theme-css.mjs` (`node scripts/theme-css.mjs`) generates the stylesheet block, and
+  `tests/appearance.test.mjs` checks contrast, schema choices and that the
+  CSS is current. The first four ids stay in order so saved Preferences
+  indices are unchanged. Not yet checked in a live session: `make smoke`
+  captures `theme-*`, `frosted-*` and calendar theme shots for all eleven.
 - Frosted material: the island is now three layers. `IslandBackdrop`
   (`ui/backdrop.js`) blurs the desktop behind the expanded card with
   `Shell.BlurEffect` in background mode; `.ubuntu-island-material` carries the
@@ -207,10 +344,12 @@ preserving stable navigation and focus; the current expansion remains the refere
   Date text is now 10pt (single-calendar heading 12pt), with brighter text and
   reduced vertical padding. All three dates fit one line at 380/440px; enlarged text wraps
   and overflow remains reachable.
-- Network rates reserve `500K` plus 4 logical pixels in the current font and
-  scale. Longer current values can expand temporarily, without retaining the
-  session's widest value. This replaces traffic-dependent spacing that could
-  appear different after login; no new polling timer is involved.
+- Network rates use raw `rxBytes`/`txBytes` samples and `compactRate()` (at most
+  four characters; binary units, capped at `999G` with full accessible rates).
+  Compact and System-tab rates promote before rounding to 1000. Slots reserve
+  the widest integer/decimal unit template plus 4 logical pixels using each
+  label's Pango layout, cached until scale/style changes. Traffic never changes
+  their width; no sampler, polling timer or per-frame work was added.
 - The preferences icon uses filled slider shapes with explicit cutouts so all
   parts recolor consistently on hover/focus.
 
@@ -450,8 +589,9 @@ English display covers tab/notch dates, accessible descriptions, Today and
 built-in observance descriptions, preserving calendar conversion and saved
 notch numeral choices. Reopening resets the selected date/month to today.
 
-The network reference is now 500K plus 4 logical pixels, replacing 500KB. Current
-labels wider than that reference remain readable and shrink again afterward.
+That revision used a 500K reference plus 4 logical pixels, replacing 500KB, and
+allowed longer labels to grow temporarily. Task 3 supersedes this with fixed
+compact-rate slots (see Recent UI changes).
 Native Calendar checks passed at 380/440px, 100/200% scale, enlarged text and
 8/9/14pt event titles, including live holiday filtering, focus restoration,
 English dates and repeated reopen resets. GTK preferences and focused network
