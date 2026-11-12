@@ -1094,19 +1094,39 @@ export default class Smoke extends UbuntuIsland {
         await delay(100);
         this._card._actions.agentAsk = askAction;
         assert(agentView.mode === 'list' && !agentView.prompt.text, 'Ctrl+Enter did not submit Quick Ask');
-        this._card.selectPage(previousPage);
+        // Keep Agents mapped, as it is for a real row activation. Leaving the
+        // tab disables the resolver and intentionally prevents activation.
         // Match an actual private-session window by its unique process ID.
         // The preferences/map pair may be ambiguous; never bypass the resolver
         // with the old manual-window binding path.
         const targetWindow = this._agentWindows.all().find(window => window.get_pid() > 1 &&
             this._agentWindows.resolve({...agentSession, pids:[window.get_pid()]}) === window);
         assert(targetWindow, 'Agent focus fixture needs an unambiguous application window');
-        this._openAgent({...agentSession, pids:[targetWindow.get_pid()]});
-        await delay(350);
-        const focused = global.display.focus_window;
-        assert(!this._island.expanded && !this._island._grab &&
-            (focused === targetWindow || focused?.get_transient_for() === targetWindow),
-        `Agent focus failed: expanded=${this._island.expanded} grab=${Boolean(this._island._grab)} focused=${focused?.get_title()}`);
+        const targetSession = {...agentSession, pids:[targetWindow.get_pid()]};
+        assert(this._agentWindows.active && agentView.actor.mapped, 'Agent resolver must be active for a row click');
+        assert(this._agentWindows.resolve(agentSession) !== targetWindow, 'Stale PID fixture must differ from stored session');
+        await this._openAgent(targetSession);
+        await delay(50);
+        assert(this._island.expanded && this._island._grab && !this._agentFocus,
+            'Stale PID argument bypassed current-session validation');
+        const agentState = this._states.agents;
+        try {
+            // Publish the fixture through the same snapshot/render path as a
+            // broker update, so both activation checks see the same session.
+            this._renderAgents({...agentState, sessions:agentState.sessions.map(session =>
+                session.id === targetSession.id ? targetSession : session)});
+            await this._openAgent(this._states.agents.sessions.find(session => session.id === targetSession.id));
+            assert(this._agentFocus, 'Valid agent activation did not schedule focus');
+            await delay(350);
+            const focused = global.display.focus_window;
+            assert(!this._island.expanded && !this._island._grab && !this._agentFocus &&
+                (focused === targetWindow || focused?.get_transient_for() === targetWindow),
+            `Agent focus failed: expanded=${this._island.expanded} grab=${Boolean(this._island._grab)} focused=${focused?.get_title()}`);
+            console.log('[Island Smoke] Agent focus PASS: stale PIDs rejected, collapse, grab release and target focus');
+        } finally {
+            this._renderAgents(agentState);
+            this._card.selectPage(previousPage);
+        }
         this._island.expand(); this._island.suspendGrab();
         await delay(1600);
         await this._capture('commute-map');
