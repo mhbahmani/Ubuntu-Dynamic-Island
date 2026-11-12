@@ -281,10 +281,10 @@ export class Pill {
         [this._down, this._up].forEach(rate => {
             const layout = rate.clutter_text.get_layout().copy();
             layout.set_width(-1);
-            layout.set_text('500KB', -1);
+            layout.set_text('500K', -1);
             const reference = layout.get_pixel_size()[0];
             layout.set_text(rate.text, -1);
-            // Reserve three digits and a two-letter unit plus about 1 mm.
+            // Reserve three digits and a one-letter unit plus about 1 mm.
             // An unusually long current value can grow, but never leaves a
             // session-dependent high-water mark after traffic falls again.
             const width = Math.ceil(Math.max(reference, layout.get_pixel_size()[0])) + 4 * scale;

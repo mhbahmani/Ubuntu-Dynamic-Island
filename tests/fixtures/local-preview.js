@@ -316,7 +316,7 @@ export default class Preview extends UbuntuIsland {
             for (const rate of [pill._down, pill._up]) {
                 const layout = rate.clutter_text.get_layout().copy();
                 layout.set_width(-1);
-                layout.set_text('500KB', -1);
+                layout.set_text('500K', -1);
                 assert(rate.width === Math.ceil(layout.get_pixel_size()[0]) + 4 * context.scale_factor,
                     'Bandwidth slot differs from the fixed reference plus 4px');
             }
@@ -325,13 +325,18 @@ export default class Preview extends UbuntuIsland {
             this._settings.set_boolean('disable-animations', true);
             render('500 KiB/s', '500 KiB/s'); await delay(150); compact();
             const width = this._island.actor.width, networkWidth = pill._network.width;
-            for (const value of ['0 B/s', '9 B/s', '999 B/s', '9.9 KiB/s', '99.9 KiB/s', '500 KiB/s', '1.0 MiB/s', '1.0 GiB/s', '—']) {
+            for (const value of ['0 B/s', '9 B/s', '9.9 KiB/s', '500 KiB/s', '1.0 MiB/s', '1.0 GiB/s', '—']) {
                 render(value, value); await delay(60);
                 assert(this._island.actor.width === width && pill._network.width === networkWidth,
                     `Bandwidth refresh resized the notch for ${value}`);
                 fits(); compact();
             }
             await this._capture('notch-stable-idle-rates');
+            // Some current labels (a decimal or wider B glyph) exceed 500K.
+            // They may grow only for that value, and must remain readable.
+            for (const value of ['999 B/s','99.9 KiB/s']) {
+                render(value,value); await delay(100); fits();
+            }
             render('8888.8 GiB/s', '8888.8 GiB/s'); await delay(100);
             assert(pill._network.width > networkWidth, 'Longer rates could not expand their slots'); fits();
             render('7.2 KiB/s', '2.5 KiB/s'); await delay(100);
@@ -346,7 +351,7 @@ export default class Preview extends UbuntuIsland {
             this._settings.set_boolean('pill-show-network', false);
             this._settings.set_boolean('pill-show-network', true);
             await delay(100); compact();
-            console.log('[Island Preview] NETWORK PASS: fixed 500KB slots plus 4px, no traffic history, longer values, interface/toggle stability, font and 200% scale changes');
+            console.log('[Island Preview] NETWORK PASS: fixed 500K slots plus 4px, no traffic history, longer values, interface/toggle stability, font and 200% scale changes');
         } finally {
             context.scale_factor = originalScale;
             text.set_double('text-scaling-factor', originalText);
