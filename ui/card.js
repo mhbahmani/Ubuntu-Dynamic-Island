@@ -8,6 +8,7 @@ import {WeatherView} from './weather-view.js';
 import {HistoryChart} from './charts.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import Atk from 'gi://Atk';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
@@ -95,15 +96,21 @@ export class Card {
         this._syncPages();
         const calendarChanged = settings.connect('changed::enable-calendar', () =>
             this.setCalendarEnabled(settings.get_boolean('enable-calendar')));
-        this.actor.connect('destroy', () => settings.disconnect(calendarChanged));
+        this.actor.connect('destroy', () => {
+            settings.disconnect(calendarChanged);
+            if (this._navigationFit) GLib.Source.remove(this._navigationFit);
+            this._navigationFit = 0;
+        });
         // Hiding the card mid-hover never delivers a leave-event on Wayland,
         // so hover highlights survive into the next expand and read as a
         // second, different selection indicator. Clear them at unmap.
         this.actor.connect('notify::mapped', () => {
             if (!this.actor.mapped) {
+                if (this._navigationFit) GLib.Source.remove(this._navigationFit);
+                this._navigationFit = 0;
                 this._clearHover(this.actor);
                 if (this.quickAskOpen) { this.quickAskOpen = false; this._syncPages(); }
-            }
+            } else this._queueNavigationFit();
         });
     }
 
@@ -173,6 +180,10 @@ export class Card {
     _buildNavigation() {
         const navigation = row('ubuntu-island-navigation');
         this._navigation = navigation;
+        this._tabStrip = row('ubuntu-island-tab-strip');
+        this._tabStrip.x_expand = true;
+        this._tabStrip.layout_manager.homogeneous = true;
+        navigation.add_child(this._tabStrip);
         const items = [
             ['media', 'audio-x-generic-symbolic', 'Now playing'],
             ['system', 'org.gnome.SystemMonitor-symbolic', 'System'],
@@ -186,10 +197,11 @@ export class Card {
         for (const [id, glyph, title] of items) {
             if (!this._pages.has(id) && id !== 'calendar') continue;
             const tab = button(glyph, title, () => this.selectPage(id), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab');
+            tab.x_expand = true;
             // Keep the glyph centered on the same axis as the caption and
             // preferences icon; the selection marker must not shift it upward.
             const face = new St.Widget({style_class: 'ubuntu-island-tab-face',
-                layout_manager: new Clutter.BinLayout()});
+                x_align: Clutter.ActorAlign.CENTER, layout_manager: new Clutter.BinLayout()});
             const glyphActor = icon(glyph, NAVIGATION_ICON_SIZE);
             glyphActor.x_align = Clutter.ActorAlign.CENTER;
             glyphActor.y_align = Clutter.ActorAlign.CENTER;
@@ -198,16 +210,46 @@ export class Card {
                 x_expand: true, y_expand: true, y_align: Clutter.ActorAlign.END}));
             tab.set_child(face);
             tab.accessible_role = Atk.Role.PAGE_TAB;
-            navigation.add_child(tab);
+            this._tabStrip.add_child(tab);
             this._tabs.set(id, tab);
         }
-        const spacer = new St.Widget({x_expand: true});
         this._pageCaption = label('', 'ubuntu-island-source');
         navigation.add_child(this._pageCaption);
-        navigation.add_child(spacer);
-        navigation.add_child(button(settingsIcon, 'Island preferences',
-            () => this._actions.preferences(this._page === 'calendar' ? 'calendar' : undefined), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab'));
+        this._preferencesButton = button(settingsIcon, 'Island preferences',
+            () => this._actions.preferences(this._page === 'calendar' ? 'calendar' : undefined), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab');
+        navigation.add_child(this._preferencesButton);
         this.actor.add_child(navigation);
+        navigation.connect('notify::allocation', () => this._queueNavigationFit());
+        this._pageCaption.connect('style-changed', () => this._queueNavigationFit());
+    }
+
+    _queueNavigationFit() {
+        if (this._navigationFit || !this.actor.mapped) return;
+        // Style invalidation can happen during mapping. Defer visibility changes
+        // until that operation ends and coalesce the accompanying allocations.
+        this._navigationFit = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._navigationFit = 0;
+            this._fitNavigation();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _fitNavigation(width = this._navigation?.width) {
+        if (!this._preferencesButton || !width || !this._navigation.mapped) return;
+        const tabs = [...this._tabs.values()].filter(tab => tab.visible);
+        const node = this._navigation.get_theme_node();
+        const spacing = node.get_length('spacing');
+        const stripSpacing = this._tabStrip.get_theme_node().get_length('spacing');
+        const tabWidth = Math.max(0, ...tabs.map(tab => tab.get_preferred_width(-1)[1]));
+        const stripWidth = tabWidth * tabs.length + stripSpacing * Math.max(0, tabs.length - 1);
+        // Measure the full text independently of its last allocation/visibility.
+        // That keeps hiding and restoring the caption stable at the breakpoint.
+        const layout = this._pageCaption.clutter_text.get_layout().copy();
+        layout.set_width(-1);
+        const captionWidth = layout.get_pixel_size()[0];
+        const available = width - node.get_horizontal_padding() -
+            this._preferencesButton.get_preferred_width(-1)[1] - stripWidth - 2 * spacing;
+        this._pageCaption.visible = Boolean(this._pageCaption.text) && captionWidth <= available;
     }
 
     selectExpansionPage() {
@@ -267,6 +309,7 @@ export class Card {
         this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : this._page === 'weather' ? ' ubuntu-island-card-weather' : this._page === 'commute' ? ' ubuntu-island-card-commute' : this._page === 'agents' ? ' ubuntu-island-card-agents' : ''}`);
         if (this._page === 'audio') this._body.add_style_class_name('ubuntu-island-card-audio');
         if (this._pages.has('agents')) this.actor.add_style_class_name('ubuntu-island-with-agents');
+        this._queueNavigationFit();
         this.updateMediaTint();
         if (this._empty) this._empty.visible = !this._page;
         if (this._page !== 'media' && this._mediaTools?.mode)

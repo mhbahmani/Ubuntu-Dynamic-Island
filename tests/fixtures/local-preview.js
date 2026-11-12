@@ -184,6 +184,7 @@ export default class Preview extends UbuntuIsland {
             assert(this._island._connectionEdge.visible === (style === 'edge'), 'Offline edge does not match selected style');
         }
         if (connection === 'online') await this._checkNetworkWidths();
+        await this._checkNavigation();
         for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar']) {
             assert(this._card._pages.get(tab)?.available, `${tab} module unavailable`);
             this._card.selectPage(tab);
@@ -213,6 +214,69 @@ export default class Preview extends UbuntuIsland {
         await delay(400);
         await this._capture('notch');
         console.log('[Island Preview] FULL PASS: populated notch, all eight tabs, sample controls and Agents interactions');
+    }
+
+    async _checkNavigation() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const assert = (condition, message) => { if (!condition) throw new Error(message); };
+        const card = this._card, settings = this._settings;
+        const context = St.ThemeContext.get_for_stage(global.stage);
+        const text = new Gio.Settings({schema_id:'org.gnome.desktop.interface'});
+        const original = {scale:context.scale_factor, text:text.get_double('text-scaling-factor'),
+            width:settings.get_int('expanded-width'), opacity:settings.get_int('surface-opacity'),
+            theme:settings.get_string('color-theme'), page:card._page,
+            available:new Map([...card._pages].map(([id,page]) => [id,page.available]))};
+        let shown = false, hidden = false;
+        const bounds = actor => [actor.get_transformed_position()[0], actor.get_transformed_size()[0]];
+        try {
+            this._island.expand();
+            for (const scale of [1,2]) for (const font of [1,2]) for (const width of [380,440,480]) {
+                context.scale_factor = scale; text.set_double('text-scaling-factor',font);
+                settings.set_int('expanded-width',width);
+                for (const count of [2,4,8]) {
+                    const enabled = ['bluetooth','calendar','system','audio','weather','commute','agents','media'].slice(0,count);
+                    for (const [id,page] of card._pages) page.available = enabled.includes(id);
+                    card.selectPage('bluetooth'); await delay(80);
+                    const tabs = [...card._tabs.values()].filter(tab => tab.visible);
+                    assert(tabs.length === count, 'Navigation did not follow available modules');
+                    const [left, navWidth] = bounds(card._navigation);
+                    const controls = [...tabs, ...(card._pageCaption.visible ? [card._pageCaption] : []), card._preferencesButton];
+                    let end = left;
+                    for (const actor of controls) {
+                        const [x,w] = bounds(actor);
+                        assert(x >= end - 1 && x + w <= left + navWidth + 1,
+                            `Overlapping navigation at ${width}px/${scale}x/${font} text/${count} tabs`);
+                        end = x + w;
+                    }
+                    assert(tabs.every(tab => Math.abs(tab.width - tabs[0].width) <= 1), 'Tabs do not share spare width evenly');
+                    if (card._pageCaption.visible) {
+                        shown = true;
+                        const layout = card._pageCaption.clutter_text.get_layout().copy(); layout.set_width(-1);
+                        assert(card._pageCaption.width + 1 >= layout.get_pixel_size()[0], 'Visible tab caption was squeezed');
+                    } else hidden = true;
+                    const before = tabs.map(bounds);
+                    settings.set_int('surface-opacity',settings.get_int('surface-opacity') === 75 ? 98 : 75);
+                    settings.set_string('color-theme',settings.get_string('color-theme') === 'ocean' ? 'graphite' : 'ocean');
+                    await delay(60);
+                    assert(card.actor.has_style_class_name('ubuntu-island-with-calendar') && card.actor.has_style_class_name('ubuntu-island-with-agents'),
+                        'Appearance update discarded module layout classes');
+                    assert(tabs.every((tab,i) => bounds(tab).every((v,j) => Math.abs(v-before[i][j]) <= 1)),
+                        'Appearance update changed navigation geometry');
+                    if (scale === 1 && width === 440 && count === 8)
+                        await this._capture(`navigation-text-${font}`);
+                    if (scale === 1 && width === 380 && font === 2 && count === 8)
+                        await this._capture('navigation-icons-only');
+                }
+            }
+            assert(shown && hidden, 'Caption did not adapt to available space');
+            console.log('[Island Preview] NAVIGATION PASS: even tab spacing, optional captions, 2/4/8 tabs, 380/440/480px, 100/200% scale and text, live appearance stability');
+        } finally {
+            context.scale_factor = original.scale; text.set_double('text-scaling-factor',original.text);
+            settings.set_int('expanded-width',original.width); settings.set_int('surface-opacity',original.opacity);
+            settings.set_string('color-theme',original.theme);
+            for (const [id,available] of original.available) card._pages.get(id).available = available;
+            card.selectPage(original.page);
+        }
     }
 
     async _checkNetworkWidths() {

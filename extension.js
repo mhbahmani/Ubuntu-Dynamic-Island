@@ -331,7 +331,9 @@ export default class UbuntuIsland extends Extension {
             theme,
             this._settings.get_int('surface-opacity'),
             this._settings.get_int('surface-matte')));
-        this._card.actor.set_style_class_name(`ubuntu-island-container ubuntu-island-theme-${theme}`);
+        const classes = this._card.actor.get_style_class_name().split(/\s+/)
+            .filter(name => !name.startsWith('ubuntu-island-theme-'));
+        this._card.actor.set_style_class_name([...classes, `ubuntu-island-theme-${theme}`].join(' '));
     }
 
     _renderPill() {

@@ -38,7 +38,7 @@ export default class Smoke extends UbuntuIsland {
     _checkNavigationAlignment() {
         const center = actor => actor.get_transformed_position()[1] + actor.get_transformed_size()[1] / 2;
         const caption = this._card._pageCaption;
-        const expected = center(caption);
+        const expected = center(caption.visible ? caption : this._card._preferencesButton.child);
         const tolerance = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         for (const [id, tab] of this._card._tabs) {
             if (!tab.visible) continue;

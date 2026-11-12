@@ -92,7 +92,7 @@
 .ubuntu-island-calendar-event-title { font-size: 10pt; color: #f1f3f7; }
 .ubuntu-island-calendar-event-meta { font-size: 8.5pt; color: #bbc3cf; }
 .ubuntu-island-calendar-event-date { font-size: 11pt; font-weight: 600; color: #f5f6f9; }
-/* Eight optional modules still leave room for the active caption at 380px. */
+/* Keep all module icons reachable; the active caption uses spare width only. */
 .ubuntu-island-with-calendar .ubuntu-island-navigation { spacing: 2px; padding-left: 8px; padding-right: 8px; }
 .ubuntu-island-with-calendar .ubuntu-island-tab,
 .ubuntu-island-with-calendar.ubuntu-island-with-agents .ubuntu-island-tab { padding-left: 5px; padding-right: 5px; }
@@ -161,6 +161,7 @@
 .ubuntu-island-progress-row .slider { -slider-handle-radius: 3px; }
 /* Module navigation is secondary to the current face. */
 .ubuntu-island-navigation { spacing: 4px; padding: 6px 12px; border-top: 1px solid rgba(235, 239, 255, 0.09); border-radius: 0 0 19px 19px; background-color: rgba(15, 17, 22, 0.18); }
+.ubuntu-island-tab-strip { spacing: 2px; }
 /* System face */
 .ubuntu-island-metrics { spacing: 8px; }
 .ubuntu-island-metric {

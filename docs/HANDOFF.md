@@ -57,6 +57,12 @@ preserving stable navigation and focus; the current expansion remains the refere
 
 ## Recent UI changes
 
+- Navigation tabs share spare width evenly across available modules. The current
+  tab caption appears only when its full text fits beside the icons and settings
+  button. Appearance updates preserve module layout classes, so changing opacity
+  or theme no longer changes tab spacing. Caption fitting is coalesced after
+  layout/style changes and cancelled when hidden or destroyed.
+
 - Fixed Agent activation with multiple Terminator windows sharing one PID.
   Hooks retain bounded terminal UUID/service metadata. Lookups verify the D-Bus
   owner's PID and compare the terminal's reported exact owning-window title only
@@ -355,3 +361,11 @@ warnings occurred during the fixture's text-entry changes; no JS errors or faile
 assertions were reported. Installer/ZIP checks include the new runtime adapter.
 No host installation or live session activation was performed. The earlier
 general smoke shortcut failure remains recorded separately.
+
+Navigation spacing follow-up (2026-11-12): all 180 tests,
+syntax checks and strict schemas pass. Native full preview
+`/tmp/ubuntu-island-preview-zsa5kuq3` passes equal tab distribution for 2/4/8
+modules at 380/440/480px, 100/200% UI and text scale, caption hiding/restoration,
+and stable geometry through opacity/theme changes. The initial mapping warnings
+were fixed by deferring caption visibility changes; the existing transient
+Clutter input-focus warnings still occur in the Agents typing fixture.
