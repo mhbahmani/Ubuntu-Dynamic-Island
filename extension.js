@@ -61,6 +61,7 @@ export default class UbuntuIsland extends Extension {
         this._card = new Card(this._settings, {
             agentOpen: session => this._openAgent(session),
             agentWindow: session => this._agentWindows?.resolve(session),
+            agentVisibility: active => this._agentWindows?.setActive(active),
             agentExpire: () => this._expireAgents(),
             agentAsk: input => this._askAgent(input),
             closeQuickAsk: () => this._leaveAgents(),
@@ -152,6 +153,7 @@ export default class UbuntuIsland extends Extension {
             });
         if (this._settings.get_boolean('enable-agents')) {
             this._agentWindows = new AgentWindows(() => this._card?._agentsView?.render(this._states.agents));
+            this._agentWindows.setActive(Boolean(this._card._agentsView?.actor.mapped));
             this._agents = new AgentsService(this.path, state => this._renderAgents(state));
             this._agents.start();
         }
@@ -600,9 +602,11 @@ export default class UbuntuIsland extends Extension {
         void this._agents?.send({control:'expire', before}).catch(() => {});
     }
 
-    _openAgent(session) {
-        const window = this._agentWindows?.resolve(session);
-        if (window) this._activateAgent(session, window);
+    async _openAgent(session) {
+        const window = await this._agentWindows?.resolveForActivation(session);
+        const current = this._states.agents?.sessions.find(row => row.id === session.id);
+        if (this._enabled && current && window && this._agentWindows?.resolve(current) === window)
+            this._activateAgent(current, window);
     }
 
     _askAgent(input) {

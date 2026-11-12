@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {AgentStore, fromAgentHook, normalizeAgentEvent, agentLaunchArgv, agentCounts, agentSessionReferences} from '../services/agents-model.js';
+import {AgentStore, fromAgentHook, normalizeAgentEvent, agentLaunchArgv, agentCounts, agentSessionReferences, agentTerminalIdentity, matchAgentWindow} from '../services/agents-model.js';
 import {HOOK_MARKER, hasAgentHooks, mergeAgentHooks, hookEntries, openCodePlugin} from '../services/agents-setup-model.js';
 
 const event = (state, changes = {}) => ({v:1,provider:'claude',session:'one',state,...changes});
@@ -215,4 +215,32 @@ test('OpenCode plugins use only a local socket and filter content events',()=>{
         assert.ok(!source.includes('fetch('));assert.ok(!source.includes('tool_input'));
         assert.match(source,/if \(!state \|\| !session/);
     }
+});
+
+
+const terminalHint = {kind:'terminator',bus:'net.tenshu.Terminator2',id:'urn:uuid:11111111-1111-1111-1111-111111111111'};
+test('terminal identities are bounded metadata and survive hook normalization', () => {
+    assert.deepEqual(agentTerminalIdentity({...terminalHint,title:'private',prompt:'secret'}),terminalHint);
+    for (const hint of [null,{}, {...terminalHint,kind:'other'}, {...terminalHint,bus:'org.gnome.Shell'},
+        {...terminalHint,id:'not-a-uuid'}, {...terminalHint,bus:'net.tenshu.Terminator2.bad'}])
+        assert.equal(agentTerminalIdentity(hint),null);
+    const row = fromAgentHook('codex',{hook_event_name:'Stop',session_id:'test'},{terminal:terminalHint,pids:[42]});
+    assert.deepEqual(row.terminal,terminalHint);
+    const store = new AgentStore(); store.apply(row);
+    assert.deepEqual(store.snapshot().sessions[0].terminal,terminalHint);
+});
+test('shared terminal processes require exact authoritative metadata and a unique match', () => {
+    const first = {pid:42,title:'First'}, second = {pid:42,title:'Second'};
+    const session = {...event('working'),pids:[99,42]};
+    assert.equal(matchAgentWindow(session,[first]),first);
+    assert.equal(matchAgentWindow(session,[first,second]),null);
+    const hinted = {...session,terminal:terminalHint};
+    assert.equal(matchAgentWindow(hinted,[first,second],{pid:42,title:'First'}),first);
+    assert.equal(matchAgentWindow(hinted,[first,second],{pid:42,title:'Second'}),second);
+    assert.equal(matchAgentWindow(hinted,[first,second]),null);
+    assert.equal(matchAgentWindow(hinted,[first,second],{pid:43,title:'First'}),null);
+    assert.equal(matchAgentWindow(hinted,[first,second],{pid:42,title:'Fir'}),null);
+    assert.equal(matchAgentWindow(hinted,[first,{...first}],{pid:42,title:'First'}),null);
+    assert.equal(matchAgentWindow(hinted,[second],{pid:42,title:'First'}),null, 'Closed session window must not fall back to the remaining terminal window');
+    assert.equal(matchAgentWindow({...hinted,state:'closed'},[first],{pid:42,title:'First'}),null);
 });

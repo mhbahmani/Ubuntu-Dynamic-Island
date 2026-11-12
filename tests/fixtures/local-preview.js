@@ -847,7 +847,7 @@ export default class Preview extends UbuntuIsland {
             await delay(150);
             const top = item.actor.get_transformed_position()[1];
             assert(top >= sy - 1 && top + item.actor.height <= sy + view.scroll.height + 1,
-                `Keyboard focus did not reveal the full session: top=${top}, bottom=${top + item.actor.height}, viewport=${sy}/${sy + view.scroll.height}, scroll=${view.adjustment.value}`);
+                `Keyboard focus did not reveal the full session: top=${top}, bottom=${top + item.actor.height}, viewport=${sy}/${sy + view.scroll.height}, scroll=${view.adjustment.value}, focused=${item.menu.has_key_focus()}, mapped=${view.actor.mapped}, reveal=${view.revealIdle}`);
         }
         const workingRow = [...view.rows.values()].find(item => item.session.state === 'working');
         assert(!workingRow.glyph.get_transition('agent-working'), 'Scrolled-out working row kept animating');
@@ -885,7 +885,46 @@ export default class Preview extends UbuntuIsland {
         const ambiguous = {is_skip_taskbar:() => false, get_pid:() => window.get_pid()};
         this._agentWindows.windows.set(ambiguous, []); view.render(this._states.agents);
         assert(!this._agentWindows.resolve(first.session) && !first.open.reactive, 'Shared process ID guessed a window');
-        this._agentWindows.windows.delete(ambiguous); view.render(this._states.agents);
+        const matcher = this._agentWindows, lookup = matcher.terminalIdentity;
+        const second = [...view.rows.values()].find(item => item !== first);
+        const secondOriginal = {...second.session};
+        const terminal = id => ({kind:'terminator',bus:'net.tenshu.Terminator2',id:`urn:uuid:${id.repeat(8)}-${id.repeat(4)}-${id.repeat(4)}-${id.repeat(4)}-${id.repeat(12)}`});
+        let secondTitle = 'Other terminal window', lookups = 0;
+        ambiguous.get_title = () => secondTitle;
+        matcher.terminalIdentity = async session => {
+            lookups++;
+            return {pid:window.get_pid(),title:session.terminal.id === terminal('1').id ? window.get_title() : secondTitle};
+        };
+        await this._agents.send({...first.session,terminal:terminal('1')});
+        await this._agents.send({...second.session,pids:[window.get_pid()],terminal:terminal('2')});
+        await delay(80);
+        assert(first.open.reactive && second.open.reactive && matcher.resolve(first.session) === window && matcher.resolve(second.session) === ambiguous,
+            'Two sessions sharing a terminal process are not independently clickable');
+        const beforeActivation = lookups;
+        assert(await matcher.resolveForActivation(first.session) === window && lookups > beforeActivation,
+            'Activation reused stale terminal metadata');
+        secondTitle = window.get_title(); matcher._invalidate(ambiguous); await delay(80);
+        assert(!first.open.reactive && !second.open.reactive, 'Duplicate titles guessed a window');
+        secondTitle = 'Other terminal window'; matcher._invalidate(ambiguous); await delay(80);
+        const requestCount = lookups;
+        this._card.selectPage('media');
+        assert(!matcher.identities.size && !matcher.resolve(first.session) && lookups === requestCount,
+            'Hidden Agents retained identity requests or started a lookup');
+        this._card.selectPage('agents'); await delay(80);
+        assert(first.open.reactive && second.open.reactive, 'Reopening did not restore terminal matches');
+        // A cancelled reply must not recreate a mapping after the view hides.
+        let late;
+        matcher.terminalIdentity = () => new Promise(resolve => { late = resolve; });
+        matcher._invalidate(window);
+        this._card.selectPage('media');
+        late?.({pid:window.get_pid(),title:window.get_title()}); await delay(30);
+        assert(!matcher.identities.size, 'Late terminal reply revived hidden metadata');
+        matcher.terminalIdentity = lookup;
+        matcher.windows.delete(ambiguous);
+        await this._agents.send({...first.session,terminal:null});
+        await this._agents.send(secondOriginal);
+        this._card.selectPage('agents'); view.render(this._states.agents);
+
         this._openAgent(first.session);
         await delay(500);
         assert((global.display.focus_window === window || global.display.focus_window?.get_transient_for() === window) && !this._island.expanded, `Selected window did not receive focus: focused=${global.display.focus_window?.get_title()}, expanded=${this._island.expanded}, message=${view.message.text}`);

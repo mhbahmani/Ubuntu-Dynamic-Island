@@ -36,7 +36,8 @@ function send(path,value) {
 }
 test('real GJS broker and relay: status, privacy, bounds, clear and shutdown',async()=>{
     const temp=mkdtempSync(join(tmpdir(),'island-agents-'));
-    const env={...process.env,XDG_RUNTIME_DIR:temp,UBUNTU_ISLAND_AGENT_SOCKET:join(temp,'bridge','events.sock')};
+    const env={...process.env,XDG_RUNTIME_DIR:temp,UBUNTU_ISLAND_AGENT_SOCKET:join(temp,'bridge','events.sock'),
+        TERMINATOR_DBUS_NAME:'net.tenshu.Terminator2',TERMINATOR_UUID:'urn:uuid:11111111-1111-1111-1111-111111111111'};
     const child=spawn('gjs',['-m',join(root,'helpers/agents/bridge.js')],{env});
     let output='',errors='';const snapshots=[];
     child.stdout.on('data',bytes=>{output+=bytes;let end;while((end=output.indexOf('\n'))>=0){snapshots.push(JSON.parse(output.slice(0,end)));output=output.slice(end+1);}});
@@ -52,6 +53,8 @@ test('real GJS broker and relay: status, privacy, bounds, clear and shutdown',as
         await until(()=>snapshots.at(-1).sessions.length===1);
         assert.equal(snapshots.at(-1).sessions[0].state,'working');
         assert.equal(snapshots.at(-1).sessions[0].label,'demo');
+        assert.equal(snapshots.at(-1).sessions[0].terminal.id,env.TERMINATOR_UUID);
+        assert.equal(snapshots.at(-1).sessions[0].terminal.bus,env.TERMINATOR_DBUS_NAME);
         assert.ok(!JSON.stringify(snapshots).includes('SENSITIVE'));
         await send(env.UBUNTU_ISLAND_AGENT_SOCKET,'{bad json');
         await send(env.UBUNTU_ISLAND_AGENT_SOCKET,'x'.repeat(6000)).catch(e=>assert.equal(e.code,'ECONNRESET'));
@@ -159,4 +162,11 @@ test('relay failure without a broker exits promptly without a decision',()=>{
             input:JSON.stringify({hook_event_name:'PermissionRequest',session_id:'s',tool_name:'Bash'}),timeout:2000,encoding:'utf8'});
         assert.equal(result,'');
     } finally {rmSync(temp,{recursive:true,force:true});}
+});
+
+
+test('terminal window lookup verifies the D-Bus owner, cancellation and metadata', () => {
+    const output = execFileSync('dbus-run-session', ['--','gjs','-m',join(root,'tests/agent-terminal-native.mjs')],
+        {encoding:'utf8',timeout:10000});
+    assert.match(output,/TERMINAL IDENTITY PASS/);
 });

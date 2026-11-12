@@ -26,7 +26,8 @@ async function run() {
     const input = await readBounded(new GioUnix.InputStream({fd: 0, close_fd: false}), 262144, cancel);
     const raw = JSON.parse(input);
     const home = provider === 'codex' ? GLib.getenv('CODEX_HOME') : provider === 'claude' ? GLib.getenv('CLAUDE_CONFIG_DIR') : GLib.getenv('XDG_CONFIG_HOME');
-    const extra = {at, pids: ancestors(), launch: GLib.getenv('UBUNTU_ISLAND_AGENT_LAUNCH') || '',
+    const extra = {at, pids: ancestors(),
+        terminal:{kind:'terminator',bus:GLib.getenv('TERMINATOR_DBUS_NAME'),id:GLib.getenv('TERMINATOR_UUID')}, launch: GLib.getenv('UBUNTU_ISLAND_AGENT_LAUNCH') || '',
         profile: GLib.compute_checksum_for_string(GLib.ChecksumType.SHA256, home || 'default', -1).slice(0, 16)};
     const event = provider === 'event' ? normalizeAgentEvent({...raw, at}) : fromAgentHook(provider, raw, extra);
     if (!event) return;

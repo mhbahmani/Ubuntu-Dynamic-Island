@@ -79,6 +79,7 @@ function forward(event, directory) {
     start:event.type === 'session.execution.started',
     request:event.type.startsWith('permission.') ? 'permission' : event.type.startsWith('question.') || event.type.startsWith('form.') ? 'question' : '',
     resolve:['permission.replied','question.replied','question.rejected','form.replied','form.cancelled'].includes(event.type),
+    terminal:{kind:'terminator',bus:process.env.TERMINATOR_DBUS_NAME,id:process.env.TERMINATOR_UUID},
     at:Number(process.hrtime.bigint()/1000000n),pids:[process.ppid],launch:clean(process.env.UBUNTU_ISLAND_AGENT_LAUNCH,64)});
   active++;
   const socket = net.createConnection(socketPath);

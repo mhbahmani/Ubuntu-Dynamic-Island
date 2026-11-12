@@ -9,6 +9,27 @@ export const AGENT_LIMIT = 32;
 export const cleanText = (value, limit = 128) => typeof value === 'string'
     ? value.replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, '').slice(0, limit) : '';
 const token = value => cleanText(value, 128);
+// Only explicit terminal identity hints are retained; never infer a window from
+// the project name, command line, prompt, or a title substring.
+export function agentTerminalIdentity(value) {
+    if (value?.kind !== 'terminator' || typeof value.bus !== 'string' || typeof value.id !== 'string' ||
+        !/^net\.tenshu\.Terminator2(?:[a-f0-9]{32})?$/.test(value.bus) ||
+        !/^urn:uuid:[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value.id)) return null;
+    return {kind:'terminator', bus:value.bus, id:value.id};
+}
+
+// A terminal's own exact window metadata only narrows process-matched candidates.
+// Duplicate titles remain ambiguous, even when the terminal reports that title.
+export function matchAgentWindow(session, windows, identity = null) {
+    if (session.state === 'closed') return null;
+    let matches = windows.filter(window => session.pids?.includes(window.pid));
+    if (agentTerminalIdentity(session.terminal)) {
+        if (!identity) return null;
+        matches = matches.filter(window => window.pid === identity.pid && window.title === identity.title);
+    }
+    return matches.length === 1 ? matches[0] : null;
+}
+
 export function normalizeAgentEvent(value) {
     if (!value || value.v !== 1 || !Object.hasOwn(AGENTS, value.provider) ||
         !Object.hasOwn(AGENT_STATES, value.state) || !token(value.session)) return null;
@@ -18,6 +39,7 @@ export function normalizeAgentEvent(value) {
         turn: token(value.turn), request: token(value.request), resolve: Boolean(value.resolve),
         start: Boolean(value.start), at: Number.isFinite(value.at) && value.at > 0 ? value.at : 0,
         launch: /^[a-zA-Z0-9-]{1,64}$/.test(value.launch ?? '') ? value.launch : '',
+        terminal: agentTerminalIdentity(value.terminal),
         pids: Array.isArray(value.pids) ? value.pids.filter(p => Number.isSafeInteger(p) && p > 1).slice(0, 16) : [],
     };
 }

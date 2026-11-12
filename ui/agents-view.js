@@ -162,6 +162,7 @@ export class AgentsView {
             return Clutter.EVENT_PROPAGATE;
         });
         this.actor.connect('notify::mapped', () => {
+            this.actions.agentVisibility?.(this.actor.mapped);
             if (this.actor.mapped) { this.regroup = true; this.actions.agentExpire?.(); this.render(this.snapshot); }
             else { this._cancelFocus(); this.harnessMenu.hide(); this._closeSessionMenu(); }
             this._syncMotion();
