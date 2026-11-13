@@ -14,7 +14,7 @@ INSTALL_DEPS ?= 1
 help:
 	@printf '%s\n' \
 	  'Ubuntu Island development commands' \
-	  '  make preview             Full sample preview; all modules and notch data enabled' \
+	  '  make preview             Your UI settings with sample data and all module tabs' \
 	  '  make preview-offline     Preview the disconnected icon; host network unchanged' \
 	  '  make preview-offline-edge Preview the split amber edge and unplugged symbol' \
 	  '  make preview-live        Live weather/routes/metrics, sample device controls' \
@@ -40,6 +40,7 @@ help:
 	  '  make verify              All checks above plus packaging' \
 	  '' \
 	  'Example: make preview PREVIEW_ARGS="--duration 15"' \
+	  'Demo UI defaults: make preview PREVIEW_ARGS="--defaults"' \
 	  'Preview defaults: 1600x1000 at 200%; use PREVIEW_ARGS="--scale 1" for 100%' \
 	  'Custom preview: make preview PREVIEW_ARGS="--size 1920x1080 --scale 2"' \
 	  'After installing changed code on Wayland, log out/in before testing it.'

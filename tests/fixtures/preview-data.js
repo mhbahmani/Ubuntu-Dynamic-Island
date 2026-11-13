@@ -7,7 +7,7 @@ import {normalizeOccurrences, localDayRange} from './services/calendar-events-mo
 import {todayDay} from './services/calendar-model.js';
 
 // Calendar samples stay isolated even in --live previews.
-export function sampleCalendar(preview) {
+export function sampleCalendar(preview, {enableIndicator = true} = {}) {
     preview._calendarEvents.stop();
     const sourceUid = 'sample-calendar', day = todayDay(), now = Date.now();
     // Keep the long-title fixture on today even when previews run near midnight.
@@ -41,7 +41,7 @@ export function sampleCalendar(preview) {
     };
     preview._settings.set_strv('calendar-event-sources',[sourceUid]);
     preview._settings.set_boolean('calendar-events-enabled',true);
-    preview._settings.set_boolean('pill-show-event',true);
+    if (enableIndicator) preview._settings.set_boolean('pill-show-event',true);
 }
 
 export function sampleDevices(preview, sampleMetrics) {

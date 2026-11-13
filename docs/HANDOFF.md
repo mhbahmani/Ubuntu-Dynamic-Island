@@ -29,6 +29,22 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Preview UI preferences (2026-11-13)
+
+Normal previews copy presentation preferences from the host before creating the
+isolated settings backend: theme/material, notch order/visibility/formats, widths,
+calendar display, hover/motion, and desktop text size/reduced motion. Service
+configuration stays simulated and all module tabs remain available. Explicit
+preview flags override the snapshot. `--defaults` and automated check modes use
+the original demo settings. No preview write reaches the host backend.
+
+`make check` passed 217 tests with one ancestry skip, syntax and schema validation.
+Native backend tests cover typed values and isolation. A real headless preview
+matched all 44 extension values and both desktop values; host values stayed
+unchanged. Explicit overrides passed in a second run, and `--check-input` passed
+with demo defaults in a third. Logs/screenshots: `/tmp/ubuntu-island-preview-y07huzxe`
+and `/tmp/ubuntu-island-preview-d9cuqgy2`. Only development helpers changed.
+
 ## Calendar popup themes (2026-11-13)
 
 Date and full-event-title popups now carry their own theme class because their

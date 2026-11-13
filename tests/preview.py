@@ -22,12 +22,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--ignore-power-saver', action='store_true', help='Allow animation in this preview even on power saver; does not change the host profile')
     parser.add_argument('--scene', choices=['sun', 'clouds', 'rain', 'snow', 'night', 'clouds-night', 'rain-night', 'snow-night'], default='clouds', help='Sample weather scene')
-    parser.add_argument('--motion', choices=['off', 'subtle', 'live'], default='live', help='Preview animation mode')
+    parser.add_argument('--motion', choices=['off', 'subtle', 'live'], help='Override the copied weather animation preference')
+    parser.add_argument('--defaults', action='store_true', help='Use fixed demo UI settings instead of copying your current preferences')
     parser.add_argument('--edit-route', action='store_true', help='Open the Commute map editor immediately')
     parser.add_argument('--preferences', choices=['appearance', 'notch', 'calendar', 'agents'], help='Open an isolated preferences page alongside the preview')
     parser.add_argument('--tab', choices=['notch', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar'], default='notch', help='Start collapsed (notch, default), or open a module')
     parser.add_argument('--connection', choices=['auto', 'online', 'offline', 'limited', 'portal'], help='Simulate connection status; defaults to online for samples, auto with --live')
-    parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], default='icon', help='Initial offline notch design; can also change it in preferences')
+    parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], help='Override the copied offline notch design')
     parser.add_argument('--check-full', action='store_true', help='Check populated notch, all tabs and sample device controls (headless sample mode)')
     parser.add_argument('--check-calendar', action='store_true', help='Check calendar modes, keyboard access and scaled layouts (headless)')
     parser.add_argument('--check-commute', action='store_true', help='Check provider credits and traffic tooltips (headless samples)')
@@ -37,8 +38,8 @@ def main():
     parser.add_argument('--headless', action='store_true', help='Render without a window; saves notch.png or the selected tab')
     parser.add_argument('--size', type=preview_size, metavar='WIDTHxHEIGHT', help='Preview resolution (default: 1600x1000 windowed, 1280x960 headless)')
     parser.add_argument('--scale', type=int, choices=[1, 2], help='Windowed UI scale: 1 = 100%%, 2 = 200%% (default: 2)')
-    parser.add_argument('--card-width', type=int, choices=[380, 440, 480], default=440, help='Card width in logical pixels (default: 440)')
-    parser.add_argument('--text-scale', type=float, choices=[1, 1.5, 2], default=1, help='Preview text size multiplier (default: 1)')
+    parser.add_argument('--card-width', type=int, choices=[380, 440, 480], help='Override the copied card width in logical pixels')
+    parser.add_argument('--text-scale', type=float, choices=[1, 1.5, 2], help='Override the copied desktop text size multiplier')
     parser.add_argument('--calendar-date', type=date.fromisoformat, metavar='YYYY-MM-DD', help='Select a civil date in the calendar preview')
     parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
     args = parser.parse_args()
@@ -88,9 +89,18 @@ def main():
     (extension / 'extension.js').rename(extension / 'implementation.js')
     shutil.copy2(source / 'tests/fixtures/local-preview.js', extension / 'extension.js')
     shutil.copy2(source / 'tests/fixtures/preview-data.js', extension / 'preview-data.js')
+    shutil.copy2(source / 'tests/fixtures/preview-settings.js', extension / 'preview-settings.js')
     shutil.copy2(source / 'tests/fixtures/motion-check.js', extension / 'motion-check.js')
     shutil.copy2(source / 'tests/fixtures/local-preferences.mjs', extension / 'local-preferences.mjs')
     subprocess.run(['glib-compile-schemas', '--strict', str(extension / 'schemas')], check=True)
+    # Check modes must stay reproducible regardless of the developer's desktop.
+    checks = any(value for key, value in vars(args).items() if key.startswith('check_')) or any(
+        value == '1' for key, value in os.environ.items() if key.startswith('ISLAND_PREVIEW_CHECK_'))
+    ui_settings = ''
+    if not args.defaults and not checks:
+        result = subprocess.run(['gjs', '-m', str(source / 'scripts/preview-settings.mjs'), str(extension / 'schemas')],
+                                capture_output=True, text=True, check=True, timeout=5)
+        ui_settings = json.dumps(json.loads(result.stdout))
     apps = root / 'share/applications'
     apps.mkdir(parents=True)
     shutil.copy2(source / 'assets/ubuntu-island.desktop', apps / 'ubuntu-island.desktop')
@@ -113,13 +123,15 @@ def main():
                        ISLAND_PREVIEW_CHECK_CALENDAR='1' if args.check_calendar else '0',
                        ISLAND_PREVIEW_CHECK_COMMUTE='1' if args.check_commute else '0',
                        ISLAND_PREVIEW_CHECK_MOTION='1' if args.check_motion else '0',
-                       ISLAND_PREVIEW_CARD_WIDTH=str(args.card_width), ISLAND_PREVIEW_TEXT_SCALE=str(args.text_scale),
+                       ISLAND_PREVIEW_UI_SETTINGS=ui_settings,
+                       ISLAND_PREVIEW_CARD_WIDTH=str(args.card_width) if args.card_width is not None else '',
+                       ISLAND_PREVIEW_TEXT_SCALE=str(args.text_scale) if args.text_scale is not None else '',
                        ISLAND_PREVIEW_CALENDAR_DATE=args.calendar_date.isoformat() if args.calendar_date else '',
                        ISLAND_PREVIEW_PREFERENCES=args.preferences or '',
                        ISLAND_PREVIEW_CONNECTION=args.connection or ('auto' if args.live else 'online'),
-                       ISLAND_PREVIEW_OFFLINE_STYLE=args.offline_style,
+                       ISLAND_PREVIEW_OFFLINE_STYLE=args.offline_style or '',
                        ISLAND_PREVIEW_CHECK_INPUT='1' if args.check_input else '0',
-                       ISLAND_PREVIEW_IGNORE_POWER='1' if args.ignore_power_saver else '0', ISLAND_PREVIEW_SCENE=args.scene, ISLAND_PREVIEW_MOTION=args.motion,
+                       ISLAND_PREVIEW_IGNORE_POWER='1' if args.ignore_power_saver else '0', ISLAND_PREVIEW_SCENE=args.scene, ISLAND_PREVIEW_MOTION=args.motion or '',
                        ISLAND_PREVIEW_EDIT_ROUTE='1' if args.edit_route else '0', ISLAND_PREVIEW_TAB=args.tab, ISLAND_PREVIEW_LIVE='1' if args.live else '0')
     command = ['dbus-run-session', '--', 'gnome-shell',
                '--headless' if args.headless else '--nested', '--wayland', '--no-x11',
@@ -132,6 +144,7 @@ def main():
         environment['MUTTER_DEBUG_DUMMY_MODE_SPECS'] = size
         environment['MUTTER_DEBUG_DUMMY_MONITOR_SCALES'] = str(scale)
     print(f"{'Live' if args.live else 'Sample'} {args.tab} preview ({size}, {100 if args.headless else scale * 100}% UI). Logs/screenshots: {root}", flush=True)
+    print('UI settings: ' + ('copied from your desktop; preview edits are temporary.' if ui_settings else 'fixed demo defaults.'), flush=True)
     print('Close the preview window or press Ctrl+C to stop. Rerun after editing source.', flush=True)
     with (root / 'runtime.log').open('w') as log:
         process = subprocess.Popen(command, env=environment, stdout=log, stderr=subprocess.STDOUT,

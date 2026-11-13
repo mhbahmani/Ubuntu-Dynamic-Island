@@ -12,15 +12,18 @@ import {formatRate} from './services/proc.js';
 import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
 import {THEMES, THEME_IDS, themeAccent} from './services/appearance.js';
 import {notchTime} from './services/notch-model.js';
+import {applyPreviewSettings} from './preview-settings.js';
 import {civilDay, todayDay, fullDate, calendarTodayLabel, monthTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
 export default class Preview extends UbuntuIsland {
     enable() {
         this._previewConfigured = false;
         const settings = this.getSettings();
-        settings.set_int('expanded-width', Number(GLib.getenv('ISLAND_PREVIEW_CARD_WIDTH') || 440));
-        new Gio.Settings({schema_id: 'org.gnome.desktop.interface'})
-            .set_double('text-scaling-factor', Number(GLib.getenv('ISLAND_PREVIEW_TEXT_SCALE') || 1));
+        const desktop = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const uiSettings = GLib.getenv('ISLAND_PREVIEW_UI_SETTINGS');
+        const snapshot = uiSettings ? JSON.parse(uiSettings) : null;
+        settings.set_int('expanded-width', 440);
+        desktop.set_double('text-scaling-factor', 1);
         // Setup buttons in the preview must never modify real CLI configuration.
         for (const provider of ['claude', 'codex', 'opencode'])
             settings.set_string(`agents-${provider}-config`, `${GLib.getenv('ISLAND_PREVIEW_OUTPUT')}/agent-configs/${provider}`);
@@ -28,12 +31,18 @@ export default class Preview extends UbuntuIsland {
             settings.set_boolean(`enable-${module}`, true);
         for (const indicator of ['title', 'weather', 'network', 'commute', 'agents', 'date'])
             settings.set_boolean(`pill-show-${indicator}`, true);
-        settings.set_string('pill-offline-mode', GLib.getenv('ISLAND_PREVIEW_OFFLINE_STYLE') || 'icon');
+        settings.set_string('pill-offline-mode', 'icon');
         settings.set_string('commute-routes', JSON.stringify([{id: 'sample', name: 'Heading home (sample)', originMode: 'fixed', originName: 'Work', destinationName: 'Home', origin: {latitude: 35.7219, longitude: 51.3347}, destination: {latitude: 35.6892, longitude: 51.389}}]));
         settings.set_string('commute-selected', 'sample');
-        settings.set_string('weather-motion', GLib.getenv('ISLAND_PREVIEW_MOTION') || 'live');
+        settings.set_string('weather-motion', 'live');
         settings.set_string('weather-location', JSON.stringify({name: GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 'Tehran, Iran' : 'Tehran, Iran (sample)',
             latitude: 35.6892, longitude: 51.389, timezone: 'Asia/Tehran'}));
+        applyPreviewSettings(settings, desktop, snapshot);
+        // Explicit command-line options take precedence over the host snapshot.
+        if (GLib.getenv('ISLAND_PREVIEW_CARD_WIDTH')) settings.set_int('expanded-width', Number(GLib.getenv('ISLAND_PREVIEW_CARD_WIDTH')));
+        if (GLib.getenv('ISLAND_PREVIEW_TEXT_SCALE')) desktop.set_double('text-scaling-factor', Number(GLib.getenv('ISLAND_PREVIEW_TEXT_SCALE')));
+        if (GLib.getenv('ISLAND_PREVIEW_OFFLINE_STYLE')) settings.set_string('pill-offline-mode', GLib.getenv('ISLAND_PREVIEW_OFFLINE_STYLE'));
+        if (GLib.getenv('ISLAND_PREVIEW_MOTION')) settings.set_string('weather-motion', GLib.getenv('ISLAND_PREVIEW_MOTION'));
         super.enable();
         // Keep provider controllers inactive until the sample adapters are ready.
         this._weather.setActive(false);
@@ -41,7 +50,7 @@ export default class Preview extends UbuntuIsland {
         const sample = GLib.getenv('ISLAND_PREVIEW_LIVE') !== '1';
         sampleDevices(this, sample);
         sampleAgents(this);
-        sampleCalendar(this);
+        sampleCalendar(this, {enableIndicator: !snapshot});
         const connection = GLib.getenv('ISLAND_PREVIEW_CONNECTION') || 'online';
         if (connection !== 'auto') {
             this._connectivity.stop();

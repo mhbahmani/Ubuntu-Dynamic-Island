@@ -192,7 +192,7 @@ or stops being eligible.
 ## Preview locally without installing
 
 ```sh
-make preview       # full sample preview, collapsed notch, all modules enabled
+make preview       # your UI preferences, sample data, all modules available
 make preview-offline # disconnected Wi-Fi icon with sample local modules
 make preview-offline-edge # unplugged symbol and split amber underline
 make preview-live  # live Tehran weather/routes and system metrics; sample devices
@@ -211,8 +211,15 @@ Scene shortcuts bypass power saver only in the preview; reduced motion is still
 respected. Add `PREVIEW_ARGS="--headless"` to save a screenshot instead of opening a window.
 
 This launches a nested GNOME Shell running a temporary copy of the working tree,
-using the actual St/Clutter UI and stylesheet. It starts collapsed with Music,
-Weather, network rates, CPU, Bluetooth, Commute, Agents and Dates enabled and populated.
+using the actual St/Clutter UI and stylesheet. It starts collapsed and copies your
+current theme, opacity, notch order and visibility, title/date formats, widths,
+hover/motion preferences and desktop text size. All eight module tabs remain
+available with sample data. Routes, accounts, credentials and agent configuration
+are not copied. Changes in preview preferences stay in its temporary settings;
+they never change your desktop settings. Restart to copy newer desktop preferences.
+Use `make preview PREVIEW_ARGS="--defaults"` for the original populated demo layout.
+Automated `--check-*` modes always use those fixed defaults. Explicit flags such
+as `--card-width`, `--text-scale`, `--motion` and `--offline-style` override copied values.
 Click the notch to explore all eight module tabs and open preferences. Sample playback,
 seek, volume, output selection and Bluetooth controls update simulated data.
 Sample Weather, routing and network status work even when the host is offline.
@@ -248,8 +255,9 @@ are `online`, `offline`, `limited`, `portal`, and `auto` (follow the host); offl
 styles are `icon`, `edge`, and `hide`. These flags simulate the notch state without
 changing the host connection. The style can also be changed in preview preferences.
 Choose `--scene sun|clouds|rain|snow|night|clouds-night|rain-night|snow-night` and `--motion off|subtle|live` through
-`PREVIEW_ARGS`. Weather motion defaults to Live in the preview; normal extension preferences default to
-Subtle (four seconds). Power saver and reduced motion stop animation. The explicit
+`PREVIEW_ARGS`. Weather motion follows your preference, or defaults to Live with
+`--defaults`; normal extension preferences default to Subtle (four seconds).
+Power saver and reduced motion stop animation. The explicit
 `--ignore-power-saver` flag bypasses only the preview scene’s power check and
 does not change the host power profile. Reduced motion is still respected.
 City search in preferences still uses the network in either mode.
