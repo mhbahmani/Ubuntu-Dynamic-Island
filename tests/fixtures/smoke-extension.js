@@ -19,6 +19,14 @@ const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAUL
     resolve();
     return GLib.SOURCE_REMOVE;
 }));
+// Before pressing a just-registered shortcut. Adding a binding makes Mutter
+// rebuild its binding table; under load, a virtual chord injected before the
+// queued rebuild and layout work run never reaches the handler. A low-priority
+// idle turn runs only after that higher-priority pending work.
+const settle = async () => {
+    await delay(100);
+    await new Promise(resolve => GLib.idle_add(GLib.PRIORITY_LOW, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+};
 
 export default class Smoke extends UbuntuIsland {
     enable() {
@@ -399,18 +407,21 @@ export default class Smoke extends UbuntuIsland {
             context.scale_factor = scale;
             await chord([Clutter.KEY_Escape]);
             settings.set_strv(key, ['<Super><Alt>j']);
+            await settle();
             await chord(hotkey);
             assert(!this._island.expanded, 'Old shortcut remained active after rebinding');
             await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_j]);
             assert(card.quickAskOpen, 'New shortcut did not activate immediately');
             await chord([Clutter.KEY_Escape]);
             settings.set_strv(key, []);
+            await settle();
             await chord([Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_j]);
             assert(!this._island.expanded && !this._quickAskBinding, 'Disabled shortcut still opened the prompt');
             this._island.expand(); await delay(200);
             assert(!card.quickAskOpen && card._navigation.mapped && card._page === page && this._island.actor.height >= 248 * scale,
                 'Normal opening did not restore the full card');
             settings.set_strv(key, ['<Super><Alt>space']);
+            await settle();
             await chord(hotkey);
             assert(card.quickAskOpen && quick.prompt.clutter_text.has_key_focus(), 'Shortcut did not replace an already open tab');
             await chord([Clutter.KEY_Escape]); this._island.expand(); await delay(200);
@@ -772,8 +783,11 @@ export default class Smoke extends UbuntuIsland {
                 assert(adjustment.upper - adjustment.lower <= adjustment.page_size + 1,
                     `Default Commute needs scrolling (${adjustment.upper - adjustment.lower} > ${adjustment.page_size})`);
             }
+            // Provider credit lives in the closed provider panel, not on the route face.
+            assert(commute.providerPanel.contains(commute.creditLink) && !commute.creditLink.mapped,
+                'Attribution remains on the route face');
             for (const actor of [commute.eta, commute.unit, commute.arrival, commute.origin,
-                commute.destination, commute.swap, commute.status, commute.freshness, commute.open, commute.credit, commute.provider]) {
+                commute.destination, commute.swap, commute.status, commute.freshness, commute.open, commute.provider]) {
                 if (!actor.visible) continue;
                 const [x, y] = actor.get_transformed_position();
                 const [w, h] = actor.get_transformed_size();
@@ -803,9 +817,10 @@ export default class Smoke extends UbuntuIsland {
         commuteScroll.value = commuteScroll.upper - commuteScroll.page_size;
         await this._capture('commute-large-text-scrolled');
         assert(navigationTop() === largeTextNavigationTop, 'Scrolling Commute moved navigation');
-        const creditEdge = commute.credit.get_transformed_position()[1] + commute.credit.get_transformed_size()[1];
+        // The controls row (provider details and Open route) ends the route face.
+        const controlsEdge = commute.controls.get_transformed_position()[1] + commute.controls.get_transformed_size()[1];
         const viewportEdge = this._card._scroll.get_transformed_position()[1] + this._card._scroll.height;
-        assert(creditEdge <= viewportEdge + 1, 'Commute attribution is unreachable when scrolled');
+        assert(controlsEdge <= viewportEdge + 1, 'Commute controls are unreachable when scrolled');
         commuteScroll.value = 0;
         commuteText.set_double('text-scaling-factor', originalCommuteText);
         this._settings.set_int('expanded-width', 440);
@@ -1328,7 +1343,7 @@ export default class Smoke extends UbuntuIsland {
         settings.set_strv('island-quick-ask-shortcut', ['<Super><Alt>space']);
         for (let i = 0; i < 2; i++) {
             super.enable();
-            await delay(100);
+            await settle();
             for (const keyval of [Clutter.KEY_Super_L, Clutter.KEY_Alt_L, Clutter.KEY_space])
                 keyboard.notify_keyval(GLib.get_monotonic_time(), keyval, Clutter.KeyState.PRESSED);
             await delay(30);

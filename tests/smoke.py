@@ -10,7 +10,28 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import re
+import signal
 import tempfile
+import time
+
+SMOKE_TIMEOUT = 180
+# The fixture's last line: the overall PASS summary or the first failure.
+FINAL_RESULT = re.compile(r"\[Island Smoke\] (PASS:|FAIL)")
+
+
+def stop_session(session):
+    """End timeout, dbus-run-session and gnome-shell together."""
+    for sig, wait in ((signal.SIGTERM, 5), (signal.SIGKILL, 5)):
+        try:
+            os.killpg(session.pid, sig)
+        except ProcessLookupError:
+            return
+        try:
+            session.wait(timeout=wait)
+            return
+        except subprocess.TimeoutExpired:
+            continue
 
 
 def main():
@@ -41,13 +62,29 @@ def main():
                        XDG_CACHE_HOME=str(root / "cache"), GSETTINGS_BACKEND="memory",
                        XDG_DATA_DIRS=f"{root}/share:/usr/local/share:/usr/share", ISLAND_SMOKE_OUTPUT=str(root))
     print(f"Screenshots and logs: {root}", flush=True)
-    with (root / "runtime.log").open("w") as output:
-        subprocess.run(["timeout", "90s", "dbus-run-session", "--", "gnome-shell", "--headless",
+    log_path = root / "runtime.log"
+    timed_out = False
+    with log_path.open("w") as output:
+        # The fixture never ends the Shell itself. End the session shortly
+        # after its final PASS/FAIL line (a full pass takes about 80-95 s);
+        # SMOKE_TIMEOUT is only the backstop for a hung session.
+        session = subprocess.Popen(["timeout", f"{SMOKE_TIMEOUT}s", "dbus-run-session", "--", "gnome-shell", "--headless",
                         "--wayland", "--wayland-display=island-smoke", "--no-x11", "--mode=island-smoke", "--virtual-monitor=1280x960"],
-                       env=environment, stdout=output, stderr=subprocess.STDOUT, check=False)
-    log = (root / "runtime.log").read_text()
+                       env=environment, stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
+        finished_at = None
+        while session.poll() is None:
+            time.sleep(0.5)
+            if finished_at is None and FINAL_RESULT.search(log_path.read_text(errors="replace")):
+                finished_at = time.monotonic()
+            # Leave time for trailing JS errors or unref assertions to be logged.
+            if finished_at is not None and time.monotonic() - finished_at >= 2:
+                stop_session(session)
+        timed_out = session.returncode == 124
+    log = log_path.read_text(errors="replace")
     results = [line for line in log.splitlines() if "[Island Smoke]" in line]
     print("\n".join(results) or "No smoke results; inspect runtime.log")
+    if timed_out:
+        print(f"Smoke session timed out after {SMOKE_TIMEOUT} s before finishing", flush=True)
     return 0 if ("[Island Smoke] PASS:" in log and "[Island Smoke] FAIL" not in log
                  and "JS ERROR" not in log and "g_object_unref: assertion" not in log) else 1
 

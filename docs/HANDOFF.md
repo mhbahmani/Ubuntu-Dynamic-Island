@@ -51,6 +51,25 @@ Validation: `make check` (216 passed, 1 skipped), the native reader lifecycle te
 `tests/preview.py --check-calendar --headless --duration 150` passed. Not checked
 with live Google sync or on hardware.
 
+## Smoke harness reliability (2026-11-13)
+
+`make smoke` had stopped passing for three separate reasons, none a product bug:
+
+- Shortcut checks pressed a just-rebound key in the same main-loop turn as the
+  rebind; Mutter's binding rebuild sometimes lost that race under load (handler
+  never called; confirmed with logging). A shared `settle()` (100 ms plus a
+  low-priority idle turn) now precedes presses after rebinding or re-enabling.
+- `9779c58` moved Commute credits into the closed provider panel and updated only
+  the preview fixture. Smoke now asserts the credit is off the route face and
+  measures the controls row for scroll reachability.
+- A full pass now takes about 80–95 s, but the harness killed sessions at 90 s.
+  `tests/smoke.py` ends the session 2 s after the final PASS/FAIL line, keeps a
+  180 s backstop, and reports a timeout explicitly.
+
+Validation: the shortcut step passed 5/5 at `HEAD` with only the first fix;
+a full run with all fixes passed end to end in 95 s, ending 3 s after the
+result, with no JS errors. `make check` passed (216, 1 skipped).
+
 ## Stale working agent sessions (2026-11-13)
 
 The installed broker/model matched the source, but retained Working when a
