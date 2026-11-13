@@ -1,4 +1,7 @@
 .codegraph/
+/.claude/
+/.agent/
+/.agents/
 node_modules/
 *.zip
 dist/
