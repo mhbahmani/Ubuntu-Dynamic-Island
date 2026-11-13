@@ -29,6 +29,17 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Calendar popup themes (2026-11-13)
+
+Date and full-event-title popups now carry their own theme class because their
+top-chrome actors are outside the island's themed hierarchy. Generated CSS uses
+the existing tint gradient, edge and text tokens; existing Calendar updates keep
+open popups in sync without new signals or timers. Text stays fully opaque.
+All 14 appearance checks, syntax checks and the native Calendar preview passed,
+including all eleven popup palettes, live switching, 380/440px, 100/200% scale,
+enlarged text and cleanup (`/tmp/ubuntu-island-preview-raumqxwe`). Date and event
+screenshots were inspected. The ZIP was rebuilt; no host installation changed.
+
 ## Calendar event loading (2026-11-13)
 
 Opening Calendar used to cold-start the EDS reader every time (about 0.35–0.4 s

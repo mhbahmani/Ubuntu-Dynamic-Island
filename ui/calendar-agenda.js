@@ -45,6 +45,7 @@ export class CalendarAgenda {
         this.message = wrapped('', 'ubuntu-island-calendar-event-meta'); this.content.add_child(this.message);
     }
     update(snapshot, day, primary, theme = 'graphite', titleSize = 9, calendarLanguage = true) {
+        this.titleTip.setTheme(theme);
         this.day = day;
         this.heading.text = fullDate(day,primaryCalendar(primary),'long',calendarLanguage);
         const direction = primary === 'gregorian' || !calendarLanguage ? Clutter.TextDirection.LTR : Clutter.TextDirection.RTL;

@@ -631,10 +631,27 @@ export default class Preview extends UbuntuIsland {
         await click(view.todayButton);
         const originalTheme = this._settings.get_string('color-theme');
         this._sampleCalendarColor = null; this._calendarEvents.publish();
+        view.select(todayDay(), true);
         for (const theme of THEME_IDS) {
             this._settings.set_string('color-theme', theme); await delay(150);
             assert([...view.agenda.rows.values()].every(item => item.color === themeAccent(theme)), 'Missing source color did not follow the live theme');
+            for (const popup of [view.dayTip, view.agenda.titleTip]) {
+                popup.tip.ensure_style();
+                const [, top, bottom] = popup.tip.get_theme_node().get_background_gradient();
+                const matches = (color, rgb) => color.red === rgb[0] && color.green === rgb[1] && color.blue === rgb[2];
+                assert(matches(top, THEMES[theme].top) && matches(bottom, THEMES[theme].bottom),
+                    `Calendar popup did not follow ${theme}`);
+                assert(popup.tip.get_theme_node().get_foreground_color().alpha === 255, 'Themed popup text is translucent');
+            }
+            assert(view.dayTip.tip.visible, 'Live theme change dismissed the date popup');
             await this._capture(`calendar-theme-${theme}`);
+            if (theme === 'ocean') {
+                const event = [...view.agenda.rows.values()].find(item => item.title.clutter_text.get_layout().is_ellipsized());
+                event.control.grab_key_focus(); await delay(200);
+                assert(view.agenda.titleTip.tip.visible, 'Themed full-title popup is missing');
+                await this._capture('calendar-event-theme-ocean');
+                view.select(todayDay(), true);
+            }
         }
         this._settings.set_string('color-theme', originalTheme);
         this._sampleCalendarColor = originalColor; this._calendarEvents.publish();

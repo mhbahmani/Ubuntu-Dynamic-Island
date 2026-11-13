@@ -151,6 +151,7 @@ export class CalendarView {
         return Clutter.EVENT_STOP;
     }
     render() {
+        this.dayTip.setTheme(this.settings.get_string('color-theme'));
         const rtl = this.primary !== 'gregorian';
         const calendarLanguage = this.settings.get_boolean('calendar-use-calendar-language');
         const nativeText = rtl && calendarLanguage;

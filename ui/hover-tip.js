@@ -44,6 +44,14 @@ export class HoverTip {
         });
     }
 
+    setTheme(theme) {
+        if (this.theme === theme) return;
+        if (this.theme) this.tip.remove_style_class_name(`ubuntu-island-theme-${this.theme}`);
+        this.theme = theme;
+        // Top chrome lives outside the themed island, so it needs its own class.
+        this.tip.add_style_class_name(`ubuntu-island-theme-${theme}`);
+    }
+
     addTarget(actor, text) {
         const sync = () => {
             if (this.destroyed) return;
