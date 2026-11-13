@@ -29,6 +29,28 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Calendar event loading (2026-11-13)
+
+Opening Calendar used to cold-start the EDS reader every time (about 0.35–0.4 s
+for seven sources on the development machine) and showed an empty loading state
+meanwhile, because hiding stopped the reader and discarded its snapshot. The
+extension never downloads events; EDS serves its local copy.
+
+- `CalendarEventsService` keeps the last six data-bearing snapshots (ready,
+  partial, offline) in Shell memory by request signature. An identical request
+  shows its cached copy at once; the reader's interim loading report is skipped,
+  so revalidation (and live EDS changes while open) replace events in place.
+- Hiding both consumers calls `suspend()`: the idle reader keeps its EDS views for
+  120 s (change signals only, no polling), then exits and keeps the memory cache.
+  Reopening within that window reuses the reader with no query.
+- Disabling events, clearing the selection, extension disable and lock (which
+  disables the extension) clear the cache. Nothing is written to disk.
+
+Validation: `make check` (216 passed, 1 skipped), the native reader lifecycle test
+(cache hit, no loading flash, grace reuse, expiry, bounds, teardown) and
+`tests/preview.py --check-calendar --headless --duration 150` passed. Not checked
+with live Google sync or on hardware.
+
 ## Stale working agent sessions (2026-11-13)
 
 The installed broker/model matched the source, but retained Working when a

@@ -12,20 +12,36 @@ export const CALENDAR_MESSAGES = {
     'authentication-required': 'Sign in again in Online Accounts', error: 'Calendar reader unavailable',
 };
 
-// One owned reader per consumer owner. watch() replaces the requested ranges;
-// stop() clears private snapshots and requests EOF, then kills only this child
-// if it ignores shutdown. No restarts until a new watch request/activation.
+// Recently shown ranges (current month, neighbours, notch week) kept in Shell
+// memory only. EDS remains the persistent store; nothing is written to disk.
+export const CALENDAR_CACHE_LIMIT = 6;
+// An idle reader holds EDS views open and only wakes on EDS change signals.
+export const CALENDAR_IDLE_SECONDS = 120;
+// Only snapshots carrying event data are worth showing again before revalidation.
+const CACHED_STATUSES = new Set(['ready', 'partial', 'offline']);
+
+// One owned reader per consumer owner. watch() replaces the requested ranges
+// and shows the last snapshot for an identical request at once while the
+// reader revalidates it. suspend() keeps the reader briefly after the last
+// consumer hides; stop() ends it, requests EOF, then kills only this child if
+// it ignores shutdown. stop() clears cached snapshots unless asked to keep them.
 export class CalendarEventsService {
-    constructor(path, emit, {helper = `${path}/helpers/calendar/reader.js`} = {}) {
+    constructor(path, emit, {helper = `${path}/helpers/calendar/reader.js`, idleSeconds = CALENDAR_IDLE_SECONDS} = {}) {
         this.helper = helper; this.emit = emit; this.generation = 0; this.retiring = new Map();
+        this.cache = new Map(); this.idleSeconds = idleSeconds;
     }
     watch(request, {refresh = false} = {}) {
         const signature = JSON.stringify(request);
+        // A suspended reader still holds this request's live EDS views, so an
+        // identical request needs no new query and no emission.
+        this._resume();
         if (!refresh && signature === this.signature) return;
         this.signature = signature;
         const generation = ++this.generation;
         this.request = {...request, v:1, generation};
-        this.emit({status:'loading', occurrences:[], sources:[], coverage:[], incomplete:true});
+        // Show the cached copy at once (no loading flash), or an explicit
+        // loading state for a range seen for the first time.
+        this.emit(this.cache.get(signature) ?? {status:'loading', occurrences:[], sources:[], coverage:[], incomplete:true});
         try {
             if (!this.process) {
                 this.cancel = new Gio.Cancellable();
@@ -77,7 +93,11 @@ export class CalendarEventsService {
             throw Error('Invalid calendar snapshot');
         if (this.timer) GLib.Source.remove(this.timer);
         this.timer = 0;
-        if (value.status === 'loading') this._deadline();
+        if (value.status === 'loading') {
+            this._deadline();
+            // Revalidation keeps the cached copy on screen until real data arrives.
+            if (this.cache.has(this.signature)) return;
+        }
         const batch = normalizeOccurrences(value.occurrences, {sourceUids:this.request.sources,
             incomplete:value.incomplete !== false || value.status !== 'ready'});
         const coverage = (this.request.ranges || []).filter(wanted => value.coverage.some(range =>
@@ -87,14 +107,39 @@ export class CalendarEventsService {
             .map(source => ({uid:source.uid, name:plain(source.name),
                 account:plain(source.account), color:calendarColor(source.color), enabled:Boolean(source.enabled),
                 holiday:source.holiday === true}));
-        this.emit({status:value.status, ...batch, sources, coverage, receivedAt:Date.now()});
+        const snapshot = {status:value.status, ...batch, sources, coverage, receivedAt:Date.now()};
+        this._remember(this.signature, CACHED_STATUSES.has(value.status) ? snapshot : null);
+        this.emit(snapshot);
+    }
+    _remember(signature, snapshot) {
+        this.cache.delete(signature);
+        if (!snapshot) return;
+        this.cache.set(signature, snapshot);
+        // Map order is insertion order: drop the least recently stored range.
+        while (this.cache.size > CALENDAR_CACHE_LIMIT) this.cache.delete(this.cache.keys().next().value);
     }
     _fail() {
         const signature = this.signature;
-        this.stop(); this.signature = signature;
+        this.stop({clear:false}); this.signature = signature;
+        this.cache.delete(signature);
         this.emit({status:'error', occurrences:[], sources:[], coverage:[], incomplete:true});
     }
-    stop() {
+    // The last consumer hid. Keep the idle reader (and its live EDS views) for
+    // a short grace period so reopening needs no new process or query.
+    suspend() {
+        if (!this.process || this.idle) return;
+        this.idle = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, this.idleSeconds, () => {
+            this.idle = 0; this.stop({clear:false}); return GLib.SOURCE_REMOVE;
+        });
+    }
+    _resume() {
+        if (!this.idle) return false;
+        GLib.Source.remove(this.idle); this.idle = 0;
+        return true;
+    }
+    stop({clear = true} = {}) {
+        this._resume();
+        if (clear) this.cache.clear();
         ++this.generation;
         this.signature = null; this.request = null; this.pending = null;
         if (this.timer) GLib.Source.remove(this.timer);

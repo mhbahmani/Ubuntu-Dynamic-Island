@@ -54,9 +54,17 @@ Personal event titles and custom literal text keep their original language.
 Partial/offline data is labeled and never treated as a definitive empty day or
 next event. Calendar navigation and the tab bar remain outside scrolling content.
 Empty days and unconfigured events show a compact “No events” message beneath the date.
-Turning events off, locking the session or hiding both consumers clears event
-state and stops the owned helper. No event cache, credentials or provider account
-writes are added. The Shell extension never installs packages itself; only the
+Events are never downloaded by the extension: the reader queries EDS's own local
+copy, and GNOME/EDS performs account sync. Hiding both consumers keeps the shown
+events and suspends the reader for two minutes; its open EDS views wake it only on
+change signals, so reopening within that period needs no new process or query.
+After that the reader exits. The last six shown ranges (months and the notch week)
+stay in Shell memory, so reopening or revisiting a month shows them at once while a
+fresh query replaces them in place, without a loading flash. A first-seen range
+still shows the loading state. Turning events off, clearing the selection,
+locking the session (which disables the extension) or disabling clears that memory
+and stops the helper. Nothing is written to disk; no credentials or provider
+account writes are added. The Shell extension never installs packages itself; only the
 explicit installer performs that setup.
 
 Local EDS fixtures pass; Google synchronization, authentication recovery and live

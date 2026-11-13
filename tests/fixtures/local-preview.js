@@ -588,7 +588,8 @@ export default class Preview extends UbuntuIsland {
         assert(!this._island.expanded, 'Inline calendar Escape did not close the island');
         this._island.expand(); await delay(250);
         this._card.selectPage('media');
-        assert(!this._calendarClock && !this._calendarDeadline && !this._calendarEvents.request, 'Hidden calendar retains subscriptions');
+        assert(!this._calendarClock && !this._calendarDeadline && this._calendarEvents.suspended, 'Hidden calendar retains timers or an active reader');
+        assert(view.agenda.rows.size > 0, 'Hidden calendar discarded its last events');
         this._card.selectPage('calendar'); await delay(150);
         const gridY = view.grid.get_transformed_position()[1], gridScroll = view.adjustment.value;
         const many = Array.from({length:12}, (_, index) => ({...sampleRecords.find(event => event.uid === 'review'),

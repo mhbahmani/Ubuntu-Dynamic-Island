@@ -437,10 +437,16 @@ export default class UbuntuIsland extends Extension {
         const visible = this._island?.actor.mapped && !Main.sessionMode.isLocked && !Main.sessionMode.isGreeter;
         const calendar = visible && this._island.expanded && !this._card.quickAskOpen && this._card._page === 'calendar';
         const notch = visible && !this._island.expanded && this._settings.get_boolean('pill-show-event');
-        if (!enabled || !sources.length || !calendar && !notch) {
+        if (!enabled || !sources.length) {
             this._calendarEvents.stop(); this._stopCalendarClock();
-            this._renderCalendarEvents({status:!enabled ? 'disabled' : !sources.length ? 'no-selection' : 'loading',
+            this._renderCalendarEvents({status:!enabled ? 'disabled' : 'no-selection',
                 occurrences:[],coverage:[],sources:[],incomplete:true});
+            return;
+        }
+        if (!calendar && !notch) {
+            // Hidden only: keep the shown snapshot and let the idle reader
+            // expire on its own, so reopening is instant and needs no query.
+            this._calendarEvents.suspend(); this._stopCalendarClock();
             return;
         }
         const day = todayDay(), ranges = [];

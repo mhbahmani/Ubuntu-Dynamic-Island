@@ -35,6 +35,37 @@ async function run() {
         service.stop();snapshot=await next(request);check(snapshot.status==='ready','Reactivation');service.stop();
     }
     await delay(800);check(service.retiring.size===0 && !service.process && !service.timer,'Repeated teardown releases child and timers');
+
+    // In-memory cache, idle suspension and resume.
+    const seen2=[];let wait2;
+    const cached=new CalendarEventsService(root,s=>{seen2.push(s);if(s.status!=='loading') wait2?.(s);},
+        {helper:`${root}/tests/fixtures/calendar-reader.mjs`,idleSeconds:1});
+    const next2=r=>new Promise(resolve=>{wait2=resolve;cached.watch(r);});
+    const monthA={...request,ranges:[{startDay:1,endDayExclusive:2}]}, monthB={...request,ranges:[{startDay:2,endDayExclusive:3}]};
+    const first=await next2(monthA); await next2(monthB);
+    check(cached.cache.size===2,'Completed ranges are cached');
+    seen2.length=0;
+    const shown=await next2(monthA);
+    check(seen2.length===1 && shown===first,'Revisited range is shown from cache immediately');
+    await delay(400);
+    check(!seen2.some(s=>s.status==='loading') && seen2.at(-1).status==='ready' && seen2.at(-1).receivedAt>=first.receivedAt,
+        'Revalidation replaces the cached copy without a loading flash');
+    let process2=cached.process, generation2=cached.generation;
+    cached.suspend(); seen2.length=0;
+    cached.watch(monthA);
+    check(cached.process===process2 && cached.generation===generation2 && !cached.idle && seen2.length===0,
+        'Reopening within the grace period reuses the live reader without a query');
+    cached.suspend(); await delay(1400);
+    check(!cached.process && !cached.idle && cached.cache.size===2,'Idle expiry ends the reader and keeps the cache');
+    seen2.length=0;
+    const restored=await next2(monthA);
+    check(seen2.length===1 && restored.status==='ready' && cached.process,'Expired reader restarts behind the cached copy');
+    await delay(400);
+    for (let i=0;i<8;i++) cached._remember(`range-${i}`,{status:'ready'});
+    check(cached.cache.size===6 && !cached.cache.has('range-0') && cached.cache.has('range-7'),'Cache stays bounded, oldest first');
+    cached.stop();
+    check(cached.cache.size===0 && !cached.process && !cached.idle,'Stopping clears cached private snapshots');
+    await delay(800);check(cached.retiring.size===0,'Suspended reader teardown releases its child');
     print('Calendar reader framing, generations and lifecycle checks passed');
 }
 const timeout=GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT,10,()=>{failure=Error('Reader test timeout');service?.stop();loop.quit();return GLib.SOURCE_REMOVE;});

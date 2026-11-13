@@ -26,7 +26,7 @@ export function sampleCalendar(preview) {
     ];
     preview._calendarEvents = {
         watch(request) {
-            this.request = request;
+            this.request = request; this.suspended = false;
             if (this.signature === JSON.stringify(request)) return;
             this.signature = JSON.stringify(request); this.publish();
         },
@@ -35,7 +35,9 @@ export function sampleCalendar(preview) {
             preview._renderCalendarEvents({status:'ready',sources:[{uid:sourceUid,name:'Personal (sample)',color:preview._sampleCalendarColor,enabled:true}],
                 coverage:this.request.ranges,...normalizeOccurrences(preview._sampleCalendarRecords,{sourceUids:[sourceUid]})});
         },
-        stop() { this.signature = null; this.request = null; },
+        // Mirrors CalendarEventsService: hiding keeps the request for a grace period.
+        suspend() { if (this.request) this.suspended = true; },
+        stop() { this.signature = null; this.request = null; this.suspended = false; },
     };
     preview._settings.set_strv('calendar-event-sources',[sourceUid]);
     preview._settings.set_boolean('calendar-events-enabled',true);

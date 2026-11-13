@@ -12,6 +12,8 @@ readLines(input,16384,cancel,request => {
         const snapshot = {v:1,generation:request.generation,status:'ready',sources:[{uid:'fixture',color:'#aB9',holiday:true},
             {uid:'invalid',color:'#fff; padding: 99px',holiday:'true'}, {uid:'missing'}],occurrences:[],coverage:request.ranges,incomplete:false};
         await write(output,encode({...snapshot,generation:request.generation-1,status:'error'}),cancel);
+        // Like the EDS reader, report loading before each completed query.
+        await write(output,encode({...snapshot,status:'loading',occurrences:[],coverage:[],incomplete:true}),cancel);
         await write(output,encode(snapshot),cancel);
     });
 }).finally(()=>loop.quit());
