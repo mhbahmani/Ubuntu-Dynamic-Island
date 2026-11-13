@@ -101,7 +101,7 @@ function derive([id, label, top, bottom, accentHex, options = {}]) {
     const {shade: strong, lightness} = strongShade(accent);
     const secondary = rgbToHex(mix(mix(text, accent, options.neutral ? 0 : 0.3), bottom, 0.18));
     const [hue, saturation, accentLightness] = rgbToHsl(accent);
-    const upload = hslToRgb([(hue + 150 / 360) % 1, saturation, accentLightness]);
+    const download = hslToRgb([(hue + 150 / 360) % 1, saturation, accentLightness]);
     return Object.freeze({
         id, label, top, bottom, accent: accentHex,
         // Light, accent-tinted overlays for cards, borders and the panel edge.
@@ -114,10 +114,10 @@ function derive([id, label, top, bottom, accentHex, options = {}]) {
         strongHover: rgbToHex(withLightness(strong, lightness + 0.035)),
         strongPressed: rgbToHex(withLightness(strong, lightness - 0.05)),
         history: rgbToHex(mix(accent, white, 0.18)),
-        // Paired chart lines and rate text: light tints, with upload rotated
+        // Paired chart lines and rate text: light tints, with download rotated
         // 150 degrees from the accent at the same starting lightness.
-        chartDown: rgbToHex(mixUntil(accent, white, 0.25, 4.5, top, bottom)),
-        chartUp: rgbToHex(mixUntil(upload, white, 0.25, 4.5, top, bottom)),
+        chartDown: rgbToHex(mixUntil(download, white, 0.25, 4.5, top, bottom)),
+        chartUp: rgbToHex(mixUntil(accent, white, 0.25, 4.5, top, bottom)),
         todayBorder: rgbToHex(mix(strong, accent, 0.55)),
         marker: accentHex,
         // Keyboard focus rings: a light accent tint (non-text UI, >= 3:1).
