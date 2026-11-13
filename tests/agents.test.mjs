@@ -4,6 +4,24 @@ import {AgentStore, fromAgentHook, normalizeAgentEvent, agentLaunchArgv, agentCo
 import {HOOK_MARKER, hasAgentHooks, mergeAgentHooks, hookEntries, openCodePlugin} from '../services/agents-setup-model.js';
 
 const event = (state, changes = {}) => ({v:1,provider:'claude',session:'one',state,...changes});
+test('confirmed process exit removes working and hidden rows without completion or undo',()=>{
+    const store = new AgentStore();
+    store.apply(event('working',{process:{pid:42,start:'100'},at:1}),100);
+    const row = [...store.rows.values()][0];
+    store.dismiss(row.id);
+    assert.equal(store.closeExited(row.id,row.report),true);
+    assert.equal(store.snapshot().sessions.length,0);
+    assert.equal(store.snapshot().counts.working,0);
+    assert.equal(store.snapshot().counts.finished,0);
+    assert.equal(store.snapshot().undo,null);
+    assert.equal(row.updated,100,'Checking a process must not renew its activity time');
+    assert.equal(store.apply(event('working',{at:0.5})),false,'Old report revived a closed session');
+    store.apply(event('working',{process:{pid:43,start:'101'},at:2,start:true}));
+    assert.equal(row.state,'working','A resumed session did not update');
+    assert.equal(store.snapshot().sessions.length,0,'Fresh activity must preserve explicit dismissal');
+    store.apply(event('working',{session:'visible'}));
+    assert.equal(Object.hasOwn(store.snapshot().sessions[0],'report'),false);
+});
 test('session references distinguish shared projects, suffixes and profiles without depending on row order',()=>{
     const store = new AgentStore();
     for (const [session, profile] of [['prefix-a-12345678','default'], ['prefix-b-12345678','default'],

@@ -39,6 +39,25 @@ try {
             await until(() => latest.sessions[0]?.label === 'Hidden rename');
             service.setTitlesVisible(false);
         }
+        if (cycle === 1) {
+            // A missing SessionEnd must not leave a dead process marked Working.
+            const child = Gio.Subprocess.new(['/bin/sleep', '30'], Gio.SubprocessFlags.NONE);
+            try {
+                const pid = Number(child.get_identifier());
+                const [, bytes] = GLib.file_get_contents(`/proc/${pid}/stat`);
+                const stat = new TextDecoder().decode(bytes);
+                await service.send({provider, session:'missed-end', state:'working',
+                    process:{pid, start:stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19]}});
+                await until(() => latest.sessions?.length === 2);
+                child.force_exit();
+                await new Promise(resolve => child.wait_async(null, (p, r) => { p.wait_finish(r); resolve(); }));
+                service.setTitlesVisible(true);
+                await until(() => latest.sessions?.length === 1);
+                assert(latest.counts.working === 1 && latest.sessions[0].session === `fixture-${cycle}`,
+                    'Dead session was not removed from shared snapshot/counts');
+                service.setTitlesVisible(false);
+            } finally { try { child.force_exit(); } catch {} }
+        }
         await service.send({provider, session:`fixture-${cycle}`, state:'closed'});
         await until(() => latest.sessions?.length === 0);
         assert(latest.undo === null, 'Ended session offered Undo');

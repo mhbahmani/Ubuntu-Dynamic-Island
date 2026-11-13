@@ -253,7 +253,7 @@ Waiting contributes its own summary/notch count (`◷`), produces no completion
 notification and is excluded from Clear finished. Older providers without task
 fields or native subagent hooks still use Stop as finished when no outstanding
 work is known. Child-context hooks cannot finish or rename the parent. States
-remain last reports, not process-liveness assertions.
+remain last reports; opening the list also checks for exited agent processes.
 
 A verified Codex child shows **⤷ From Claude** beside its status. Hover, keyboard
 focus and session details expose **Started by <current parent title>**. The relay
@@ -306,6 +306,14 @@ processes. There are no per-session options pages or separate Recent group.
 Finished tasks stay in the list because their session may accept more prompts.
 Sessions explicitly reported as closed disappear immediately. This means the
 agent reported a session end, not that its desktop window was observed closing.
+When the Agents list opens, the existing broker also checks recorded agent PIDs
+and birth tokens against `/proc`. A missing, exited or replaced process closes
+its records without a completion notification, even if SessionEnd was missed.
+These asynchronous reads are bounded to 8 KiB and one second, cancel on hide or
+disable, and cannot overwrite newer reports. Live processes remain unchanged;
+missing process identity or an inconclusive read preserves the last report.
+This check does not infer activity from terminal/window presence and does not
+run continuously: an exit after opening is checked on the next opening.
 Distinct sessions can share the same project-folder label. Closed records remain
 bounded internally for late-event checks and can reappear after fresh activity;
 they are not offered by Clear/Undo.

@@ -11,6 +11,11 @@ import {openCodePlugin} from '../services/agents-setup-model.js';
 
 const root=resolve(import.meta.dirname,'..');
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
+test('lazy native process checks preserve live sessions and cancel stale results', () => {
+    const output = execFileSync('gjs', ['-m', join(root, 'tests/agent-processes-native.mjs')],
+        {encoding:'utf8', timeout:10000});
+    assert.match(output, /AGENT PROCESSES PASS/);
+});
 test('native client lifecycle and launcher preserve literal prompt arguments',()=>{
     const temp=mkdtempSync(join(tmpdir(),'island-agent-client-'));
     try {

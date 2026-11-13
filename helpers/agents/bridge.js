@@ -3,12 +3,14 @@ import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
 import GLib from 'gi://GLib';
 import {AgentTitles} from './titles.js';
+import {AgentProcesses} from './processes.js';
 import {AgentStore} from '../../services/agents-model.js';
 import {readBounded, readChunk, writeBytes, encoder, decoder, runtimePath, privateDirectory} from './io.js';
 
 const loop = new GLib.MainLoop(null, false);
 const store = new AgentStore();
 const titles = new AgentTitles(store, schedule);
+const processes = new AgentProcesses(store, () => { titles.sync(); schedule(); });
 const cancel = new Gio.Cancellable();
 const clients = new Set();
 const stdout = new GioUnix.OutputStream({fd: 1, close_fd: false});
@@ -30,7 +32,7 @@ function shutdown() {
     if (shuttingDown) return;
     shuttingDown = true;
     if (tick) GLib.Source.remove(tick);
-    titles.stop(); cancel.cancel(); service?.stop(); service?.close();
+    processes.stop(); titles.stop(); cancel.cancel(); service?.stop(); service?.close();
     for (const conn of clients) { try { conn.close(null); } catch {} }
     try { socketFile?.delete(null); } catch {}
     loop.quit();
@@ -68,7 +70,10 @@ async function watchParent() {
             let end;
             while ((end = pending.indexOf('\n')) >= 0) {
                 const command = JSON.parse(pending.slice(0, end)); pending = pending.slice(end + 1);
-                if (typeof command.titles === 'boolean') titles.setActive(command.titles);
+                if (typeof command.titles === 'boolean') {
+                    titles.setActive(command.titles);
+                    processes.setActive(command.titles);
+                }
             }
         }
     } catch {}

@@ -120,7 +120,7 @@ export function fromAgentHook(provider, raw, extra = {}) {
 }
 
 export class AgentStore {
-    constructor() { this.rows = new Map(); this.dropped = 0; this.undo = null; this.sequence = 0; }
+    constructor() { this.rows = new Map(); this.dropped = 0; this.undo = null; this.sequence = 0; this.reportSequence = 0; }
     clear() { this.rows.clear(); this.dropped = 0; this.undo = null; }
     hide(ids) {
         const rows = ids.map(id => this.rows.get(id)).filter(row => row && !row.hidden && row.state !== 'closed');
@@ -144,6 +144,14 @@ export class AgentStore {
             this.undo.ids = this.undo.ids.filter(id => this.rows.has(id));
             if (!this.undo.ids.length) this.undo = null;
         }
+    }
+    closeExited(id, report) {
+        const row = this.rows.get(id);
+        // An asynchronous process check must not close a newer report or a
+        // recreated record. Closure is not successful task completion.
+        if (!row || row.report !== report || row.state === 'closed') return false;
+        return this.apply({...row, state:'closed', lifecycle:'', tasks:[], taskDelta:null,
+            start:false, resolve:false, request:''}, row.updated);
     }
     control(value) {
         if (value.control === 'clear') this.clear();
@@ -180,6 +188,7 @@ export class AgentStore {
         if (event.lifecycle === 'task') {
             if (row.state === 'closed') return false;
             this._tasks(row, event);
+            row.report = ++this.reportSequence;
             row.updated = now;
             this._derive();
             return true;
@@ -210,7 +219,7 @@ export class AgentStore {
         Object.assign(row, {...event, title:event.title || row.title,
             label:event.title || row.title || row.project,
             process:event.process || row.process, parent:event.parent || row.parent,
-            turn:event.turn || row.turn, state, updated: now});
+            turn:event.turn || row.turn, state, updated: now, report:++this.reportSequence});
         this._derive();
         if (state === 'closed' && this.undo) {
             this.undo.ids = this.undo.ids.filter(hiddenId => hiddenId !== id);
@@ -282,7 +291,7 @@ export class AgentStore {
         // SessionEnd is a provider report, not proof that a desktop window
         // closed. Keep the bounded record for late-event guards, but stop
         // showing ended sessions. New activity can make them visible again.
-        const sessions = [...this.rows.values()].filter(row => !row.hidden && row.state !== 'closed').map(({pending, retired, hidden, tasksById, taskTimes, taskEvents, taskSnapshotAt, tasks, taskDelta, lifecycle, process, parent, stopped, project, ...row}) => ({...row}));
+        const sessions = [...this.rows.values()].filter(row => !row.hidden && row.state !== 'closed').map(({pending, retired, hidden, tasksById, taskTimes, taskEvents, taskSnapshotAt, tasks, taskDelta, lifecycle, process, parent, stopped, project, report, ...row}) => ({...row}));
         const count = this.undo?.ids.filter(id => this.rows.has(id)).length || 0;
         return {v: 1, connected: true, sessions, dropped: this.dropped, counts: agentCounts(sessions),
             undo: count ? {token: this.undo.token, count} : null};

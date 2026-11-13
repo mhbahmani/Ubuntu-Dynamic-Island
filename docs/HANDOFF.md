@@ -29,6 +29,26 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Stale working agent sessions (2026-11-13)
+
+The installed broker/model matched the source, but retained Working when a
+provider exited without SessionEnd. Opening the Agents list now runs one bounded
+asynchronous `/proc/<pid>/stat` check per known agent process in the existing
+broker. Missing processes, zombie/dead states and changed birth tokens close
+their records and update shared counts without success notifications. Live or
+unverified processes retain their reported state. No polling or worker was added.
+Hide/disable cancel checks; report generations reject late results after new
+activity or record recreation. The inactivity cutoff remains independent.
+
+Validation: `make check` passed 216 tests with one existing ancestry skip, plus
+JavaScript/Python syntax and strict schema checks. Native tests cover live/exited
+processes, PID reuse, cancellation, timeout, unknown identity, newer reports and
+recreated records; the service/bridge test verifies a missed SessionEnd disappears
+from shared snapshots and counts. Temporary install and ZIP byte checks include
+the new helper through the existing recursive copy paths. No UI layout changed;
+Shell smoke and live-provider acceptance were not rerun. The host installation
+and provider configuration were not changed.
+
 ## Theme selection and popup polish (2026-11-13)
 
 - The theme ComboRow binds its label and swatch to the selected StringObject;
