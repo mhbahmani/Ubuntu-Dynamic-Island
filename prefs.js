@@ -65,7 +65,10 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             item.set_child(row);
         });
         themeFactory.connect('bind', (_factory, item) => {
-            const id = themes[item.get_position()] ?? themes[0];
+            // ComboRow's selected-value model has position zero for every
+            // selection. Bind to the actual StringObject instead.
+            const name = item.get_item().get_string();
+            const id = themes.find(id => THEMES[id].label === name) ?? themes[0];
             const swatch = item.get_child().get_first_child();
             swatch.set_css_classes(['ubuntu-island-theme-swatch', `ubuntu-island-theme-swatch-${id}`]);
             swatch.get_next_sibling().label = THEMES[id].label;

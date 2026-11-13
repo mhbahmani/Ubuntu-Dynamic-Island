@@ -6,6 +6,7 @@ import GLib from 'gi://GLib';
 import {routingKeyPreferences} from '../preferences/commute-prefs.js';
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
+import {THEMES, THEME_IDS} from '../services/themes.js';
 
 Gio.Resource.load('/usr/share/gnome-shell/org.gnome.Shell.Extensions.src.gresource')._register();
 const {default: Preferences} = await import('../prefs.js');
@@ -345,6 +346,18 @@ theme.selected = 1;
 if (settings.get_string('color-theme') !== 'ocean') throw new Error('Theme selection did not save');
 settings.set_string('color-theme', 'forest');
 if (theme.selected !== 2) throw new Error('Theme selection did not follow settings');
+for (const id of THEME_IDS) {
+    settings.set_string('color-theme', id);
+    const swatches = [];
+    const walk = widget => { for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {
+        if (child.has_css_class?.('ubuntu-island-theme-swatch')) swatches.push(child);
+        walk(child);
+    } };
+    walk(theme);
+    if (!swatches.some(s => s.has_css_class(`ubuntu-island-theme-swatch-${id}`) &&
+        s.get_next_sibling().label === THEMES[id].label))
+        throw new Error(`Selected theme label/swatch is wrong for ${id}`);
+}
 opacity.adjustment.value = 0;
 if (settings.get_int('surface-opacity') !== 0) throw new Error('Opacity did not save');
 settings.set_int('surface-opacity', 100);
