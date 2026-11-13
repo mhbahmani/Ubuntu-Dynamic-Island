@@ -379,7 +379,8 @@ export default class Preview extends UbuntuIsland {
         try {
             for (const [provider,name] of [['balad','Balad'],['mapbox','Mapbox'],['neshan','Neshan'],['ors','openrouteservice'],['graphhopper','GraphHopper'],['fossgis','FOSSGIS'],['osrm','OSRM']]) {
                 view.render({...ready,preferred:'balad',data:{...ready.data,provider,fallback:provider!=='balad',trafficUnverified:provider==='balad'}});
-                assert(view.credit.text.includes(name) && view.credit.text.includes('OpenStreetMap') && view.creditLink.visible,
+                assert(view.credit.text.includes(name) && view.credit.text.includes('OpenStreetMap') && view.creditLink.visible &&
+                    view.providerPanel.contains(view.creditLink) && !view.creditLink.mapped,
                     'Credit does not follow the actual provider');
             }
             view.render({...ready,data:null}); assert(!view.creditLink.visible, 'No estimate has a fabricated credit');
@@ -406,8 +407,7 @@ export default class Preview extends UbuntuIsland {
                     const adjustment = scroll.get_vscroll_bar().get_adjustment();
                     assert(adjustment.upper-adjustment.lower <= adjustment.page_size+1, 'Default Commute requires scrolling');
                 }
-                const [cx] = view.credit.get_transformed_position(), [cw] = view.credit.get_transformed_size();
-                assert(cx >= left && cx+cw <= left+available+1, 'Attribution overflows the card');
+                assert(!view.creditLink.mapped, 'Attribution remains on the route face');
                 view.statusInfo.grab_key_focus(); await delay(100);
                 const tip = view.statusTip.tip, [tx,ty] = tip.get_transformed_position(), [tw,th] = tip.get_transformed_size();
                 const monitor = Main.layoutManager.primaryMonitor;

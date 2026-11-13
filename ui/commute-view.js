@@ -135,7 +135,6 @@ export class CommuteView {
             const url = PROVIDER_CREDITS[this.state.data?.provider]?.url;
             if (url) Gio.AppInfo.launch_default_for_uri(url, null);
         });
-        source.add_child(this.creditLink);
         this.controls.add_child(source);
         this.open = textButton('Open route', () => this._openRoute(), true);
         const openFace = row('ubuntu-island-commute-open-face');
@@ -168,6 +167,7 @@ export class CommuteView {
         this.fallback = textButton('', () => actions.commuteFallback?.(!this.state.allowFallback));
         this.providerPanel.add_child(this.fallback);
         this.providerPanel.add_child(textButton('Set up API keys in Settings', () => actions.preferences?.('commute')));
+        this.providerPanel.add_child(this.creditLink);
         this.providerPanel.hide();
         section.box.connect('notify::mapped', () => {
             if (!section.box.mapped) this.showProviders(false, false);
