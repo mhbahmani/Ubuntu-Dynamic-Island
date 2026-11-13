@@ -10,7 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {formatRate} from './services/proc.js';
 import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
-import {THEME_IDS, themeAccent} from './services/appearance.js';
+import {THEMES, THEME_IDS, themeAccent} from './services/appearance.js';
 import {notchTime} from './services/notch-model.js';
 import {civilDay, todayDay, fullDate, calendarTodayLabel, monthTitle, primaryCalendar, notchDate, notchDates, formatNotchDate} from './services/calendar-model.js';
 
@@ -467,6 +467,37 @@ export default class Preview extends UbuntuIsland {
         this._card.selectPage('calendar'); this._island.expand(); await delay(600);
         const view = this._card._calendarView;
         view.select(todayDay()); await delay(200);
+        // Simulate the cached Shell profile in this private session only.
+        const quickSettings = Main.panel.statusArea.quickSettings;
+        const profiles = quickSettings._powerProfiles;
+        const disabled = this._settings.get_boolean('disable-animations');
+        const desktopSettings = new Gio.Settings({schema_id:'org.gnome.desktop.interface'});
+        const desktopMotion = desktopSettings.get_boolean('enable-animations');
+        try {
+            this._settings.set_boolean('disable-animations', false);
+            desktopSettings.set_boolean('enable-animations', true);
+            await delay(50);
+            quickSettings._powerProfiles = {quickSettingsItems: [{_proxy: {ActiveProfile: 'balanced'}}]};
+            view.todayButton.grab_key_focus(); view.select(todayDay(),true);
+            assert(view.dayTip.tip.get_transition('opacity'), 'Normal date popup did not animate');
+            await delay(200);
+            assert(view.dayTip.tip.opacity === 255 && !view.dayTip.tip.get_transition('opacity'), 'Date popup fade did not settle');
+            for (const mode of ['power-saver', 'extension', 'desktop']) {
+                view.todayButton.grab_key_focus();
+                quickSettings._powerProfiles.quickSettingsItems[0]._proxy.ActiveProfile = mode;
+                this._settings.set_boolean('disable-animations', mode === 'extension');
+                desktopSettings.set_boolean('enable-animations', mode !== 'desktop');
+                await delay(50);
+                view.select(todayDay(),true);
+                assert(view.dayTip.tip.visible && view.dayTip.tip.opacity === 255 && !view.dayTip.tip.get_transition('opacity'),
+                    `${mode} popup should open instantly`);
+            }
+        } finally {
+            view.todayButton.grab_key_focus();
+            quickSettings._powerProfiles = profiles;
+            this._settings.set_boolean('disable-animations', disabled);
+            desktopSettings.set_boolean('enable-animations', desktopMotion);
+        }
         for (const primary of ['jalali','gregorian','hijri']) for (const native of [true,false]) {
             this._settings.set_string('calendar-primary',primary);
             this._settings.set_boolean('calendar-use-calendar-language',native);
@@ -492,8 +523,13 @@ export default class Preview extends UbuntuIsland {
             assert(view.selected === selected, 'Day hover changed the selection');
             if (!native) assert(!/[\u0600-\u06ff]/.test(tip.text), 'Day hover ignored English dates');
             if (primary === 'jalali' && native) await this._capture('calendar-day-hover');
+            assert(tip.x === Math.round(tip.x) && tip.y === Math.round(tip.y), 'Date popup has a fractional text origin');
+            await click(cell.control); await delay(500);
+            assert(view.selected === cell.day && !tip.visible && !view.dayTip.timer,
+                'Clicking a date opened its popup');
             pointer.notify_absolute_motion(GLib.get_monotonic_time(),50,500); await delay(80);
             assert(!tip.visible, 'Date popup survived pointer leave');
+            view.todayButton.grab_key_focus();
             view.select(cell.day,true); await delay(100);
             assert(tip.visible && cell.control.accessible_description === tip.text, 'Focused date lacks the alternate dates');
             this._card.selectPage('media'); await delay(80);
@@ -571,6 +607,19 @@ export default class Preview extends UbuntuIsland {
                 `A long title changed the card height: ${item.control.height}/${compactHeight}`);
         }
         await this._capture('calendar-long-events');
+        const lastItem = [...view.agenda.rows.values()].find(item => item.control === finalRow);
+        assert(lastItem.title.clutter_text.get_layout().is_ellipsized() && view.agenda.titleTip.tip.visible &&
+            view.agenda.titleTip.tip.text === lastItem.title.text, 'Truncated event lacks its full title popup');
+        assert(Math.abs(view.agenda.titleTip.tip.y - (finalRow.get_transformed_position()[1] + finalRow.height + 6)) <= 1,
+            'Event popup did not follow its scrolled row');
+        await this._capture('calendar-event-title');
+        view.todayButton.grab_key_focus();
+        const [ex,ey] = finalRow.get_transformed_position(), [ew,eh] = finalRow.get_transformed_size();
+        pointer.notify_absolute_motion(GLib.get_monotonic_time(), ex+ew/2, ey+eh/2); await delay(700);
+        assert(view.agenda.titleTip.tip.visible && view.agenda.titleTip.tip.text === lastItem.title.text,
+            'Hovering a truncated event did not reveal its full title');
+        pointer.notify_absolute_motion(GLib.get_monotonic_time(),50,500); await delay(80);
+        assert(!view.agenda.titleTip.tip.visible, 'Event title popup survived pointer leave');
         this._sampleCalendarRecords = sampleRecords; this._calendarEvents.publish();
         await click(view.cells.find(cell => cell.day === todayDay() + 1).control);
         assert(view.agenda.rows.size === 1 && [...view.agenda.rows.values()][0].event.uid === 'tomorrow', 'Day selection did not filter events');
@@ -705,7 +754,8 @@ export default class Preview extends UbuntuIsland {
         const redCells = () => view.cells.filter(cell => {
             if (cell.day === null || !cell.control.visible) return false;
             const color = cell.control.child.get_theme_node().get_background_color();
-            return color.red === 0xb7 && color.green === 0x47 && color.blue === 0x32;
+            const rgb = THEMES[this._settings.get_string('color-theme')].strong.match(/[0-9a-f]{2}/gi).map(n => parseInt(n,16));
+            return color.red === rgb[0] && color.green === rgb[1] && color.blue === rgb[2];
         });
         assert(redCells().length === 1 && redCells()[0].day === now, 'Today does not own the red fill');
         const controlsY = view.header.get_transformed_position()[1];

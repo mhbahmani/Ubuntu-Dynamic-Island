@@ -6,6 +6,7 @@ import {fullDate, primaryCalendar, todayDay} from '../services/calendar-model.js
 import {eventsForDay, calendarColor} from '../services/calendar-events-model.js';
 import {themeAccent} from '../services/appearance.js';
 import {CALENDAR_MESSAGES} from '../services/calendar-events.js';
+import {HoverTip} from './hover-tip.js';
 
 const wrapped = (text, css = 'ubuntu-island-calendar-event-title') => {
     const actor = label(text,css,false); actor.x_expand = true;
@@ -23,7 +24,7 @@ function eventDateTime(event, primary, calendarLanguage) {
 // The selected-day panel scrolls independently of the month. Stable rows retain
 // keyboard focus during service updates; event activation opens the desktop app.
 export class CalendarAgenda {
-    constructor(actions) {
+    constructor(actions, settings) {
         this.actions = actions; this.rows = new Map();
         this.actor = column('ubuntu-island-calendar-agenda');
         this.actor.x_expand = this.actor.y_expand = true;
@@ -34,6 +35,7 @@ export class CalendarAgenda {
         this.scroll = new St.ScrollView({x_expand:true, y_expand:true, overlay_scrollbars:true});
         this.scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
         this.adjustment = this.scroll.get_vscroll_bar().get_adjustment();
+        this.titleTip = new HoverTip(this.actor, {delay: 450, motionSettings: settings, viewport: this.scroll});
         this.actor.add_child(this.scroll);
         this.content = column('ubuntu-island-calendar-event-list'); this.scroll.set_child(this.content);
         this.holiday = wrapped('', 'ubuntu-island-calendar-holiday-label'); this.content.add_child(this.holiday);
@@ -74,6 +76,7 @@ export class CalendarAgenda {
                 title.clutter_text.single_line_mode = time.clutter_text.single_line_mode = true;
                 face.add_child(title); face.add_child(time);
                 item = {control,title,time,accent,event}; this.rows.set(event.id,item); this.list.add_child(control);
+                this.titleTip.addTarget(control, () => title.clutter_text.get_layout().is_ellipsized() ? title.text : '');
                 control.connect('clicked', () => this._openCalendar());
             }
             item.event = event; item.title.text = event.title || 'Untitled event';
@@ -90,6 +93,7 @@ export class CalendarAgenda {
             item.control.accessible_name = `${item.title.text}, ${eventDateTime(event,primaryCalendar(primary),calendarLanguage)}, ${detail}. Open in Calendar`;
         }
         agenda.occurrences.forEach((event,index) => this.list.set_child_at_index(this.rows.get(event.id).control,index));
+        this.titleTip.refresh();
     }
     async _openCalendar() {
         try { await this.actions.calendarOpen(this.day); }

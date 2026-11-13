@@ -29,8 +29,7 @@ export class CalendarView {
         this.actor.layout_manager.homogeneous = true;
         this.actor.y_expand = true;
         this.actor.set_text_direction(Clutter.TextDirection.LTR);
-        this.dayTip = new HoverTip(this.actor, {delay: 450, styleClass: 'ubuntu-island-calendar-day-tooltip'});
-        this.agenda = new CalendarAgenda({...actions,restoreFocus:() => this.todayButton.grab_key_focus()});
+        this.agenda = new CalendarAgenda({...actions,restoreFocus:() => this.todayButton.grab_key_focus()}, settings);
         this.actor.add_child(this.agenda.actor);
         this.month = column('ubuntu-island-calendar-month');
         this.month.x_expand = this.month.y_expand = true;
@@ -58,6 +57,8 @@ export class CalendarView {
             x_expand: true, y_expand: true, overlay_scrollbars: true});
         this.scroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.AUTOMATIC);
         this.adjustment = this.scroll.get_vscroll_bar().get_adjustment();
+        this.dayTip = new HoverTip(this.actor, {delay: 450, styleClass: 'ubuntu-island-calendar-day-tooltip',
+            motionSettings: settings, dismissOnPress: true, viewport: this.scroll});
         this.month.add_child(this.scroll);
         this.grid = new St.Widget({style_class: 'ubuntu-island-calendar-grid',
             layout_manager: new Clutter.GridLayout({column_homogeneous: true}), x_expand: true});
