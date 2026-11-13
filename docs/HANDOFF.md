@@ -29,6 +29,36 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Theme selection and popup polish (2026-11-13)
+
+- The theme ComboRow binds its label and swatch to the selected StringObject;
+  the selected-value model's position is always zero and was showing Graphite.
+- Clicking a calendar date selects it and dismisses its alternate-date popup.
+  Hover still waits 450 ms, and keyboard navigation retains date explanations.
+  Date text is 9pt with integer popup positions. Calendar popups fade in for up
+  to 160 ms without scaling text; power saver and both reduced-motion switches
+  open instantly. The power check reads GNOME 46's existing cached profile.
+- Ellipsized event titles reveal their complete text on hover/focus. Popups
+  follow scrolling, hide outside their viewport, and cancel pending work on hide
+  and destruction. No polling or new background service was added.
+- Download/upload chart and rate colors are swapped through the theme generator.
+  Commute credits moved from the route face to the existing provider details.
+
+Validation: `make check` passed (214 passed, one environment-dependent ancestry
+skip), as did `make prefs-test`, including every selected theme label/swatch.
+Native Calendar passed at 380/440px, 100/200% scale and enlarged text, with click
+suppression, full event titles, scroll positioning, fades, simulated cached
+power-saver state, both reduced-motion switches and hidden cleanup
+(`/tmp/ubuntu-island-preview-ecs7nujd`). Screenshots were inspected. The Calendar
+fixture's obsolete hardcoded Today color now follows the current theme token.
+Native Commute passed its credit placement, tooltip and layout checks
+(`/tmp/ubuntu-island-preview-1j96rqqo`); its first preview timed out on startup.
+The ZIP was rebuilt and the changed runtime files compared byte-for-byte.
+Full smoke stopped at the previously recorded Quick Ask assertion, “Shortcut
+did not replace an already open tab” (`/tmp/ubuntu-island-smoke-fn_fhwto`), after
+media and tab shortcut checks passed. No host install, live provider or physical
+mixed-monitor validation was performed.
+
 ## Commit review validation (2026-11-13)
 
 Reviewed the combined theme/navigation, chart fill, compact network rate and
