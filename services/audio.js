@@ -1,4 +1,5 @@
 import Gvc from 'gi://Gvc';
+import GLib from 'gi://GLib';
 import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
 
 // Reuse GNOME's shared mixer singleton; NEVER close it on extension disable.
@@ -14,18 +15,21 @@ export class AudioService {
         this._outputs = new Map(); // Gvc MixerUIDevice id -> device
         this._removedOutputs = new Set();
         this._outputSignals = new Map();
+        this._syncSource = 0;
     }
 
     start() {
+        if (this._control) return;
         this._control = Volume.getMixerControl();
         for (const signal of ['state-changed', 'default-sink-changed', 'stream-added', 'stream-removed',
-            'output-added', 'output-removed', 'active-output-update']) {
+            'output-added', 'output-removed', 'active-output-update', 'card-added', 'card-removed']) {
             this._signals.push(this._control.connect(signal, (control, id) => this._onSignal(signal, id)));
         }
-        this._sync();
+        this._queueSync();
     }
 
     _onSignal(signal, id) {
+        if (!this._control) return;
         if (signal === 'output-added') {
             this._removedOutputs.delete(id);
             const device = this._control.lookup_output_id(id);
@@ -34,14 +38,31 @@ export class AudioService {
             this._forget(id);
             this._removedOutputs.add(id);
         }
-        this._sync();
+        this._queueSync();
+    }
+
+    _queueSync() {
+        if (!this._control || this._syncSource) return;
+        // Gvc update_card() frees the old profiles, then refreshes each port's
+        // borrowed profile pointers in turn. Its synchronous output/availability
+        // signals can arrive while OTHER devices still point to freed memory.
+        // Reading all devices from those callbacks caused Shell SIGSEGVs on
+        // resume. Wait until the native update returns; one idle handles the
+        // whole burst. This is event-driven, not a recurring refresh timer.
+        this._syncSource = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+            this._syncSource = 0;
+            this._sync();
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     _remember(device) {
         const id = device.get_id();
+        const previous = this._outputs.get(id);
+        if (previous && previous !== device) this._forget(id);
         this._outputs.set(id, device);
         if (!this._outputSignals.has(id))
-            this._outputSignals.set(id, [device, device.connect('notify::port-available', () => this._sync())]);
+            this._outputSignals.set(id, [device, device.connect('notify::port-available', () => this._queueSync())]);
     }
 
     _forget(id) {
@@ -92,8 +113,8 @@ export class AudioService {
             this._streamSignals = [];
             this._stream = sink;
             if (sink) {
-                this._streamSignals.push(sink.connect('notify::volume', () => this._sync()));
-                this._streamSignals.push(sink.connect('notify::is-muted', () => this._sync()));
+                this._streamSignals.push(sink.connect('notify::volume', () => this._queueSync()));
+                this._streamSignals.push(sink.connect('notify::is-muted', () => this._queueSync()));
             }
         }
         const mixerState = this._control.get_state();
@@ -107,7 +128,9 @@ export class AudioService {
                     this._remember(device);
             }
             for (const id of this._outputs.keys()) {
-                if (!this._control.lookup_output_id(id)) this._forget(id);
+                const device = this._control.lookup_output_id(id);
+                if (device) this._remember(device);
+                else this._forget(id);
             }
         } else if (mixerState !== Gvc.MixerControlState.CONNECTING) {
             // Inactive Bluetooth modes arrive before READY and have no sink to
@@ -123,7 +146,7 @@ export class AudioService {
             if (device) activeId = device.get_id();
         }
         const cards = ready ? this._control.get_cards() : [];
-        const devices = [...this._outputs.values()]
+        const devices = (ready ? [...this._outputs.values()] : [])
             .filter(device => {
                 // Registered HDMI connectors are not necessarily connected.
                 return device.get_id() === activeId || !device.has_ports() || device.port_available;
@@ -177,6 +200,8 @@ export class AudioService {
     }
 
     stop() {
+        if (this._syncSource) GLib.Source.remove(this._syncSource);
+        this._syncSource = 0;
         if (this._stream) for (const id of this._streamSignals) this._stream.disconnect(id);
         if (this._control) for (const id of this._signals) this._control.disconnect(id);
         this._signals = [];

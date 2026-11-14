@@ -1,6 +1,6 @@
 # Implementation handoff
 
-Updated 2026-11-14. Target: GNOME Shell 46 on Ubuntu Wayland.
+Updated 2026-11-15. Target: GNOME Shell 46 on Ubuntu Wayland.
 
 - [AGENTS.md](../AGENTS.md): engineering, packaging and commit rules.
 - [README](../README.md): installation, development commands and hardware checks.
@@ -28,6 +28,39 @@ Clear and the notch eye toggle are in the main header. Session states are event
 reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
+
+## Audio crash on resume (2026-11-15)
+
+The host journal recorded six Shell SIGSEGVs on November 12–14 at
+`AudioService._describe()` while reading `p.profile`; earlier errors at the same
+line reported invalid UTF-8. The November 13 native dump stopped in string
+conversion. The installed audio service matched the source before this fix.
+
+GNOME 46's Gvc `update_card()` replaces/frees card profiles, then updates each
+UI device's borrowed profile list in turn. Availability/output signals fire
+synchronously between those updates. Our callbacks scanned every output at
+that point, including devices whose profile pointers had not been refreshed.
+See [Gvc's card update implementation](https://github.com/GNOME/libgnome-volume-control/blob/91f3f41490666a526ed78af744507d7ee1134323/gvc-mixer-control.c).
+
+All audio refresh entry points now queue one cancellable idle, letting the
+native update finish before reading profiles. Card changes also request a
+refresh even without an availability change. Connecting devices are retained
+without reading their profiles until READY; replaced objects shed old signal
+handlers. Disable cancels the idle and disconnects all observers without closing
+Shell's shared mixer. No polling, background worker or UI change was added;
+Bluetooth Music/Calls grouping and device ordering are preserved.
+
+Validation: the four focused audio tests pass, including an invalid-profile
+window, signal burst coalescing, reconnect, removal/replacement and repeated
+stop/start. Reintroducing synchronous signal refresh makes the regression fail
+at the invalid-profile read. `make check` passes (227 passed, one ancestry skip),
+syntax and strict schema validation included. A separate native GJS/Gvc process
+passed 20 lifecycle cycles with real GLib idles/GObject signals and read-only
+live device discovery (`/tmp/island-audio-native-gxoa7l2w`); it did not change
+volume, routing or the host Shell. `make smoke` passed end to end
+(`/tmp/ubuntu-island-smoke-2fwuumxx`). `make build` passed; ZIP integrity and the
+packaged audio source were verified. Physical suspend/resume and Bluetooth/HDMI
+hotplug remain unverified. The host installation has not been replaced.
 
 ## Notifications (2026-11-14)
 
