@@ -5,6 +5,7 @@ import {QuickAsk} from './quick-ask.js';
 import {MediaTools, textControl} from './media-tools.js';
 import {CommuteView} from './commute-view.js';
 import {WeatherView} from './weather-view.js';
+import {NotificationsView} from './notifications-view.js';
 import {HistoryChart} from './charts.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
@@ -37,6 +38,7 @@ export class Card {
         this._pages = new Map();
         this._tabs = new Map();
         this._tabMarkers = new Map();
+        this._tabGlyphs = new Map();
         this._page = null;
         this._manualPage = false;
         this._outputRows = new Map();
@@ -74,6 +76,8 @@ export class Card {
         this._weatherView?.setViewport(this._scroll);
         if (settings.get_boolean('enable-commute'))
             this._commuteView = new CommuteView(this._section('COMMUTE'), actions, this._scroll);
+        if (settings.get_boolean('enable-notifications'))
+            this._notificationsView = new NotificationsView(this._section('NOTIFICATIONS'), settings, actions);
         if (settings.get_boolean('enable-agents')) {
             this._agentsView = new AgentsView(settings, actions);
             this.actor.add_child(this._agentsView.actor);
@@ -153,6 +157,11 @@ export class Card {
         this._actions.relayout?.();
     }
 
+    setTabIcon(id, name) {
+        const glyph = this._tabGlyphs.get(id);
+        if (glyph && glyph.icon_name !== name) glyph.icon_name = name;
+    }
+
     setPillTitleVisible(visible) {
         if (!this._pillTitle) return;
         this._pillTitle.child.icon_name = visible
@@ -174,7 +183,7 @@ export class Card {
         const content = column('ubuntu-island-section');
         box.add_child(content);
         this._body.add_child(box);
-        const id = {'NOW PLAYING': 'media', SYSTEM: 'system', SOUND: 'audio', BLUETOOTH: 'bluetooth', WEATHER: 'weather', COMMUTE: 'commute', AGENTS: 'agents'}[title];
+        const id = {'NOW PLAYING': 'media', SYSTEM: 'system', SOUND: 'audio', BLUETOOTH: 'bluetooth', WEATHER: 'weather', COMMUTE: 'commute', AGENTS: 'agents', NOTIFICATIONS: 'notifications'}[title];
         const page = {box, header, content, available: true};
         this._pages.set(id, page);
         const setVisible = visible => {
@@ -211,6 +220,7 @@ export class Card {
             ['weather', 'weather-clear-symbolic', 'Weather'],
             ['commute', 'find-location-symbolic', 'Commute'],
             ['agents', agentIcon, 'Agents'],
+            ['notifications', 'preferences-system-notifications-symbolic', 'Notifications'],
             ['calendar', 'x-office-calendar-symbolic', 'Calendar'],
         ];
         for (const [id, glyph, title] of items) {
@@ -234,6 +244,7 @@ export class Card {
             this._tabStrip.add_child(tab);
             this._tabs.set(id, tab);
             this._tabMarkers.set(id, marker);
+            this._tabGlyphs.set(id, glyphActor);
             // Tab visibility changes move siblings without resizing the strip.
             tab.connect('notify::allocation', queueSnap);
             marker.connect('notify::allocation', queueSnap);
@@ -241,7 +252,7 @@ export class Card {
         this._pageCaption = label('', 'ubuntu-island-source ubuntu-island-navigation-caption');
         navigation.add_child(this._pageCaption);
         this._preferencesButton = button(settingsIcon, 'Island preferences',
-            () => this._actions.preferences(this._page === 'calendar' ? 'calendar' : undefined), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab');
+            () => this._actions.preferences(['calendar', 'notifications'].includes(this._page) ? this._page : undefined), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab');
         navigation.add_child(this._preferencesButton);
         this.actor.add_child(navigation);
         navigation.connect('notify::allocation', () => this._queueNavigationFit());
@@ -414,7 +425,7 @@ export class Card {
             }
         }
         if (this._pageCaption)
-            this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth', weather: 'Weather', commute: 'Commute', agents: 'Agents', calendar: 'Calendar'}[this._page] ?? '';
+            this._pageCaption.text = {media: 'Now playing', system: 'System', audio: 'Sound', bluetooth: 'Bluetooth', weather: 'Weather', commute: 'Commute', agents: 'Agents', notifications: 'Notifications', calendar: 'Calendar'}[this._page] ?? '';
         const calendarTab = this._tabs.get('calendar');
         if (calendarTab) calendarTab.visible = this._pages.has('calendar');
         if (this._pages.has('calendar')) this.actor.add_style_class_name('ubuntu-island-with-calendar');

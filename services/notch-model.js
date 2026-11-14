@@ -1,4 +1,4 @@
-export const NOTCH_ITEMS = ['media', 'weather', 'network', 'cpu', 'bluetooth', 'commute', 'agents', 'date', 'event', 'time'];
+export const NOTCH_ITEMS = ['media', 'weather', 'network', 'cpu', 'bluetooth', 'commute', 'agents', 'notifications', 'date', 'event', 'time'];
 
 export function notchTime(date, {hour24 = true, seconds = false} = {}) {
     const hour = date.getHours(), pad = n => String(n).padStart(2, '0');

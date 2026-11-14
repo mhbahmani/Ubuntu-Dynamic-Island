@@ -9,7 +9,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {formatRate} from './services/proc.js';
-import {sampleDevices, sampleAgents, sampleCalendar} from './preview-data.js';
+import {sampleDevices, sampleAgents, sampleCalendar, sampleNotifications, postNotification} from './preview-data.js';
 import {THEMES, THEME_IDS, themeAccent} from './services/appearance.js';
 import {notchTime} from './services/notch-model.js';
 import {applyPreviewSettings} from './preview-settings.js';
@@ -27,7 +27,7 @@ export default class Preview extends UbuntuIsland {
         // Setup buttons in the preview must never modify real CLI configuration.
         for (const provider of ['claude', 'codex', 'opencode'])
             settings.set_string(`agents-${provider}-config`, `${GLib.getenv('ISLAND_PREVIEW_OUTPUT')}/agent-configs/${provider}`);
-        for (const module of ['media', 'metrics', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar'])
+        for (const module of ['media', 'metrics', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'notifications', 'calendar'])
             settings.set_boolean(`enable-${module}`, true);
         for (const indicator of ['title', 'weather', 'network', 'commute', 'agents', 'date'])
             settings.set_boolean(`pill-show-${indicator}`, true);
@@ -51,6 +51,7 @@ export default class Preview extends UbuntuIsland {
         sampleDevices(this, sample);
         sampleAgents(this);
         sampleCalendar(this, {enableIndicator: !snapshot});
+        sampleNotifications();
         const connection = GLib.getenv('ISLAND_PREVIEW_CONNECTION') || 'online';
         if (connection !== 'auto') {
             this._connectivity.stop();
@@ -129,6 +130,7 @@ export default class Preview extends UbuntuIsland {
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') this._checkFullPreview().catch(error => console.error(`[Island Preview] FULL FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_METADATA') === '1') this._checkAgentMetadata().catch(error => console.error(`[Island Preview] AGENT METADATA FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_HOVER') === '1') this._checkAgentHover().catch(error => console.error(`[Island Preview] AGENT HOVER FAIL: ${error.message}`));
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_NOTIFICATIONS') === '1') this._checkNotifications().catch(error => console.error(`[Island Preview] NOTIFICATIONS FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_CALENDAR') === '1') this._checkCalendar().catch(error => console.error(`[Island Preview] CALENDAR FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_COMMUTE') === '1') this._checkCommute().catch(error => console.error(`[Island Preview] COMMUTE FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_MOTION') === '1')
@@ -137,7 +139,7 @@ export default class Preview extends UbuntuIsland {
             const monitor = Main.layoutManager.primaryMonitor;
             const uiScale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             console.log(`[Island Preview] READY: ${monitor.width}x${monitor.height}, ${uiScale * 100}% UI; all modules enabled; ${tab === 'notch' ? 'collapsed notch' : tab} visible. Device controls use sample data.`);
-            if (['FULL', 'CALENDAR', 'COMMUTE', 'MOTION'].some(check => GLib.getenv(`ISLAND_PREVIEW_CHECK_${check}`) === '1')) return GLib.SOURCE_REMOVE;
+            if (['FULL', 'CALENDAR', 'COMMUTE', 'MOTION', 'NOTIFICATIONS'].some(check => GLib.getenv(`ISLAND_PREVIEW_CHECK_${check}`) === '1')) return GLib.SOURCE_REMOVE;
             this._captureTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 20000 : GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1' || preferences ? 8000 : 1500, () => {
                 this._captureTimer = 0;
                 this._capture().catch(error => console.warn(`[Island Preview] Screenshot: ${error.message}`));
@@ -199,7 +201,7 @@ export default class Preview extends UbuntuIsland {
         }
         if (connection === 'online') await this._checkNetworkWidths();
         await this._checkNavigation();
-        for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar']) {
+        for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'notifications', 'calendar']) {
             assert(this._card._pages.get(tab)?.available, `${tab} module unavailable`);
             this._card.selectPage(tab);
             this._island.expand();
@@ -227,7 +229,7 @@ export default class Preview extends UbuntuIsland {
         this._island.collapse();
         await delay(400);
         await this._capture('notch');
-        console.log('[Island Preview] FULL PASS: populated notch, all eight tabs, sample controls and Agents interactions');
+        console.log('[Island Preview] FULL PASS: populated notch, all nine tabs, sample controls and Agents interactions');
     }
 
     async _checkNavigation() {
@@ -247,8 +249,8 @@ export default class Preview extends UbuntuIsland {
             for (const scale of [1,2]) for (const font of [1,2]) for (const width of [380,440,480]) {
                 context.scale_factor = scale; text.set_double('text-scaling-factor',font);
                 settings.set_int('expanded-width',width);
-                for (const count of [2,4,8]) {
-                    const enabled = ['bluetooth','calendar','system','audio','weather','commute','agents','media'].slice(0,count);
+                for (const count of [2,4,9]) {
+                    const enabled = ['bluetooth','calendar','system','audio','weather','commute','agents','media','notifications'].slice(0,count);
                     for (const [id,page] of card._pages) page.available = enabled.includes(id);
                     card.selectPage('bluetooth'); await delay(80);
                     const tabs = [...card._tabs.values()].filter(tab => tab.visible);
@@ -431,6 +433,174 @@ export default class Preview extends UbuntuIsland {
             context.scale_factor=scale; text.set_double('text-scaling-factor',font); this._settings.set_int('expanded-width',width);
             view.render(ready);
         }
+    }
+
+    async _checkNotifications() {
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+        const assert = (condition, message) => { if (!condition) throw new Error(message); };
+        const keyboard = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
+        const key = async symbol => {
+            keyboard.notify_keyval(GLib.get_monotonic_time(), symbol, Clutter.KeyState.PRESSED);
+            keyboard.notify_keyval(GLib.get_monotonic_time(), symbol, Clutter.KeyState.RELEASED);
+            await delay(200);
+        };
+        const card = this._card, pill = this._pill, settings = this._settings;
+        const view = card._notificationsView;
+        const cards = () => view._cards();
+        const find = title => cards().find(entry => entry._title.text === title);
+        const desktop = new Gio.Settings({schema_id: 'org.gnome.desktop.notifications'});
+        const open = async () => { card.selectPage('notifications'); this._island.expand(); await delay(400); };
+        assert(view && card._tabs.get('notifications')?.visible, 'Notifications tab unavailable');
+        settings.set_string('notifications-layout', 'compact');
+        await open();
+
+        assert(cards().length === 5, `Expected 5 compact rows, found ${cards().length}`);
+        assert(find('Sara')._body.text === 'Are we still on for lunch & the design review?', 'Markup not stripped');
+        assert(view._newChip.visible && view._newChip.text === '5 new', `Unexpected new count: ${view._newChip.text}`);
+        assert(cards().every(entry => entry._dot.visible), 'Unseen rows lack the new marker');
+        const headings = view._list.get_children().filter(entry => !entry._openButton).map(entry => entry.text);
+        assert(headings.includes('Earlier'), `Missing Earlier heading: ${headings}`);
+        assert(cards().at(-1)._title.text === 'Weekly sync starts in 10 minutes', 'Older notification not under Earlier');
+        const files = Shell.AppSystem.get_default().lookup_app('org.gnome.Nautilus.desktop');
+        if (files) assert(find('Copy finished')._icon.gicon?.equal(files.get_icon()), 'Row does not use the application logo');
+        assert(find('Sara')._dismissButton.opacity === 0 && !find('Sara')._actionRow.visible, 'Row controls visible at rest');
+        await this._capture('notifications-compact');
+
+        const context = St.ThemeContext.get_for_stage(global.stage);
+        const text = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const original = {scale: context.scale_factor, text: text.get_double('text-scaling-factor'), width: settings.get_int('expanded-width')};
+        try {
+            for (const layout of ['compact', 'grouped']) for (const scale of [1, 2]) for (const font of [1, 1.5]) for (const width of [380, 440]) {
+                settings.set_string('notifications-layout', layout);
+                context.scale_factor = scale; text.set_double('text-scaling-factor', font); settings.set_int('expanded-width', width);
+                await delay(250);
+                const where = `${layout} ${width}px/${scale}x/${font} text`;
+                const [listX] = view._list.get_transformed_position(), [listWidth] = view._list.get_transformed_size();
+                for (const entry of cards()) {
+                    const [x] = entry.get_transformed_position(), [w] = entry.get_transformed_size();
+                    assert(x >= listX - 1 && x + w <= listX + listWidth + 1, `Row overflows at ${where}`);
+                    assert(entry._title.get_transformed_size()[0] > 20 * scale, `Title squeezed at ${where}`);
+                }
+                const [headerX] = view._header.get_transformed_position(), [headerWidth] = view._header.get_transformed_size();
+                let end = headerX;
+                for (const actor of view._header.get_children().filter(child => child.visible && child.width > 0)) {
+                    const [x] = actor.get_transformed_position(), [w] = actor.get_transformed_size();
+                    assert(x >= end - 1 && x + w <= headerX + headerWidth + 1, `Toolbar overlaps at ${where}`);
+                    end = x + w;
+                }
+                const adjustment = card._scroll.get_vscroll_bar().get_adjustment();
+                const last = cards().at(-1);
+                const bottom = last.get_transformed_position()[1] + last.get_transformed_size()[1];
+                const scrollBottom = card._scroll.get_transformed_position()[1] + card._scroll.get_transformed_size()[1];
+                assert(bottom <= scrollBottom + 1 || adjustment.upper > adjustment.page_size, `Overflow unreachable at ${where}`);
+                await this._capture(`notifications-${layout}-${width}-${scale}x-${font}`);
+            }
+        } finally {
+            context.scale_factor = original.scale; text.set_double('text-scaling-factor', original.text);
+            settings.set_int('expanded-width', original.width);
+            settings.set_string('notifications-layout', 'compact');
+            await delay(250);
+        }
+
+        find('Sara')._openButton.grab_key_focus(); await delay(50);
+        const sara = find('Sara');
+        assert(sara._actionRow.visible && sara._actionRow.get_n_children() === 2, 'Actions hidden on focus');
+        assert(sara._dismissButton.opacity === 255 && sara._age.opacity === 0, 'Dismiss did not replace the age on focus');
+        await this._capture('notifications-focused');
+        find('Omid')._openButton.grab_key_focus(); await delay(50);
+        await key(Clutter.KEY_Delete); await delay(100);
+        assert(!find('Omid') && cards().length === 4, 'Delete did not dismiss the focused row');
+        assert(cards().some(entry => entry._openButton.has_key_focus()), 'Delete lost keyboard focus');
+        sara._actionRow.get_child_at_index(1).emit('clicked', 1); await delay(400);
+        assert(!this._island.expanded && this._states.notifications.count === 3, 'Action did not run and collapse');
+
+        postNotification({app: 'Messages (sample)', icon: 'mail-unread-symbolic', minutes: 1, title: 'Lena', body: 'On my way'});
+        postNotification({app: 'Messages (sample)', icon: 'mail-unread-symbolic', minutes: 3, title: 'Ali', body: 'Call me'});
+        await delay(150);
+        settings.set_string('notifications-layout', 'grouped');
+        await open();
+        const group = view._entries.get('g:Messages (sample)');
+        assert(group && group._count.text === '2' && group._shelf.visible, 'Same-app notifications were not grouped');
+        assert(group._body.text === 'Lena · Ali', `Unexpected group preview: ${group._body.text}`);
+        group._openButton.emit('clicked', 1); await delay(150);
+        const children = cards().filter(entry => entry.has_style_class_name('ubuntu-island-notification-child'));
+        assert(children.length === 2 && !group._shelf.visible, 'Group did not expand');
+        await this._capture('notifications-grouped-expanded');
+        view._filterButtons.get('today').emit('clicked', 1); await delay(150);
+        assert(!find('Weekly sync starts in 10 minutes'), 'Today filter kept an older notification');
+        view._filterButtons.get('all').emit('clicked', 1); await delay(150);
+        group._dismissButton.reactive = true; group._dismissButton.emit('clicked', 1); await delay(150);
+        assert(!view._entries.has('g:Messages (sample)') && !find('Lena'), 'Dismissing a group left its notifications');
+        view._layoutButton.emit('clicked', 1); await delay(150);
+        assert(settings.get_string('notifications-layout') === 'compact', 'Layout button did not switch back');
+
+        this._island.collapse(); await delay(400);
+        assert(!pill._notifications.visible, 'Seen notifications still counted in the notch');
+        postNotification({app: 'Chat (sample)', icon: 'user-available-symbolic', quiet: false,
+            title: 'A deliberately long notification title that must not widen the collapsed notch'});
+        await delay(250);
+        assert(pill.peeking && pill._peek.visible && pill._content.opacity === 0, 'New notification did not peek');
+        const width = this._island.actor.width;
+        assert(pill.actor.accessible_name.includes('Notification from Chat (sample)'), 'Peek missing from the accessible name');
+        await this._capture('notification-peek');
+        pill.endPeek(false); await delay(250);
+        assert(Math.abs(this._island.actor.width - width) <= 1, 'Peek changed the notch width');
+        assert(pill._notifications.visible && pill._notificationsText.text === '1', 'Unseen count missing from the notch');
+        await this._capture('notification-unseen');
+        pill.peek({app: 'Chat (sample)', title: 'Again'}, 4000, false);
+        pill.actor.emit('clicked', 1); await delay(400);
+        assert(this._island.expanded && card._page === 'notifications' && !pill.peeking, 'Opening during a peek did not show Notifications');
+        assert(cards().filter(entry => entry._dot.visible).length === 1, 'Only the newest notification should be new');
+
+        postNotification({app: 'Chat (sample)', icon: 'user-available-symbolic', quiet: false, title: 'While open'});
+        await delay(100);
+        assert(!pill.peeking, 'Peeked while expanded');
+        settings.set_boolean('notifications-peek', false);
+        this._island.collapse(); await delay(400);
+        postNotification({app: 'Chat (sample)', icon: 'user-available-symbolic', quiet: false, title: 'Peek disabled'});
+        await delay(100);
+        assert(!pill.peeking, 'Peeked with the preference off');
+        settings.set_boolean('notifications-peek', true);
+        postNotification({app: 'Mail (sample)', icon: 'mail-unread-symbolic', title: 'Quiet app'});
+        await delay(100);
+        assert(!pill.peeking, 'Peeked for an app with banners off');
+
+        await open();
+        view._dndButton.emit('clicked', 1); await delay(150);
+        assert(!desktop.get_boolean('show-banners') && view._dndButton.checked, 'Do Not Disturb did not turn on');
+        assert(card._tabGlyphs.get('notifications').icon_name === 'notifications-disabled-symbolic', 'Tab icon ignores Do Not Disturb');
+        this._island.collapse(); await delay(400);
+        postNotification({app: 'Chat (sample)', icon: 'user-available-symbolic', quiet: false, title: 'During DND'});
+        await delay(200);
+        assert(!pill.peeking && this._states.notifications.silenced === 1, 'Do Not Disturb did not silence the peek');
+        postNotification({app: 'Battery (sample)', icon: 'battery-caution-symbolic', title: 'Battery critically low', urgency: 3});
+        await delay(250);
+        assert(pill.peeking && this._states.notifications.silenced === 1, 'Critical notification did not bypass Do Not Disturb');
+        pill.endPeek(false);
+
+        await open();
+        assert(view._silencedLabel.visible && view._silencedLabel.text === '1 silenced', 'Silenced count missing');
+        const critical = find('Battery critically low');
+        assert(cards()[0] === critical && critical._card.has_style_class_name('ubuntu-island-notification-critical'), 'Critical notification not pinned');
+        view._clear.emit('clicked', 1); await delay(150);
+        assert(cards().length === 0 && view._empty.visible && !view._header.visible, 'Clear all left rows');
+        assert(view._emptyDnd.visible && view._emptySwitch.state && view._emptySilenced.visible, 'Empty state lacks Do Not Disturb details');
+        assert(Main.messageTray.getSources().every(source => !source.notifications.length), 'Clear all left Shell notifications');
+        await this._capture('notifications-empty-dnd');
+        view._emptyDnd.emit('clicked', 1); await delay(150);
+        assert(desktop.get_boolean('show-banners') && !view._emptySilenced.visible && this._states.notifications.silenced === 0,
+            'Turning Do Not Disturb off did not reset the silenced count');
+        assert(card._tabGlyphs.get('notifications').icon_name === 'preferences-system-notifications-symbolic', 'Tab icon kept Do Not Disturb');
+        await this._capture('notifications-empty');
+
+        this._notifications.stop();
+        const before = this._states.notifications;
+        postNotification({app: 'Chat (sample)', icon: 'user-available-symbolic', quiet: false, title: 'After stop'});
+        await delay(150);
+        assert(this._states.notifications === before && !pill.peeking, 'Stopped service still received notifications');
+        this._notifications.start(); await delay(100);
+        assert(this._states.notifications.count === 1, 'Restarted service did not reload existing notifications');
+        console.log('[Island Preview] NOTIFICATIONS PASS: compact and grouped layouts, logos, actions, keys, sections, filters, peek, unseen, DND, clear and stop');
     }
 
     async _checkCalendar() {
@@ -985,7 +1155,7 @@ export default class Preview extends UbuntuIsland {
         this._island.applyDimensions(); await delay(150);
         const order = settings.get_strv('pill-order');
         settings.set_strv('pill-order', ['date', ...order]);
-        assert(pill.actor.get_child().get_child_at_index(0) === pill._date, 'Dates group could not be reordered');
+        assert(pill._content.get_child_at_index(0) === pill._date, 'Dates group could not be reordered');
         settings.set_strv('pill-order', order);
         pill._dateDay--;
         clock.notify('clock');

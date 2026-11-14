@@ -868,7 +868,7 @@ export default class Smoke extends UbuntuIsland {
         this._settings.set_int('pill-width', 150);
         this._settings.set_strv('pill-order', ['weather', 'network', 'media', 'cpu', 'bluetooth']);
         await this._capture('notch-indicators');
-        assert(this._pill.actor.get_child().get_first_child() === this._pill._weather, 'Notch order did not update live');
+        assert(this._pill._content.get_first_child() === this._pill._weather, 'Notch order did not update live');
         this._settings.set_boolean('pill-show-title', false);
         await this._capture('notch-icons');
         const requestsBeforeNotch = routeCalls;
@@ -915,7 +915,7 @@ export default class Smoke extends UbuntuIsland {
                 assert(this._pill._connection.visible, 'Disconnected icon missing');
                 assert(!this._pill._weather.visible && !this._pill._network.visible && !this._pill._commute.visible, 'Offline style left dependent indicators visible');
                 assert(this._pill._mediaIcon.visible && this._pill._bluetooth.visible && this._pill._cpuDot.visible, 'Offline mode hid local indicators');
-                assert(this._pill.actor.get_child().get_first_child() === this._pill._connection, 'Connection icon lost indicator order');
+                assert(this._pill._content.get_first_child() === this._pill._connection, 'Connection icon lost indicator order');
                 assert(this._pill.actor.accessible_name.includes(description), 'Connection status has no accessible description');
                 assert(this._island._connectionEdge.visible === (mode === 'edge'), 'Offline edge does not follow selected mode');
                 connectionBounds();

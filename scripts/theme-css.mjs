@@ -31,15 +31,16 @@ export function themeBlock(theme) {
             `{ background-color: ${rgba(surface, 0.06)}; border-color: ${rgba(surface, 0.11)}; }`,
         `${sel('.ubuntu-island-output:hover', '.ubuntu-island-device-button:hover', '.ubuntu-island-calendar-event:hover',
             '.ubuntu-island-ghost:hover', '.ubuntu-island-calendar-day:hover .ubuntu-island-calendar-date',
-            '.ubuntu-island-agent-row:hover')} { background-color: ${rgba(surface, 0.12)}; }`,
+            '.ubuntu-island-agent-row:hover', '.ubuntu-island-notification-chip:hover')} { background-color: ${rgba(surface, 0.12)}; }`,
         `${sel('.ubuntu-island-output:active', '.ubuntu-island-device-button:active', '.ubuntu-island-ghost:active',
             '.ubuntu-island-calendar-event:active')} { background-color: ${rgba(surface, 0.18)}; }`,
         // Keyboard focus rings keep each base width and form; only the colour is themed.
         `${sel('.ubuntu-island-output:focus', '.ubuntu-island-device-button:focus', '.ubuntu-island-ghost:focus',
             '.ubuntu-island-seal:focus', '.ubuntu-island-media-mode:focus', '.ubuntu-island-media-text-button:focus',
-            '.ubuntu-island-media-seek:focus', '.ubuntu-island-player-picker:focus')} { box-shadow: inset 0 0 0 2px ${theme.focus}; }`,
+            '.ubuntu-island-media-seek:focus', '.ubuntu-island-player-picker:focus', '.ubuntu-island-notification-open:focus')} { box-shadow: inset 0 0 0 2px ${theme.focus}; }`,
         `${sel('.ubuntu-island-calendar-control:focus', '.ubuntu-island-output-mode:focus', '.ubuntu-island-title-toggle:focus',
-            '.ubuntu-island-agent-session:focus', '.ubuntu-island-agent-button:focus', '.ubuntu-island-agent-menu-button:focus')} ` +
+            '.ubuntu-island-agent-session:focus', '.ubuntu-island-agent-button:focus', '.ubuntu-island-agent-menu-button:focus',
+            '.ubuntu-island-notification-chip:focus')} ` +
             `{ box-shadow: inset 0 0 0 1px ${theme.focus}; }`,
         `${sel('.ubuntu-island-calendar-event:focus', '.ubuntu-island-agent-composer:focus', '.ubuntu-island-agent-prompt:focus',
             '.ubuntu-island-agent-entry:focus', '.ubuntu-island-quick-ask-entry:focus')} { border-color: ${theme.focus}; }`,
@@ -59,13 +60,15 @@ export function themeBlock(theme) {
         `${sel('.ubuntu-island-seal:active', '.ubuntu-island-agent-primary:active')} { background-color: ${theme.strongPressed}; }`,
         `${sel('.slider')} { -barlevel-active-background-color: ${accent}; -barlevel-overdrive-color: ${accent}; }`,
         `${sel('.ubuntu-island-output-active')} { background-color: ${rgba(checked, 0.20)}; border-color: ${accent}; }`,
-        `${sel('.ubuntu-island-media-mode:checked', '.ubuntu-island-media-text-button:checked')} ` +
+        `${sel('.ubuntu-island-media-mode:checked', '.ubuntu-island-media-text-button:checked', '.ubuntu-island-notification-chip:checked',
+            '.ubuntu-island-notification-dnd:checked', '.ubuntu-island-notification-new')} ` +
             `{ color: ${accent}; background-color: ${rgba(checked, 0.16)}; }`,
         `${sel('.ubuntu-island-calendar-today .ubuntu-island-calendar-date')} ` +
             `{ background-color: ${theme.strong}; border-color: ${theme.todayBorder}; }`,
         // Tabs: the sliding marker shows the selection, so the selected tab's own
         // marker stays clear. Order matters at equal specificity: selected after
         // hover (no preview on the selected tab), focus last (keyboard focus stays visible).
+        `${sel('.ubuntu-island-notification-dot')} { background-color: ${accent}; }`,
         `${sel('.ubuntu-island-tab-slider')} { background-color: ${theme.marker}; }`,
         `${sel('.ubuntu-island-tab:hover', '.ubuntu-island-tab:focus')} { color: #f4f6f9; }`,
         `${sel('.ubuntu-island-tab-selected')} { color: ${accent}; }`,

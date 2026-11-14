@@ -2,6 +2,11 @@ import {AgentStore} from './services/agents-model.js';
 import {roundedCover} from './services/artwork-model.js';
 // Development fixtures only. Controls update these snapshots, never real devices.
 import St from 'gi://St';
+import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
+import Shell from 'gi://Shell';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import Cogl from 'gi://Cogl';
 import {normalizeOccurrences, localDayRange} from './services/calendar-events-model.js';
 import {todayDay} from './services/calendar-model.js';
@@ -159,4 +164,35 @@ export function sampleAgents(preview) {
     }};
     preview._card._actions.agentAsk = () => 'Sample request prepared. Live launches are available in the installed extension.';
     emit();
+}
+
+// Shell banners would cover the preview island, so samples use a quiet policy.
+const QuietPolicy = GObject.registerClass(class QuietPolicy extends MessageTray.NotificationPolicy {
+    get showBanners() { return false; }
+});
+
+export function postNotification({app, icon, title, body = '', minutes = 0, markup = false, quiet = true, urgency, appId, actions = []}) {
+    const source = new MessageTray.Source({title: app, iconName: icon, ...(quiet ? {policy: new QuietPolicy()} : {})});
+    // Daemon sources expose their Shell app; samples attach an installed one.
+    if (appId) source.app = Shell.AppSystem.get_default().lookup_app(appId);
+    Main.messageTray.add(source);
+    const notification = new MessageTray.Notification({source, title, body, useBodyMarkup: markup,
+        datetime: GLib.DateTime.new_now_local().add_minutes(-minutes), ...(urgency == null ? {} : {urgency})});
+    for (const [label, callback] of actions) notification.addAction(label, callback);
+    source.addNotification(notification);
+    return notification;
+}
+
+export function sampleNotifications() {
+    postNotification({app: 'Messages (sample)', icon: 'mail-unread-symbolic', minutes: 2,
+        title: 'Sara', body: 'Are we still on for <b>lunch</b> &amp; the design review?', markup: true,
+        actions: [['Reply', () => {}], ['Mark read', () => {}]]});
+    postNotification({app: 'Messages (sample)', icon: 'mail-unread-symbolic', minutes: 5,
+        title: 'Omid', body: 'Pushed the fix to staging.'});
+    postNotification({app: 'Files', icon: 'folder-symbolic', minutes: 10, appId: 'org.gnome.Nautilus.desktop',
+        title: 'Copy finished', body: '42 photos copied to Pictures.'});
+    postNotification({app: 'Software (sample)', icon: 'system-software-install-symbolic', minutes: 48,
+        title: 'Updates installed', body: 'Restart to finish installing 3 updates.'});
+    postNotification({app: 'Calendar (sample)', icon: 'x-office-calendar-symbolic', minutes: 26 * 60,
+        title: 'Weekly sync starts in 10 minutes', body: ''});
 }

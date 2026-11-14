@@ -40,7 +40,7 @@ function find(widget, title) {
     }
     return null;
 }
-for (const name of ['appearance', 'notch', 'modules', 'weather', 'commute', 'agents', 'calendar']) {
+for (const name of ['appearance', 'notch', 'modules', 'weather', 'commute', 'agents', 'notifications', 'calendar']) {
     window.set_visible_page_name(name);
     if (window.visible_page_name !== name) throw new Error(`Missing preferences tab: ${name}`);
 }
@@ -191,7 +191,8 @@ if (shortcutLabel.accelerator !== '<Super><Alt>space') throw new Error('Shortcut
 settings.set_strv('island-quick-ask-shortcut', []);
 if (shortcutLabel.accelerator !== '') throw new Error('Shortcut display did not clear');
 for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weather icon', 'pill-show-weather'],
-    ['Show upload/download rates', 'pill-show-network']]) {
+    ['Show upload/download rates', 'pill-show-network'], ['Show new notifications', 'notifications-peek'],
+    ['Enable Notifications', 'enable-notifications'], ['Show unseen count', 'pill-show-notifications']]) {
     const row = find(window, title);
     if (!row) throw new Error(`Missing notch control: ${title}`);
     row.active = true;
@@ -244,7 +245,7 @@ const checkOrderWidth = width => {
         const image = chip.get_child().get_first_child();
         if (image.pixel_size !== (width >= fullWidth ? 18 : 14)) throw new Error('Order icons did not adapt to available space');
     }
-    if (count !== 10) throw new Error('Compact order preview lost a module');
+    if (count !== 11) throw new Error('Compact order preview lost a module');
 };
 for (const width of [900, 560, 360, 300, 900]) checkOrderWidth(width);
 const largeType = new Gtk.CssProvider();
@@ -325,8 +326,17 @@ settings.set_string('expand-tab', 'audio');
 if (opening.selected !== 3) throw new Error('Opening tab did not follow settings');
 settings.set_string('expand-tab', 'last');
 opening.selected = 8;
+if (settings.get_string('expand-tab') !== 'notifications') throw new Error('Notifications opening tab did not save');
+opening.selected = 9;
 if (settings.get_string('expand-tab') !== 'calendar') throw new Error('Calendar opening tab did not save');
 settings.set_string('expand-tab', 'last');
+const notificationLayout = find(window, 'Layout');
+if (!notificationLayout || notificationLayout.selected !== 0 || settings.get_string('notifications-layout') !== 'compact')
+    throw new Error('Notifications layout must default to the compact list');
+notificationLayout.selected = 1;
+if (settings.get_string('notifications-layout') !== 'grouped') throw new Error('Notifications layout did not save');
+settings.set_string('notifications-layout', 'compact');
+if (notificationLayout.selected !== 0) throw new Error('Notifications layout did not follow settings');
 const theme = find(window, 'Color theme');
 const opacity = find(window, 'Background opacity');
 const matte = find(window, 'Matte tone');

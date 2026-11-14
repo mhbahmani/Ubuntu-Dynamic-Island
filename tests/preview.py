@@ -26,11 +26,12 @@ def main():
     parser.add_argument('--defaults', action='store_true', help='Use fixed demo UI settings instead of copying your current preferences')
     parser.add_argument('--edit-route', action='store_true', help='Open the Commute map editor immediately')
     parser.add_argument('--preferences', choices=['appearance', 'notch', 'calendar', 'agents'], help='Open an isolated preferences page alongside the preview')
-    parser.add_argument('--tab', choices=['notch', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar'], default='notch', help='Start collapsed (notch, default), or open a module')
+    parser.add_argument('--tab', choices=['notch', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'notifications', 'calendar'], default='notch', help='Start collapsed (notch, default), or open a module')
     parser.add_argument('--connection', choices=['auto', 'online', 'offline', 'limited', 'portal'], help='Simulate connection status; defaults to online for samples, auto with --live')
     parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], help='Override the copied offline notch design')
     parser.add_argument('--check-full', action='store_true', help='Check populated notch, all tabs and sample device controls (headless sample mode)')
     parser.add_argument('--check-calendar', action='store_true', help='Check calendar modes, keyboard access and scaled layouts (headless)')
+    parser.add_argument('--check-notifications', action='store_true', help='Check notification rows, peek, policy and cleanup (headless samples)')
     parser.add_argument('--check-commute', action='store_true', help='Check provider credits and traffic tooltips (headless samples)')
     parser.add_argument('--check-motion', action='store_true', help='Check centered expansion, Quick Ask and interrupted motion (sample mode)')
     parser.add_argument('--check-input', action='store_true', help='Exercise dismissal, reopening and the top-bar menu')
@@ -45,6 +46,8 @@ def main():
     args = parser.parse_args()
     if args.check_commute and (not args.headless or args.live or args.check_full or args.check_calendar or args.check_input or args.check_motion):
         parser.error('--check-commute requires headless sample mode without other checks')
+    if args.check_notifications and (not args.headless or args.live or args.check_full or args.check_calendar or args.check_input or args.check_motion or args.check_commute):
+        parser.error('--check-notifications requires headless sample mode without other checks')
     if args.edit_route and args.tab == 'notch':
         args.tab = 'commute'
     if args.check_full and (not args.headless or args.live or args.tab != 'notch' or args.check_input):
@@ -123,6 +126,7 @@ def main():
                        ISLAND_PREVIEW_CHECK_CALENDAR='1' if args.check_calendar else '0',
                        ISLAND_PREVIEW_CHECK_COMMUTE='1' if args.check_commute else '0',
                        ISLAND_PREVIEW_CHECK_MOTION='1' if args.check_motion else '0',
+                       ISLAND_PREVIEW_CHECK_NOTIFICATIONS='1' if args.check_notifications else '0',
                        ISLAND_PREVIEW_UI_SETTINGS=ui_settings,
                        ISLAND_PREVIEW_CARD_WIDTH=str(args.card_width) if args.card_width is not None else '',
                        ISLAND_PREVIEW_TEXT_SCALE=str(args.text_scale) if args.text_scale is not None else '',
@@ -176,6 +180,8 @@ def main():
     if args.check_calendar and ('[Island Preview] CALENDAR PASS' not in output or '[Island Preview] CALENDAR FAIL' in output):
         return 1
     if args.check_commute and ('[Island Preview] COMMUTE PASS' not in output or '[Island Preview] COMMUTE FAIL' in output):
+        return 1
+    if args.check_notifications and ('[Island Preview] NOTIFICATIONS PASS' not in output or '[Island Preview] NOTIFICATIONS FAIL' in output):
         return 1
     if args.check_motion and ('[Island Preview] MOTION PASS' not in output or '[Island Preview] MOTION FAIL' in output):
         return 1

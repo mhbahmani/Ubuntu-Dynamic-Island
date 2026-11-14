@@ -12,6 +12,8 @@ import {migrateArrowStyle, migrateOfflineMode} from './services/notch-model.js';
 import {migrateCalendarSettings, migrateNotchDates, todayDay} from './services/calendar-model.js';
 import {CommuteService} from './services/commute.js';
 import {WeatherService} from './services/weather.js';
+import {NotificationsService} from './services/notifications.js';
+import {PEEK_MS, shouldPeek} from './services/notifications-model.js';
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
@@ -93,17 +95,27 @@ export default class UbuntuIsland extends Extension {
             togglePillTitle: () => this._togglePillTitle(),
             relayout: () => this._island?.relayout(),
             weatherRefresh: () => this._weather?.refresh(),
-            pageChanged: () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); this._syncCalendarEvents(); },
+            notificationsActivate: id => { this._island?.collapse(); this._notifications?.activate(id); },
+            notificationsInvoke: (id, index) => { this._island?.collapse(); this._notifications?.invoke(id, index); },
+            notificationsDismiss: ids => this._notifications?.dismiss(ids),
+            notificationsClear: () => this._notifications?.clear(),
+            notificationsDoNotDisturb: enabled => this._notifications?.setDoNotDisturb(enabled),
+            pageChanged: () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); this._syncCalendarEvents(); this._syncNotificationsSeen(); },
         });
         this._island = new IslandSurface({
             settings: this._settings,
             pill: this._pill.actor,
             card: this._card.actor,
             backdrop: new IslandBackdrop(),
-            onBeforeExpand: () => { if (!this._card.quickAskOpen) this._card.selectExpansionPage(); },
+            onBeforeExpand: () => {
+                if (this._card.quickAskOpen) return;
+                // Opening during a notification peek shows that notification.
+                if (this._pill.peeking && this._card._pages.has('notifications')) this._card.selectPage('notifications', false);
+                else this._card.selectExpansionPage();
+            },
             onSwitchTab: direction => this._card.cyclePage(direction),
             onEscape: () => !this._card.quickAskOpen && this._card._page === 'agents' && this._card._agentsView.handleEscape(),
-            onStateChange: () => { this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); this._syncCalendarEvents(); },
+            onStateChange: () => { if (this._island?.expanded) this._pill.endPeek(false); this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); this._syncCalendarEvents(); this._syncNotificationsSeen(); },
         });
         this._island.setHoverEnabled(
             this._settings.get_boolean('hover-open'),
@@ -159,6 +171,11 @@ export default class UbuntuIsland extends Extension {
             this._agents = new AgentsService(this.path, state => this._renderAgents(state));
             this._agents.setTitlesVisible(Boolean(this._card._agentsView?.actor.mapped));
             this._agents.start();
+        }
+        if (this._settings.get_boolean('enable-notifications')) {
+            this._notifications = new NotificationsService(state => this._renderNotifications(state),
+                item => this._peekNotification(item));
+            this._notifications.start();
         }
         this._connectivity = new ConnectivityService(state => this._renderConnectivity(state));
         this._connectivity.start();
@@ -255,7 +272,7 @@ export default class UbuntuIsland extends Extension {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
         });
-        for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
+        for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-notifications', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
         for (const key of ['pill-show-date', 'pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'pill-date-short-months', 'calendar-use-calendar-language', 'pill-show-time', 'pill-time-24h', 'pill-time-seconds'])
@@ -279,6 +296,34 @@ export default class UbuntuIsland extends Extension {
         watch('hover-close-delay', syncHover);
         // Calendar owns its live module toggle in Card. Other module toggles
         // and the metrics interval take effect after a disable/enable cycle.
+    }
+
+    _renderNotifications(state) {
+        this._island?.invalidateBackdrop();
+        if (!this._enabled) return;
+        this._states.notifications = state;
+        this._card._notificationsView?.render(state);
+        this._card.setTabIcon('notifications', state.dnd ? 'notifications-disabled-symbolic' : 'preferences-system-notifications-symbolic');
+        this._renderPill();
+    }
+
+    // Notifications listed while the tab was open count as seen once it closes.
+    _syncNotificationsSeen() {
+        const visible = Boolean(this._island?.expanded && this._card?.actor.mapped && !this._card.quickAskOpen &&
+            this._card._page === 'notifications');
+        if (this._notificationsVisible && !visible) this._notifications?.markSeen();
+        this._notificationsVisible = visible;
+    }
+
+    _peekNotification(item) {
+        if (!this._enabled || !shouldPeek({
+            enabled: this._settings.get_boolean('notifications-peek'),
+            visible: Boolean(this._island?.actor.mapped && !this._island.expanded),
+            locked: Main.sessionMode.isLocked,
+            critical: item.critical,
+            showBanners: item.showBanners,
+        })) return;
+        this._pill.peek(item, PEEK_MS, !this._settings.get_boolean('disable-animations'));
     }
 
     _togglePillTitle() {
@@ -368,6 +413,8 @@ export default class UbuntuIsland extends Extension {
             showNetwork: this._settings.get_boolean('pill-show-network'),
             agents: this._states.agents,
             showAgents: this._settings.get_boolean('pill-show-agents'),
+            notifications: this._states.notifications,
+            showNotifications: this._settings.get_boolean('pill-show-notifications'),
             event: this._eventIndicator,
             commute: this._states.commute,
             showCommute: this._settings.get_boolean('pill-show-commute'),
@@ -695,6 +742,7 @@ export default class UbuntuIsland extends Extension {
         if (this._agentFocus) GLib.Source.remove(this._agentFocus);
         this._agentFocus = 0;
         this._agents?.stop(); this._agents = null;
+        this._notifications?.stop(); this._notifications = null;
         this._calendarEvents?.stop(); this._calendarEvents = null; this._stopCalendarClock();
         if (this._calendarSessionSignal) Main.sessionMode.disconnect(this._calendarSessionSignal);
         this._calendarSessionSignal = 0;

@@ -31,7 +31,21 @@ export class Pill {
         });
         const content = row('ubuntu-island-pill-content');
         content.x_expand = true;
-        this.actor.set_child(content);
+        this._content = content;
+        // The peek overlays the indicators at their width; a zero natural
+        // size keeps a long title from widening the notch.
+        const face = new St.Widget({layout_manager: new Clutter.BinLayout(), x_expand: true});
+        face.add_child(content);
+        this._peek = row('ubuntu-island-pill-peek');
+        this._peek.set({x_expand: true, natural_width: 0, natural_height: 0, opacity: 0, visible: false});
+        this._peekIcon = icon('preferences-system-notifications-symbolic', 14);
+        this._peekText = label('', 'ubuntu-island-pill-title');
+        this._peekText.x_expand = true;
+        this._peek.add_child(this._peekIcon);
+        this._peek.add_child(this._peekText);
+        face.add_child(this._peek);
+        this.actor.set_child(face);
+        this._peekTimer = 0;
 
         this._mediaIcon = icon('audio-x-generic-symbolic', 14);
         this._mediaTitle = new MediaTitle();
@@ -82,6 +96,11 @@ export class Pill {
         this._agentsText = label('', 'ubuntu-island-pill-rate', false);
         this._agents.add_child(this._agentsText);
         this._agents.visible = false; content.add_child(this._agents);
+        this._notifications = row('ubuntu-island-pill-notifications');
+        this._notifications.add_child(icon('preferences-system-notifications-symbolic', 13));
+        this._notificationsText = label('', 'ubuntu-island-pill-rate', false);
+        this._notifications.add_child(this._notificationsText);
+        this._notifications.visible = false; content.add_child(this._notifications);
         this._dates = new NotchDates(this.actor);
         this._date = this._dates.actor;
         this._date.visible = false;
@@ -101,6 +120,8 @@ export class Pill {
         this._time.connect('style-changed', () => this._queueLayout());
         this.actor.connect('destroy', () => {
             this._stopDateClock();
+            if (this._peekTimer) GLib.Source.remove(this._peekTimer);
+            this._peekTimer = 0;
             if (this._layoutIdle) GLib.Source.remove(this._layoutIdle);
             this._layoutIdle = 0;
         });
@@ -113,7 +134,7 @@ export class Pill {
         content.add_child(this._cpuDot);
         content.add_child(this._bluetooth);
         this._items = {media: this._media, weather: this._weather, network: this._network,
-            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents, date: this._date, event:this._event, time:this._time};
+            cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents, notifications: this._notifications, date: this._date, event:this._event, time:this._time};
         const groups = [...Object.values(this._items), this._connection];
         for (const group of groups) {
             group.x_expand = true;
@@ -161,7 +182,7 @@ export class Pill {
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
-    render({agents, showAgents = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}, showTime = false, timeOptions = {}}) {
+    render({agents, showAgents = false, notifications = null, showNotifications = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}, showTime = false, timeOptions = {}}) {
         this._expanded = expanded;
         this._timeOptions = timeOptions;
         this._time.visible = showTime && !expanded;
@@ -208,6 +229,8 @@ export class Pill {
             : 'ubuntu-island-cpu-dot ubuntu-island-dot-high');
         this._weather.visible = Boolean(!connectionState.visible && showWeather && weather?.data?.current &&
             !(connectionState.hideUnavailable && (weather.stale || weather.status === 'offline' || weather.status === 'unavailable')));
+        this._notifications.visible = Boolean(showNotifications && notifications?.unseen);
+        this._notificationsText.text = String(notifications?.unseen ?? 0);
         const agentTotals = agentCounts(agents?.sessions);
         this._agents.visible = Boolean(showAgents && agents?.connected && (agentTotals.working || agentTotals.waiting || agentTotals.attention || agentTotals.finished));
         this._agentsText.text = `${agentTotals.working}${agentTotals.waiting ? ` · ◷${agentTotals.waiting}` : ''}${agentTotals.attention ? ` · !${agentTotals.attention}` : agentTotals.finished && !agentTotals.working && !agentTotals.waiting ? ` · ✓${agentTotals.finished}` : ''}`;
@@ -251,7 +274,7 @@ export class Pill {
             const children = arranged.flatMap(id => id === connectionState.anchor
                 ? [this._connection, this._items[id]] : [this._items[id]]);
             if (!connectionState.visible) children.push(this._connection);
-            children.forEach((child, index) => this.actor.get_child().set_child_at_index(child, index));
+            children.forEach((child, index) => this._content.set_child_at_index(child, index));
         }
         this._down.text = compactRate(system?.rxBytes);
         this._up.text = compactRate(system?.txBytes);
@@ -262,6 +285,7 @@ export class Pill {
         if (this._network.visible) description.push(`Download ${system.rx}, upload ${system.tx}`);
         if (this._commute.visible) description.push(commuteState.description);
         if (this._agents.visible) description.push(agentSummary(agents?.sessions));
+        if (this._notifications.visible) description.push(`${notifications.unseen} new notification${notifications.unseen === 1 ? '' : 's'}`);
         if (this._date.visible) description.push(this._date.accessible_name);
         if (this._event.visible) description.push(this._event.accessible_name);
         this._description = description;
@@ -332,7 +356,45 @@ export class Pill {
 
     _updateDescription() {
         if (!this._description) return;
-        this.actor.accessible_name = [...this._description, ...(this._time.visible ? [this._time.accessible_name] : [])].join('. ');
+        this.actor.accessible_name = [...this._description, ...(this._peeking ? [this._peekText.accessible_name] : []),
+            ...(this._time.visible ? [this._time.accessible_name] : [])].join('. ');
+    }
+
+    get peeking() {
+        return Boolean(this._peeking);
+    }
+
+    peek({app, title, gicon}, duration, animations = true) {
+        this._peekIcon.gicon = gicon ?? null;
+        if (!gicon) this._peekIcon.icon_name = 'preferences-system-notifications-symbolic';
+        this._peekText.text = title || app || 'Notification';
+        this._peekText.accessible_name = `Notification from ${app || 'an app'}: ${this._peekText.text}`;
+        this._peeking = true;
+        this._updateDescription();
+        this._fadePeek(true, animations);
+        if (this._peekTimer) GLib.Source.remove(this._peekTimer);
+        this._peekTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, duration, () => {
+            this._peekTimer = 0;
+            this.endPeek(animations);
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    endPeek(animations = true) {
+        if (this._peekTimer) GLib.Source.remove(this._peekTimer);
+        this._peekTimer = 0;
+        if (!this._peeking) return;
+        this._peeking = false;
+        this._updateDescription();
+        this._fadePeek(false, animations);
+    }
+
+    _fadePeek(show, animations) {
+        const duration = animations && this.actor.mapped ? 160 : 0;
+        if (show) this._peek.show();
+        this._content.ease({opacity: show ? 0 : 255, duration, mode: Clutter.AnimationMode.EASE_OUT_QUAD});
+        this._peek.ease({opacity: show ? 255 : 0, duration, mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onStopped: finished => { if (finished && !this._peeking) this._peek.hide(); }});
     }
 
     _syncSeconds() {

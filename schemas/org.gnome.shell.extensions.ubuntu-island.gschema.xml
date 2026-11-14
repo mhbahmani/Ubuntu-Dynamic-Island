@@ -152,6 +152,25 @@
       <description>Download HTTP(S) artwork through a bounded, host-checked, disk-cached request.</description>
     </key>
     <key name="enable-commute" type="b"><default>false</default><summary>Enable Commute</summary></key>
+    <key name="enable-notifications" type="b">
+      <default>false</default>
+      <summary>Notifications</summary>
+      <description>List recent desktop notifications in the island.</description>
+    </key>
+    <key name="notifications-peek" type="b">
+      <default>true</default>
+      <summary>Show new notifications in the notch</summary>
+      <description>Briefly show the app icon and title in the collapsed notch. Follows Do Not Disturb and per-app banner settings.</description>
+    </key>
+    <key name="notifications-layout" type="s">
+      <default>'compact'</default>
+      <choices><choice value="compact"/><choice value="grouped"/></choices>
+      <summary>Notifications tab layout</summary>
+    </key>
+    <key name="pill-show-notifications" type="b">
+      <default>true</default>
+      <summary>Show the unseen notification count in the collapsed notch</summary>
+    </key>
     <key name="commute-routes" type="s"><default>'[]'</default><summary>Saved driving routes</summary></key>
     <key name="commute-selected" type="s"><default>''</default><summary>Selected driving route</summary></key>
     <key name="commute-provider-order" type="as"><default>['balad', 'mapbox', 'neshan', 'ors', 'graphhopper', 'fossgis', 'osrm']</default><summary>Routing provider priority, first to last</summary></key>
@@ -172,7 +191,7 @@
     <key name="pill-show-commute" type="b"><default>false</default><summary>Show selected Commute estimate in the collapsed notch</summary></key>
     <key name="expand-tab" type="s">
       <default>'last'</default>
-      <choices><choice value="last"/><choice value="media"/><choice value="system"/><choice value="audio"/><choice value="bluetooth"/><choice value="weather"/><choice value="commute"/><choice value="agents"/><choice value="calendar"/></choices>
+      <choices><choice value="last"/><choice value="media"/><choice value="system"/><choice value="audio"/><choice value="bluetooth"/><choice value="weather"/><choice value="commute"/><choice value="agents"/><choice value="notifications"/><choice value="calendar"/></choices>
       <summary>Tab to show when expanding the island</summary>
       <description>Last keeps the previous tab. An unavailable preferred tab falls back to the last available tab.</description>
     </key>

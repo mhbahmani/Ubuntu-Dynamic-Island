@@ -64,7 +64,7 @@ test('legacy badge preference migrates to icon while edge and hide choices are p
 
 test('notch order preserves choices and repairs missing or duplicated items', () => {
     assert.deepEqual(notchOrder(['network', 'weather', 'network', 'unknown']),
-        ['network', 'weather', 'media', 'cpu', 'bluetooth', 'commute', 'agents', 'date', 'event', 'time']);
+        ['network', 'weather', 'media', 'cpu', 'bluetooth', 'commute', 'agents', 'notifications', 'date', 'event', 'time']);
     assert.deepEqual(notchOrder([]), NOTCH_ITEMS);
 });
 

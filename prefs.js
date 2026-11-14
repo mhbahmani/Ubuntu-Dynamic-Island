@@ -7,6 +7,7 @@ import {commutePreferences} from './preferences/commute-prefs.js';
 import {migrateArrowStyle, migrateOfflineMode, OFFLINE_MODES} from './services/notch-model.js';
 import {notchPreview, notchStyles} from './preferences/notch-prefs.js';
 import {weatherPreferences} from './preferences/weather-prefs.js';
+import {notificationsPreferences} from './preferences/notifications-prefs.js';
 import {THEMES, THEME_IDS, themeSwatchCss} from './services/themes.js';
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
@@ -18,7 +19,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         // Latin keeps the established UI face; Persian falls through to the
         // user's Vazir/Vazirmatn font instead of the system's Arabic fallback.
         const fonts = new Gtk.CssProvider();
-        fonts.load_from_data('.ubuntu-island-preferences { font-family: "Noto Sans", "Vazir", "Vazirmatn", "DejaVu Sans"; } .ubuntu-island-notch-chip { min-width: 16px; padding-left: 6px; padding-right: 6px; }\n' + themeSwatchCss(), -1);
+        fonts.load_from_data('.ubuntu-island-preferences { font-family: "Noto Sans", "Vazir", "Vazirmatn", "DejaVu Sans"; } .ubuntu-island-notch-chip { min-width: 16px; padding-left: 4px; padding-right: 4px; }\n' + themeSwatchCss(), -1);
         window.add_css_class('ubuntu-island-preferences');
         Gtk.StyleContext.add_provider_for_display(window.get_display(), fonts, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
         window.connect('close-request', () => {
@@ -33,9 +34,9 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         migrateOfflineMode(settings);
 
         const appearance = new Adw.PreferencesGroup({title: 'Appearance'});
-        const tabs = ['last', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'calendar'];
+        const tabs = ['last', 'media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'notifications', 'calendar'];
         const opening = new Adw.ComboRow({title: 'Opening tab',
-            model: Gtk.StringList.new(['Last used tab', 'Media', 'System', 'Sound', 'Bluetooth', 'Weather', 'Commute', 'Agents', 'Calendar'])});
+            model: Gtk.StringList.new(['Last used tab', 'Media', 'System', 'Sound', 'Bluetooth', 'Weather', 'Commute', 'Agents', 'Notifications', 'Calendar'])});
         const openingFactory = new Gtk.SignalListItemFactory();
         openingFactory.connect('setup', (_factory, item) => item.set_child(new Gtk.Label({xalign: 0})));
         openingFactory.connect('bind', (_factory, item) => { item.get_child().label = item.get_item().get_string(); });
@@ -167,6 +168,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             ['weather', 'Weather', 'weather-clear-symbolic', [weatherPreferences(settings, window)]],
             ['commute', 'Commute', 'find-location-symbolic', commutePreferences(settings, window)],
             ['agents', 'Agents', AGENT_ICON_NAME, agentsPreferences(settings, window, this.path)],
+            ['notifications', 'Notifications', 'preferences-system-notifications-symbolic', notificationsPreferences(settings, window)],
             ['calendar', 'Calendar', 'x-office-calendar-symbolic', calendarPreferences(settings, window)],
         ];
         window.search_enabled = true;
