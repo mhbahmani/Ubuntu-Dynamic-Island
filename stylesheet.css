@@ -455,7 +455,7 @@
 .ubuntu-island-commute-action:disabled, .ubuntu-island-commute-icon-button:disabled { color: #777e8d; background-color: rgba(235,239,255,0.03); border-color: transparent; }
 .ubuntu-island-commute-credit { color: #b7bbc5; font-size: 8pt; }
 .ubuntu-island-commute-source { spacing: 0; }
-.ubuntu-island-commute-provider { padding: 0 4px; font-size: 8pt; }
+.ubuntu-island-commute-provider-face { spacing: 6px; }
 .ubuntu-island-commute-provider-panel { padding: 10px 14px 6px; spacing: 5px; }
 .ubuntu-island-commute-provider-choice:checked { background-color: rgba(235,239,255,0.14); }
 

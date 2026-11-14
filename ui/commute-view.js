@@ -121,9 +121,19 @@ export class CommuteView {
         this.controls.add_child(this.locationSettings);
         const source = column('ubuntu-island-commute-source');
         source.x_expand = true;
-        this.provider = textButton('Automatic', () => this.showProviders(true));
-        this.provider.x_expand = true;
+        this.provider = textButton('', () => this.showProviders(true));
+        this.provider.set({x_expand: true, y_expand: true});
         this.provider.add_style_class_name('ubuntu-island-commute-provider');
+        // Matches Open route: same padding and type, label left, chevron right.
+        const providerFace = row('ubuntu-island-commute-provider-face');
+        providerFace.x_expand = true;
+        this.providerLabel = label('Automatic', 'ubuntu-island-commute-provider-label');
+        this.providerLabel.x_expand = true;
+        providerFace.add_child(this.providerLabel);
+        const providerIcon = icon('pan-down-symbolic', 12);
+        providerIcon.accessible_role = Atk.Role.REDUNDANT_OBJECT;
+        providerFace.add_child(providerIcon);
+        this.provider.set_child(providerFace);
         source.add_child(this.provider);
         this.credit = label('', 'ubuntu-island-commute-credit', false);
         this.credit.x_expand = true;
@@ -269,8 +279,8 @@ export class CommuteView {
         const preferred = state.preferred ?? 'auto';
         const providerName = id => id === 'auto' ? 'Automatic' : PROVIDER_NAMES[id] ?? id;
         const actual = data ? providerName(data.provider) : '';
-        this.provider.label = `${preferred === 'auto' ? `Auto${actual ? ` · ${actual}` : ''}`
-            : actual && data.provider !== preferred ? `${providerName(preferred)} → ${actual}` : providerName(preferred)} ▾`;
+        this.providerLabel.text = preferred === 'auto' ? `Auto${actual ? ` · ${actual}` : ''}`
+            : actual && data.provider !== preferred ? `${providerName(preferred)} → ${actual}` : providerName(preferred);
         this.provider.accessible_name = `Choose ETA provider. Preferred: ${providerName(preferred)}${actual ? `. Estimate from ${actual}` : ''}`;
         this.provider.visible = Boolean(route);
         for (const [id, control] of this.providerRows) {
@@ -291,8 +301,6 @@ export class CommuteView {
         this.creditLink.visible = Boolean(this.credit.text);
         this.creditLink.accessible_name = `${this.credit.text}. Open attribution details`;
         this.credit.accessible_name = this.credit.text;
-        this.provider.child.ellipsize = Pango.EllipsizeMode.END;
-        this.provider.child.x_align = Clutter.ActorAlign.START;
         this.refresh.accessible_name = loading ? 'Updating driving estimate' : 'Refresh driving estimate';
         setEnabled(this.refresh, Boolean(route) && !loading);
         setEnabled(this.swap, route?.originMode === 'fixed');
