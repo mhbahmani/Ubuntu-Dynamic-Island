@@ -1,6 +1,6 @@
 # Implementation handoff
 
-Updated 2026-11-13. Target: GNOME Shell 46 on Ubuntu Wayland.
+Updated 2026-11-14. Target: GNOME Shell 46 on Ubuntu Wayland.
 
 - [AGENTS.md](../AGENTS.md): engineering, packaging and commit rules.
 - [README](../README.md): installation, development commands and hardware checks.
@@ -10,7 +10,7 @@ Updated 2026-11-13. Target: GNOME Shell 46 on Ubuntu Wayland.
 ## Current implementation
 
 Media, system metrics, sound outputs and Bluetooth use native Shell services.
-Weather, Commute, Agents and Calendar are opt-in. Calendar's module toggle applies
+Weather, Commute, Agents, Notifications and Calendar are opt-in. Calendar's module toggle applies
 live; other module toggles still require disabling/re-enabling the extension.
 Notch indicators reuse module state and respect consumer visibility.
 
@@ -28,6 +28,24 @@ Clear and the notch eye toggle are in the main header. Session states are event
 reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
+
+## Notifications (2026-11-14)
+
+Opt-in Notifications tab with compact and grouped layouts, a toolbar (new count,
+layout, Do Not Disturb, Clear), app logos, hover/focus actions, pinned critical
+items, an empty state with Do Not Disturb, notch peeks and an unseen-count notch
+item; see the module guide. The service mirrors `Main.messageTray` signals and
+writes only GNOME's own `show-banners` key. The pill overlays a zero-natural-width
+peek row on its indicators, so peeks never widen the notch. Pill reordering moved
+from `actor.get_child()` to `_content`; the preferences notch-order chips are
+4px narrower to fit 11 items in 300px.
+
+Navigation now holds nine tabs. The full navigation check was extended to 9 tabs
+but stops at its existing Calendar icon-position failure at 380px (same result on
+the unchanged tree), so 9-tab navigation was checked only through
+`--check-notifications` at 380/440px, 100/200% scale and 1/1.5× text.
+`--check-notifications`, smoke, node tests and prefs smoke pass. Live app
+notifications on the host session are unverified.
 
 ## Preview UI preferences (2026-11-13)
 

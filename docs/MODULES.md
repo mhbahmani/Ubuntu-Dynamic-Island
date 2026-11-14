@@ -378,6 +378,52 @@ make preview PREVIEW_ARGS="--tab agents"
 make preview-headless PREVIEW_ARGS="--check-full --duration 60"
 ```
 
+## Notifications
+
+Enable it under **Preferences → Notifications** (applies after disabling and
+re-enabling the extension). The tab mirrors notifications currently held by GNOME's
+message tray, the same set shown under the clock. Sources with notifications
+turned off in GNOME Settings are not listed.
+
+- **Layouts** (`notifications-layout`, also toggled from the tab): **Compact list**
+  shows two-line rows, newest first, capped at 30, under Today/Earlier headings
+  when older items exist. **Grouped by app** stacks each app's notifications in
+  one card with a count and a preview of the newest two; selecting it expands
+  the group, and All/Today chips filter. Single-notification apps stay plain rows.
+- Rows use the application's logo (`source.app` icon, else the source icon), and
+  fall back to the notification image only when neither exists.
+- Dismiss and the notification's own action buttons appear on hover or keyboard
+  focus; the dismiss button takes the age's place, so rows keep their layout.
+  Delete or Backspace dismisses the focused row or group. Open and actions
+  collapse the island. **Clear** and dismiss destroy notifications as GNOME does.
+- Critical notifications are pinned first with an error-coloured edge.
+- A dot marks notifications that arrived since the tab was last closed; the toolbar
+  shows the count, and **Show unseen count** puts it in the collapsed notch.
+  This state is in memory only.
+- The Do Not Disturb toggle writes GNOME's `org.gnome.desktop.notifications
+  show-banners`, the same switch as GNOME's own. While it is on, the tab icon
+  changes and the island counts non-critical notifications that arrived
+  (“N silenced”); the count resets when it is turned off. The empty state offers
+  the same switch.
+- **Show new notifications** peeks the app icon and title for four seconds inside
+  the current notch width. It follows each app's banner setting and Do Not
+  Disturb; critical notifications peek anyway, as GNOME banners do. No peek is
+  shown while the island is open or the session is locked. Opening the island
+  during a peek selects Notifications.
+- The service only connects to tray signals. It keeps references and plain-text
+  copies for the current snapshot, strips body markup and never logs content or
+  sends it anywhere. Rows render only while the tab is visible; ages refresh when
+  it opens, with no timer.
+- Not implemented: replacing GNOME's banners, body preview on peek hover (hover
+  already opens the island) and swipe to dismiss.
+
+Check: `make preview-headless PREVIEW_ARGS="--check-notifications --duration 150"`
+posts sample notifications in the nested Shell and checks both layouts at
+380/440px, 100/200% scale and 1/1.5× text, toolbar overlap, logos, actions,
+Delete, sections, grouping, filters, peeks, unseen counts, Do Not Disturb,
+silenced counts, critical pinning, clear and service stop. Live third-party app
+notifications were not tested.
+
 ## Weather
 
 Enable Weather in preferences, choose a city through explicit search or enter

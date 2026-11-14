@@ -81,6 +81,15 @@ and [compact playing pill](screenshots/playing-pill.png).
   project folder (initially your home folder). Explicit terminal choices remain
   available in Agents settings.
   Open Agents in `make preview`; see [setup and limitations](docs/MODULES.md#agents).
+- **Notifications (opt-in)**: recent desktop notifications from GNOME's message
+  tray as a **compact list** (Today/Earlier) or **grouped by app** (stacked,
+  expandable, with All/Today filters); switch in **Preferences → Notifications** or
+  from the tab. Rows show the app's own logo, a new-since-last-opened marker,
+  and on hover or focus a dismiss button and the notification's actions; Delete
+  dismisses. The toolbar has the new count, layout and Do Not Disturb toggles and
+  Clear. Critical notifications stay pinned. New notifications can peek in the
+  collapsed notch, which can also show an unseen count. GNOME keeps its own banners.
+  See [behavior and privacy](docs/MODULES.md#notifications).
 - **Single-surface morph**: one chrome-managed surface expands downward around
   its center. Notch content gently contracts inward and fades as the card or
   Quick Ask appears, without reflowing text during the transition. Opening
@@ -275,6 +284,7 @@ For a screenshot without opening a window:
 ```sh
 make preview-headless
 make preview-headless PREVIEW_ARGS="--check-full --duration 30" # all tabs, sample controls, Agents
+make preview-headless PREVIEW_ARGS="--check-notifications --duration 150" # layouts, peek, DND, cleanup
 ```
 
 The nested window validates real rendering and interactions; it cannot establish
