@@ -21,8 +21,12 @@ function harness(animation = 220, backdrop = null) {
         set_position(x, y) { Object.assign(this, {x, y}); }
         get_preferred_height() { return [34, 620]; }
         set_style_class_name(value) { this.style_class = value; }
-        ease(options) { this.transition = options; }
+        ease(options) { this.transition = {...this.transition, ...options}; }
         remove_all_transitions() { this.transition = null; }
+        get_transition(name) {
+            return this.transition?.[name] == null ? null
+                : {get_duration: () => this.transition.duration, get_elapsed_time: () => this.elapsed ?? 0};
+        }
         navigate_focus(_from, direction) { this.focusDirection = direction; }
         grab_key_focus() { this.focused = true; }
         get_transformed_position() { return [this.x ?? 0, this.y ?? 0]; }
@@ -51,7 +55,7 @@ function harness(animation = 220, backdrop = null) {
         .replace(/^import .*;\n/gm, '').replaceAll('export ', '');
     const Surface = vm.runInNewContext(`${source}\nIslandSurface`, {
         St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1, TAB_BACKWARD: -1}},
-        Clutter: {Actor, BinLayout: class {}, FixedLayout: class {}, AlignConstraint: class {}, AlignAxis: {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0, EASE_OUT_QUART: 1, EASE_OUT_CUBIC: 2},
+        Clutter: {Actor, BinLayout: class {}, FixedLayout: class {}, AlignConstraint: class {}, AlignAxis: {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0, EASE_OUT_QUART: 1, EASE_OUT_CUBIC: 2, EASE_IN_OUT_CUBIC: 3, EASE_IN_OUT_QUAD: 4},
             EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2, KEY_PRESS: 3, BUTTON_RELEASE: 4,
                 TOUCH_END: 5, TOUCH_CANCEL: 6}, KEY_Escape: 27, KEY_Tab: 9, KEY_ISO_Left_Tab: 65056,
             ModifierType: {SHIFT_MASK: 1, CONTROL_MASK: 4},
@@ -113,17 +117,55 @@ test('offline edge hides through expansion and collapse transitions, and clears 
     assert.equal(surface._connectionEdge.visible, false);
 });
 
-test('settings during collapse cancel child fades and settle dimensions', () => {
+test('dimension changes during collapse retarget the close instead of snapping it', () => {
     const {surface, pill, card, modal} = harness();
-    surface.expand();
+    surface.expand(); surface.actor.finish();
     surface.collapse();
+    assert.equal(surface.actor.transition.duration, 165);
+    surface.actor.elapsed = 65;
+    surface._settings.get_int = name => ({'pill-width': 200, 'expanded-width': 440, 'animation-duration': 220})[name];
     surface.applyDimensions();
-    assert.equal(surface.state, 'collapsed');
-    assert.equal(pill.transition, null);
-    assert.equal(card.transition, null);
-    assert.equal(pill.opacity, 255);
-    assert.equal(card.opacity, 0);
+    assert.equal(surface.state, 'collapsing');
+    assert.equal(surface.actor.transition.width, 200);
+    assert.equal(surface.actor.transition.duration, 100, 'Retargeting keeps the remaining close time');
+    assert.equal(pill.width, 198);
+    assert.notEqual(card.transition, null, 'Content fades continue');
     assert.equal(modal.size, 0);
+    surface.actor.finish();
+    assert.equal(surface.state, 'collapsed');
+    assert.equal(surface.actor.width, 200);
+    assert.equal(pill.opacity, 255);
+    assert.equal(card.visible, false);
+});
+
+test('notch re-render at the start of a close updates its target without snapping', () => {
+    const {surface, pill} = harness();
+    surface.expand(); surface.actor.finish();
+    // The extension re-renders the notch from the state callback; restored
+    // items widen it before collapse() starts resizing.
+    surface._onStateChange = state => {
+        if (state !== 'collapsing') return;
+        surface._settings.get_int = name => ({'pill-width': 190, 'expanded-width': 440, 'animation-duration': 220})[name];
+        surface.applyDimensions();
+    };
+    surface.collapse();
+    assert.equal(surface.state, 'collapsing');
+    assert.equal(surface.actor.transition.width, 190);
+    assert.equal(surface.actor.transition.duration, 165);
+    assert.equal(pill.width, 188);
+    assert.match(surface.actor.style_class, /surface-open/, 'Rounded corners stay until the close docks');
+    surface.actor.finish();
+    assert.equal(surface.state, 'collapsed');
+    assert.match(surface.actor.style_class, /surface-collapsed/);
+});
+
+test('closing fades the card out before the notch fades back in', () => {
+    const {surface, pill, card} = harness();
+    surface.expand(); surface.actor.finish();
+    surface.collapse();
+    assert(card.transition.duration < surface.actor.transition.duration, 'Card clears before the notch docks');
+    assert.equal(pill.transition.mode, 3, 'Notch fades in slowly while the card clears');
+    assert.equal(pill.transition.delay, undefined, 'Timeline delays run off the frame clock');
 });
 
 test('outside click dismisses even when event source is retargeted by the grab', () => {

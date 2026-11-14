@@ -339,16 +339,30 @@ clear spatial continuity. New interactions should fit this motion language.
 - Use subtle uniform scaling and fades. The current implementation in
   `ui/island.js` contracts the outgoing notch to 90%; incoming content settles
   from 97% scale and a 4px upward offset. The surface's 8px drop is animated.
-- Opening decelerates with `EASE_OUT_QUART`; content uses `EASE_OUT_CUBIC`.
-  Closing uses `EASE_OUT_CUBIC` and 75% of the configured opening duration.
-  These values are the current reference when tuning related motion.
+- Opening decelerates with `EASE_OUT_QUART`; content transforms use
+  `EASE_OUT_CUBIC`. Closing uses `EASE_OUT_CUBIC` and 75% of the configured
+  opening duration. These values are the current reference when tuning related motion.
+- Layers hand off instead of cross-fading mid-surface. Opening: the notch fades
+  out in 35% of the duration (its contraction keeps 65%); the card fades in over
+  75% with `EASE_IN_OUT_QUAD`. Closing mirrors it: the card fades out in 50% (its
+  lift keeps 65%); the notch fades in over the full close with
+  `EASE_IN_OUT_CUBIC`. Opacity runs on its own curve, never a timeline `delay`.
+- The surface keeps its open (fully rounded) corners while closing and squares
+  its top corners only once docked, mirroring the opening's first frame.
+- The notch keeps its collapsed layout while fading out; it hides collapsed-only
+  items (time, date, event) once fully covered and restores them as the close
+  starts. A width change mid-close retargets the close in its remaining time
+  instead of snapping (this snap previously removed the closing animation).
 - Reverse from the current pose when interrupted. Keep focus and input usable,
   honor both extension and desktop reduced-motion settings, and settle fully
   on hide/disable. Use native constraints/transitions; avoid runtime frame timers,
   snapshots and per-label animation loops.
-- Recheck expansion and Quick Ask with `--check-motion` after related changes:
-  compact/full notches, narrow/default widths, 100/200% scale, enlarged text,
-  reversals and reduced motion. Run the native smoke test for input and cleanup.
+- Recheck expansion, closing and Quick Ask with `--check-motion` after related
+  changes: compact/full notches, narrow/default widths, 100/200% scale, enlarged
+  text, reversals and reduced motion. It samples painted frames in both
+  directions: intermediate closing sizes, centering, fixed content sizes and the
+  layer hand-off. Run the native smoke test for input and cleanup. An occluded
+  windowed preview may paint about 1 fps and fail frame checks; use headless.
 
 Tab transitions: the selection marker glides between tabs (see Recent UI
 changes). Page content still switches instantly; extend these principles if

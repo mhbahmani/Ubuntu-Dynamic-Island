@@ -47,7 +47,7 @@ export async function checkMotion(app) {
                     app._card.selectPage('media');
                     if (mode === 'quick-ask') app._card.showQuickAsk();
                     await delay(80);
-                    const groups = pill.get_child().get_children().filter(actor => actor.visible);
+                    const groups = app._pill._content.get_children().filter(actor => actor.visible);
                     const start = {surface: box(surface.actor), pill: box(pill),
                         left: box(groups[0]), right: box(groups.at(-1))};
                     const samples = [];
@@ -58,7 +58,7 @@ export async function checkMotion(app) {
                     paintId = global.stage.connect('after-paint', () => {
                         samples.push({elapsed: (GLib.get_monotonic_time() - startTime) / 1000,
                             surface: box(surface.actor), pill: box(pill), card: box(card),
-                            left: box(groups[0]), right: box(groups.at(-1)), opacity: pill.opacity,
+                            left: box(groups[0]), right: box(groups.at(-1)), opacity: pill.opacity, cardOpacity: card.opacity,
                             pillWidth: pill.width, cardWidth: card.width, cardHeight: card.height});
                         if (!captured && density === 'compact' && width === 440 && pill.opacity < 200 && pill.opacity > 30) {
                             captured = true;
@@ -85,6 +85,7 @@ export async function checkMotion(app) {
                         assert(frame.left.cx >= start.left.cx - tolerance, 'Left content moved outward');
                         assert(frame.right.cx <= start.right.cx + tolerance, 'Right content moved outward');
                         assert(frame.pill.cy >= start.pill.cy - tolerance, 'Outgoing content moved upward');
+                        assert(Math.min(frame.opacity, frame.cardOpacity) < 128, 'Notch and card cross-faded mid-surface');
                     }
                     const last = visible.at(-1);
                     assert(last.left.cx > start.left.cx + scale && last.right.cx < start.right.cx - scale,
@@ -96,9 +97,38 @@ export async function checkMotion(app) {
                             'Quick Ask did not receive focus');
                     frames.push({density, width, mode, start, samples});
                     await app._capture(`motion-${density}-${width}-${mode}`);
-                    surface.collapse(); await settled(surface, 'collapsed');
+                    const open = box(surface.actor), closing = [];
+                    let closeCaptured = false;
+                    paintId = global.stage.connect('after-paint', () => {
+                        closing.push({surface: box(surface.actor), pill: box(pill),
+                            pillOpacity: pill.opacity, cardOpacity: card.visible ? card.opacity : 0,
+                            pillWidth: pill.width, cardWidth: card.width, cardHeight: card.height});
+                        if (!closeCaptured && density === 'compact' && width === 440 && pill.opacity > 30 && pill.opacity < 200) {
+                            closeCaptured = true;
+                            capture = app._capture(`motion-${mode}-closing`);
+                        }
+                    });
+                    surface.collapse();
+                    await settled(surface, 'collapsed');
+                    global.stage.disconnect(paintId); paintId = 0;
+                    await capture; capture = null;
                     assert(pill.scale_x === 1 && pill.scale_y === 1 && pill.opacity === 255 && !card.visible,
                         'Closing left faded or scaled content');
+                    const end = box(surface.actor);
+                    const between = closing.filter(frame => frame.surface.height < open.height - tolerance &&
+                        frame.surface.height > end.height + tolerance);
+                    assert(between.length >= 2, 'Closing snapped without intermediate frames');
+                    const pillWidth = closing[0]?.pillWidth;
+                    for (const frame of between) {
+                        assert(Math.abs(frame.surface.cx - start.surface.cx) <= tolerance, 'Surface drifted sideways while closing');
+                        assert(Math.abs(frame.pill.cx - frame.surface.cx) <= tolerance, 'Notch content lost its center while closing');
+                        assert(Math.abs(frame.pillWidth - pillWidth) <= tolerance, 'Notch content reflowed while closing');
+                        assert(Math.abs(frame.cardWidth - card.width) <= tolerance, 'Card width changed while closing');
+                        assert(Math.min(frame.pillOpacity, frame.cardOpacity) < 128, 'Card and notch cross-faded mid-surface');
+                    }
+                    assert(between.some(frame => frame.pillOpacity > 10 && frame.pillOpacity < 245),
+                        'Incoming notch appeared without a visible transition');
+                    frames.at(-1).closing = closing;
                 }
             }
         }
@@ -126,7 +156,7 @@ export async function checkMotion(app) {
         }
         const file = Gio.File.new_for_path(`${GLib.getenv('ISLAND_PREVIEW_OUTPUT')}/motion.json`);
         file.replace_contents(JSON.stringify(frames), null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
-        console.log(`[Island Preview] MOTION PASS: centered inward motion, fixed content sizes, compact/full notch, 380/440px, ${scale * 100}% scale, Quick Ask focus, reversal and reduced motion`);
+        console.log(`[Island Preview] MOTION PASS: centered inward motion, animated close, fixed content sizes, compact/full notch, 380/440px, ${scale * 100}% scale, Quick Ask focus, reversal and reduced motion`);
     } finally {
         if (paintId) global.stage.disconnect(paintId);
         surface._snapCollapsed();

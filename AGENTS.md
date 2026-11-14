@@ -141,7 +141,10 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
 - `addChrome` supports `trackFullscreen`, `affectsStruts`, and
   `affectsInputRegion`. It does not support `visibleInFullscreen`.
 - St supports gradients, letter spacing, and tabular figures. Icon size is a
-  GObject property, not CSS. `Clutter.Actor.ease()` is a GJS override.
+  GObject property, not CSS. `Clutter.Actor.ease()` is a GJS override; its
+  `onComplete` runs only for finished transitions. Avoid `delay`: timeline
+  delays use a wall-clock source and can lose to frame-clock progress (a
+  delayed fade never started in the nested preview); stagger with curves.
 - Calendar relocation uses private panel boxes; test other panel extensions.
 
 ## Installation and packaging

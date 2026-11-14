@@ -199,6 +199,7 @@ export class IslandSurface {
         this._expandedWidth = this._scale * clampRange(this._settings.get_int('expanded-width'), 380, 480);
         this._backdrop?.configure({scale: this._scale});
         if (this.expanded) this.relayout();
+        else if (this.state === IslandState.COLLAPSING) this._retargetCollapse();
         else this._snapCollapsed();
     }
 
@@ -240,8 +241,12 @@ export class IslandSurface {
         const duration = this._animationMs();
         // A centered, uniform contraction takes both ends inward as the old
         // notch descends and fades. It never stretches or redistributes text.
-        this._easeContent(this._pill, {opacity: 0, scale_x: 0.9, scale_y: 0.9}, duration * 0.65);
-        this._easeContent(this._card, {opacity: 255, scale_x: 1, scale_y: 1, translation_y: 0}, duration);
+        // The notch clears early and the card fades in on an ease-in-out
+        // curve, so the two layers hand off instead of overlapping mid-surface.
+        this._easeContent(this._pill, {opacity: 0, scale_x: 0.9, scale_y: 0.9}, duration * 0.65,
+            {duration: duration * 0.35});
+        this._easeContent(this._card, {opacity: 255, scale_x: 1, scale_y: 1, translation_y: 0}, duration,
+            {duration: duration * 0.75, mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD});
         this._easeSize(this._expandedWidth, this._expandedHeight, duration, () => {
             if (token !== this._token) return;
             this._setState(IslandState.EXPANDED);
@@ -253,21 +258,44 @@ export class IslandSurface {
     collapse() {
         if (this.state === IslandState.COLLAPSED || this.state === IslandState.COLLAPSING) return;
         const token = ++this._token;
+        // The notch re-renders its collapsed items here; a new minimum width
+        // updates the target below instead of snapping the close.
         this._setState(IslandState.COLLAPSING);
         // Release input immediately so apps receive clicks during the close.
         this._releaseGrab();
         this._pill.reactive = true;
         this._pill.can_focus = true;
+        this._pill.width = Math.max(1, this._collapsedWidth - this._border);
         const duration = Math.round(this._animationMs() * 0.75);
-        this._easeContent(this._pill, {opacity: 255, scale_x: 1, scale_y: 1}, duration);
+        // Mirror the opening: the card lifts and fades first, then the notch
+        // grows back into place without both layers cross-fading mid-surface.
         this._easeContent(this._card, {opacity: 0, scale_x: 0.97, scale_y: 0.97,
-            translation_y: -4 * this._scale}, duration * 0.65);
-        this._easeSize(this._collapsedWidth, this._collapsedHeight, duration, () => {
-            if (token !== this._token) return;
-            this._card.hide();
-            this._resetContent();
-            this._setState(IslandState.COLLAPSED);
-        }, Clutter.AnimationMode.EASE_OUT_CUBIC);
+            translation_y: -4 * this._scale}, duration * 0.65, {duration: duration * 0.5});
+        // Ease-in-out keeps the notch nearly clear while the card fades, with
+        // no timeline delay: those run on a wall-clock source, not the frame clock.
+        this._easeContent(this._pill, {opacity: 255, scale_x: 1, scale_y: 1}, duration,
+            {mode: Clutter.AnimationMode.EASE_IN_OUT_CUBIC});
+        this._easeSize(this._collapsedWidth, this._collapsedHeight, duration,
+            () => this._finishCollapse(token), Clutter.AnimationMode.EASE_OUT_CUBIC);
+    }
+
+    _finishCollapse(token) {
+        if (token !== this._token) return;
+        this._card.hide();
+        this._resetContent();
+        this._setState(IslandState.COLLAPSED);
+    }
+
+    // Notch content can change width mid-close (items return, media updates,
+    // settings). Continue toward the new size in the remaining time.
+    _retargetCollapse() {
+        this._pill.width = Math.max(1, this._collapsedWidth - this._border);
+        const transition = this.actor.get_transition('width') ?? this.actor.get_transition('height');
+        if (!transition) return; // collapse() has not started resizing yet
+        const remaining = Math.max(0, transition.get_duration() - transition.get_elapsed_time());
+        const token = this._token;
+        this._easeSize(this._collapsedWidth, this._collapsedHeight, remaining,
+            () => this._finishCollapse(token), Clutter.AnimationMode.EASE_OUT_CUBIC);
     }
 
     // Content-driven height refresh while open (sections appearing/vanishing).
@@ -297,7 +325,9 @@ export class IslandSurface {
     _setState(state) {
         this.state = state;
         this.setConnectionEdge(this._connectionEdgeRequested);
-        const open = this.expanded;
+        // Keep the floating card's rounded top corners until the close docks
+        // at the panel edge, mirroring how opening rounds them at the start.
+        const open = state !== IslandState.COLLAPSED;
         this.actor.set_style_class_name(open
             ? 'ubuntu-island-surface ubuntu-island-surface-open'
             : 'ubuntu-island-surface ubuntu-island-surface-collapsed');
@@ -431,13 +461,23 @@ export class IslandSurface {
         });
     }
 
-    _easeContent(actor, properties, duration) {
+    // Opacity may run on its own duration or curve (`fade`) so a layer can
+    // appear late or vanish early without changing how its transform moves.
+    _easeContent(actor, properties, duration, fade = null) {
         actor.remove_all_transitions();
         if (duration <= 0) {
             Object.assign(actor, properties);
             return;
         }
-        actor.ease({...properties, duration: Math.round(duration), mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+        const mode = Clutter.AnimationMode.EASE_OUT_CUBIC;
+        if (!fade || properties.opacity === undefined) {
+            actor.ease({...properties, duration: Math.round(duration), mode});
+            return;
+        }
+        const {opacity, ...transform} = properties;
+        actor.ease({...transform, duration: Math.round(duration), mode});
+        actor.ease({opacity, mode: fade.mode ?? mode,
+            duration: Math.max(1, Math.round(fade.duration ?? duration))});
     }
 
     _resetContent() {

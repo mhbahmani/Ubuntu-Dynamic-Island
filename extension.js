@@ -391,7 +391,9 @@ export default class UbuntuIsland extends Extension {
             connection: this._states.connection,
             offlineMode: this._settings.get_string('pill-offline-mode'),
             bluetooth: this._states.bluetooth,
-            expanded: this._island?.expanded ?? false,
+            // Keep the notch layout while it fades out; hide its collapsed-only
+            // items once covered, and restore them as the close begins.
+            expanded: this._island?.state === IslandState.EXPANDED,
             showMetrics: this._settings.get_boolean('enable-metrics'),
             showTitle: this._settings.get_boolean('pill-show-title'),
             showDate: this._settings.get_boolean('pill-show-date'),
