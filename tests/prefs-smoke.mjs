@@ -200,6 +200,14 @@ for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weath
     settings.set_boolean(key, false);
     if (row.active) throw new Error(`${title} did not follow settings`);
 }
+for (const [title, key, dependsOn] of [['Text size', 'pill-text-scale', null]]) {
+    const row = find(window, title);
+    if (!row) throw new Error(`Missing notch control: ${title}`);
+    if (dependsOn && row.sensitive) throw new Error(`${title} must follow its switch`);
+    row.adjustment.value = row.adjustment.lower;
+    if (settings.get_int(key) !== row.adjustment.lower) throw new Error(`${title} did not save`);
+    settings.reset(key);
+}
 function tooltip(widget, text) {
     if (widget.tooltip_text === text) return widget;
     for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {

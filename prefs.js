@@ -122,6 +122,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
 
         const notch = new Adw.PreferencesGroup({title: 'Collapsed notch',
             description: 'Indicators require their modules to be enabled. Changes apply immediately.'});
+        notch.add(spin(settings, 'pill-text-scale', 'Text size', '% · Icons follow; the notch grows taller when needed', 80, 150, 5));
         notch.add(toggle(settings, 'pill-show-title', 'Show music name'));
         notch.add(toggle(settings, 'pill-show-weather', 'Show weather icon',
             'Refreshes weather while the collapsed notch is visible'));

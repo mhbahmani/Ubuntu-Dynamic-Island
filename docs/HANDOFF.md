@@ -329,6 +329,10 @@ remains untracked.
 
 ## Notch indicator options (2026-11-15)
 
+- **Text size** (`pill-text-scale`): `.ubuntu-island-pill` carries a 10pt base
+  and notch labels use em sizes; `Pill.setTextScale()` sets the base inline and
+  scales fixed icon sizes. The pill has a 26px minimum height and the collapsed
+  height follows its natural height plus padding.
 - **Ongoing events** show only the calendar icon; `label` keeps the text for the
   accessible name.
 

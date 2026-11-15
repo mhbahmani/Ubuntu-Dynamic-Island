@@ -49,6 +49,12 @@
       <summary>Collapsed notch behavior without internet access</summary>
       <description>Show a connection icon, an unplugged icon with a broken bottom edge, or hide missing and stale indicators while keeping fresh cached values. Legacy badge values migrate to icon.</description>
     </key>
+    <key name="pill-text-scale" type="i">
+      <default>100</default>
+      <range min="80" max="150"/>
+      <summary>Notch text size percentage</summary>
+      <description>Scales collapsed notch text and icons; the notch grows taller when the text needs it.</description>
+    </key>
     <key name="pill-width" type="i">
       <default>170</default>
       <range min="150" max="210"/>

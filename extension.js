@@ -130,6 +130,7 @@ export default class UbuntuIsland extends Extension {
         this._bindQuickAsk();
         this._bindIslandShortcuts();
         this._applyAppearance();
+        this._pill.setTextScale(this._settings.get_int('pill-text-scale'));
         this._syncCalendarEvents();
 
         // Model events drive isolated UI updates; no UI code in the services.
@@ -276,6 +277,7 @@ export default class UbuntuIsland extends Extension {
         for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-notifications', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
+        watch('pill-text-scale', () => this._applyTextScale());
         for (const key of ['pill-show-date', 'pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'pill-date-short-months', 'calendar-use-calendar-language', 'pill-show-time', 'pill-time-24h', 'pill-time-seconds'])
             watch(key, () => this._renderPill());
         for (const key of ['calendar-events-enabled','calendar-event-sources','pill-show-event','pill-event-show-title','calendar-event-lead-minutes'])
@@ -382,6 +384,12 @@ export default class UbuntuIsland extends Extension {
         const classes = this._card.actor.get_style_class_name().split(/\s+/)
             .filter(name => !name.startsWith('ubuntu-island-theme-'));
         this._card.actor.set_style_class_name([...classes, `ubuntu-island-theme-${theme}`].join(' '));
+    }
+
+    // The notch re-measures its width and height once the new font settles.
+    _applyTextScale() {
+        this._pillMinimum = -1;
+        this._pill.setTextScale(this._settings.get_int('pill-text-scale'));
     }
 
     _renderPill() {

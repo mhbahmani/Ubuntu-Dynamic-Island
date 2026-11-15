@@ -164,6 +164,33 @@ export default class Smoke extends UbuntuIsland {
         }
     }
 
+    async _checkNotchOptions() {
+        const island = this._island, pill = this._pill, settings = this._settings;
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const font = actor => actor.get_theme_node().get_font().get_size();
+        const motion = St.Settings.get().enable_animations && !settings.get_boolean('disable-animations');
+        const animation = motion ? Math.max(0, Math.min(500, settings.get_int('animation-duration'))) : 0;
+        const base = {height: island.actor.height, title: font(pill._title), rate: font(pill._down), icon: pill._mediaIcon.icon_size};
+        assert(!island.expanded, 'Notch options need a collapsed notch');
+        try {
+            // Text size: labels inherit one font size and the notch grows.
+            settings.set_int('pill-text-scale', 150); await delay(250);
+            assert(Math.abs(font(pill._down) / base.rate - 1.5) < 0.02 && Math.abs(font(pill._title) / base.title - 1.5) < 0.02,
+                'Text size did not scale notch labels');
+            assert(pill._mediaIcon.icon_size === Math.round(base.icon * 1.5), 'Notch icons did not follow the text size');
+            assert(island.actor.height >= base.height && pill.actor.height <= island.actor.height - 2 * scale,
+                `Enlarged text overflows the notch: content ${pill.actor.height}px in ${island.actor.height}px`);
+            await this._capture('notch-text-150');
+            settings.reset('pill-text-scale'); await delay(250);
+            assert(island.actor.height === base.height && font(pill._down) === base.rate, 'Default text size did not restore the notch');
+
+            console.log('[Island Smoke] Notch options PASS: text size');
+        } finally {
+            settings.reset('pill-text-scale');
+            await delay(animation + 200);
+        }
+    }
+
     async _checkMediaFeatures(original, cover) {
         const card = this._card, actions = card._actions, tools = card._mediaTools;
         const saved = {...actions}, lyrics = this._lyrics;
@@ -1002,6 +1029,7 @@ export default class Smoke extends UbuntuIsland {
         this._settings.set_boolean('pill-show-commute', false);
         assert(!this._pill._commute.visible && !this._commute.controller.timer, 'Disabled Commute notch retained timer');
         await this._checkNetworkWidths();
+        await this._checkNotchOptions();
         for (const shape of ['classic', 'chevron']) {
             this._settings.set_string('pill-arrow-style', shape);
             await delay(70);

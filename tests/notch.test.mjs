@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {notchOrder, notchTime, NOTCH_ITEMS, connectionIndicator, migrateOfflineMode} from '../services/notch-model.js';
+import {notchOrder, notchTime, NOTCH_ITEMS, connectionIndicator, migrateOfflineMode, textScale} from '../services/notch-model.js';
 
 test('notch time handles midnight, noon, 24-hour time and optional seconds', () => {
     const date = hour => new Date(2026,10,12,hour,4,9);
@@ -108,4 +108,12 @@ test('media title modes preserve Unicode and bound fixed character limits', asyn
     assert.equal(titleText('abc', 'fixed', 5), 'abc');
     assert.equal(titleText('👨‍👩‍👦'.repeat(6), 'fixed', 5), '👨‍👩‍👦'.repeat(5) + '…');
     for (const mode of ['scroll', 'fit']) assert.equal(titleText('A long complete title', mode, 5), 'A long complete title');
+});
+
+test('notch text scale clamps to the schema range', () => {
+    assert.equal(textScale(100), 1);
+    assert.equal(textScale(125), 1.25);
+    assert.equal(textScale(10), 0.8);
+    assert.equal(textScale(400), 1.5);
+    assert.equal(textScale(undefined), 1);
 });

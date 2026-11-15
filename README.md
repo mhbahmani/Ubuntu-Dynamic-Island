@@ -471,6 +471,11 @@ Agents, Dates, Upcoming event and Time.
 Select an item and use the move buttons for keyboard reordering. Hidden items
 keep their place.
 
+**Notch → Collapsed notch** also sets:
+
+- **Text size** (80–150%): notch labels and icons scale together; the notch grows
+  taller only when the text needs it. Rate slots re-measure for the new size.
+
 **Notch → Time in the notch** adds a local clock with 24-hour or 12-hour AM/PM
 format and optional seconds. Its timer stops whenever the clock is hidden.
 In each Jalali/Hijri date row, **Short English month names** abbreviates months

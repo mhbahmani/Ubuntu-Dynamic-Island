@@ -82,3 +82,9 @@ export function titleText(value, mode, limit) {
         : Array.from(text);
     return characters.length > titleLimit(limit) ? characters.slice(0, titleLimit(limit)).join('') + '…' : text;
 }
+
+// Notch text size, as a clamped scale factor (schema percentage 80–150).
+export function textScale(percent) {
+    const value = Number(percent);
+    return Math.max(80, Math.min(150, Number.isFinite(value) ? value : 100)) / 100;
+}

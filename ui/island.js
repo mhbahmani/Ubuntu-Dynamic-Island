@@ -17,6 +17,8 @@ const COLLAPSED_HEIGHT = 34;
 // docked at the panel edge the open shape's top is tucked this far above the
 // surface clip, so its rounded top corners never show against the edge.
 const OPEN_TUCK = 21;
+// Collapsed padding around the notch content (34px notch, 26px content).
+const COLLAPSED_PADDING = 8;
 const HEIGHT_BUDGET = 0.8; // of the monitor height
 // A dismissing outside press may still be held: releasing the modal grab
 // mid-press strands Clutter's pointer emission chain, so later clicks (the
@@ -199,7 +201,9 @@ export class IslandSurface {
 
     applyDimensions() {
         this._scale = this._themeContext?.scale_factor ?? 1;
-        this._collapsedHeight = COLLAPSED_HEIGHT * this._scale;
+        // Grow with the notch content when larger text needs more height.
+        const content = this._pill.mapped ? Math.ceil(this._pill.get_preferred_height(-1)[1]) : 0;
+        this._collapsedHeight = Math.max(COLLAPSED_HEIGHT * this._scale, content + COLLAPSED_PADDING * this._scale);
         this._border = 2 * this._scale;
         // The 1px edge lives on the tint layer, so inset content to keep the
         // geometry the surface's own border used to give it.

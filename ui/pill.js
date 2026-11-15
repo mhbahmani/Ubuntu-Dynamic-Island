@@ -6,7 +6,7 @@ import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {MediaTitle} from './media-title.js';
 import GLib from 'gi://GLib';
-import {notchOrder, notchTime, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator} from '../services/notch-model.js';
+import {notchOrder, notchTime, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator, textScale} from '../services/notch-model.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {weatherSceneKind, temperature} from '../services/weather-model.js';
@@ -46,6 +46,7 @@ export class Pill {
         face.add_child(this._peek);
         this.actor.set_child(face);
         this._peekTimer = 0;
+        this._textScale = 1;
 
         this._mediaIcon = icon('audio-x-generic-symbolic', 14);
         this._mediaTitle = new MediaTitle();
@@ -86,18 +87,21 @@ export class Pill {
         this._network.visible = false;
         content.add_child(this._network);
         this._commute = row('ubuntu-island-pill-commute');
-        this._commute.add_child(icon('find-location-symbolic', 13));
+        const commuteIcon = icon('find-location-symbolic', 13);
+        this._commute.add_child(commuteIcon);
         this._commuteValue = label('—', 'ubuntu-island-pill-rate', false);
         this._commute.add_child(this._commuteValue);
         this._commute.visible = false;
         content.add_child(this._commute);
         this._agents = row('ubuntu-island-pill-agents');
-        this._agents.add_child(icon(agentIcon, 13));
+        const agentsIcon = icon(agentIcon, 13);
+        this._agents.add_child(agentsIcon);
         this._agentsText = label('', 'ubuntu-island-pill-rate', false);
         this._agents.add_child(this._agentsText);
         this._agents.visible = false; content.add_child(this._agents);
         this._notifications = row('ubuntu-island-pill-notifications');
-        this._notifications.add_child(icon('preferences-system-notifications-symbolic', 13));
+        const notificationsIcon = icon('preferences-system-notifications-symbolic', 13);
+        this._notifications.add_child(notificationsIcon);
         this._notificationsText = label('', 'ubuntu-island-pill-rate', false);
         this._notifications.add_child(this._notificationsText);
         this._notifications.visible = false; content.add_child(this._notifications);
@@ -110,7 +114,8 @@ export class Pill {
         this._time.set_text_direction(Clutter.TextDirection.LTR);
         this._event = new St.Button({style_class:'ubuntu-island-pill-event',can_focus:true,reactive:true});
         const eventFace = row('ubuntu-island-pill-event-face');
-        eventFace.add_child(icon('x-office-calendar-symbolic',13));
+        const eventIcon = icon('x-office-calendar-symbolic',13);
+        eventFace.add_child(eventIcon);
         this._eventText = label('','ubuntu-island-pill-date'); eventFace.add_child(this._eventText);
         this._event.set_child(eventFace); this._event.hide(); content.add_child(this._event);
         this._event.connect('clicked', () => onEvent?.());
@@ -133,6 +138,11 @@ export class Pill {
         content.add_child(this._connection);
         content.add_child(this._cpuDot);
         content.add_child(this._bluetooth);
+        // Fixed-size icons follow the text size; weather and connection icons
+        // change size with their style and scale when they are set.
+        this._scaledIcons = [[this._mediaIcon, 14], [this._bluetooth, 12], [this._peekIcon, 14],
+            [commuteIcon, 13], [agentsIcon, 13],
+            [notificationsIcon, 13], [eventIcon, 13]];
         this._items = {media: this._media, weather: this._weather, network: this._network,
             cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents, notifications: this._notifications, date: this._date, event:this._event, time:this._time};
         const groups = [...Object.values(this._items), this._connection];
@@ -175,13 +185,39 @@ export class Pill {
             }
             const visible = groups.filter(g => g.visible);
             return visible.reduce((sum, g) => sum + (g === this._media
-                ? 14 * scale + (this._title.visible ? 6 * scale + this._mediaTitle.desiredWidth : 0)
+                ? this._iconSize(14) * scale + (this._title.visible ? 6 * scale + this._mediaTitle.desiredWidth : 0)
                 : g.get_preferred_width(-1)[1]), 0)
                 + (26 + Math.max(0, visible.length - 1) * 12) * scale;
         };
     }
 
     // Pango ellipsizes against the allocated width, including scaled fonts.
+    // Text size: one font size on the notch, which its labels inherit in em
+    // (stylesheet.css), and proportional icons. Rate slots re-measure on the
+    // resulting style change.
+    setTextScale(percent) {
+        const factor = textScale(percent);
+        if (factor === this._textScale && this._textScaleApplied) return;
+        this._textScale = factor;
+        this._textScaleApplied = true;
+        this.actor.set_style(factor === 1 ? null : `font-size: ${Math.round(1000 * factor) / 100}pt;`);
+        for (const [actor, size] of this._scaledIcons) actor.icon_size = this._iconSize(size);
+        this._sizeArrows();
+        this._weatherKind = null;
+        this._networkWidthKey = null;
+        this._queueLayout();
+    }
+
+    _iconSize(size) {
+        return Math.round(size * this._textScale);
+    }
+
+    // Arrow icons follow the notch text size.
+    _sizeArrows() {
+        const size = this._iconSize(14);
+        for (const arrow of this._arrows) arrow.icon_size = size;
+    }
+
     render({agents, showAgents = false, notifications = null, showNotifications = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}, showTime = false, timeOptions = {}}) {
         this._expanded = expanded;
         this._timeOptions = timeOptions;
@@ -213,7 +249,7 @@ export class Pill {
                 this._connectionIcon.icon_name = connectionIcon;
             }
         }
-        this._connectionIcon.icon_size = connectionState.edge ? 14 : 16;
+        this._connectionIcon.icon_size = this._iconSize(connectionState.edge ? 14 : 16);
         const available = Boolean(media?.available);
         this._media.visible = available;
         this._mediaIcon.visible = available;
@@ -238,17 +274,17 @@ export class Pill {
         this._agents.accessible_name = agentSummary(agents?.sessions);
         const current = weather?.data?.current;
         const kind = weatherSceneKind(current);
-        const weatherKey = `${weatherStyle}:${kind}`;
+        const weatherKey = `${weatherStyle}:${kind}:${this._textScale}`;
         if (weatherKey !== this._weatherKind) {
             this._weatherKind = weatherKey;
             if (weatherStyle === 'minimal') {
                 this._weather.gicon = null;
                 this._weather.icon_name = weatherSymbol(kind);
-                this._weather.icon_size = 14;
+                this._weather.icon_size = this._iconSize(14);
                 this._weather.add_style_class_name('ubuntu-island-pill-weather');
             } else {
                 this._weather.remove_style_class_name('ubuntu-island-pill-weather');
-                this._weather.icon_size = 20;
+                this._weather.icon_size = this._iconSize(20);
                 const file = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path(`assets/weather/notch/${kind}.svg`);
                 this._weather.gicon = new Gio.FileIcon({file});
             }
