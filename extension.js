@@ -20,6 +20,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {IslandSurface, IslandState} from './ui/island.js';
 import {IslandBackdrop} from './ui/backdrop.js';
+import {NotchAutoHide} from './ui/auto-hide.js';
 import {Pill} from './ui/pill.js';
 import {Card} from './ui/card.js';
 import {SystemMonitor} from './services/system.js';
@@ -116,12 +117,14 @@ export default class UbuntuIsland extends Extension {
             },
             onSwitchTab: direction => this._card.cyclePage(direction),
             onEscape: () => !this._card.quickAskOpen && this._card._page === 'agents' && this._card._agentsView.handleEscape(),
-            onStateChange: () => { if (this._island?.expanded) this._pill.endPeek(false); this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); this._syncCalendarEvents(); this._syncNotificationsSeen(); },
+            onStateChange: () => { if (this._island?.expanded) this._pill.endPeek(false); this._autoHide?.sync(); this._syncProgressTimer(); this._renderPill(); this._syncWeather(); this._syncMediaViews(); this._syncCalendarEvents(); this._syncNotificationsSeen(); },
         });
         this._island.setHoverEnabled(
             this._settings.get_boolean('hover-open'),
             this._settings.get_int('hover-open-delay'),
             this._settings.get_int('hover-close-delay'));
+        this._island.setPanelBlend(this._settings.get_string('pill-style') === 'panel');
+        this._autoHide = new NotchAutoHide(this._island);
         this._card.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); });
         this._island.actor.connect('notify::mapped', () => { this._syncWeather(); this._syncMediaViews(); this._syncProgressTimer(); this._syncCalendarEvents(); });
         this._calendarEvents = new CalendarEventsService(this.path,state => this._renderCalendarEvents(state));
@@ -183,6 +186,7 @@ export default class UbuntuIsland extends Extension {
         this._connectivity.start();
         this._island.show();
         this._renderPill();
+        this._syncAutoHide();
         this._syncWeather();
         this._system?.start();
         this._media?.start();
@@ -297,6 +301,13 @@ export default class UbuntuIsland extends Extension {
         watch('hover-open', syncHover);
         watch('hover-open-delay', syncHover);
         watch('hover-close-delay', syncHover);
+        // Blend and auto-hide are exclusive notch styles: a hidden notch above
+        // the edge cannot also read as part of the top bar.
+        watch('pill-style', () => {
+            this._island?.setPanelBlend(this._settings.get_string('pill-style') === 'panel');
+            this._syncAutoHide();
+        });
+        watch('auto-hide-reveal-delay', () => this._syncAutoHide());
         // Calendar owns its live module toggle in Card. Other module toggles
         // and the metrics interval take effect after a disable/enable cycle.
     }
@@ -327,6 +338,12 @@ export default class UbuntuIsland extends Extension {
             showBanners: item.showBanners,
         })) return;
         this._pill.peek(item, PEEK_MS, !this._settings.get_boolean('disable-animations'));
+        this._autoHide?.hold(PEEK_MS); // a hidden notch slides down for the peek
+    }
+
+    _syncAutoHide() {
+        this._autoHide?.configure(this._settings.get_string('pill-style') === 'auto-hide',
+            this._settings.get_int('auto-hide-reveal-delay'));
     }
 
     _togglePillTitle() {
@@ -779,6 +796,8 @@ export default class UbuntuIsland extends Extension {
         this._weather = null;
         this._system = this._media = this._bluetooth = this._audio = this._art = null;
         this._card?._weatherView?.scene.destroy();
+        this._autoHide?.destroy();
+        this._autoHide = null;
         this._island?.destroy();
         this._island = null;
         this._card = null;

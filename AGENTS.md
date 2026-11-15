@@ -85,6 +85,12 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
 - The idle notch has no “Island” label or placeholder music icon. Playing and
   paused tracks remain available; stopped registrations do not. Playing media
   without metadata uses the player/URI fallback title.
+- The notch stays its own surface. Blend style only borrows the top bar's
+  color and height while collapsed; auto-hide (an exclusive notch style)
+  moves it above the screen edge,
+  never behind the bar. Reveal only for a resting pointer (sweeps restart the
+  wait), a click, the shortcut or a peek; track the pointer with the reveal
+  zone's events, never by polling. See `ui/auto-hide.js`.
 - The media title eye toggle and middle-click on the notch change only the
   collapsed title (`pill-show-title`); keep the playback icon visible.
 - Keep load average and used-memory values compact on the CPU/MEMORY heading

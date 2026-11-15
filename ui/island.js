@@ -17,9 +17,10 @@ const COLLAPSED_HEIGHT = 34;
 // docked at the panel edge the open shape's top is tucked this far above the
 // surface clip, so its rounded top corners never show against the edge.
 const OPEN_TUCK = 21;
+const HEIGHT_BUDGET = 0.8; // of the monitor height
 // Collapsed padding around the notch content (34px notch, 26px content).
 const COLLAPSED_PADDING = 8;
-const HEIGHT_BUDGET = 0.8; // of the monitor height
+const PANEL_PADDING = 2;
 // A dismissing outside press may still be held: releasing the modal grab
 // mid-press strands Clutter's pointer emission chain, so later clicks (the
 // notch reopen click) route through the stale chain and never arrive. Wait
@@ -52,6 +53,8 @@ export class IslandSurface {
         this._dismissArmed = false;
         this._grab = null;
         this._grabSuspended = false;
+        this._blend = false;
+        this._concealed = false;
 
         this.actor = new St.Widget({
             style_class: 'ubuntu-island-surface ubuntu-island-surface-collapsed',
@@ -76,6 +79,12 @@ export class IslandSurface {
         this._material = new St.Widget({style_class: 'ubuntu-island-material', x_expand: true, y_expand: true});
         this._shape.add_child(this._material);
         backdrop?.setRadiusSource(this._material);
+        // Blend style: the top bar's own color covers the collapsed notch and
+        // fades to the theme tint as the card opens. It fills the surface's
+        // clip, so its corners stay square and never round off at the dock.
+        this._panelLayer = new St.Widget({style_class: 'ubuntu-island-panel-layer',
+            x_expand: true, y_expand: true, visible: false, reactive: false});
+        this.actor.add_child(this._panelLayer);
         this._pill = pill;
         this._card = card;
         // BinLayout clamps children to its changing allocation. Keep the two
@@ -130,6 +139,10 @@ export class IslandSurface {
         // grab, so every press/key reaches this captured-event handler — even
         // presses over windows, which never emit stage events on Wayland.
         track(this.actor, 'captured-event', (actor, event) => this._onCapturedEvent(actor, event));
+        if (Main.panel) {
+            track(Main.panel, 'style-changed', () => this._syncPanelColor());
+            track(Main.panel, 'notify::height', () => { if (this._blend) this.applyDimensions(); });
+        }
         track(Main.sessionMode, 'updated', () => {
             if (Main.sessionMode.isLocked || Main.sessionMode.isGreeter) {
                 this._snapCollapsed();
@@ -147,6 +160,14 @@ export class IslandSurface {
 
     get material() {
         return this._material;
+    }
+
+    get pill() {
+        return this._pill;
+    }
+
+    get collapsedHeight() {
+        return this._collapsedHeight;
     }
 
     get backdropRadius() {
@@ -201,9 +222,13 @@ export class IslandSurface {
 
     applyDimensions() {
         this._scale = this._themeContext?.scale_factor ?? 1;
-        // Grow with the notch content when larger text needs more height.
+        // Larger notch text makes the content taller than its 26px minimum;
+        // the notch grows with it. Blend style matches the top bar's height.
         const content = this._pill.mapped ? Math.ceil(this._pill.get_preferred_height(-1)[1]) : 0;
-        this._collapsedHeight = Math.max(COLLAPSED_HEIGHT * this._scale, content + COLLAPSED_PADDING * this._scale);
+        const panel = this._blend ? Main.panel?.height ?? 0 : 0;
+        this._collapsedHeight = panel > 0
+            ? Math.max(panel, content + PANEL_PADDING * this._scale)
+            : Math.max(COLLAPSED_HEIGHT * this._scale, content + COLLAPSED_PADDING * this._scale);
         this._border = 2 * this._scale;
         // The 1px edge lives on the tint layer, so inset content to keep the
         // geometry the surface's own border used to give it.
@@ -217,6 +242,94 @@ export class IslandSurface {
         if (this.expanded) this.relayout();
         else if (this.state === IslandState.COLLAPSING) this._retargetCollapse();
         else this._snapCollapsed();
+    }
+
+    // ---- blend with the top bar ----
+
+    setPanelBlend(enabled) {
+        enabled = Boolean(enabled);
+        if (enabled === this._blend) return;
+        this._blend = enabled;
+        this._syncPanelColor();
+        this._settleBlend();
+        this.applyDimensions();
+    }
+
+    get panelBlend() {
+        return this._blend;
+    }
+
+    _syncPanelColor() {
+        if (!this._blend) return;
+        let color = null;
+        try {
+            color = Main.panel?.get_theme_node().get_background_color() ?? null;
+        } catch {
+            color = null; // the panel is not styled yet; keep the last color
+        }
+        if (!color) return;
+        const alpha = Math.round(color.alpha / 255 * 1000) / 1000;
+        this._panelLayer.set_style(`background-color: rgba(${color.red},${color.green},${color.blue},${alpha});`);
+    }
+
+    // Collapsed in blend style: only the top bar color shows. Open: the
+    // theme tint, edge and sheen, as in the island style.
+    _settleBlend() {
+        const collapsed = this.state === IslandState.COLLAPSED;
+        const tinted = !this._blend || !collapsed;
+        for (const layer of [this._material, this._sheen, this._panelLayer]) layer.remove_all_transitions();
+        this._material.opacity = this._sheen.opacity = tinted ? 255 : 0;
+        this._panelLayer.opacity = tinted ? 0 : 255;
+        this._panelLayer.visible = this._blend && collapsed;
+    }
+
+    _easeBlend(open, duration) {
+        if (!this._blend) return;
+        this._panelLayer.show();
+        const fade = (actor, opacity, time, mode) => {
+            actor.remove_all_transitions();
+            if (time <= 0) actor.opacity = opacity;
+            else actor.ease({opacity, duration: Math.max(1, Math.round(time)), mode});
+        };
+        // Opening leaves the top bar quickly; closing settles into it at the
+        // end, as the surface reaches the bar's size.
+        const mode = open ? Clutter.AnimationMode.EASE_OUT_QUAD : Clutter.AnimationMode.EASE_IN_CUBIC;
+        const time = open ? duration * 0.35 : duration;
+        fade(this._panelLayer, open ? 0 : 255, time, mode);
+        fade(this._material, open ? 255 : 0, time, mode);
+        fade(this._sheen, open ? 255 : 0, time, mode);
+    }
+
+    // ---- auto-hide placement ----
+
+    // A concealed notch sits above the monitor's top edge (collapsed only).
+    // Opening always reveals it first, sliding down while the card grows.
+    setConcealed(concealed, animate = true) {
+        concealed = Boolean(concealed) && this.state === IslandState.COLLAPSED;
+        if (concealed === this._concealed) return;
+        this._concealed = concealed;
+        const monitor = this._monitor();
+        this.actor.remove_transition('y');
+        if (!concealed) this.actor.opacity = 255;
+        if (!monitor) return;
+        const y = this._restingY(monitor);
+        const duration = animate ? Math.round(this._animationMs() * (concealed ? 0.9 : 0.75)) : 0;
+        if (duration <= 0) {
+            this.actor.y = y;
+            if (concealed) this.actor.opacity = 0;
+            return;
+        }
+        this.actor.ease({y, duration,
+            mode: concealed ? Clutter.AnimationMode.EASE_IN_CUBIC : Clutter.AnimationMode.EASE_OUT_CUBIC,
+            onComplete: () => { if (this._concealed) this.actor.opacity = 0; }});
+    }
+
+    get concealed() {
+        return this._concealed;
+    }
+
+    _restingY(monitor) {
+        return monitor.y - (this._concealed ? this._collapsedHeight + this._scale : 0);
     }
 
     setHoverEnabled(enabled, openDelayMs, closeDelayMs) {
@@ -234,6 +347,7 @@ export class IslandSurface {
     expand() {
         if (this.expanded) return;
         const fromRest = this.state === IslandState.COLLAPSED;
+        this.setConcealed(false);
         this._onBeforeExpand?.();
         const token = ++this._token;
         // Start tucked: the open shape's rounded top is hidden above the edge,
@@ -266,6 +380,7 @@ export class IslandSurface {
             {duration: duration * 0.35});
         this._easeContent(this._card, {opacity: 255, scale_x: 1, scale_y: 1, translation_y: 0}, duration,
             {duration: duration * 0.75, mode: Clutter.AnimationMode.EASE_IN_OUT_QUAD});
+        this._easeBlend(true, duration);
         this._easeSize(this._expandedWidth, this._expandedHeight, duration, () => {
             if (token !== this._token) return;
             this._setState(IslandState.EXPANDED);
@@ -294,6 +409,7 @@ export class IslandSurface {
         // no timeline delay: those run on a wall-clock source, not the frame clock.
         this._easeContent(this._pill, {opacity: 255, scale_x: 1, scale_y: 1}, duration,
             {mode: Clutter.AnimationMode.EASE_IN_OUT_CUBIC});
+        this._easeBlend(false, duration);
         this._easeSize(this._collapsedWidth, this._collapsedHeight, duration,
             () => this._finishCollapse(token), Clutter.AnimationMode.EASE_OUT_CUBIC);
     }
@@ -304,6 +420,7 @@ export class IslandSurface {
         this._resetContent();
         this._setState(IslandState.COLLAPSED);
         this._setTuck(0); // the docked shape's top corners are square
+        this._settleBlend();
     }
 
     // Notch content can change width mid-close (items return, media updates,
@@ -466,7 +583,8 @@ export class IslandSurface {
         // The tuck follows the drop: rounded top corners slide out from under
         // the panel edge as the card descends and back under as it docks.
         const tuck = this.expanded ? 0 : OPEN_TUCK * this._scale;
-        this.actor.remove_all_transitions();
+        // Keep a running reveal (y): opening a hidden notch slides it down.
+        for (const property of ['width', 'height', 'translation-y']) this.actor.remove_transition(property);
         this._stopTuck();
         if (duration <= 0 || (this.actor.width === width && this.actor.height === height &&
             this.actor.translation_y === translation_y && this._tuckBind.offset === tuck)) {
@@ -545,9 +663,11 @@ export class IslandSurface {
         this._pill.can_focus = true;
         this._card.hide();
         this.actor.set_size(this._collapsedWidth, this._collapsedHeight);
-        this._recenter();
+        this._recenter(); // also settles an interrupted reveal or hide
+        this.actor.opacity = this._concealed ? 0 : 255;
         if (this.state !== IslandState.COLLAPSED) this._setState(IslandState.COLLAPSED);
         this._setTuck(0);
+        this._settleBlend();
     }
 
     _animationMs() {
@@ -619,9 +739,10 @@ export class IslandSurface {
     _recenter() {
         const monitor = this._monitor();
         if (!monitor) return;
-        this.actor.set_position(
-            Math.round(monitor.x + (monitor.width - this.actor.width) / 2),
-            monitor.y);
+        const x = Math.round(monitor.x + (monitor.width - this.actor.width) / 2);
+        // A reveal or hide in progress owns y; width changes only re-center.
+        if (this.actor.get_transition('y')) this.actor.x = x;
+        else this.actor.set_position(x, this._restingY(monitor));
     }
 
     _heightBudget() {

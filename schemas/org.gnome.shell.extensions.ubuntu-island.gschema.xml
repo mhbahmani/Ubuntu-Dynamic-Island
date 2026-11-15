@@ -49,6 +49,12 @@
       <summary>Collapsed notch behavior without internet access</summary>
       <description>Show a connection icon, an unplugged icon with a broken bottom edge, or hide missing and stale indicators while keeping fresh cached values. Legacy badge values migrate to icon.</description>
     </key>
+    <key name="pill-style" type="s">
+      <default>'island'</default>
+      <choices><choice value="island"/><choice value="panel"/><choice value="auto-hide"/></choices>
+      <summary>Collapsed notch style</summary>
+      <description>Island floats over the top bar in the theme colors. Panel matches the top bar's color and height while collapsed; the expanded card keeps the theme. Auto-hide is the island style kept above the screen edge until the pointer rests at the top edge.</description>
+    </key>
     <key name="pill-text-scale" type="i">
       <default>100</default>
       <range min="80" max="150"/>
@@ -70,6 +76,12 @@
       <range min="5" max="95"/>
       <summary>CPU load percentage at which the hidden CPU dot appears</summary>
       <description>The dot hides again once load falls 5 points below this value, so it does not flicker around the threshold.</description>
+    </key>
+    <key name="auto-hide-reveal-delay" type="i">
+      <default>350</default>
+      <range min="100" max="1500"/>
+      <summary>Auto-hide reveal delay</summary>
+      <description>Milliseconds the pointer must rest at the top edge before the hidden notch slides down.</description>
     </key>
     <key name="pill-width" type="i">
       <default>170</default>

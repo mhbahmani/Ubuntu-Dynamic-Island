@@ -189,6 +189,10 @@ export default class Smoke extends UbuntuIsland {
         const motion = St.Settings.get().enable_animations && !settings.get_boolean('disable-animations');
         const animation = motion ? Math.max(0, Math.min(500, settings.get_int('animation-duration'))) : 0;
         const base = {height: island.actor.height, title: font(pill._title), rate: font(pill._down), icon: pill._mediaIcon.icon_size};
+        const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
+        const move = (x, y) => pointer.notify_absolute_motion(GLib.get_monotonic_time(), x, y);
+        const monitor = Main.layoutManager.primaryMonitor;
+        const top = [monitor.x + monitor.width / 2, monitor.y + scale];
         assert(!island.expanded, 'Notch options need a collapsed notch');
         try {
             // Text size: labels inherit one font size and the notch grows.
@@ -198,6 +202,7 @@ export default class Smoke extends UbuntuIsland {
             assert(pill._mediaIcon.icon_size === Math.round(base.icon * 1.5), 'Notch icons did not follow the text size');
             assert(island.actor.height >= base.height && pill.actor.height <= island.actor.height - 2 * scale,
                 `Enlarged text overflows the notch: content ${pill.actor.height}px in ${island.actor.height}px`);
+            const enlarged = island.actor.height;
             await this._capture('notch-text-150');
             settings.reset('pill-text-scale'); await delay(250);
             assert(island.actor.height === base.height && font(pill._down) === base.rate, 'Default text size did not restore the notch');
@@ -210,13 +215,68 @@ export default class Smoke extends UbuntuIsland {
             assert(cpu(5), 'CPU dot did not return when idle hiding was turned off');
             this._renderSystem(system);
 
-            console.log('[Island Smoke] Notch options PASS: text size and idle CPU band');
+            // Blend: the top bar's color and height while collapsed.
+            settings.set_string('pill-style', 'panel'); await delay(150);
+            const bar = Main.panel.get_theme_node().get_background_color();
+            const layer = island._panelLayer.get_theme_node().get_background_color();
+            assert(island.actor.height === Math.max(Main.panel.height, Math.ceil(pill.actor.height) + 2 * scale),
+                `Blend height ${island.actor.height}px does not match the top bar (${Main.panel.height}px)`);
+            assert(island._panelLayer.visible && island._panelLayer.opacity === 255 && island.material.opacity === 0 &&
+                ['red', 'green', 'blue'].every(channel => Math.abs(layer[channel] - bar[channel]) <= 1),
+                'Blend style did not take the top bar color');
+            await this._capture('notch-blend');
+            island.expand(); await delay(animation + 200);
+            assert(island.material.opacity === 255 && island._panelLayer.opacity === 0, 'Opened blend card did not use the theme');
+            island.collapse(); await delay(animation + 200);
+            assert(island._panelLayer.opacity === 255 && island.material.opacity === 0, 'Closed blend notch did not return to the top bar color');
+            settings.reset('pill-style'); await delay(150);
+            assert(island.actor.height === base.height && !island._panelLayer.visible && island.material.opacity === 255,
+                'Island style did not restore');
+
+            // Auto-hide: concealed above the edge, revealed only by a resting pointer.
+            move(50, 500); await delay(60);
+            settings.set_int('auto-hide-reveal-delay', 300);
+            settings.set_string('pill-style', 'auto-hide'); await delay(animation + 150);
+            assert(island.concealed && island.actor.y + island.actor.height <= monitor.y && island.actor.opacity === 0,
+                'Auto-hide did not slide the notch above the edge');
+            // A sweep along the edge keeps restarting the wait.
+            const zone = this._autoHide._zone, left = zone.x + 4 * scale;
+            for (let x = left; x < zone.x + zone.width - 4 * scale; x += 40 * scale) { move(x, top[1]); await delay(50); }
+            const sweep = Math.round((zone.width - 8 * scale) / (40 * scale)) * 50;
+            assert(sweep > 300 && island.concealed, `A ${sweep}ms sweep along the edge revealed the notch`);
+            move(...top); await delay(150);
+            assert(island.concealed, 'Notch revealed before the delay');
+            await delay(300 + animation);
+            assert(!island.concealed && island.actor.y === monitor.y && island.actor.opacity === 255, 'Resting pointer did not reveal the notch');
+            move(50, 500); await delay(700 + animation + 200);
+            assert(island.concealed, 'Notch did not hide after the pointer left');
+            // A click at the edge reveals and opens at once.
+            move(...top); await delay(30);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED); await delay(30);
+            pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED); await delay(animation + 150);
+            assert(island.expanded && !island.concealed, 'Clicking the edge did not open the island');
+            move(50, 500); await delay(30);
+            island.collapse(); await delay(animation + 700 + animation + 250);
+            assert(island.concealed, 'Notch did not hide after closing');
+            // Opening by shortcut reveals; a notification peek holds it down.
+            this._autoHide.hold(400); await delay(animation + 100);
+            assert(!island.concealed, 'Peek did not reveal the notch');
+            await delay(400 + 700 + animation);
+            assert(island.concealed, 'Notch stayed after the peek');
+            settings.set_string('pill-style', 'panel'); await delay(animation + 150);
+            assert(!island.concealed && !this._autoHide._zone && island.panelBlend, 'Blend style left the notch hidden');
+            console.log(`[Island Smoke] Notch options PASS: text size ${base.height}->${enlarged}px, idle CPU band, ` +
+                `blend ${Main.panel.height}px, auto-hide dwell/sweep/click/peek`);
         } finally {
+            settings.reset('auto-hide-reveal-delay');
+            settings.reset('pill-style');
             settings.reset('pill-text-scale');
             settings.reset('pill-cpu-hide-idle');
             this._renderSystem(system);
+            move(50, 500);
             await delay(animation + 200);
         }
+        assert(!island.concealed && !this._autoHide._zone && island.actor.y === monitor.y, 'Turning off auto-hide left the notch hidden');
     }
 
     async _checkMediaFeatures(original, cover) {

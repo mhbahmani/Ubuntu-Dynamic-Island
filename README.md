@@ -110,7 +110,8 @@ and [compact playing pill](screenshots/playing-pill.png).
   shortcuts**. Regular tabs and sections share a stable expanded size.
 - Click toggles; **Escape and outside clicks close** via the same modal-grab
   pattern GNOME's own popup menus use (outside presses release input
-  immediately so apps receive the next click); optional hover open/close.
+  immediately so apps receive the next click); optional hover open/close and
+  auto-hide (a notch style).
 - **Media**: event-driven MPRIS discovery with playing-player priority, play/pause/skip,
   progress bar with seek (`SetPosition`, only when `CanSeek`), local
   `file://` artwork and **remote HTTPS artwork** through a bounded
@@ -473,11 +474,23 @@ keep their place.
 
 **Notch → Collapsed notch** also sets:
 
+- **Notch style**: *Floating island* (theme colors), *Blend with top bar*,
+  which takes the top bar's own color (read from the running Shell theme) and
+  height while collapsed, so the notch reads as part of the bar (the opened card
+  keeps the theme; the bar color fades out as it opens and back in as it docks),
+  or *Auto-hide* (below). Blend and auto-hide are exclusive.
 - **Text size** (80–150%): notch labels and icons scale together; the notch grows
   taller only when the text needs it. Rate slots re-measure for the new size.
-
 - **Hide CPU dot while load is low**: the colored dot appears at the threshold
   (default 50%) and hides again 5 points below it, so it does not flicker.
+
+**Auto-hide** keeps the collapsed island above the screen edge, separate from the
+top bar. Rest the pointer at the top edge
+above it for the reveal delay (default 350 ms) to slide it down; sweeping along the
+edge restarts the wait, so passing movements do nothing. Click it, or hover it
+with **Open on hover**, to open. Clicking the edge reveals and opens at once; the
+keyboard shortcut and notification peeks reveal it too. It hides again 700 ms after
+the pointer leaves.
 
 **Notch → Time in the notch** adds a local clock with 24-hour or 12-hour AM/PM
 format and optional seconds. Its timer stops whenever the clock is hidden.

@@ -6,7 +6,7 @@ import {containsPoint} from '../services/presentation.js';
 
 const ANIMATED = ['width', 'height', 'translation_y', 'scale_x', 'scale_y', 'opacity', 'x', 'y'];
 
-function harness(animation = 220, backdrop = null) {
+function harness(animation = 220, backdrop = null, panel = null) {
     class Actor {
         constructor(props = {}) {
             Object.assign(this, {visible: true, opacity: 255, width: 170, height: 34,
@@ -25,6 +25,7 @@ function harness(animation = 220, backdrop = null) {
         set_position(x, y) { Object.assign(this, {x, y}); }
         get_preferred_height() { return [34, 620]; }
         set_style_class_name(value) { this.style_class = value; }
+        set_style(value) { this.style = value; }
         ease(options) { this.transition = {...this.transition, ...options}; }
         remove_all_transitions() { this.transition = null; }
         remove_transition(name) {
@@ -56,6 +57,7 @@ function harness(animation = 220, backdrop = null) {
     const modal = new Set();
     const Main = {
         layoutManager: {primaryMonitor: {x: -1280, y: 0, width: 1280, height: 900}},
+        panel,
         sessionMode: {connect: () => 1},
         pushModal: () => { const grab = {}; modal.add(grab); return grab; },
         popModal: grab => { assert.equal(modal.delete(grab), true); },
@@ -372,4 +374,65 @@ test('the open shape tucks its rounded top under the edge while docked', () => {
     assert.equal(shape.translation_y, 0);
     surface.expand(); surface._snapCollapsed();
     assert.equal(surface.tuck, 0);
+});
+
+test('a concealed notch rests above the edge and opening slides it down while the card grows', () => {
+    const {surface} = harness();
+    surface.setConcealed(true);
+    assert.equal(surface.concealed, true);
+    assert.equal(surface.actor.transition.y, -35, 'Collapsed height plus a pixel above the monitor');
+    surface.actor.finish();
+    assert.equal(surface.actor.y, -35);
+    assert.equal(surface.actor.opacity, 0);
+    surface.setConcealed(true);
+    assert.equal(surface.actor.transition, null, 'Concealing twice does nothing');
+    surface.expand();
+    assert.equal(surface.concealed, false);
+    assert.equal(surface.actor.opacity, 255);
+    assert.equal(surface.actor.transition.y, 0, 'The reveal survives the size ease');
+    assert.equal(surface.actor.transition.width, 440);
+    surface.setConcealed(true);
+    assert.equal(surface.concealed, false, 'An open island is never concealed');
+    surface.actor.finish();
+    assert.equal(surface.actor.y, 0);
+});
+
+test('an interrupted hide settles at the concealed position', () => {
+    const {surface} = harness();
+    surface.setConcealed(true);
+    surface._snapCollapsed();
+    assert.equal(surface.actor.transition, null);
+    assert.equal(surface.actor.y, -35);
+    assert.equal(surface.actor.opacity, 0);
+    surface.setConcealed(false, false);
+    assert.equal(surface.actor.y, 0);
+    assert.equal(surface.actor.opacity, 255);
+});
+
+test('blend style takes the top bar color and height while collapsed and the theme while open', () => {
+    const panel = {height: 32, connect: () => 1, disconnect() {},
+        get_theme_node: () => ({get_background_color: () => ({red: 0, green: 0, blue: 0, alpha: 255})})};
+    const {surface} = harness(220, null, panel);
+    assert.equal(surface.actor.height, 34);
+    surface.setPanelBlend(true);
+    assert.equal(surface.actor.height, 32, 'Matches the top bar');
+    assert.equal(surface._panelLayer.style, 'background-color: rgba(0,0,0,1);');
+    assert.equal(surface._panelLayer.visible, true);
+    assert.equal(surface._panelLayer.opacity, 255);
+    assert.equal(surface._material.opacity, 0);
+    surface.expand();
+    assert.equal(surface._panelLayer.transition.opacity, 0);
+    assert.equal(surface._material.transition.opacity, 255);
+    assert(surface._panelLayer.transition.duration < surface.actor.transition.duration, 'Leaves the bar early');
+    surface.actor.finish(); surface._panelLayer.finish(); surface._material.finish();
+    surface.collapse();
+    assert.equal(surface._panelLayer.transition.opacity, 255);
+    assert.equal(surface._panelLayer.transition.duration, surface.actor.transition.duration, 'Settles into the bar as it docks');
+    surface.actor.finish();
+    assert.equal(surface._panelLayer.opacity, 255);
+    assert.equal(surface._material.opacity, 0);
+    surface.setPanelBlend(false);
+    assert.equal(surface.actor.height, 34);
+    assert.equal(surface._panelLayer.visible, false);
+    assert.equal(surface._material.opacity, 255);
 });

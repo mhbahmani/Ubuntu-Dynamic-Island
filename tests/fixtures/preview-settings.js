@@ -5,7 +5,7 @@ import GLib from 'gi://GLib';
 const UI_KEYS = new Set([
     'color-theme', 'surface-opacity', 'surface-matte', 'pill-width', 'expanded-width',
     'animation-duration', 'disable-animations', 'hover-open', 'hover-open-delay',
-    'hover-close-delay', 'move-clock', 'expand-tab', 'weather-units', 'weather-motion',
+    'hover-close-delay', 'auto-hide-reveal-delay', 'move-clock', 'expand-tab', 'weather-units', 'weather-motion',
     'calendar-primary', 'calendar-additional', 'calendar-show-holidays',
     'calendar-use-calendar-language', 'calendar-event-title-size', 'calendar-event-lead-minutes',
 ]);

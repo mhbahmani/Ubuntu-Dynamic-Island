@@ -327,20 +327,44 @@ suite is a full pass. Live browser playback and physical hardware were not
 retested, and the host installation was not replaced. User reference `1.png`
 remains untracked.
 
-## Notch indicator options (2026-11-15)
+## Notch style, text size and auto-hide (2026-11-15)
 
+- **Blend with top bar** (`pill-style` = `panel`): a `_panelLayer` in
+  `ui/island.js` fills the surface clip with `Main.panel`'s theme background
+  color (re-read on its `style-changed`); the collapsed height is the panel's
+  height (or the content's, if taller). It fades out in 35% of the opening and back
+  in over the whole close (`EASE_IN_CUBIC`) while the tint, edge and sheen do the
+  reverse. The layer is square and sits outside the tucked shape, so no corner
+  changes shape at the dock. Text colors are unchanged: they assume a dark bar
+  (GNOME and Yaru panels are dark in both color schemes).
 - **Text size** (`pill-text-scale`): `.ubuntu-island-pill` carries a 10pt base
   and notch labels use em sizes; `Pill.setTextScale()` sets the base inline and
   scales fixed icon sizes. The pill has a 26px minimum height and the collapsed
   height follows its natural height plus padding.
 - **CPU dot** (`pill-cpu-hide-idle`, `pill-cpu-idle-threshold`):
   `cpuDotVisible()` in `services/notch-model.js` with a 5-point hysteresis band.
+- **Auto-hide** (`pill-style` = `auto-hide`, exclusive with blend; reveal delay
+  row beside the style) (`ui/auto-hide.js`): `IslandSurface.setConcealed()` moves the
+  chrome actor's `y` above the monitor (its own transition, preserved by the
+  size eases; `_recenter()` only touches x while it runs) and sets opacity 0 once
+  hidden. One reactive zone, stacked below the island, tracks the pointer
+  without polling: a 3px strip while hidden, the notch footprint while revealed.
+  The reveal waits for the pointer to rest (drift ≤ 24 logical px restarts the
+  timer); a click on the zone reveals and toggles. Leaving starts a 700 ms hide;
+  `hold()` keeps it down for notification peeks; opening always reveals.
 - **Network rates**: slots are exactly the widest template (the old 4px
   padding is gone), so the gap to each neighbour is the 12px item spacing at
   the widest value. `pill-network-layout` = `stacked` makes the transfers box
   vertical (`ubuntu-island-pill-network-stacked`: 0.72em rates, 9px arrows).
 - **Ongoing events** show only the calendar icon; `label` keeps the text for the
   accessible name.
+- Verified: unit tests, `make check`, `make prefs-test`, `make smoke` (new
+  *Notch options* check: text size, CPU band, blend color/height and open/close,
+  auto-hide sweep/dwell/click/peek and switching to blend; *Network width* now
+  covers both layouts, slot width and neighbour gaps), `--check-motion` and
+  `--check-calendar`, all headless. Not verified on the real desktop: the
+  physical top-edge reveal feel, Yaru accent panels and other shell themes, and
+  multi-monitor layouts (the hidden notch moves above the primary monitor).
 
 ## Motion baseline
 

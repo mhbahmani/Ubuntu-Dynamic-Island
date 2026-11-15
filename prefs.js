@@ -106,6 +106,7 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
         hover.add(spin(settings, 'hover-open-delay', 'Open delay', 'ms', 100, 1000, 10));
         hover.add(spin(settings, 'hover-close-delay', 'Close delay', 'ms', 0, 2000, 10));
 
+
         const modules = new Adw.PreferencesGroup({
             title: 'Modules',
             description: 'Calendar changes apply immediately. Other module toggles and the sampling interval apply after disabling and re-enabling the extension.',
@@ -122,6 +123,22 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
 
         const notch = new Adw.PreferencesGroup({title: 'Collapsed notch',
             description: 'Indicators require their modules to be enabled. Changes apply immediately.'});
+        const styles = ['island', 'panel', 'auto-hide'];
+        const style = new Adw.ComboRow({title: 'Notch style',
+            subtitle: 'Blend uses the top bar’s color and height while collapsed. Auto-hide keeps the island above the screen edge: rest the pointer at the top edge to reveal it, then click or hover to open.',
+            model: Gtk.StringList.new(['Floating island', 'Blend with top bar', 'Auto-hide'])});
+        const reveal = spin(settings, 'auto-hide-reveal-delay', 'Auto-hide reveal delay',
+            'ms · Passing movements along the edge restart the wait', 100, 1500, 50);
+        const syncStyle = () => {
+            style.selected = Math.max(0, styles.indexOf(settings.get_string('pill-style')));
+            reveal.sensitive = settings.get_string('pill-style') === 'auto-hide';
+        };
+        syncStyle();
+        style.connect('notify::selected', () => settings.set_string('pill-style', styles[style.selected]));
+        const styleId = settings.connect('changed::pill-style', syncStyle);
+        window.connect('close-request', () => { settings.disconnect(styleId); return false; });
+        notch.add(style);
+        notch.add(reveal);
         notch.add(spin(settings, 'pill-text-scale', 'Text size', '% · Icons follow; the notch grows taller when needed', 80, 150, 5));
         notch.add(toggle(settings, 'pill-show-title', 'Show music name'));
         notch.add(toggle(settings, 'pill-show-weather', 'Show weather icon',

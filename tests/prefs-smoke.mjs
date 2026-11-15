@@ -202,7 +202,7 @@ for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weath
     if (row.active) throw new Error(`${title} did not follow settings`);
 }
 for (const [title, key, dependsOn] of [['CPU dot threshold', 'pill-cpu-idle-threshold', 'pill-cpu-hide-idle'],
-    ['Text size', 'pill-text-scale', null]]) {
+    ['Auto-hide reveal delay', 'auto-hide-reveal-delay', 'pill-style'], ['Text size', 'pill-text-scale', null]]) {
     const row = find(window, title);
     if (!row) throw new Error(`Missing notch control: ${title}`);
     if (dependsOn && row.sensitive) throw new Error(`${title} must follow its switch`);
@@ -210,6 +210,15 @@ for (const [title, key, dependsOn] of [['CPU dot threshold', 'pill-cpu-idle-thre
     if (settings.get_int(key) !== row.adjustment.lower) throw new Error(`${title} did not save`);
     settings.reset(key);
 }
+const styleRow = find(window, 'Notch style');
+if (!styleRow || styleRow.selected !== 0) throw new Error('Notch style must default to the floating island');
+styleRow.selected = 1;
+if (settings.get_string('pill-style') !== 'panel') throw new Error('Blend style did not save');
+styleRow.selected = 2;
+if (settings.get_string('pill-style') !== 'auto-hide' || !find(window, 'Auto-hide reveal delay').sensitive)
+    throw new Error('Auto-hide style did not save or enable its delay');
+settings.reset('pill-style');
+if (styleRow.selected !== 0 || find(window, 'Auto-hide reveal delay').sensitive) throw new Error('Notch style did not follow settings');
 const layoutRow = find(window, 'Rates layout');
 if (!layoutRow || layoutRow.selected !== 0) throw new Error('Rates layout must default to side by side');
 layoutRow.selected = 1;
