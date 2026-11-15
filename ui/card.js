@@ -7,6 +7,7 @@ import {CommuteView} from './commute-view.js';
 import {WeatherView} from './weather-view.js';
 import {NotificationsView} from './notifications-view.js';
 import {HistoryChart} from './charts.js';
+import {invalidateBackdrop} from './backdrop.js';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
@@ -16,6 +17,7 @@ import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 import * as Util from 'resource:///org/gnome/shell/misc/util.js';
 import {icon, label, row, column, button, pct, setEnabled, notchToggle} from './widgets.js';
 import {formatTime, clampFraction} from '../services/format.js';
+import {pageDirection} from '../services/presentation.js';
 import {formatCapacity} from '../services/proc.js';
 
 // Symbolic theme artwork uses a 16px grid. Keep the native size and an even
@@ -116,6 +118,8 @@ export class Card {
                 if (this._navigationFit) GLib.Source.remove(this._navigationFit);
                 this._navigationFit = 0;
                 this._resetSlider();
+                this._settlePage();
+                this._shownPage = null;
                 this._clearHover(this.actor);
                 if (this.quickAskOpen) { this.quickAskOpen = false; this._syncPages(); }
             } else {
@@ -145,6 +149,7 @@ export class Card {
             this._sectionCount++;
         } else {
             this._pages.delete('calendar');
+            if (this._revealing === this._calendarView.actor) this._settlePage();
             this._calendarView.actor.destroy();
             this._calendarView = null;
             this._sectionCount--;
@@ -373,6 +378,40 @@ export class Card {
         slider.opacity = 255;
     }
 
+    // Shared tab transition: the incoming page fades in and settles from the
+    // side of the selected tab while the marker glides, on the same timing.
+    // The outgoing page leaves at once (pages share one column; overlaying
+    // both would need a snapshot). Only opacity and translation change, so
+    // text never re-lays out. Opening, Quick Ask and availability changes
+    // stay instant, as do both reduced-motion settings.
+    _revealPage(previous) {
+        const box = this._pages.get(this._page)?.box;
+        if (this._revealing && this._revealing !== box) this._settlePage();
+        const direction = pageDirection([...this._tabs.keys()], previous, this._shownPage);
+        const duration = this._sliderMs();
+        if (!box || !direction || duration <= 0 || !this.actor.mapped || !this._actions.motionReady?.()) return;
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        this._revealing = box;
+        box.opacity = 0;
+        box.translation_x = direction * 14 * scale;
+        box.ease({translation_x: 0, duration, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+        box.ease({opacity: 255, duration: Math.round(duration * 0.8), mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => { if (this._revealing === box) this._revealing = null; }});
+        // Background blur reads back the framebuffer: widen each partial
+        // frame of the transition to a full backdrop repaint.
+        box.get_transition('opacity')?.connect('new-frame', () => invalidateBackdrop(this.actor));
+    }
+
+    _settlePage() {
+        const box = this._revealing;
+        this._revealing = null;
+        if (!box) return;
+        box.remove_transition('opacity');
+        box.remove_transition('translation-x');
+        box.opacity = 255;
+        box.translation_x = 0;
+    }
+
     _resetSlider() {
         if (this._sliderSnap) GLib.Source.remove(this._sliderSnap);
         this._sliderSnap = 0;
@@ -406,6 +445,8 @@ export class Card {
     _syncPages(animateSlider = false) {
         if (!this._pages.get(this._page)?.available)
             this._page = [...this._pages].find(([, page]) => page.available)?.[0] ?? null;
+        const previous = this._shownPage;
+        this._shownPage = this.quickAskOpen ? null : this._page;
         this._scroll.visible = !this.quickAskOpen && !['agents', 'calendar'].includes(this._page);
         if (this._quickAsk) this._quickAsk.actor.visible = Boolean(this.quickAskOpen);
         if (this._navigation) this._navigation.visible = !this.quickAskOpen;
@@ -442,6 +483,7 @@ export class Card {
         // Glide only for user page changes from an already placed marker.
         const glide = animateSlider && this._sliderPlaced;
         this._placeSlider(glide);
+        this._revealPage(animateSlider ? previous : null);
         // Layout may still be pending (tabs shown or hidden, quick ask closed);
         // re-snap once it settles. A glide is left to finish.
         if (!glide) this._queueSliderSnap();

@@ -7,6 +7,15 @@ export function containsPoint(x, y, left, top, width, height) {
 // untagged files), but those players usually still expose xesam:url with a
 // file:// path. The file name beats showing the player name; non-file URLs
 // (browsers) carry no usable basename and fall through to @fallback.
+// Side a newly selected page enters from, following the tab order: moving to
+// a later tab brings content in from the right (1), an earlier one from the
+// left (-1). Unknown or unchanged pages do not move (0).
+export function pageDirection(order, from, to) {
+    const a = order.indexOf(from), b = order.indexOf(to);
+    if (a < 0 || b < 0 || a === b) return 0;
+    return b > a ? 1 : -1;
+}
+
 export function mediaTitle(title, url, fallback = '') {
     const trimmed = String(title ?? '').trim();
     if (trimmed) return trimmed;

@@ -72,6 +72,7 @@ export default class UbuntuIsland extends Extension {
             calendarRangeChanged: () => this._syncCalendarEvents(),
             calendarOpen: (day,uri) => this._openCalendar(day,uri),
             calendarFocusReady: () => this._island?.state === IslandState.EXPANDED,
+            motionReady: () => this._island?.state === IslandState.EXPANDED,
             mediaCommand: method => this._media?.command(method),
             selectPlayer: id => this._media?.select(id),
             mediaProperty: (key, value) => this._media?.setProperty(key, value),

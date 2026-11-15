@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {containsPoint, selectPlayer, layoutSignature, mediaTitle} from '../services/presentation.js';
+import {containsPoint, selectPlayer, layoutSignature, mediaTitle, pageDirection} from '../services/presentation.js';
 
 test('outside dismissal uses global geometry, including negative monitor origins', () => {
     assert.equal(containsPoint(-900, 30, -1000, 0, 440, 500), true);
@@ -60,4 +60,13 @@ test('layout signature stays stable across interleaved model events and volume c
     assert.equal(layoutSignature(states), bluetooth);
     states.media.available = true;
     assert.notEqual(layoutSignature(states), bluetooth);
+});
+
+test('pages enter from the side of the tab the user moved toward', () => {
+    const order = ['media', 'system', 'audio', 'calendar'];
+    assert.equal(pageDirection(order, 'media', 'audio'), 1);
+    assert.equal(pageDirection(order, 'calendar', 'system'), -1);
+    assert.equal(pageDirection(order, 'audio', 'audio'), 0);
+    assert.equal(pageDirection(order, null, 'audio'), 0, 'First page after opening stays still');
+    assert.equal(pageDirection(order, 'media', 'missing'), 0);
 });

@@ -36,6 +36,10 @@ export async function checkMotion(app) {
         app._settings.set_boolean('disable-animations', false);
         // Slow enough to inspect intermediate frames even in a nested compositor.
         app._settings.set_int('animation-duration', 500);
+        // The nested compositor stalls on its first transition after startup
+        // (no frames for >100 ms); warm it up before measuring.
+        surface.expand(); await settled(surface, 'expanded');
+        surface.collapse(); await settled(surface, 'collapsed');
         for (const density of ['compact', 'full']) {
             surface._snapCollapsed();
             indicators.forEach((id, i) => app._settings.set_boolean(`pill-show-${id}`,
@@ -144,19 +148,51 @@ export async function checkMotion(app) {
             'Hidden/snap cleanup left a live transition');
         assert(surface.actor.translation_y === 0 && pill.scale_x === 1 && card.scale_x === 1,
             'Hidden/snap cleanup retained motion transforms');
+        // Tab changes: the incoming page fades in and settles from the side of
+        // the selected tab while the surface and outgoing page stay still.
+        surface.expand(); await settled(surface, 'expanded');
+        app._card.selectPage('media', false); await delay(80);
+        const pageBox = id => app._card._pages.get(id).box;
+        for (const [from, to, side] of [['media', 'system', 1], ['system', 'media', -1]]) {
+            const before = box(surface.actor), tabFrames = [];
+            paintId = global.stage.connect('after-paint', () => tabFrames.push({surface: box(surface.actor),
+                opacity: pageBox(to).opacity, shift: pageBox(to).translation_x,
+                outgoing: pageBox(from).visible, outgoingOpacity: pageBox(from).opacity}));
+            app._card.selectPage(to);
+            assert(Math.sign(pageBox(to).translation_x) === side, `${to} did not enter from the ${side > 0 ? 'right' : 'left'}`);
+            await delay(app._card._sliderMs() + 120);
+            global.stage.disconnect(paintId); paintId = 0;
+            assert(tabFrames.filter(frame => frame.opacity > 10 && frame.opacity < 245).length >= 2,
+                `${to} page appeared without a visible transition`);
+            for (const [i, frame] of tabFrames.entries()) {
+                assert(!frame.outgoing && frame.outgoingOpacity === 255, `${from} page lingered or kept a faded pose`);
+                assert(Math.abs(frame.surface.width - before.width) <= tolerance &&
+                    Math.abs(frame.surface.height - before.height) <= tolerance, 'Surface resized while switching tabs');
+                assert(i === 0 || Math.abs(frame.shift) <= Math.abs(tabFrames[i - 1].shift) + 0.01, `${to} page moved back outward`);
+            }
+            assert(pageBox(to).opacity === 255 && pageBox(to).translation_x === 0, `${to} page did not settle`);
+        }
+        app._card.selectPage('system'); app._card.selectPage('audio');
+        assert(!pageBox('system').visible && pageBox('system').opacity === 255 && pageBox('system').translation_x === 0,
+            'Interrupted tab change left the skipped page mid-transition');
+        await delay(app._card._sliderMs() + 120);
+        surface.collapse(); await settled(surface, 'collapsed');
         for (const reduced of ['extension', 'desktop']) {
             app._settings.set_boolean('disable-animations', reduced === 'extension');
             desktop.set_boolean('enable-animations', reduced !== 'desktop');
             app._card.showQuickAsk(); surface.expand();
             assert(surface.state === 'expanded' && card.opacity === 255 && card.scale_x === 1,
                 `${reduced} reduced motion still animates opening`);
+            app._card.selectPage('media'); app._card.selectPage('system');
+            assert(!pageBox('system').get_transition('opacity') && pageBox('system').opacity === 255 &&
+                pageBox('system').translation_x === 0, `${reduced} reduced motion still animates tab changes`);
             surface.collapse();
             assert(surface.state === 'collapsed' && pill.scale_x === 1 && surface.actor.translation_y === 0,
                 `${reduced} reduced motion still animates closing`);
         }
         const file = Gio.File.new_for_path(`${GLib.getenv('ISLAND_PREVIEW_OUTPUT')}/motion.json`);
         file.replace_contents(JSON.stringify(frames), null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
-        console.log(`[Island Preview] MOTION PASS: centered inward motion, animated close, fixed content sizes, compact/full notch, 380/440px, ${scale * 100}% scale, Quick Ask focus, reversal and reduced motion`);
+        console.log(`[Island Preview] MOTION PASS: centered inward motion, animated close, tab transitions, fixed content sizes, compact/full notch, 380/440px, ${scale * 100}% scale, Quick Ask focus, reversal and reduced motion`);
     } finally {
         if (paintId) global.stage.disconnect(paintId);
         surface._snapCollapsed();

@@ -96,7 +96,9 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
 - Opening focuses the surface; Tab then enters the controls. The selected tab
   shows its theme accent (icon colour and one shared `ubuntu-island-tab-slider`
   marker that glides between tabs at 75% of the opening duration, instant with
-  reduced motion, snapped on layout changes). Per-tab markers are only for
+  reduced motion, snapped on layout changes). The incoming page fades in and
+  settles from the selected tab's side on the same timing through one shared
+  transition; never add per-tab copies. Per-tab markers are only for
   keyboard focus. Never show selection as a ring or button shadow.
 - Focus rings, headings and the navigation bar use theme tokens (`focus`,
   `heading`, `bottom`/`accent`) from `services/themes.js`; never hardcode them.

@@ -245,8 +245,8 @@ Agent configuration changes from preview preferences stay in temporary folders.
 To inspect expansion, closing and Quick Ask motion, use
 `make preview PREVIEW_ARGS="--check-motion --duration 30"`. This isolated check
 temporarily slows the animation, exercises compact/full notches at both card
-widths, and checks centering, the opening/closing layer hand-off, focus,
-reversals and reduced motion. It saves painted
+widths, and checks centering, the opening/closing layer hand-off, tab page
+transitions, focus, reversals and reduced motion. It saves painted
 frame measurements and screenshots alongside the preview log. The same flag works
 with `preview-headless` for automation; it cannot be combined with other checks.
 

@@ -77,14 +77,25 @@ export default class Smoke extends UbuntuIsland {
             card.selectPage('audio');
             if (duration > 0 && St.Settings.get().enable_animations)
                 assert(slider.get_transition('translation-x'), 'Tab slider did not glide between tabs');
+            const box = id => card._pages.get(id).box;
+            if (duration > 0 && St.Settings.get().enable_animations) {
+                assert(box('audio').get_transition('opacity') && box('audio').translation_x > 0,
+                    'Incoming page did not enter from the selected tab side');
+                assert(!box('system').visible && box('system').opacity === 255 && box('system').translation_x === 0,
+                    'Interrupted page kept its transition pose');
+            }
             await delay(duration + 150);
             assert(card._page === 'audio' && slider.opacity === 255 && onTab('audio'),
                 'Tab slider did not settle under the selected tab');
+            assert(box('audio').opacity === 255 && box('audio').translation_x === 0 && !card._revealing,
+                'Page transition did not settle');
             this._settings.set_boolean('disable-animations', true);
             card.selectPage('system');
             assert(!slider.get_transition('translation-x') && onTab('system'),
                 'Reduced motion did not place the tab slider immediately');
-            console.log('[Island Smoke] Tab slider PASS: glide, settle and reduced-motion snap');
+            assert(!box('system').get_transition('opacity') && box('system').opacity === 255 && box('system').translation_x === 0,
+                'Reduced motion still animated the page');
+            console.log('[Island Smoke] Tab slider PASS: glide, page transition, settle and reduced-motion snap');
         } finally {
             card.selectPage(page);
             this._settings.set_boolean('disable-animations', reducedMotion);

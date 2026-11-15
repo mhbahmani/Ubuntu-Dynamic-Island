@@ -361,12 +361,24 @@ clear spatial continuity. New interactions should fit this motion language.
   changes: compact/full notches, narrow/default widths, 100/200% scale, enlarged
   text, reversals and reduced motion. It samples painted frames in both
   directions: intermediate closing sizes, centering, fixed content sizes and the
-  layer hand-off. Run the native smoke test for input and cleanup. An occluded
-  windowed preview may paint about 1 fps and fail frame checks; use headless.
+  layer hand-off, plus tab changes in both directions and an interrupted
+  switch. It warms up with one unmeasured open/close first: the nested
+  compositor stalls on its first transition. Run the native smoke test for input
+  and cleanup. An occluded windowed preview may paint about 1 fps and fail frame
+  checks; use headless.
 
 Tab transitions: the selection marker glides between tabs (see Recent UI
-changes). Page content still switches instantly; extend these principles if
-content transitions are added later.
+changes) and one shared page transition in `ui/card.js` (`_revealPage`) covers
+every tab. On the marker's timing (75% of the opening duration) the incoming
+page fades in (80%, `EASE_OUT_QUAD`) and settles 14 logical px from the side of
+the selected tab (`EASE_OUT_CUBIC`; `pageDirection()` follows tab order). The
+outgoing page hides at once: pages share one column, and overlaying both would
+need a snapshot. Only opacity and translation change, so the card keeps its
+size and text never re-lays out. Each transition frame widens to a full backdrop
+repaint. It runs only for user tab changes on a fully open island (not opening,
+Quick Ask, availability changes or reduced motion); interrupted or hidden pages
+settle to full opacity. In-tab subviews (lyrics, queue, calendar days, agent
+menus) and the media tint still switch instantly; reuse the helper if needed.
 
 ## Recent UI changes
 
