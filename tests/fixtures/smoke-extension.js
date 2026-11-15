@@ -89,13 +89,21 @@ export default class Smoke extends UbuntuIsland {
                 'Tab slider did not settle under the selected tab');
             assert(box('audio').opacity === 255 && box('audio').translation_x === 0 && !card._revealing,
                 'Page transition did not settle');
+            // Only the slider marks the selected tab: a focused selected tab's
+            // own marker would appear before the slider arrives. Other focused
+            // tabs keep their keyboard marker.
+            const markerAlpha = id => card._tabMarkers.get(id).get_theme_node().get_background_color().alpha;
+            card._tabs.get('audio').grab_key_focus();
+            assert(markerAlpha('audio') === 0, 'Focused selected tab showed its own marker');
+            card._tabs.get('system').grab_key_focus();
+            assert(markerAlpha('system') > 0, 'Focused unselected tab lost its keyboard marker');
             this._settings.set_boolean('disable-animations', true);
             card.selectPage('system');
             assert(!slider.get_transition('translation-x') && onTab('system'),
                 'Reduced motion did not place the tab slider immediately');
             assert(!box('system').get_transition('opacity') && box('system').opacity === 255 && box('system').translation_x === 0,
                 'Reduced motion still animated the page');
-            console.log('[Island Smoke] Tab slider PASS: glide, page transition, settle and reduced-motion snap');
+            console.log('[Island Smoke] Tab slider PASS: glide, page transition, slider-only selection marker, settle and reduced-motion snap');
         } finally {
             card.selectPage(page);
             this._settings.set_boolean('disable-animations', reducedMotion);

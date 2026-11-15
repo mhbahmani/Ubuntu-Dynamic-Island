@@ -181,6 +181,9 @@ test('generated CSS themes tabs, navigation, headings and focus rings', () => {
         assert(css.includes(`${T} .ubuntu-island-tab-selected { color: ${accent}; }`), `${id}: selected icon`);
         assert(css.includes(`${T} .ubuntu-island-tab-selected .ubuntu-island-tab-marker { background-color: transparent; }`), `${id}: own marker`);
         assert(css.includes(`${T} .ubuntu-island-tab:focus .ubuntu-island-tab-marker { background-color: ${focus}; }`), `${id}: focus marker`);
+        const focusedSelected = `${T} .ubuntu-island-tab-selected:focus .ubuntu-island-tab-marker { background-color: transparent; }`;
+        assert(css.indexOf(focusedSelected) > css.indexOf(`${T} .ubuntu-island-tab:focus .ubuntu-island-tab-marker`),
+            `${id}: only the slider marks a focused selected tab`);
         assert(css.includes(`${T} .ubuntu-island-navigation { background-color: rgba(${bottom.join(',')},0.32);`), `${id}: navigation`);
         assert(css.includes(`${T} .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: ${accent}; }`), `${id}: caption`);
         assert(new RegExp(`\\${T} \\.ubuntu-island-seal:focus[^{]*\\{ box-shadow: inset 0 0 0 2px ${focus}; \\}`).test(css), `${id}: seal focus`);

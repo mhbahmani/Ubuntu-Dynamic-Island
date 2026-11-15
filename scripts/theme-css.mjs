@@ -66,14 +66,17 @@ export function themeBlock(theme) {
         `${sel('.ubuntu-island-calendar-today .ubuntu-island-calendar-date')} ` +
             `{ background-color: ${theme.strong}; border-color: ${theme.todayBorder}; }`,
         // Tabs: the sliding marker shows the selection, so the selected tab's own
-        // marker stays clear. Order matters at equal specificity: selected after
-        // hover (no preview on the selected tab), focus last (keyboard focus stays visible).
+        // marker stays clear, even when focused: otherwise it appears under the new
+        // tab before the slider arrives. Order matters at equal specificity: selected
+        // after hover, focus after selected (focus markers on other tabs stay
+        // visible), focused-selected last. The focused glyph still turns light.
         `${sel('.ubuntu-island-notification-dot')} { background-color: ${accent}; }`,
         `${sel('.ubuntu-island-tab-slider')} { background-color: ${theme.marker}; }`,
         `${sel('.ubuntu-island-tab:hover', '.ubuntu-island-tab:focus')} { color: #f4f6f9; }`,
         `${sel('.ubuntu-island-tab-selected')} { color: ${accent}; }`,
         `${sel('.ubuntu-island-tab-selected .ubuntu-island-tab-marker')} { background-color: transparent; }`,
         `${sel('.ubuntu-island-tab:focus .ubuntu-island-tab-marker')} { background-color: ${theme.focus}; }`,
+        `${sel('.ubuntu-island-tab-selected:focus .ubuntu-island-tab-marker')} { background-color: transparent; }`,
         // Theme fills above outrank the base :disabled rules; restore them.
         `${sel('.ubuntu-island-seal:disabled', '.ubuntu-island-device-button:disabled')} { color: #9a8c82; background-color: #363940; }`,
         `${sel('.ubuntu-island-quick-ask-send:disabled')} { color: #7d818b; background-color: rgba(220,225,240,0.08); }`,
