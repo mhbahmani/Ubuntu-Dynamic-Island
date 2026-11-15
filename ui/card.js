@@ -243,6 +243,11 @@ export class Card {
             // Centred at its CSS width (16px); FILL would stretch it to the face.
             const marker = new St.Widget({style_class: 'ubuntu-island-tab-marker',
                 x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.END});
+            // Leave a small gap below the glyph without changing the tab's size.
+            marker.connect('style-changed', () => {
+                marker.translation_y = 3 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
+                this._queueSliderSnap();
+            });
             face.add_child(marker);
             tab.set_child(face);
             tab.accessible_role = Atk.Role.PAGE_TAB;
@@ -343,7 +348,7 @@ export class Card {
         const box = marker.get_allocation_box();
         const width = box.get_width(), height = box.get_height();
         if (width <= 0 || height <= 0) return null;
-        let x = box.x1, y = box.y1, actor = marker.get_parent();
+        let x = box.x1, y = box.y1 + marker.translation_y, actor = marker.get_parent();
         for (; actor && actor !== wrapper; actor = actor.get_parent()) {
             const parentBox = actor.get_allocation_box();
             x += parentBox.x1; y += parentBox.y1;
