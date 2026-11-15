@@ -106,6 +106,7 @@ export async function checkMotion(app) {
                     paintId = global.stage.connect('after-paint', () => {
                         closing.push({surface: box(surface.actor), pill: box(pill),
                             pillOpacity: pill.opacity, cardOpacity: card.visible ? card.opacity : 0,
+                            state: surface.state, drop: surface.actor.translation_y, tuck: surface.tuck, lift: surface._shape.translation_y,
                             pillWidth: pill.width, cardWidth: card.width, cardHeight: card.height});
                         if (!closeCaptured && density === 'compact' && width === 440 && pill.opacity > 30 && pill.opacity < 200) {
                             closeCaptured = true;
@@ -132,6 +133,18 @@ export async function checkMotion(app) {
                     }
                     assert(between.some(frame => frame.pillOpacity > 10 && frame.pillOpacity < 245),
                         'Incoming notch appeared without a visible transition');
+                    // The rounded top slides under the panel edge in step with
+                    // the docking drop, so the final shape switch is invisible.
+                    const tuck = 21 * scale, drop = 8 * scale;
+                    const docking = closing.filter(frame => frame.state === 'collapsing');
+                    assert(docking.some(frame => frame.tuck > tolerance && frame.tuck < tuck - tolerance),
+                        'Rounded top corners did not tuck gradually');
+                    for (const frame of docking) {
+                        assert(Math.abs(frame.tuck - tuck * (1 - frame.drop / drop)) <= tolerance,
+                            'Corner tuck fell out of step with the docking drop');
+                        assert(Math.abs(frame.lift + frame.tuck) <= tolerance, 'Tucked shape lost its bottom edge');
+                    }
+                    assert(surface.tuck === 0 && surface._shape.translation_y === 0, 'Docked notch kept its tuck');
                     frames.at(-1).closing = closing;
                 }
             }

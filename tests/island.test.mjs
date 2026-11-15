@@ -4,6 +4,8 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {containsPoint} from '../services/presentation.js';
 
+const ANIMATED = ['width', 'height', 'translation_y', 'scale_x', 'scale_y', 'opacity', 'x', 'y'];
+
 function harness(animation = 220, backdrop = null) {
     class Actor {
         constructor(props = {}) {
@@ -14,6 +16,8 @@ function harness(animation = 220, backdrop = null) {
         disconnect() {}
         add_child() {}
         add_constraint() {}
+        add_constraint_with_name(name, constraint) { (this.constraints ??= {})[name] = constraint; }
+        ease_property(name, value, options) { (this.properties ??= {})[name] = {value, ...options}; }
         set_pivot_point(x, y) { this.pivot = [x, y]; }
         hide() { this.visible = false; }
         show() { this.visible = true; }
@@ -23,6 +27,11 @@ function harness(animation = 220, backdrop = null) {
         set_style_class_name(value) { this.style_class = value; }
         ease(options) { this.transition = {...this.transition, ...options}; }
         remove_all_transitions() { this.transition = null; }
+        remove_transition(name) {
+            if (!this.transition) return;
+            delete this.transition[name.replace('-', '_')];
+            if (!ANIMATED.some(key => this.transition[key] != null)) this.transition = null;
+        }
         get_transition(name) {
             return this.transition?.[name] == null ? null
                 : {get_duration: () => this.transition.duration, get_elapsed_time: () => this.elapsed ?? 0};
@@ -35,7 +44,7 @@ function harness(animation = 220, backdrop = null) {
             const options = this.transition;
             this.transition = null;
             if (!options) return;
-            for (const key of ['width', 'height', 'translation_y', 'scale_x', 'scale_y', 'opacity'])
+            for (const key of ANIMATED)
                 if (options[key] != null) this[key] = options[key];
             options.onComplete?.();
         }
@@ -55,7 +64,8 @@ function harness(animation = 220, backdrop = null) {
         .replace(/^import .*;\n/gm, '').replaceAll('export ', '');
     const Surface = vm.runInNewContext(`${source}\nIslandSurface`, {
         St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1, TAB_BACKWARD: -1}},
-        Clutter: {Actor, BinLayout: class {}, FixedLayout: class {}, AlignConstraint: class {}, AlignAxis: {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0, EASE_OUT_QUART: 1, EASE_OUT_CUBIC: 2, EASE_IN_OUT_CUBIC: 3, EASE_IN_OUT_QUAD: 4},
+        Clutter: {Actor, BinLayout: class {}, FixedLayout: class {}, AlignConstraint: class {},
+            BindConstraint: class { constructor(props) { Object.assign(this, props); } }, BindCoordinate: {HEIGHT: 3}, AlignAxis: {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0, EASE_OUT_QUART: 1, EASE_OUT_CUBIC: 2, EASE_IN_OUT_CUBIC: 3, EASE_IN_OUT_QUAD: 4},
             EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2, KEY_PRESS: 3, BUTTON_RELEASE: 4,
                 TOUCH_END: 5, TOUCH_CANCEL: 6}, KEY_Escape: 27, KEY_Tab: 9, KEY_ISO_Left_Tab: 65056,
             ModifierType: {SHIFT_MASK: 1, CONTROL_MASK: 4},
@@ -337,4 +347,29 @@ test('backdrop blur runs only while the card is open and follows appearance', ()
     assert.equal(backdrop.active, false);
     surface._onCapturedEvent(surface.actor, {type: () => 0});
     assert(backdrop.invalidations >= 1);
+});
+
+test('the open shape tucks its rounded top under the edge while docked', () => {
+    const {surface} = harness();
+    const shape = surface._shape;
+    const tuckTarget = () => shape.properties['@constraints.tuck.offset'];
+    surface.expand();
+    assert.match(surface.actor.style_class, /surface-open/);
+    assert.equal(surface.tuck, 21, 'Opening starts with the rounded top hidden');
+    assert.equal(shape.translation_y, -21);
+    assert.equal(tuckTarget().value, 0, 'The descent reveals the rounded top');
+    assert.equal(shape.transition.translation_y, 0);
+    assert.equal(tuckTarget().duration, surface.actor.transition.duration);
+    surface.actor.finish();
+    surface._setTuck(0);
+    surface.collapse();
+    assert.equal(tuckTarget().value, 21, 'Closing tucks the rounded top as it docks');
+    assert.equal(shape.transition.translation_y, -21);
+    assert.equal(tuckTarget().duration, surface.actor.transition.duration);
+    surface.actor.finish();
+    assert.match(surface.actor.style_class, /surface-collapsed/);
+    assert.equal(surface.tuck, 0, 'The docked square shape needs no tuck');
+    assert.equal(shape.translation_y, 0);
+    surface.expand(); surface._snapCollapsed();
+    assert.equal(surface.tuck, 0);
 });

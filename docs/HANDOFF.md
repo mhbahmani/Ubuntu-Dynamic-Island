@@ -352,8 +352,13 @@ clear spatial continuity. New interactions should fit this motion language.
   75% with `EASE_IN_OUT_QUAD`. Closing mirrors it: the card fades out in 50% (its
   lift keeps 65%); the notch fades in over the full close with
   `EASE_IN_OUT_CUBIC`. Opacity runs on its own curve, never a timeline `delay`.
-- The surface keeps its open (fully rounded) corners while closing and squares
-  its top corners only once docked, mirroring the opening's first frame.
+- Corners never snap. Blur and tint sit in one shape layer whose height is
+  bound to the surface plus a tuck (`OPEN_TUCK`, 21 logical px: open radius plus
+  edge) and lifted by it. Docked, the open shape's rounded top is tucked above
+  the surface clip, so the switch to the square-topped notch is invisible; the
+  tuck eases with the 8px drop in both directions. Use a constraint and
+  translation for this: Clutter margins cannot be negative, and St resets CSS
+  margins on style changes.
 - The notch keeps its collapsed layout while fading out; it hides collapsed-only
   items (time, date, event) once fully covered and restores them as the close
   starts. A width change mid-close retargets the close in its remaining time

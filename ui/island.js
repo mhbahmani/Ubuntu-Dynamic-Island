@@ -13,6 +13,10 @@ export const IslandState = Object.freeze({
 });
 
 const COLLAPSED_HEIGHT = 34;
+// Open corner radius plus the 1px edge (stylesheet.css, -surface-open). While
+// docked at the panel edge the open shape's top is tucked this far above the
+// surface clip, so its rounded top corners never show against the edge.
+const OPEN_TUCK = 21;
 const HEIGHT_BUDGET = 0.8; // of the monitor height
 // A dismissing outside press may still be held: releasing the modal grab
 // mid-press strands Clutter's pointer emission chain, so later clicks (the
@@ -55,12 +59,20 @@ export class IslandSurface {
             clip_to_allocation: true,
         });
         this._backdrop = backdrop;
+        // Blur and tint share the surface's shape in one layer. Tucking it
+        // extends that layer above the surface clip: its height is bound to
+        // the surface plus the tuck and it is lifted by the same amount.
+        this._shape = new Clutter.Actor({layout_manager: new Clutter.BinLayout(), x_expand: true, y_expand: true});
+        this._tuckBind = new Clutter.BindConstraint({source: this.actor,
+            coordinate: Clutter.BindCoordinate.HEIGHT, offset: 0});
+        this._shape.add_constraint_with_name('tuck', this._tuckBind);
+        this.actor.add_child(this._shape);
         if (backdrop) {
-            this.actor.add_child(backdrop);
+            this._shape.add_child(backdrop);
             this.actor._islandBackdrop = backdrop;
         }
         this._material = new St.Widget({style_class: 'ubuntu-island-material', x_expand: true, y_expand: true});
-        this.actor.add_child(this._material);
+        this._shape.add_child(this._material);
         backdrop?.setRadiusSource(this._material);
         this._pill = pill;
         this._card = card;
@@ -220,6 +232,9 @@ export class IslandSurface {
         const fromRest = this.state === IslandState.COLLAPSED;
         this._onBeforeExpand?.();
         const token = ++this._token;
+        // Start tucked: the open shape's rounded top is hidden above the edge,
+        // so switching shapes is invisible until the descent reveals it.
+        if (fromRest) this._setTuck(OPEN_TUCK * this._scale);
         this._setState(IslandState.EXPANDING);
         this._cancelHoverTimers();
         if (!this._takeGrab()) {
@@ -284,6 +299,7 @@ export class IslandSurface {
         this._card.hide();
         this._resetContent();
         this._setState(IslandState.COLLAPSED);
+        this._setTuck(0); // the docked shape's top corners are square
     }
 
     // Notch content can change width mid-close (items return, media updates,
@@ -325,8 +341,8 @@ export class IslandSurface {
     _setState(state) {
         this.state = state;
         this.setConnectionEdge(this._connectionEdgeRequested);
-        // Keep the floating card's rounded top corners until the close docks
-        // at the panel edge, mirroring how opening rounds them at the start.
+        // The open shape stays until the close docks; its rounded top is tucked
+        // above the edge by then (see OPEN_TUCK), so the switch never shows.
         const open = state !== IslandState.COLLAPSED;
         this.actor.set_style_class_name(open
             ? 'ubuntu-island-surface ubuntu-island-surface-open'
@@ -443,14 +459,21 @@ export class IslandSurface {
 
     _easeSize(width, height, duration, onDone, mode = Clutter.AnimationMode.EASE_OUT_QUAD) {
         const translation_y = this.expanded ? 8 * this._scale : 0;
+        // The tuck follows the drop: rounded top corners slide out from under
+        // the panel edge as the card descends and back under as it docks.
+        const tuck = this.expanded ? 0 : OPEN_TUCK * this._scale;
         this.actor.remove_all_transitions();
+        this._stopTuck();
         if (duration <= 0 || (this.actor.width === width && this.actor.height === height &&
-            this.actor.translation_y === translation_y)) {
+            this.actor.translation_y === translation_y && this._tuckBind.offset === tuck)) {
             this.actor.set_size(width, height);
             this.actor.translation_y = translation_y;
+            this._setTuck(tuck);
             onDone?.();
             return;
         }
+        this._shape.ease({translation_y: 0 - tuck, duration, mode});
+        this._shape.ease_property('@constraints.tuck.offset', tuck, {duration, mode});
         this.actor.ease({
             width,
             height,
@@ -459,6 +482,21 @@ export class IslandSurface {
             mode,
             onComplete: onDone,
         });
+    }
+
+    get tuck() {
+        return this._tuckBind.offset;
+    }
+
+    _stopTuck() {
+        this._shape.remove_transition('translation-y');
+        this._shape.remove_transition('@constraints.tuck.offset');
+    }
+
+    _setTuck(tuck) {
+        this._stopTuck();
+        this._tuckBind.offset = tuck;
+        this._shape.translation_y = 0 - tuck;
     }
 
     // Opacity may run on its own duration or curve (`fade`) so a layer can
@@ -505,6 +543,7 @@ export class IslandSurface {
         this.actor.set_size(this._collapsedWidth, this._collapsedHeight);
         this._recenter();
         if (this.state !== IslandState.COLLAPSED) this._setState(IslandState.COLLAPSED);
+        this._setTuck(0);
     }
 
     _animationMs() {
