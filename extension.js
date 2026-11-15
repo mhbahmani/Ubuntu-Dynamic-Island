@@ -535,8 +535,11 @@ export default class UbuntuIsland extends Extension {
                 const event = next.occurrences[0], count = next.occurrences.length;
                 const when = next.ongoing ? 'now' : `in ${Math.ceil((event.startMs - now) / 60000)} min`;
                 const title = this._settings.get_boolean('pill-event-show-title');
-                const text = count > 1 ? `${count} events ${when}` : title && event.title ? `${event.title} · ${when}` : `Event ${when}`;
-                this._eventIndicator = {text,day:todayDay(new Date(next.ongoing ? now : event.startMs)),id:count === 1 ? event.id : null};
+                const label = count > 1 ? `${count} events ${when}` : title && event.title ? `${event.title} · ${when}` : `Event ${when}`;
+                // An event in progress shows only the calendar icon; the label
+                // stays available to screen readers.
+                this._eventIndicator = {text:next.ongoing ? '' : label,label,
+                    day:todayDay(new Date(next.ongoing ? now : event.startMs)),id:count === 1 ? event.id : null};
             }
             const boundaries = state.occurrences.filter(event => !event.allDay).flatMap(event => [event.startMs - minutes * 60000,event.startMs,event.endMs])
                 .filter(value => value > now);

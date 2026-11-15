@@ -48,7 +48,8 @@ Personal event titles and custom literal text keep their original language.
    selected extension theme’s accent when no usable source color is available.
    A single neutral line beneath a day number indicates available events.
 5. Optionally enable **Preferences → Notch → Upcoming event**. Titles default off;
-   choose 5/15/30/60 minutes lead time. Ongoing meetings take precedence. All-day
+   choose 5/15/30/60 minutes lead time. Ongoing meetings take precedence and show
+   only the calendar icon (its label stays in the accessible name). All-day
    events stay in the inline list. Clicking the indicator reveals the relevant row.
 
 Partial/offline data is labeled and never treated as a definitive empty day or

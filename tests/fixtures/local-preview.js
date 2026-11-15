@@ -759,7 +759,8 @@ export default class Preview extends UbuntuIsland {
         assert(view.agenda.actor.visible && view.agenda.message.text === 'No events' && !view.agenda.rows.size, 'Unconfigured day panel must retain its date and empty state');
         this._settings.set_strv('calendar-event-sources',['sample-calendar']);
         this._island.collapse(); await delay(350);
-        assert(this._pill._event.visible && this._eventIndicator?.text === 'Event now', 'Private upcoming event label missing');
+        assert(this._pill._event.visible && this._eventIndicator?.label === 'Event now' && !this._pill._eventText.visible &&
+            this._pill._event.accessible_name === 'Event now', 'Ongoing event must show only its icon, with an accessible label');
         await click(this._pill._event); await delay(350);
         assert(this._island.expanded && view.agenda.actor.visible && view.header.mapped && view.agenda.actor.contains(global.stage.get_key_focus()),
             'Event click did not reveal inline events');

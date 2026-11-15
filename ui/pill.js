@@ -157,7 +157,7 @@ export class Pill {
                     this._dates.setBudget(Math.min(320 * scale,room * 0.55));
                     room = Math.max(0,room - this._date.get_preferred_width(-1)[1]);
                 }
-                const eventWidth = Math.min(160 * scale,room * (this._title.visible ? 0.65 : 1),
+                const eventWidth = !this._eventText.visible ? 0 : Math.min(160 * scale,room * (this._title.visible ? 0.65 : 1),
                     this._eventText.clutter_text.get_preferred_width(-1)[1]);
                 this._eventText.width = Math.max(0,Math.floor(eventWidth));
                 this._mediaTitle.setBudget(Math.max(0,Math.min(240 * scale,room - eventWidth)));
@@ -189,7 +189,8 @@ export class Pill {
         this._updateTime();
         this._event.visible = Boolean(event && !expanded);
         this._eventText.text = event?.text || '';
-        this._event.accessible_name = event?.text || 'Upcoming event';
+        this._eventText.visible = Boolean(event?.text);
+        this._event.accessible_name = event?.label || event?.text || 'Upcoming event';
         this._dateDay = todayDay();
         const dateKey = `${this._dateDay}:${showDate}:${expanded}:${JSON.stringify(dateOptions)}`;
         if (dateKey !== this._dateKey) {

@@ -327,6 +327,11 @@ suite is a full pass. Live browser playback and physical hardware were not
 retested, and the host installation was not replaced. User reference `1.png`
 remains untracked.
 
+## Notch indicator options (2026-11-15)
+
+- **Ongoing events** show only the calendar icon; `label` keeps the text for the
+  accessible name.
+
 ## Motion baseline
 
 The user accepted the notch expansion on 2026-11-11. Treat it as the reference
