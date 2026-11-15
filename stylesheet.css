@@ -399,6 +399,10 @@
 .ubuntu-island-pill-rate { font-size: 0.9em; color: #d1d4dd; font-feature-settings: "tnum"; }
 
 .ubuntu-island-pill-transfer { spacing: 4px; }
+/* Stacked rates: download above upload, one compact line each. */
+.ubuntu-island-pill-network-stacked .ubuntu-island-pill-transfers { spacing: 0; }
+.ubuntu-island-pill-network-stacked .ubuntu-island-pill-transfer { spacing: 3px; }
+.ubuntu-island-pill-network-stacked .ubuntu-island-pill-rate { font-size: 0.72em; }
 .ubuntu-island-pill .ubuntu-island-pill-download { color: #ff625a; }
 .ubuntu-island-pill .ubuntu-island-pill-upload { color: #41e58a; }
 .ubuntu-island-pill .ubuntu-island-pill-weather { color: #efca7a; }

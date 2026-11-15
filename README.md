@@ -485,9 +485,11 @@ In each Jalali/Hijri date row, **Short English month names** abbreviates months
 when **Calendar → Use calendar language** is off.
 
 The collapsed width is a minimum: the notch grows to fit enabled groups, with
-single-line rates, red download arrows and green upload arrows. Each rate keeps
-a fixed slot for the widest four-character rate plus 4 logical pixels, measured
-in the current font and scale. Rates promote units before rounding to 1000
+red download arrows and green upload arrows. Each rate keeps a fixed slot exactly
+as wide as the widest four-character rate, measured in the current font and
+scale; only the notch's regular item spacing separates it from its neighbours.
+**Rates layout** shows them side by side or stacked (download above upload in
+smaller text, narrower; the notch grows taller if the lines need it). Rates promote units before rounding to 1000
 (for example, `999K` → `1.0M`), so traffic never changes the notch width.
 The compact display caps at `999G`; its accessible description retains the full rate.
 Weather shares the same 260px expanded height as the other tabs, retaining its

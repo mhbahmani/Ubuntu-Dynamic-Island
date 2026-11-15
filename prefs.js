@@ -130,6 +130,17 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             'Selected route · Refreshes while visible · ! means stale'));
         notch.add(toggle(settings, 'pill-show-network', 'Show upload/download rates',
             'Uses existing System metrics samples'));
+        const layouts = ['inline', 'stacked'];
+        const networkLayout = new Adw.ComboRow({title: 'Rates layout',
+            subtitle: 'Stacked puts download above upload in smaller text and takes less width.',
+            model: Gtk.StringList.new(['Side by side', 'Stacked'])});
+        const syncLayout = () => { networkLayout.selected = Math.max(0, layouts.indexOf(settings.get_string('pill-network-layout'))); };
+        syncLayout();
+        networkLayout.connect('notify::selected', () => settings.set_string('pill-network-layout', layouts[networkLayout.selected]));
+        const layoutId = settings.connect('changed::pill-network-layout', syncLayout);
+        window.connect('close-request', () => { settings.disconnect(layoutId); return false; });
+        settings.bind('pill-show-network', networkLayout, 'sensitive', Gio.SettingsBindFlags.GET);
+        notch.add(networkLayout);
         notch.add(toggle(settings, 'pill-cpu-hide-idle', 'Hide CPU dot while load is low',
             'The colored dot appears only at or above the threshold'));
         const cpuThreshold = spin(settings, 'pill-cpu-idle-threshold', 'CPU dot threshold',

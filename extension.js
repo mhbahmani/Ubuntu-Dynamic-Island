@@ -274,7 +274,7 @@ export default class UbuntuIsland extends Extension {
             this._renderPill();
             this._card.setPillTitleVisible(this._settings.get_boolean('pill-show-title'));
         });
-        for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-notifications', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle', 'pill-cpu-hide-idle', 'pill-cpu-idle-threshold'])
+        for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-notifications', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle', 'pill-cpu-hide-idle', 'pill-cpu-idle-threshold', 'pill-network-layout'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
         watch('color-theme', () => this._applyAppearance());
         watch('pill-text-scale', () => this._applyTextScale());
@@ -436,6 +436,7 @@ export default class UbuntuIsland extends Extension {
             weatherStyle: this._settings.get_string('pill-weather-style'),
             cpuHideIdle: this._settings.get_boolean('pill-cpu-hide-idle'),
             cpuThreshold: this._settings.get_int('pill-cpu-idle-threshold'),
+            networkLayout: this._settings.get_string('pill-network-layout'),
         });
         this._island?.setConnectionEdge(presentation.connectionEdge);
         const minimum = this._pill.actor._islandMinimumWidth();

@@ -335,6 +335,10 @@ remains untracked.
   height follows its natural height plus padding.
 - **CPU dot** (`pill-cpu-hide-idle`, `pill-cpu-idle-threshold`):
   `cpuDotVisible()` in `services/notch-model.js` with a 5-point hysteresis band.
+- **Network rates**: slots are exactly the widest template (the old 4px
+  padding is gone), so the gap to each neighbour is the 12px item spacing at
+  the widest value. `pill-network-layout` = `stacked` makes the transfers box
+  vertical (`ubuntu-island-pill-network-stacked`: 0.72em rates, 9px arrows).
 - **Ongoing events** show only the calendar icon; `label` keeps the text for the
   accessible name.
 
@@ -558,8 +562,8 @@ menus) and the media tint still switch instantly; reuse the helper if needed.
 - Network rates use raw `rxBytes`/`txBytes` samples and `compactRate()` (at most
   four characters; binary units, capped at `999G` with full accessible rates).
   Compact and System-tab rates promote before rounding to 1000. Slots reserve
-  the widest integer/decimal unit template plus 4 logical pixels using each
-  label's Pango layout, cached until scale/style changes. Traffic never changes
+  exactly the widest integer/decimal unit template (no padding since 2026-11-15:
+  the 12px item spacing separates neighbours) using each label's Pango layout, cached until scale/style changes. Traffic never changes
   their width; no sampler, polling timer or per-frame work was added.
 - The preferences icon uses filled slider shapes with explicit cutouts so all
   parts recolor consistently on hover/focus.

@@ -66,6 +66,8 @@ export class Pill {
         this._network = new St.Widget({style_class: 'ubuntu-island-pill-network',
             layout_manager: new Clutter.BinLayout()});
         const transfers = row('ubuntu-island-pill-transfers');
+        this._transfers = transfers;
+        this._networkLayout = 'inline';
         transfers.x_expand = true;
         transfers.x_align = Clutter.ActorAlign.CENTER;
         transfers.y_align = Clutter.ActorAlign.CENTER;
@@ -213,15 +215,28 @@ export class Pill {
         return Math.round(size * this._textScale);
     }
 
-    // Arrow icons follow the notch text size.
+    // Stacked rates use one smaller line each (stylesheet.css) and smaller arrows.
     _sizeArrows() {
-        const size = this._iconSize(14);
+        const size = this._iconSize(this._networkLayout === 'stacked' ? 9 : 14);
         for (const arrow of this._arrows) arrow.icon_size = size;
     }
 
-    render({agents, showAgents = false, notifications = null, showNotifications = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}, showTime = false, timeOptions = {}, cpuHideIdle = false, cpuThreshold = 50}) {
+    _setNetworkLayout(layout) {
+        layout = layout === 'stacked' ? 'stacked' : 'inline';
+        if (layout === this._networkLayout) return;
+        this._networkLayout = layout;
+        this._transfers.vertical = layout === 'stacked';
+        if (layout === 'stacked') this._network.add_style_class_name('ubuntu-island-pill-network-stacked');
+        else this._network.remove_style_class_name('ubuntu-island-pill-network-stacked');
+        this._sizeArrows();
+        this._networkWidthKey = null;
+        this._queueLayout();
+    }
+
+    render({agents, showAgents = false, notifications = null, showNotifications = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}, showTime = false, timeOptions = {}, cpuHideIdle = false, cpuThreshold = 50, networkLayout = 'inline'}) {
         this._expanded = expanded;
         this._timeOptions = timeOptions;
+        this._setNetworkLayout(networkLayout);
         this._time.visible = showTime && !expanded;
         this._updateTime();
         this._event.visible = Boolean(event && !expanded);
@@ -346,7 +361,7 @@ export class Pill {
     _fitNetwork() {
         if (!this._network.visible || this._expanded) return;
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-        const key = scale;
+        const key = `${scale}:${this._networkLayout}`;
         if (key === this._networkWidthKey) return;
         this._networkWidthKey = key;
         [this._down, this._up].forEach(rate => {
@@ -359,7 +374,9 @@ export class Pill {
                 layout.set_text(template, -1);
                 reference = Math.max(reference, layout.get_pixel_size()[0]);
             }
-            const width = Math.ceil(reference) + 4 * scale;
+            // Exactly the widest value: the notch's regular item spacing then
+            // separates it from the next indicator, with no extra padding.
+            const width = Math.ceil(reference);
             if (rate.width !== width) rate.width = width;
         });
     }

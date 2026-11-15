@@ -121,7 +121,8 @@ export default class Smoke extends UbuntuIsland {
             rx:formatRate(rxBytes), tx:formatRate(txBytes)});
         assert(!this._island.expanded && pill._network.visible, 'Rate sizing needs a visible collapsed notch');
         try {
-            for (const scale of [1, 2]) for (const textScale of [1, 1.5]) {
+            for (const layout of ['inline', 'stacked']) for (const scale of [1, 2]) for (const textScale of [1, 1.5]) {
+                this._settings.set_string('pill-network-layout', layout);
                 context.scale_factor = scale;
                 // Manually changing the headless St scale does not update
                 // font DPI as a real HiDPI monitor does. Scale text too, so
@@ -143,20 +144,36 @@ export default class Smoke extends UbuntuIsland {
                         assert(rate.width === reserved[index], 'Traffic changed a reserved rate width');
                         const layout = rate.clutter_text.get_layout().copy();
                         layout.set_width(-1);
-                        assert(layout.get_pixel_size()[0] + 4 * scale <= rate.width,
+                        assert(layout.get_pixel_size()[0] <= rate.width,
                             `Rate clipped at scale=${scale} text=${textScale}: ${rate.text}`);
                         let widest = 0;
                         for (const template of ['888B', '888K', '8.8K', '8.8M', '888M', '8.8G', '888G']) {
                             layout.set_text(template, -1);
                             widest = Math.max(widest, layout.get_pixel_size()[0]);
                         }
-                        assert(rate.width === Math.ceil(widest) + 4 * scale, 'Rate reservation has unnecessary space');
+                        assert(rate.width === Math.ceil(widest), 'Rate reservation has unnecessary space');
                     }
                 }
-                console.log(`[Island Smoke] Network width PASS: scale=${scale} text=${textScale} reserved=${reserved.join('/')}px notch=${width}px`);
-                await this._capture(`network-width-${scale}-${textScale}`);
+                // Only the notch's regular item spacing separates the rates
+                // from their neighbours: the group adds no width of its own.
+                const transfers = pill._transfers;
+                assert(pill._network.width === Math.ceil(transfers.get_preferred_width(-1)[1]) &&
+                    transfers.vertical === (layout === 'stacked'), `Rates group added width (${layout})`);
+                if (layout === 'stacked')
+                    assert(pill._down.get_transformed_position()[1] < pill._up.get_transformed_position()[1] &&
+                        transfers.height <= pill.actor.height, 'Stacked rates are not one above the other inside the notch');
+                const children = pill._content.get_children().filter(child => child.visible);
+                const index = children.indexOf(pill._network);
+                const left = child => child.get_transformed_position()[0];
+                const gaps = [children[index - 1], children[index + 1]].map((neighbour, side) => !neighbour ? null : side
+                    ? left(neighbour) - left(pill._network) - pill._network.width
+                    : left(pill._network) - left(neighbour) - neighbour.width).map(gap => gap === null ? '-' : Math.round(gap));
+                console.log(`[Island Smoke] Network width PASS: ${layout} scale=${scale} text=${textScale} ` +
+                    `reserved=${reserved.join('/')}px gaps=${gaps.join('/')}px notch=${width}px`);
+                await this._capture(`network-width-${layout}-${scale}-${textScale}`);
             }
         } finally {
+            this._settings.reset('pill-network-layout');
             context.scale_factor = original.scale;
             text.set_double('text-scaling-factor', original.text);
             this._renderSystem(state);

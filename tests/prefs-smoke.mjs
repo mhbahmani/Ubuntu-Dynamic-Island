@@ -210,6 +210,12 @@ for (const [title, key, dependsOn] of [['CPU dot threshold', 'pill-cpu-idle-thre
     if (settings.get_int(key) !== row.adjustment.lower) throw new Error(`${title} did not save`);
     settings.reset(key);
 }
+const layoutRow = find(window, 'Rates layout');
+if (!layoutRow || layoutRow.selected !== 0) throw new Error('Rates layout must default to side by side');
+layoutRow.selected = 1;
+if (settings.get_string('pill-network-layout') !== 'stacked') throw new Error('Stacked rates did not save');
+settings.reset('pill-network-layout');
+if (layoutRow.selected !== 0) throw new Error('Rates layout did not follow settings');
 function tooltip(widget, text) {
     if (widget.tooltip_text === text) return widget;
     for (let child = widget.get_first_child(); child; child = child.get_next_sibling()) {

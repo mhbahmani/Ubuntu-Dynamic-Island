@@ -55,6 +55,12 @@
       <summary>Notch text size percentage</summary>
       <description>Scales collapsed notch text and icons; the notch grows taller when the text needs it.</description>
     </key>
+    <key name="pill-network-layout" type="s">
+      <default>'inline'</default>
+      <choices><choice value="inline"/><choice value="stacked"/></choices>
+      <summary>Network rates layout in the notch</summary>
+      <description>Inline shows download and upload side by side; stacked puts download above upload in smaller text.</description>
+    </key>
     <key name="pill-cpu-hide-idle" type="b">
       <default>false</default>
       <summary>Hide the CPU dot while load is low</summary>
