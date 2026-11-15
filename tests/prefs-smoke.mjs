@@ -192,7 +192,8 @@ settings.set_strv('island-quick-ask-shortcut', []);
 if (shortcutLabel.accelerator !== '') throw new Error('Shortcut display did not clear');
 for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weather icon', 'pill-show-weather'],
     ['Show upload/download rates', 'pill-show-network'], ['Show new notifications', 'notifications-peek'],
-    ['Enable Notifications', 'enable-notifications'], ['Show unseen count', 'pill-show-notifications']]) {
+    ['Enable Notifications', 'enable-notifications'], ['Show unseen count', 'pill-show-notifications'],
+    ['Hide CPU dot while load is low', 'pill-cpu-hide-idle']]) {
     const row = find(window, title);
     if (!row) throw new Error(`Missing notch control: ${title}`);
     row.active = true;
@@ -200,7 +201,8 @@ for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weath
     settings.set_boolean(key, false);
     if (row.active) throw new Error(`${title} did not follow settings`);
 }
-for (const [title, key, dependsOn] of [['Text size', 'pill-text-scale', null]]) {
+for (const [title, key, dependsOn] of [['CPU dot threshold', 'pill-cpu-idle-threshold', 'pill-cpu-hide-idle'],
+    ['Text size', 'pill-text-scale', null]]) {
     const row = find(window, title);
     if (!row) throw new Error(`Missing notch control: ${title}`);
     if (dependsOn && row.sensitive) throw new Error(`${title} must follow its switch`);

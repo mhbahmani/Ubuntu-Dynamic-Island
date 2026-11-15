@@ -55,6 +55,16 @@
       <summary>Notch text size percentage</summary>
       <description>Scales collapsed notch text and icons; the notch grows taller when the text needs it.</description>
     </key>
+    <key name="pill-cpu-hide-idle" type="b">
+      <default>false</default>
+      <summary>Hide the CPU dot while load is low</summary>
+    </key>
+    <key name="pill-cpu-idle-threshold" type="i">
+      <default>50</default>
+      <range min="5" max="95"/>
+      <summary>CPU load percentage at which the hidden CPU dot appears</summary>
+      <description>The dot hides again once load falls 5 points below this value, so it does not flicker around the threshold.</description>
+    </key>
     <key name="pill-width" type="i">
       <default>170</default>
       <range min="150" max="210"/>

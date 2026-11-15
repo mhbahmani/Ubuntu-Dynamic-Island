@@ -6,7 +6,7 @@ import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {MediaTitle} from './media-title.js';
 import GLib from 'gi://GLib';
-import {notchOrder, notchTime, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator, textScale} from '../services/notch-model.js';
+import {notchOrder, notchTime, arrowSvg, weatherSymbol, commuteIndicator, connectionIndicator, cpuDotVisible, textScale} from '../services/notch-model.js';
 import St from 'gi://St';
 import Clutter from 'gi://Clutter';
 import {weatherSceneKind, temperature} from '../services/weather-model.js';
@@ -47,6 +47,7 @@ export class Pill {
         this.actor.set_child(face);
         this._peekTimer = 0;
         this._textScale = 1;
+        this._cpuShown = false;
 
         this._mediaIcon = icon('audio-x-generic-symbolic', 14);
         this._mediaTitle = new MediaTitle();
@@ -218,7 +219,7 @@ export class Pill {
         for (const arrow of this._arrows) arrow.icon_size = size;
     }
 
-    render({agents, showAgents = false, notifications = null, showNotifications = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}, showTime = false, timeOptions = {}}) {
+    render({agents, showAgents = false, notifications = null, showNotifications = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}, showTime = false, timeOptions = {}, cpuHideIdle = false, cpuThreshold = 50}) {
         this._expanded = expanded;
         this._timeOptions = timeOptions;
         this._time.visible = showTime && !expanded;
@@ -258,7 +259,8 @@ export class Pill {
             ? (media.status === 'Playing' ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic')
             : 'audio-x-generic-symbolic';
         this._bluetooth.visible = Boolean(bluetooth?.available && bluetooth.devices.some(d => d.connected));
-        this._cpuDot.visible = Boolean(showMetrics && system?.cpu != null);
+        this._cpuShown = cpuDotVisible(system?.cpu, {hideIdle: cpuHideIdle, threshold: cpuThreshold, shown: this._cpuShown});
+        this._cpuDot.visible = Boolean(showMetrics && this._cpuShown);
         this._cpuDot.set_style_class_name(
             system?.cpu == null ? 'ubuntu-island-cpu-dot'
             : system.cpu < 50 ? 'ubuntu-island-cpu-dot ubuntu-island-dot-low'

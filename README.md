@@ -476,6 +476,9 @@ keep their place.
 - **Text size** (80–150%): notch labels and icons scale together; the notch grows
   taller only when the text needs it. Rate slots re-measure for the new size.
 
+- **Hide CPU dot while load is low**: the colored dot appears at the threshold
+  (default 50%) and hides again 5 points below it, so it does not flicker.
+
 **Notch → Time in the notch** adds a local clock with 24-hour or 12-hour AM/PM
 format and optional seconds. Its timer stops whenever the clock is hidden.
 In each Jalali/Hijri date row, **Short English month names** abbreviates months

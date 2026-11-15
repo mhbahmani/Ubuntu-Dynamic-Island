@@ -130,6 +130,12 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             'Selected route · Refreshes while visible · ! means stale'));
         notch.add(toggle(settings, 'pill-show-network', 'Show upload/download rates',
             'Uses existing System metrics samples'));
+        notch.add(toggle(settings, 'pill-cpu-hide-idle', 'Hide CPU dot while load is low',
+            'The colored dot appears only at or above the threshold'));
+        const cpuThreshold = spin(settings, 'pill-cpu-idle-threshold', 'CPU dot threshold',
+            '% load · Hides again 5 points below, so it does not flicker', 5, 95, 5);
+        settings.bind('pill-cpu-hide-idle', cpuThreshold, 'sensitive', Gio.SettingsBindFlags.GET);
+        notch.add(cpuThreshold);
         const offline = new Adw.ComboRow({title: 'When offline',
             subtitle: 'Broken edge adds a split amber underline. Hide keeps fresh cached values.',
             model: Gtk.StringList.new(['Connection icon', 'Broken edge', 'Hide unavailable indicators'])});

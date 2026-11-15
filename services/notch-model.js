@@ -83,6 +83,17 @@ export function titleText(value, mode, limit) {
     return characters.length > titleLimit(limit) ? characters.slice(0, titleLimit(limit)).join('') + '…' : text;
 }
 
+// The CPU dot can step aside while load is low. It appears at the threshold
+// and hides only once load drops a few points below it, so samples hovering
+// around the threshold do not make the notch change width every interval.
+export const CPU_IDLE_HYSTERESIS = 5;
+export function cpuDotVisible(cpu, {hideIdle = false, threshold = 50, shown = false} = {}) {
+    if (cpu == null || !Number.isFinite(cpu)) return false;
+    if (!hideIdle) return true;
+    const limit = Math.max(5, Math.min(95, Number(threshold) || 50));
+    return shown ? cpu >= limit - CPU_IDLE_HYSTERESIS : cpu >= limit;
+}
+
 // Notch text size, as a clamped scale factor (schema percentage 80–150).
 export function textScale(percent) {
     const value = Number(percent);

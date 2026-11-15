@@ -333,6 +333,8 @@ remains untracked.
   and notch labels use em sizes; `Pill.setTextScale()` sets the base inline and
   scales fixed icon sizes. The pill has a 26px minimum height and the collapsed
   height follows its natural height plus padding.
+- **CPU dot** (`pill-cpu-hide-idle`, `pill-cpu-idle-threshold`):
+  `cpuDotVisible()` in `services/notch-model.js` with a 5-point hysteresis band.
 - **Ongoing events** show only the calendar icon; `label` keeps the text for the
   accessible name.
 

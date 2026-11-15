@@ -168,6 +168,7 @@ export default class Smoke extends UbuntuIsland {
         const island = this._island, pill = this._pill, settings = this._settings;
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
         const font = actor => actor.get_theme_node().get_font().get_size();
+        const system = this._states.system;
         const motion = St.Settings.get().enable_animations && !settings.get_boolean('disable-animations');
         const animation = motion ? Math.max(0, Math.min(500, settings.get_int('animation-duration'))) : 0;
         const base = {height: island.actor.height, title: font(pill._title), rate: font(pill._down), icon: pill._mediaIcon.icon_size};
@@ -184,9 +185,19 @@ export default class Smoke extends UbuntuIsland {
             settings.reset('pill-text-scale'); await delay(250);
             assert(island.actor.height === base.height && font(pill._down) === base.rate, 'Default text size did not restore the notch');
 
-            console.log('[Island Smoke] Notch options PASS: text size');
+            // CPU dot: hidden while idle, with hysteresis.
+            settings.set_boolean('pill-cpu-hide-idle', true);
+            const cpu = value => { this._renderSystem({...system, cpu: value}); return pill._cpuDot.visible; };
+            assert(!cpu(20) && cpu(60) && cpu(47) && !cpu(40), 'Idle CPU dot did not follow the threshold and its band');
+            settings.reset('pill-cpu-hide-idle');
+            assert(cpu(5), 'CPU dot did not return when idle hiding was turned off');
+            this._renderSystem(system);
+
+            console.log('[Island Smoke] Notch options PASS: text size and idle CPU band');
         } finally {
             settings.reset('pill-text-scale');
+            settings.reset('pill-cpu-hide-idle');
+            this._renderSystem(system);
             await delay(animation + 200);
         }
     }

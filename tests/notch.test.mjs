@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {notchOrder, notchTime, NOTCH_ITEMS, connectionIndicator, migrateOfflineMode, textScale} from '../services/notch-model.js';
+import {notchOrder, notchTime, NOTCH_ITEMS, connectionIndicator, migrateOfflineMode, cpuDotVisible, textScale} from '../services/notch-model.js';
 
 test('notch time handles midnight, noon, 24-hour time and optional seconds', () => {
     const date = hour => new Date(2026,10,12,hour,4,9);
@@ -108,6 +108,17 @@ test('media title modes preserve Unicode and bound fixed character limits', asyn
     assert.equal(titleText('abc', 'fixed', 5), 'abc');
     assert.equal(titleText('👨‍👩‍👦'.repeat(6), 'fixed', 5), '👨‍👩‍👦'.repeat(5) + '…');
     for (const mode of ['scroll', 'fit']) assert.equal(titleText('A long complete title', mode, 5), 'A long complete title');
+});
+
+test('the CPU dot hides while idle only when asked, with hysteresis around the threshold', () => {
+    assert.equal(cpuDotVisible(3), true, 'Shown at any load by default');
+    assert.equal(cpuDotVisible(null, {hideIdle: false}), false);
+    const options = {hideIdle: true, threshold: 50};
+    assert.equal(cpuDotVisible(49, options), false);
+    assert.equal(cpuDotVisible(50, options), true);
+    assert.equal(cpuDotVisible(47, {...options, shown: true}), true, 'Stays until load falls below the band');
+    assert.equal(cpuDotVisible(44, {...options, shown: true}), false);
+    assert.equal(cpuDotVisible(99, {hideIdle: true, threshold: 500}), true, 'Threshold is clamped');
 });
 
 test('notch text scale clamps to the schema range', () => {
