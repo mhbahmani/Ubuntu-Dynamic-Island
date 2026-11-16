@@ -95,6 +95,12 @@
       <summary>Expanded card width</summary>
       <description>Width of the expanded island in pixels.</description>
     </key>
+    <key name="expanded-max-height" type="i">
+      <default>400</default>
+      <range min="280" max="640"/>
+      <summary>Maximum expanded height</summary>
+      <description>Notifications and Agents grow with their content up to this height in pixels. Other tabs keep the regular 248px height.</description>
+    </key>
     <key name="animation-duration" type="i">
       <default>220</default>
       <range min="0" max="500"/>

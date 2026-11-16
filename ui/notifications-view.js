@@ -158,6 +158,8 @@ export class NotificationsView {
         this._emptySilenced.visible = !count && dnd && silenced > 0;
         this._restoreFocus(focusIndex);
         this._syncActive();
+        // The tab grows with its rows, up to the configured maximum.
+        this._actions.relayout?.();
     }
 
     _compactPlan(items, todayStart) {

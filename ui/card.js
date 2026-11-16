@@ -26,6 +26,11 @@ const NAVIGATION_ICON_SIZE = 16;
 // Few tabs spread into spare bar width up to this logical width each, so they
 // breathe without turning into wide cells.
 export const TAB_MAX_WIDTH = 44;
+// Every tab keeps the regular card height; list tabs grow with their content
+// up to the expanded-max-height setting. Logical pixels, scaled with the
+// display and capped by the monitor budget.
+export const REGULAR_HEIGHT = 248;
+export const GROWING_PAGES = new Set(['notifications', 'agents']);
 const settingsIcon = new Gio.FileIcon({file: Gio.File.new_for_uri(import.meta.url).get_parent().get_parent()
     .resolve_relative_path('assets/icons/hicolor/scalable/actions/ubuntu-island-settings-symbolic.svg')});
 
@@ -57,9 +62,20 @@ export class Card {
             if (this.quickAskOpen) return this._quickAsk.actor.get_preferred_height(width)[1];
             if (this._page === 'commute')
                 this._commuteView.fit(width - this._body.get_theme_node().get_horizontal_padding());
-            // One regular card size across tabs and subviews. Overflow belongs
-            // in each page's scroll area; compact shortcut Quick Ask is separate.
-            return 248 * St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            // Other tabs and their subviews share the regular height; list tabs
+            // follow their content between it and the configured maximum. The
+            // tab bar heads the card, so a height change never moves it.
+            // Overflow belongs in each page's scroll area; compact shortcut
+            // Quick Ask is separate.
+            const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+            const regular = REGULAR_HEIGHT * scale;
+            if (!GROWING_PAGES.has(this._page)) return regular;
+            const max = Math.max(REGULAR_HEIGHT, this._settings.get_int('expanded-max-height')) * scale;
+            // The card carries a fixed size once sized; measure its children.
+            const node = this.actor.get_theme_node();
+            const natural = this.actor.layout_manager.get_preferred_height(this.actor, width - node.get_horizontal_padding())[1] +
+                node.get_vertical_padding() + node.get_border_width(St.Side.TOP) + node.get_border_width(St.Side.BOTTOM);
+            return Math.min(max, Math.max(regular, Math.ceil(natural)));
         };
         this.actor._islandFocus = () => {
             if (!this.quickAskOpen) return this._page === 'calendar' && this._calendarView.focusRequestedEvent();

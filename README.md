@@ -107,7 +107,10 @@ and [compact playing pill](screenshots/playing-pill.png).
   and Super+Alt+Page Up cycle available tabs. These defaults avoid GNOME's
   workspace-switching shortcuts. Ctrl+Tab and Ctrl+Shift+Tab also work
   while open. Customize or disable global bindings under **Appearance → Keyboard
-  shortcuts**. Regular tabs and sections share a stable expanded size.
+  shortcuts**. Tabs share the regular 248px height; Notifications and Agents
+  grow with their content up to **Appearance → Maximum expanded height**
+  (default 400px), then scroll. The tab bar heads the card and never moves;
+  tabs spread into spare width when only a few modules are enabled.
 - Click toggles; **Escape and outside clicks close** via the same modal-grab
   pattern GNOME's own popup menus use (outside presses release input
   immediately so apps receive the next click); optional hover open/close and
@@ -120,7 +123,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   remain controllable. Seeking uses GNOME's native keyboard-accessible slider,
   with the displayed timestamp following the thumb while dragging.
   The square cover supplies a subtle static tint; a full-width timeline and round
-  play control fit the same 260px surface as the other modules. The player-name
+  play control fit the regular 248px surface. The player-name
   menu selects Automatic or pins a running player, including a paused player.
   Shuffle/repeat and Open player appear when supported; ±10-second seek buttons
   are available for seekable tracks. The speaker button provides system volume,
@@ -510,7 +513,7 @@ scale; only the notch's regular item spacing separates it from its neighbours.
 smaller text, narrower; the notch grows taller if the lines need it). Rates promote units before rounding to 1000
 (for example, `999K` → `1.0M`), so traffic never changes the notch width.
 The compact display caps at `999G`; its accessible description retains the full rate.
-Weather shares the same 260px expanded height as the other tabs, retaining its
+Weather uses the regular 248px expanded height, retaining its
 background artwork, four-hour forecast and current conditions.
 
 At the top of **Settings → Notch**, **Indicator style** offers **Network arrow shape**

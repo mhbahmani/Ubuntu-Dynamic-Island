@@ -292,6 +292,7 @@ export default class UbuntuIsland extends Extension {
         watch('surface-matte', () => this._applyAppearance());
         watch('pill-width', () => this._island?.applyDimensions());
         watch('expanded-width', () => this._island?.applyDimensions());
+        watch('expanded-max-height', () => this._island?.relayout());
         watch('move-clock', () => {
             if (this._settings.get_boolean('move-clock')) this._moveCalendar();
             else this._restoreCalendar();

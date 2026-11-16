@@ -87,6 +87,8 @@ export default class UbuntuIslandPreferences extends ExtensionPreferences {
             '% · Frosted-glass blur behind the panel; opacity is unchanged', 0, 100, 1));
         appearance.add(spin(settings, 'pill-width', 'Minimum collapsed width', 'px · Grows to fit enabled indicators', 150, 210, 2));
         appearance.add(spin(settings, 'expanded-width', 'Expanded width', 'px', 380, 480, 4));
+        appearance.add(spin(settings, 'expanded-max-height', 'Maximum expanded height',
+            'px · Notifications and Agents grow with their content up to this height', 280, 640, 8));
         appearance.add(spin(settings, 'animation-duration', 'Animation duration', 'ms', 0, 500, 10));
         appearance.add(toggle(settings, 'disable-animations', 'Disable animations',
             'Instant open/close regardless of system animation settings'));

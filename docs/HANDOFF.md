@@ -28,6 +28,33 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Growing list tabs and spread tabs (2026-11-16)
+
+Notifications and Agents follow their content between the regular 248px and the
+new `expanded-max-height` setting (default 400, 280–640; Appearance → Maximum
+expanded height), scaled and capped by the 80% monitor budget. Other tabs,
+including Calendar, keep 248px. The card has a fixed size once sized, so
+`_islandPreferredHeight` measures its children through the layout manager.
+Notifications/Agents renders and the setting call `relayout()`, which uses the
+existing 160ms ease. The top tab bar stays put. Constants live in `ui/card.js`
+(`GROWING_PAGES`, `REGULAR_HEIGHT`). Tabs now spread evenly into the bar's spare
+width, up to `TAB_MAX_WIDTH` (44px) each. The width depends only on the tab count
+and the caption slot, so page switches never move icons.
+
+The navigation check waits for pending caption/tab fits instead of fixed 40–80ms
+delays. A busy headless shell can delay the idle callback past those delays, and
+that caused the earlier intermittent overlap failures. The full preview also
+asserts each tab's height bounds, that sample notifications grow the tab, that
+the setting caps and restores it, and that the bar's y position does not change.
+The Agents composer and enlarged-text checks now assert those bounds instead of
+an unchanged height.
+
+Validation: `make check` passed (238, one skip; one unrelated calendar-pipe test
+failed once, then passed). Two runs of the full headless preview passed with
+`--connection offline --duration 200`. `make smoke` and the focused Calendar and
+Notifications checks also passed. GTK preferences checks (`make prefs-test`)
+were not run.
+
 ## Packed top tab bar (2026-11-16)
 
 The tab bar now heads the expanded card instead of closing it, so a later
@@ -639,9 +666,10 @@ menus) and the media tint still switch instantly; reuse the helper if needed.
   Inactivity expiry defaults to 60 minutes (configurable in Agents settings) and
   runs only when the Agents view maps; it clears cached and broker records without
   an idle timer. Fresh activity can recreate an expired session.
-- Regular tabs and sections share a 248px content height (scaled with the UI),
-  including Calendar. Keep the expanded width/height stable across navigation;
-  with the original navigation padding restored. Use space
+- Regular tabs and sections share a 248px content height (scaled with the UI);
+  Notifications and Agents (`GROWING_PAGES` in `ui/card.js`) follow their
+  content up to `expanded-max-height`; the top tab bar never moves.
+  Use space
   for the content, with scrolling for overflow. Standalone
   shortcut Quick Ask retains its compact size.
 - Agents uses CLI harnesses only. Settings fill unset executable/config paths,

@@ -97,9 +97,12 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
 
 ## Tab layout
 
-- Keep the regular expanded island the same width and height when switching tabs
-  or sections. Use spare space for useful content (especially the Agents prompt)
-  rather than shrinking the surface. Keep navigation fixed and overflow reachable.
+- Keep the expanded island the same width when switching tabs or sections.
+  Every tab and subview keeps the regular 248px height, except list tabs
+  (Notifications, Agents), which follow their content between that height and
+  the `expanded-max-height` setting, then scroll. Use spare space for useful
+  content (especially the Agents prompt). The tab bar heads the card so height
+  changes never move it; keep navigation fixed and overflow reachable.
   The standalone shortcut Quick Ask is intentionally a separate compact surface.
 - Aim for the common tab layout to fit without scrolling. Improve grouping,
   spacing and progressive disclosure before adding more height or scroll areas.

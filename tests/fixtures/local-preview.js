@@ -9,7 +9,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {formatRate} from './services/proc.js';
-import {TAB_MAX_WIDTH} from './ui/card.js';
+import {TAB_MAX_WIDTH, REGULAR_HEIGHT, GROWING_PAGES} from './ui/card.js';
 import {sampleDevices, sampleAgents, sampleCalendar, sampleNotifications, postNotification} from './preview-data.js';
 import {THEMES, THEME_IDS, themeAccent} from './services/appearance.js';
 import {notchTime} from './services/notch-model.js';
@@ -203,11 +203,30 @@ export default class Preview extends UbuntuIsland {
         }
         if (connection === 'online') await this._checkNetworkWidths();
         await this._checkNavigation();
+        let navigationY = null;
         for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'notifications', 'calendar']) {
             assert(this._card._pages.get(tab)?.available, `${tab} module unavailable`);
             this._card.selectPage(tab);
             this._island.expand();
             await delay(400);
+            // List tabs follow their content between the regular height and the
+            // configured maximum; the bar heading the card never moves.
+            const tabScale = St.ThemeContext.get_for_stage(global.stage).scale_factor, border = this._island._border;
+            const regular = REGULAR_HEIGHT * tabScale + border, height = this._island.actor.height;
+            const max = Math.min(this._settings.get_int('expanded-max-height') * tabScale + border, this._island._heightBudget());
+            if (GROWING_PAGES.has(tab)) assert(height >= regular - 1 && height <= max + 1, `${tab} height ${height} outside ${regular}–${max}`);
+            else assert(Math.abs(height - regular) <= 1, `${tab} height ${height}, expected ${regular}`);
+            if (tab === 'notifications') {
+                assert(height > regular + 1, 'Sample notifications did not grow the tab');
+                this._settings.set_int('expanded-max-height', 300); await delay(400);
+                assert(Math.abs(this._island.actor.height - (Math.min(300 * tabScale + border, this._island._heightBudget()))) <= 1,
+                    'Maximum height setting did not cap Notifications');
+                this._settings.reset('expanded-max-height'); await delay(400);
+                assert(Math.abs(this._island.actor.height - height) <= 1, 'Resetting the maximum did not restore Notifications');
+            }
+            const y = this._card._navigation.get_transformed_position()[1];
+            navigationY ??= y;
+            assert(Math.abs(y - navigationY) <= 1, `Switching to ${tab} moved navigation`);
             if (tab === 'weather') {
                 const surface = this._card._weatherView.surface, nav = this._card._navigation;
                 const top = surface.get_transformed_position()[1], navBottom = nav.get_transformed_position()[1] + nav.height;
@@ -1536,7 +1555,9 @@ export default class Preview extends UbuntuIsland {
         const right = this._island.actor.get_transformed_position()[0] + this._island.actor.width;
         await this._capture('agents-narrow-large-text');
         for (const item of view.rows.values()) if (item.open.mapped) assert(item.open.get_transformed_position()[0] + item.open.width <= right, `Session button overflows at narrow width: ${item.session.label}, width=${item.open.width}, right=${right}`);
-        assert(this._island.actor.height === height, 'Text scaling changed card height');
+        const textMax = Math.min(this._settings.get_int('expanded-max-height') * St.ThemeContext.get_for_stage(global.stage).scale_factor +
+            this._island._border, this._island._heightBudget());
+        assert(this._island.actor.height >= height - 1 && this._island.actor.height <= textMax + 1, 'Text scaling left the Agents height bounds');
         await this._capture('agents-narrow-large-text');
         textSettings.set_double('text-scaling-factor',scale);
         this._settings.set_int('expanded-width',440);
@@ -1563,8 +1584,9 @@ export default class Preview extends UbuntuIsland {
         assert(view.prompt.clutter_text.has_key_focus(), 'Large-text harness selection lost focus');
         view.prompt.text = 'Sample draft';
         view.submit.grab_key_focus(); view._revealFocus(); await delay(100);
-        assert(this._island.actor.width === regularSize[0] && this._island.actor.height === regularSize[1],
-            'Composer changed the expanded card size');
+        const maxHeight = Math.min(this._settings.get_int('expanded-max-height') * 2 + this._island._border, this._island._heightBudget());
+        assert(this._island.actor.width === regularSize[0] && this._island.actor.height >= REGULAR_HEIGHT * 2 + this._island._border - 1 &&
+            this._island.actor.height <= maxHeight + 1, 'Composer left the expanded width or height bounds');
         textSettings.set_double('text-scaling-factor', scale);
         view.show('list'); await delay(100);
         context.scale_factor = originalScale;

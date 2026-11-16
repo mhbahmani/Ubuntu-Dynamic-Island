@@ -479,5 +479,7 @@ export class AgentsView {
         }
         this.relationshipTip.refresh();
         this._syncMotion();
+        // The tab grows with its sessions, up to the configured maximum.
+        this.actions.relayout?.();
     }
 }
