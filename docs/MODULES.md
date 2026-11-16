@@ -538,7 +538,10 @@ chosen provider and enabled backups. Map tiles reveal the viewed area; only an
 explicit search sends text to Nominatim. No keys or private routes belong in logs.
 
 Refresh defaults to 15 minutes (allowed 10–120), shared by the visible tab and
-notch indicator. Reopening reuses fresh data. Requests have a 15-second timeout,
+notch indicator. Reopening reuses fresh data. Requests wait until GNOME reports
+internet access; reconnecting resumes visible consumers immediately and reuses
+fresh cached estimates, so the notch can load its ETA without opening the tab.
+Requests have a 15-second timeout,
 256 KiB bound, spacing between attempts and a five-second manual-refresh throttle.
 The in-memory cache is limited to 24 route/direction entries; stale data is explicit.
 Map resources and location subscriptions are released when their consumers close.

@@ -508,7 +508,9 @@ export default class UbuntuIsland extends Extension {
         const compact = Boolean(this._island?.actor.mapped && !this._island.expanded &&
             this._settings.get_boolean('pill-show-weather'));
         this._weather?.setActive(active || compact);
-        this._commute?.setActive(Boolean(this._island?.actor.mapped && (
+        // Wait for startup connectivity; reconnecting resumes the existing
+        // controller immediately instead of waiting out a failed ETA's interval.
+        this._commute?.setActive(Boolean(this._states.connection === 'online' && this._island?.actor.mapped && (
             (this._island.expanded && !this._card?.quickAskOpen && this._card?._page === 'commute' && this._card.actor.mapped) ||
             (!this._island.expanded && this._settings.get_boolean('pill-show-commute')))));
         this._card?._weatherView?.scene.setActive(active);
@@ -630,6 +632,7 @@ export default class UbuntuIsland extends Extension {
         if (!this._enabled) return;
         this._states.connection = state;
         this._renderPill();
+        this._syncWeather();
     }
 
     _renderAudio(state) {
