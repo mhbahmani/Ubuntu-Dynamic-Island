@@ -423,6 +423,14 @@ The off summary is just “Bluetooth is off”.
 Verified with `make check` only; no native preview or smoke run (at the user's
 request), so its rendering and the row's alignment are unchecked.
 
+## System tab fit (2026-11-16)
+
+The System page overflowed its regular 248px card by 2–3 physical px at 380/440px
+and 100/200%, so its scroll area showed a scrollbar. Its repeated SYSTEM heading
+is now hidden, as Sound's is: the fixed navigation already names the tab. The
+smoke test's *System fit* check measures the scroll adjustment at both widths and
+scales (overflow 0 at each). Enlarged text can still scroll.
+
 ## Motion baseline
 
 The user accepted the notch expansion on 2026-11-11. Treat it as the reference

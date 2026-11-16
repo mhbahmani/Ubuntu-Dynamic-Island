@@ -631,6 +631,9 @@ export class Card {
 
     _buildMetrics() {
         const section = this._section('SYSTEM');
+        // The fixed navigation already names this tab; without the repeated
+        // heading the tiles fit the regular card without scrolling.
+        section.header.hide();
         section.box.add_style_class_name('ubuntu-island-system-section');
         section.content.add_style_class_name('ubuntu-island-system-content');
         const metrics = row('ubuntu-island-metrics');

@@ -194,6 +194,38 @@ export default class Smoke extends UbuntuIsland {
         }
     }
 
+    // The System tab fits its regular card without scrolling at default and
+    // narrow widths and at 200%; only enlarged text may need its scroll area.
+    async _checkSystemFits() {
+        const card = this._card, settings = this._settings, island = this._island;
+        const context = St.ThemeContext.get_for_stage(global.stage);
+        const text = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const original = {scale: context.scale_factor, text: text.get_double('text-scaling-factor'), page: card._page};
+        const results = [];
+        try {
+            for (const width of [380, 440]) for (const scale of [1, 2]) {
+                settings.set_int('expanded-width', width);
+                context.scale_factor = scale;
+                text.set_double('text-scaling-factor', scale);
+                card.selectPage('system');
+                island.expand(); await delay(450);
+                const adjustment = card._scroll.vadjustment;
+                const overflow = Math.round(adjustment.upper - adjustment.page_size);
+                results.push(`${width}px@${scale}x overflow=${overflow}`);
+                await this._capture(`system-fit-${width}-${scale}`);
+                island.collapse(); await delay(300);
+            }
+            assert(!results.some(result => !result.endsWith('=0') && !/=-/.test(result)), `System tab scrolls: ${results.join(', ')}`);
+            console.log(`[Island Smoke] System fit PASS: ${results.join(', ')}`);
+        } finally {
+            settings.reset('expanded-width');
+            context.scale_factor = original.scale;
+            text.set_double('text-scaling-factor', original.text);
+            if (original.page) card.selectPage(original.page);
+            await delay(300);
+        }
+    }
+
     async _checkNotchOptions() {
         const island = this._island, pill = this._pill, settings = this._settings;
         const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
@@ -1131,6 +1163,7 @@ export default class Smoke extends UbuntuIsland {
         assert(!this._pill._commute.visible && !this._commute.controller.timer, 'Disabled Commute notch retained timer');
         await this._checkNetworkWidths();
         await this._checkNotchOptions();
+        await this._checkSystemFits();
         for (const shape of ['classic', 'chevron']) {
             this._settings.set_string('pill-arrow-style', shape);
             await delay(70);
