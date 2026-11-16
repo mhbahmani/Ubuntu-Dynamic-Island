@@ -31,6 +31,10 @@ export class NotificationsView {
         this._buildToolbar();
         this._list = column('ubuntu-island-notification-list');
         section.content.add_child(this._list);
+        // The page fills the card so the empty state can sit in its middle;
+        // a long list still scrolls from the top.
+        section.box.y_expand = true;
+        section.content.y_expand = true;
         this._buildEmpty(section.content);
         const layoutId = settings.connect('changed::notifications-layout', () => this.render());
         const focusId = global.stage.connect('notify::key-focus', () => this._syncActive());
@@ -71,7 +75,7 @@ export class NotificationsView {
 
     _buildEmpty(parent) {
         this._empty = column('ubuntu-island-notification-empty');
-        this._empty.x_align = Clutter.ActorAlign.CENTER;
+        this._empty.set({x_align: Clutter.ActorAlign.CENTER, y_align: Clutter.ActorAlign.CENTER, y_expand: true});
         this._emptyIcon = icon('emblem-ok-symbolic', 24);
         this._emptyIcon.x_align = Clutter.ActorAlign.CENTER;
         this._emptyTitle = label('', 'ubuntu-island-device-name');
@@ -184,13 +188,14 @@ export class NotificationsView {
         return label('', 'ubuntu-island-notification-section');
     }
 
-    // Entry: card (open button with an overlaid dismiss) and an action row,
-    // plus a stack shelf for collapsed groups.
+    // Entry: a two-line row (open button with an overlaid dismiss) and an
+    // action row, plus a stack shelf for collapsed groups. Rows are separated
+    // by hairlines instead of boxes so more of them fit (stylesheet.css).
     _createCard(key) {
         const entry = column('ubuntu-island-notification');
         entry.track_hover = true;
         entry.reactive = true;
-        const card = column('ubuntu-island-device-button ubuntu-island-notification-card');
+        const card = column('ubuntu-island-notification-card');
         card.track_hover = true;
         card.reactive = true;
         const top = new St.Widget({layout_manager: new Clutter.BinLayout(), x_expand: true});
@@ -198,7 +203,7 @@ export class NotificationsView {
             reactive: true, track_hover: true, x_expand: true});
         const content = row('ubuntu-island-device');
         content.x_expand = true;
-        entry._icon = icon(FALLBACK_ICON, 24);
+        entry._icon = icon(FALLBACK_ICON, 20);
         entry._icon.y_align = Clutter.ActorAlign.START;
         content.add_child(entry._icon);
         const details = column('ubuntu-island-notification-details');

@@ -394,6 +394,19 @@ remains untracked.
   physical top-edge reveal feel, Yaru accent panels and other shell themes, and
   multi-monitor layouts (the hidden notch moves above the primary monitor).
 
+## Notifications tab density (2026-11-16)
+
+Notifications use two-line rows separated by hairlines instead of boxed cards
+(`.ubuntu-island-notification` bottom border, none on the last child; the row
+itself only tints on hover, themed via `scripts/theme-css.mjs`). Icons are 20px,
+row padding 5×6px, and the page has a 10px top padding with 6px between the
+toolbar and the list, aiming at about four rows in the regular card. Critical
+rows keep their pinned position with a faint red tint and red title. Day
+headings appear only when the list spans days: "Earlier" no longer shows alone.
+The empty state is centred in the card (the page box and content expand).
+Verified with `make check` only; no native preview, so row count and alignment
+are unchecked.
+
 ## Motion baseline
 
 The user accepted the notch expansion on 2026-11-11. Treat it as the reference

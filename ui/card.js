@@ -478,6 +478,7 @@ export class Card {
         else this.actor.remove_style_class_name('ubuntu-island-with-calendar');
         this._body.set_style_class_name(`ubuntu-island-card${this._page === 'media' ? ' ubuntu-island-card-media' : this._page === 'system' ? ' ubuntu-island-card-system' : this._page === 'weather' ? ' ubuntu-island-card-weather' : this._page === 'commute' ? ' ubuntu-island-card-commute' : this._page === 'agents' ? ' ubuntu-island-card-agents' : ''}`);
         if (this._page === 'audio') this._body.add_style_class_name('ubuntu-island-card-audio');
+        if (this._page === 'notifications') this._body.add_style_class_name('ubuntu-island-card-notifications');
         if (this._pages.has('agents')) this.actor.add_style_class_name('ubuntu-island-with-agents');
         this._queueNavigationFit();
         this.updateMediaTint();

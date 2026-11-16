@@ -54,7 +54,8 @@ export function notificationSections(items, todayStart) {
     return [
         {id: 'pinned', title: '', items: pinned},
         {id: 'today', title: earlier.length ? 'Today' : '', items: today},
-        {id: 'earlier', title: 'Earlier', items: earlier},
+        // Day headings only separate days: a list from a single day has none.
+        {id: 'earlier', title: today.length || pinned.length ? 'Earlier' : '', items: earlier},
     ].filter(section => section.items.length);
 }
 

@@ -48,6 +48,9 @@ export function themeBlock(theme) {
         `${sel('.ubuntu-island-navigation')} { background-color: ${rgba(theme.bottom, 0.32)}; border-color: ${rgba(checked, 0.24)}; }`,
         `${sel('.ubuntu-island-navigation .ubuntu-island-navigation-caption')} { color: ${accent}; }`,
         `${sel('.ubuntu-island-calendar-month')} { border-color: ${rgba(surface, 0.11)}; }`,
+        // Notification rows: hairline separators and a soft hover, no boxes.
+        `${sel('.ubuntu-island-notification')} { border-color: ${rgba(surface, 0.09)}; }`,
+        `${sel('.ubuntu-island-notification-card:hover')} { background-color: ${rgba(surface, 0.08)}; }`,
         `${sel('.ubuntu-island-history')} { color: ${theme.history}; }`,
         `${sel('.ubuntu-island-network-down')} { color: ${theme.chartDown}; }`,
         `${sel('.ubuntu-island-network-up')} { color: ${theme.chartUp}; }`,

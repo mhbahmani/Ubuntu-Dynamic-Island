@@ -40,6 +40,8 @@ test('sections pin critical items and label Today only beside Earlier', () => {
     assert.deepEqual(notificationSections(mixed, today).map(s => [s.id, s.title, s.items.map(i => i.id)]),
         [['pinned', '', [4]], ['today', 'Today', [2, 1]], ['earlier', 'Earlier', [3]]]);
     assert.deepEqual(notificationSections([], today), []);
+    assert.deepEqual(notificationSections([{id: 5, time: today - 10}], today).map(s => [s.id, s.title]), [['earlier', '']],
+        'A list from one earlier day needs no heading');
 });
 
 test('Today filter keeps critical items', () => {
