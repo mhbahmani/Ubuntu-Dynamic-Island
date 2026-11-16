@@ -8,13 +8,12 @@ import Atk from 'gi://Atk';
 import GLib from 'gi://GLib';
 import {AGENTS, AGENT_STATES, agentSummary, agentSessionReferences, agentStatus} from '../services/agents-model.js';
 import {column, row, label, button, setEnabled, notchToggle} from './widgets.js';
+import {harnessIcon} from './agent-icon.js';
 
 const RECENT = new Set(['finished', 'closed']);
 const PRIORITY = {approval:0, input:0, error:1, interrupted:2, working:3, waiting:3, idle:4, unknown:5, finished:6, closed:7};
 const icons = new Map(Object.keys(AGENT_STATES).map(state => [state,
     Gio.FileIcon.new(Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path(`assets/agents/${state === 'waiting' ? 'idle' : state}-symbolic.svg`))]));
-const harnessIcons = new Map(Object.keys(AGENTS).map(provider => [provider,
-    Gio.FileIcon.new(Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().resolve_relative_path(`assets/agents/${provider}.svg`))]));
 function textButton(text, action, css = '') {
     const actor = new St.Button({label:text, style_class:`ubuntu-island-agent-button ${css}`, can_focus:true, reactive:true, track_hover:true});
     actor.connect('clicked', action); return actor;
@@ -455,7 +454,7 @@ export class AgentsView {
             const relationship = session.attribution ? `Started by ${session.attribution.title}` : '';
             item.status.text = `${state} · ${item.reference}${relationship ? ' · ⤷ From Claude' : ''}`;
             item.actor.accessible_description = item.open.accessible_description = item.menu.accessible_description = relationship;
-            item.harness.gicon = harnessIcons.get(session.provider);
+            item.harness.gicon = harnessIcon(session.provider);
             item.harness.accessible_name = AGENTS[session.provider];
             item.glyph.gicon = icons.get(session.state) || icons.get('unknown');
             item.glyph.set_style_class_name(`ubuntu-island-agent-${session.state === 'waiting' ? 'idle' : session.state}`);

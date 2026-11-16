@@ -221,7 +221,10 @@ The list shows last-reported states such as Working, Needs approval, Needs input
 Task finished and Error. An empty list is a waiting state, not evidence that an
 integration needs setup. Integration controls remain in Agents preferences.
 It never automatically focuses a window or expands the notch.
-Optional notch counts and notifications default off.
+Optional notch counts and notifications default off. Notifications come from an
+"Ubuntu Island" source with the Agents icon and show the harness logo (Claude,
+Codex or OpenCode; the Agents icon otherwise). Like other Shell system notices
+they are transient, and disabling the extension removes them.
 
 Each row shows its harness icon, state and a short session ID. References use the
 last eight ID characters and extend when needed to distinguish matching suffixes

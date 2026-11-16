@@ -10,6 +10,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {formatRate} from './services/proc.js';
 import {TAB_MAX_WIDTH, REGULAR_HEIGHT, GROWING_PAGES} from './ui/card.js';
+import {agentIcon} from './ui/agent-icon.js';
 import {sampleDevices, sampleAgents, sampleCalendar, sampleNotifications, postNotification} from './preview-data.js';
 import {THEMES, THEME_IDS, themeAccent} from './services/appearance.js';
 import {notchTime} from './services/notch-model.js';
@@ -1750,6 +1751,20 @@ export default class Preview extends UbuntuIsland {
         assert(!view.empty.get_children().some(child => child instanceof St.Button), 'An idle observer incorrectly asks to set up tracking');
         await this._capture('agents-empty');
         sampleAgents(this);
+        // Notices come from one Ubuntu Island source and carry the harness logo.
+        const notices = [];
+        for (const provider of ['claude', 'codex', 'opencode', 'unknown-harness']) {
+            this._notifyAgent({provider, state: 'finished', label: `Notice ${provider}`});
+            notices.push(this._agentNoticeSource.notifications.at(-1));
+        }
+        const source = this._agentNoticeSource;
+        assert(source.title === 'Ubuntu Island' && source.icon === agentIcon, 'Agent notices lack the Ubuntu Island source');
+        for (const [i, provider] of ['claude', 'codex', 'opencode'].entries())
+            assert(notices[i].gicon?.get_file?.().get_path().endsWith(`/assets/agents/${provider}.svg`), `${provider} notice lacks its logo`);
+        assert(notices[3].gicon === agentIcon, 'Unknown harness notice lacks the module icon');
+        assert(notices[0].title === 'Task finished' && notices[0].body.endsWith('Notice claude'), 'Agent notice text changed');
+        source.destroy();
+        assert(!this._agentNoticeSource, 'Destroyed notice source was retained');
         console.log('[Island Preview] AGENTS PASS: harness icons, inline menus, unique window matches, lazy expiry, draft/errors, Undo, motion cleanup and narrow/scaled layout');
     }
 

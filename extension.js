@@ -17,12 +17,14 @@ import {PEEK_MS, shouldPeek} from './services/notifications-model.js';
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as MessageTray from 'resource:///org/gnome/shell/ui/messageTray.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 import {IslandSurface, IslandState} from './ui/island.js';
 import {IslandBackdrop} from './ui/backdrop.js';
 import {NotchAutoHide} from './ui/auto-hide.js';
 import {Pill} from './ui/pill.js';
 import {Card} from './ui/card.js';
+import {agentIcon, harnessIcon} from './ui/agent-icon.js';
 import {SystemMonitor} from './services/system.js';
 import {ConnectivityService} from './services/connectivity.js';
 import {MediaService} from './services/media.js';
@@ -679,6 +681,22 @@ export default class UbuntuIsland extends Extension {
         }
     }
 
+    // Agent events come from an Ubuntu Island source (module icon) and carry
+    // the harness logo, so Claude, Codex and OpenCode read apart at a glance.
+    // Like Main.notify, notices are transient; the source goes with its last.
+    _notifyAgent(session) {
+        if (!this._agentNoticeSource) {
+            const source = new MessageTray.Source({title: 'Ubuntu Island', icon: agentIcon});
+            source.connect('destroy', () => { if (this._agentNoticeSource === source) this._agentNoticeSource = null; });
+            Main.messageTray.add(source);
+            this._agentNoticeSource = source;
+        }
+        const source = this._agentNoticeSource;
+        source.addNotification(new MessageTray.Notification({source, isTransient: true,
+            title: AGENT_STATES[session.state], body: `${AGENTS[session.provider] ?? 'Agent'} · ${session.label}`,
+            gicon: harnessIcon(session.provider)}));
+    }
+
     _renderAgents(state) {
         this._island?.invalidateBackdrop();
         if (!this._enabled) return;
@@ -686,8 +704,7 @@ export default class UbuntuIsland extends Extension {
         if (this._settings.get_boolean('agents-notify') && !Main.sessionMode.isLocked) {
             for (const session of state.sessions || []) {
                 const old = previous.find(s => s.id === session.id);
-                if (agentNotificationNeeded(old, session))
-                    Main.notify(`Ubuntu Island · ${AGENT_STATES[session.state]}`, `${AGENTS[session.provider]} · ${session.label}`);
+                if (agentNotificationNeeded(old, session)) this._notifyAgent(session);
             }
         }
         this._states.agents = state;
@@ -781,6 +798,7 @@ export default class UbuntuIsland extends Extension {
         if (this._agentFocus) GLib.Source.remove(this._agentFocus);
         this._agentFocus = 0;
         this._agents?.stop(); this._agents = null;
+        this._agentNoticeSource?.destroy(); this._agentNoticeSource = null;
         this._notifications?.stop(); this._notifications = null;
         this._calendarEvents?.stop(); this._calendarEvents = null; this._stopCalendarClock();
         if (this._calendarSessionSignal) Main.sessionMode.disconnect(this._calendarSessionSignal);
