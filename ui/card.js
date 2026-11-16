@@ -266,6 +266,8 @@ export class Card {
         navigation.add_child(this._preferencesButton);
         this.actor.add_child(navigation);
         navigation.connect('notify::allocation', () => this._queueNavigationFit());
+        // Showing or hiding modules changes the tab strip, not the bar.
+        this._tabStrip.connect('notify::allocation', () => this._queueNavigationFit());
         this._pageCaption.connect('style-changed', () => this._queueNavigationFit());
     }
 
