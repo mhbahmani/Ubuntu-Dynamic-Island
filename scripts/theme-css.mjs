@@ -37,7 +37,8 @@ export function themeBlock(theme) {
         // Keyboard focus rings keep each base width and form; only the colour is themed.
         `${sel('.ubuntu-island-output:focus', '.ubuntu-island-device-button:focus', '.ubuntu-island-ghost:focus',
             '.ubuntu-island-seal:focus', '.ubuntu-island-media-mode:focus', '.ubuntu-island-media-text-button:focus',
-            '.ubuntu-island-media-seek:focus', '.ubuntu-island-player-picker:focus', '.ubuntu-island-notification-open:focus')} { box-shadow: inset 0 0 0 2px ${theme.focus}; }`,
+            '.ubuntu-island-media-seek:focus', '.ubuntu-island-player-picker:focus', '.ubuntu-island-notification-open:focus',
+            '.ubuntu-island-switch:focus')} { box-shadow: inset 0 0 0 2px ${theme.focus}; }`,
         `${sel('.ubuntu-island-calendar-control:focus', '.ubuntu-island-output-mode:focus', '.ubuntu-island-title-toggle:focus',
             '.ubuntu-island-agent-session:focus', '.ubuntu-island-agent-button:focus', '.ubuntu-island-agent-menu-button:focus',
             '.ubuntu-island-notification-chip:focus')} ` +
@@ -61,6 +62,8 @@ export function themeBlock(theme) {
         `${sel('.ubuntu-island-seal:hover', '.ubuntu-island-agent-primary:hover', '.ubuntu-island-agent-primary:focus',
             '.ubuntu-island-quick-ask-send:hover')} { background-color: ${theme.strongHover}; }`,
         `${sel('.ubuntu-island-seal:active', '.ubuntu-island-agent-primary:active')} { background-color: ${theme.strongPressed}; }`,
+        // Switch on: the strong fill keeps the light knob readable.
+        `${sel('.ubuntu-island-switch:checked')} { background-color: ${theme.strong}; }`,
         `${sel('.slider')} { -barlevel-active-background-color: ${accent}; -barlevel-overdrive-color: ${accent}; }`,
         `${sel('.ubuntu-island-output-active')} { background-color: ${rgba(checked, 0.20)}; border-color: ${accent}; }`,
         `${sel('.ubuntu-island-media-mode:checked', '.ubuntu-island-media-text-button:checked', '.ubuntu-island-notification-chip:checked',
@@ -82,6 +85,7 @@ export function themeBlock(theme) {
         `${sel('.ubuntu-island-tab-selected:focus .ubuntu-island-tab-marker')} { background-color: transparent; }`,
         // Theme fills above outrank the base :disabled rules; restore them.
         `${sel('.ubuntu-island-seal:disabled', '.ubuntu-island-device-button:disabled')} { color: #9a8c82; background-color: #363940; }`,
+        `${sel('.ubuntu-island-switch:disabled')} { background-color: rgba(235,239,255,0.08); }`,
         `${sel('.ubuntu-island-quick-ask-send:disabled')} { color: #7d818b; background-color: rgba(220,225,240,0.08); }`,
         `${sel('.ubuntu-island-agent-primary:disabled')} { color: #939aa6; background-color: transparent; }`,
     ].join('\n');

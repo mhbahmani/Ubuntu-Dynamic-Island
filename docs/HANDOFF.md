@@ -407,6 +407,22 @@ The empty state is centred in the card (the page box and content expand).
 Verified with `make check` only; no native preview, so row count and alignment
 are unchecked.
 
+## Bluetooth tab header (2026-11-16)
+
+The BLUETOOTH heading is hidden (the navigation names the tab). One row now
+holds the connection summary, a themed on/off switch and the settings button,
+so the device list starts near the top. The switch (`Card._switch()`,
+`.ubuntu-island-switch`) follows the service's `powered` state, is disabled
+while a power change is pending, slides its knob on the tab timing (instant
+with reduced motion, invalidating the backdrop per frame) and is exposed as a
+toggle button named Bluetooth. Its on fill is the theme's `strong` color.
+St.Button centres its child regardless of `x_align`, so `_placeSwitch()` places
+the knob from the track's content box and the knob's own allocation (an early
+version assumed a left-aligned knob: centred when off, overshooting when on).
+The off summary is just “Bluetooth is off”.
+Verified with `make check` only; no native preview or smoke run (at the user's
+request), so its rendering and the row's alignment are unchecked.
+
 ## Motion baseline
 
 The user accepted the notch expansion on 2026-11-11. Treat it as the reference

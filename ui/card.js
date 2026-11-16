@@ -720,20 +720,63 @@ export class Card {
 
     _buildBluetooth() {
         const section = this._section('BLUETOOTH');
-        const heading = section.header;
-        this._power = button('bluetooth-disabled-symbolic', 'Toggle Bluetooth power',
-            () => this._actions.btPower(), 15, 'ubuntu-island-ghost');
-        this._power.visible = false;
-        heading.add_child(this._power);
-        heading.add_child(button('emblem-system-symbolic', 'Open Bluetooth Settings',
-            () => Util.spawn(['gnome-control-center', 'bluetooth']), 15, 'ubuntu-island-ghost'));
+        // The fixed navigation already names this tab. One row carries the
+        // summary, the power switch and settings, so devices start at the top.
+        section.header.hide();
+        const controls = row('ubuntu-island-bluetooth-controls');
         this._btStatus = label('Detecting Bluetooth…');
-        section.content.add_child(this._btStatus);
+        this._btStatus.x_expand = true;
+        controls.add_child(this._btStatus);
+        this._power = this._switch('Bluetooth', () => this._actions.btPower());
+        this._power.visible = false;
+        controls.add_child(this._power);
+        controls.add_child(button('emblem-system-symbolic', 'Open Bluetooth Settings',
+            () => Util.spawn(['gnome-control-center', 'bluetooth']), 15, 'ubuntu-island-ghost'));
+        section.content.add_child(controls);
         this._btError = label('', 'ubuntu-island-error');
         this._btError.hide();
         section.content.add_child(this._btError);
         this._devices = column('ubuntu-island-devices');
         section.content.add_child(this._devices);
+    }
+
+    // A themed on/off switch: the knob slides with the reduced-motion aware
+    // tab timing. `checked` follows the service state, never the click alone.
+    _switch(name, onToggle) {
+        const control = new St.Button({style_class: 'ubuntu-island-switch', can_focus: true, reactive: true,
+            track_hover: true, accessible_name: name, accessible_role: Atk.Role.TOGGLE_BUTTON,
+            y_align: Clutter.ActorAlign.CENTER});
+        control.set_child(new St.Widget({style_class: 'ubuntu-island-switch-knob',
+            x_align: Clutter.ActorAlign.START, y_align: Clutter.ActorAlign.CENTER}));
+        control.connect('clicked', onToggle);
+        // St.Button centres its child whatever its alignment, so place the
+        // knob against the track's content edges once it is allocated.
+        control.child.connect('notify::allocation', () => this._placeSwitch(control, false));
+        control.connect('notify::mapped', () => this._placeSwitch(control, false));
+        return control;
+    }
+
+    _setSwitch(control, checked) {
+        if (control.checked === checked) return;
+        control.checked = checked;
+        this._placeSwitch(control, true);
+    }
+
+    _placeSwitch(control, animate) {
+        const knob = control.child;
+        knob.remove_transition('translation-x');
+        if (!control.mapped) return;
+        const track = control.get_theme_node().get_content_box(control.get_allocation_box());
+        const allocation = knob.get_allocation_box();
+        const left = track.x1 - allocation.x1;
+        const x = control.checked ? left + Math.max(0, track.get_width() - allocation.get_width()) : left;
+        const duration = animate ? Math.min(160, this._sliderMs()) : 0;
+        if (duration <= 0) {
+            knob.translation_x = x;
+            return;
+        }
+        knob.ease({translation_x: x, duration, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+        knob.get_transition('translation-x')?.connect('new-frame', () => invalidateBackdrop(this.actor));
     }
 
     renderMedia(state) {
@@ -970,13 +1013,11 @@ export class Card {
         const connected = devices.filter(d => d.connected).length;
         this._btStatus.text = !state.available ? 'Bluetooth service unavailable'
             : !state.hasAdapter ? 'No Bluetooth adapter found'
-            : !state.powered ? 'Bluetooth is off · turn it on to connect'
+            : !state.powered ? 'Bluetooth is off'
             : !devices.length ? 'No paired devices · open Bluetooth Settings'
             : `${connected} connected · ${devices.length} paired`;
         this._power.visible = Boolean(state.available && state.hasAdapter);
-        this._power.child.icon_name = state.powered
-            ? 'bluetooth-active-symbolic' : 'bluetooth-disabled-symbolic';
-        this._power.accessible_name = state.powered ? 'Turn Bluetooth off' : 'Turn Bluetooth on';
+        this._setSwitch(this._power, Boolean(state.powered));
         setEnabled(this._power, !state.powerPending);
         this._btError.text = state.error ?? '';
         this._btError.visible = Boolean(state.error);
