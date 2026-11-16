@@ -238,6 +238,14 @@
 .ubuntu-island-card-notifications { padding-top: 10px; }
 .ubuntu-island-card-notifications .ubuntu-island-section-box { spacing: 6px; }
 .ubuntu-island-notification-list { spacing: 0; }
+/* Floating corner actions: room below the last row lets it scroll clear. */
+.ubuntu-island-notification-list-actions { padding-bottom: 40px; }
+.ubuntu-island-notification-corner { padding: 0 12px 10px 0; }
+.ubuntu-island-notification-actions { spacing: 2px; padding: 3px; border-radius: 13px; background-color: rgba(27, 29, 34, 0.94); border: 1px solid rgba(235, 239, 255, 0.16); }
+.ubuntu-island-notification-silenced { padding: 0 6px; }
+/* Centred on the card corner (ui/notifications-view.js), so a quarter shows.
+   Theme color and alpha arrive inline from services/appearance.js. */
+.ubuntu-island-notification-fade { width: 460px; height: 200px; background-gradient-direction: radial; background-gradient-start: rgba(27, 29, 34, 0.94); background-gradient-end: rgba(27, 29, 34, 0); }
 .ubuntu-island-notification { border-bottom: 1px solid rgba(235, 239, 255, 0.08); }
 .ubuntu-island-notification:last-child { border-bottom-width: 0; }
 .ubuntu-island-notification-card { padding: 5px 6px; spacing: 4px; border-radius: 8px; margin: 1px 0; }

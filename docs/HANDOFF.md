@@ -28,6 +28,24 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Notification corner actions (2026-11-16)
+
+Layout, Do Not Disturb (plus the silenced label) and Clear moved from the
+Notifications toolbar row to a floating bottom-right pill. The pill sits in a
+BinLayout stack Card now wraps around its scroll view (`_scrollStack`); its
+visibility follows the scroll view and the page. A radial fade centred on the
+card corner and the pill both use `cornerFadeStyle()` (theme lower stop,
+matte-flattened, alpha capped at 0.94), applied with the other appearance
+settings. The list gains 40px of bottom padding while notifications exist, so
+the last row scrolls clear and content-sized height accounts for it. The header
+remains only for "N new" and the grouped All/Today filters. BinLayout honors a
+child's alignment only when the child expands, so the pill and fade set x/y expand.
+
+Validation: `make check` 239 passed (one skip). The Notifications preview checks
+that the pill stays inside the card and that the last row scrolls clear at
+380/440px, 100/200% scale and enlarged text, and passed. The full preview
+(offline, long duration) and `make smoke` passed.
+
 ## Growing list tabs and spread tabs (2026-11-16)
 
 Notifications and Agents follow their content between the regular 248px and the

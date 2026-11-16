@@ -50,6 +50,8 @@ export class NotificationsView {
     }
 
     _buildToolbar() {
+        // The header carries only context ("N new", grouped filters) and hides
+        // when it has none; actions float in the bottom-right corner instead.
         this._newChip = label('', 'ubuntu-island-notification-new', false);
         this._header.add_child(this._newChip);
         this._filters = row('ubuntu-island-notification-filters');
@@ -59,18 +61,41 @@ export class NotificationsView {
             return [id, control];
         }));
         this._header.add_child(this._filters);
-        const spacer = new St.Widget({x_expand: true});
-        this._header.add_child(spacer);
-        this._silencedLabel = label('', 'ubuntu-island-device-status', false);
-        this._header.add_child(this._silencedLabel);
+
+        // Fixed over the scrolling list (Card stacks it above its scroll view).
+        // A radial fade centred on the corner settles the rows passing beneath;
+        // only the cluster itself takes input.
+        this.floating = new St.Widget({layout_manager: new Clutter.BinLayout(), x_expand: true, y_expand: true});
+        // BinLayout honours a child's alignment only when it expands.
+        this._fade = new St.Widget({style_class: 'ubuntu-island-notification-fade', reactive: false,
+            x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.END});
+        this._fade.connect('notify::allocation', () => {
+            this._fade.translation_x = Math.round(this._fade.width / 2);
+            this._fade.translation_y = Math.round(this._fade.height / 2);
+        });
+        this.floating.add_child(this._fade);
+        const corner = new St.Widget({style_class: 'ubuntu-island-notification-corner',
+            layout_manager: new Clutter.BinLayout(), x_expand: true, y_expand: true});
+        this._actionsBar = row('ubuntu-island-notification-actions');
+        this._actionsBar.set({x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.END});
+        this._silencedLabel = label('', 'ubuntu-island-device-status ubuntu-island-notification-silenced', false);
+        this._silencedLabel.y_align = Clutter.ActorAlign.CENTER;
+        this._actionsBar.add_child(this._silencedLabel);
         this._layoutButton = button('view-list-symbolic', '', () => this._settings.set_string('notifications-layout',
             this._grouped ? 'compact' : 'grouped'), 15, 'ubuntu-island-ghost');
-        this._header.add_child(this._layoutButton);
+        this._actionsBar.add_child(this._layoutButton);
         this._dndButton = button(FALLBACK_ICON, '', () => this._actions.notificationsDoNotDisturb(!this._state.dnd),
             15, 'ubuntu-island-ghost ubuntu-island-notification-dnd');
-        this._header.add_child(this._dndButton);
+        this._actionsBar.add_child(this._dndButton);
         this._clear = chip('Clear', () => this._actions.notificationsClear());
-        this._header.add_child(this._clear);
+        this._actionsBar.add_child(this._clear);
+        corner.add_child(this._actionsBar);
+        this.floating.add_child(corner);
+    }
+
+    setCornerStyle({fade, actions}) {
+        this._fade.set_style(fade);
+        this._actionsBar.set_style(actions);
     }
 
     _buildEmpty(parent) {
@@ -131,7 +156,12 @@ export class NotificationsView {
         }
 
         const empty = !visible.length;
-        this._header.visible = Boolean(count);
+        this._header.visible = Boolean(count) && (unseen > 0 || grouped);
+        // The corner actions and the list's reserved bottom space exist only
+        // with notifications; the empty state keeps its own DND control.
+        this._fade.visible = this._actionsBar.visible = Boolean(count);
+        if (count) this._list.add_style_class_name('ubuntu-island-notification-list-actions');
+        else this._list.remove_style_class_name('ubuntu-island-notification-list-actions');
         this._newChip.text = `${unseen} new`;
         this._newChip.visible = unseen > 0;
         this._filters.visible = grouped;
@@ -144,7 +174,6 @@ export class NotificationsView {
         this._silencedLabel.text = `${silenced} silenced`;
         this._silencedLabel.visible = dnd && silenced > 0;
         this._clear.accessible_name = `Clear all, ${notificationCount(count)}`;
-        this._clear.visible = Boolean(count);
 
         this._empty.visible = empty;
         const filtered = Boolean(count) && empty;

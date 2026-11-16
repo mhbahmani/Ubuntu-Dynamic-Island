@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {surfaceStyle, blurParams, backdropSlices, THEMES, MAX_BLUR_RADIUS} from '../services/appearance.js';
+import {surfaceStyle, cornerFadeStyle, blurParams, backdropSlices, THEMES, MAX_BLUR_RADIUS} from '../services/appearance.js';
 
 const stops = style => [style.match(/gradient-start: (rgba\([^)]+\))/)[1], style.match(/gradient-end: (rgba\([^)]+\))/)[1]];
 
@@ -16,6 +16,22 @@ test('appearance clamps background opacity without fading content', () => {
     assert(stops(surfaceStyle('ocean', 1)).every(color => color.endsWith(',0.01)')));
     assert(stops(surfaceStyle('ocean', 0, 50)).every(color => color.endsWith(',0)')));
     assert.equal(surfaceStyle('forest', 500), surfaceStyle('forest', 100));
+});
+
+test('corner fade uses the tint lower stop and fades to clear', () => {
+    for (const [id, theme] of Object.entries(THEMES)) {
+        const {fade, actions} = cornerFadeStyle(id, 98);
+        const [start, end] = stops(fade);
+        assert.equal(start, `rgba(${theme.bottom.join(',')},0.94)`, id);
+        assert.equal(end, `rgba(${theme.bottom.join(',')},0)`, id);
+        assert(fade.includes('background-gradient-direction: radial'));
+        assert(actions.includes(`background-color: rgba(${theme.bottom.join(',')},0.94)`), id);
+    }
+    assert(stops(cornerFadeStyle('ocean', 60).fade)[0].endsWith(',0.6)'));
+    assert.deepEqual(cornerFadeStyle('invalid', NaN), cornerFadeStyle('graphite', 98));
+    const flat = stops(cornerFadeStyle('ocean', 98, 100).fade)[0];
+    const mean = THEMES.ocean.bottom.map((c, i) => Math.round((THEMES.ocean.top[i] + c) / 2)).join(',');
+    assert.equal(flat, `rgba(${mean},0.94)`);
 });
 
 test('matte backing leaves the pure tint untouched at zero', () => {

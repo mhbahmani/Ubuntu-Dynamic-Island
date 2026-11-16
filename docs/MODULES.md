@@ -398,8 +398,12 @@ turned off in GNOME Settings are not listed.
   Delete or Backspace dismisses the focused row or group. Open and actions
   collapse the island. **Clear** and dismiss destroy notifications as GNOME does.
 - Critical notifications are pinned first with an error-coloured edge.
-- A dot marks notifications that arrived since the tab was last closed; the toolbar
-  shows the count, and **Show unseen count** puts it in the collapsed notch.
+- Layout, Do Not Disturb (with the silenced count) and Clear float in the
+  tab's bottom-right corner, fixed while the list scrolls, over a radial fade in
+  the theme's lower tint. The list reserves room below its last row to scroll
+  clear of them. They hide with the list when there are no notifications.
+- A dot marks notifications that arrived since the tab was last closed; a chip
+  heading the list shows the count, and **Show unseen count** puts it in the collapsed notch.
   This state is in memory only.
 - The Do Not Disturb toggle writes GNOME's `org.gnome.desktop.notifications
   show-banners`, the same switch as GNOME's own. While it is on, the tab icon

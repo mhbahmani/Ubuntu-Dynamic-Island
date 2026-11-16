@@ -57,7 +57,12 @@ export class Card {
         this.actor = column('ubuntu-island-container');
         this._scroll = new St.ScrollView({style_class: 'ubuntu-island-scroll', overlay_scrollbars: true, x_expand: true, y_expand: true});
         this._scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
-        this.actor.add_child(this._scroll);
+        // Pages may float controls over their scrolling content (Notifications'
+        // corner actions); the stack keeps them fixed while the list scrolls.
+        this._scrollStack = new St.Widget({layout_manager: new Clutter.BinLayout(), x_expand: true, y_expand: true,
+            clip_to_allocation: true});
+        this._scrollStack.add_child(this._scroll);
+        this.actor.add_child(this._scrollStack);
         this.actor._islandPreferredHeight = width => {
             if (this.quickAskOpen) return this._quickAsk.actor.get_preferred_height(width)[1];
             if (this._page === 'commute')
@@ -97,8 +102,10 @@ export class Card {
         this._weatherView?.setViewport(this._scroll);
         if (settings.get_boolean('enable-commute'))
             this._commuteView = new CommuteView(this._section('COMMUTE'), actions, this._scroll);
-        if (settings.get_boolean('enable-notifications'))
+        if (settings.get_boolean('enable-notifications')) {
             this._notificationsView = new NotificationsView(this._section('NOTIFICATIONS'), settings, actions);
+            this._scrollStack.add_child(this._notificationsView.floating);
+        }
         if (settings.get_boolean('enable-agents')) {
             this._agentsView = new AgentsView(settings, actions);
             this.actor.add_child(this._agentsView.actor);
@@ -492,6 +499,9 @@ export class Card {
         const previous = this._shownPage;
         this._shownPage = this.quickAskOpen ? null : this._page;
         this._scroll.visible = !this.quickAskOpen && !['agents', 'calendar'].includes(this._page);
+        this._scrollStack.visible = this._scroll.visible;
+        if (this._notificationsView)
+            this._notificationsView.floating.visible = !this.quickAskOpen && this._page === 'notifications';
         if (this._quickAsk) this._quickAsk.actor.visible = Boolean(this.quickAskOpen);
         if (this._navigation) this._navigation.visible = !this.quickAskOpen;
         for (const [id, page] of this._pages) {

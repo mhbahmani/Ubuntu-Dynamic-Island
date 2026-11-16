@@ -86,8 +86,9 @@ and [compact playing pill](screenshots/playing-pill.png).
   expandable, with All/Today filters); switch in **Preferences → Notifications** or
   from the tab. Rows show the app's own logo, a new-since-last-opened marker,
   and on hover or focus a dismiss button and the notification's actions; Delete
-  dismisses. The toolbar has the new count, layout and Do Not Disturb toggles and
-  Clear. Critical notifications stay pinned. New notifications can peek in the
+  dismisses. The new count and grouped filters head the list only when present;
+  layout, Do Not Disturb and Clear float in the bottom-right corner over a soft
+  fade. Critical notifications stay pinned. New notifications can peek in the
   collapsed notch, which can also show an unseen count. GNOME keeps its own banners.
   See [behavior and privacy](docs/MODULES.md#notifications).
 - **Single-surface morph**: one chrome-managed surface expands downward around

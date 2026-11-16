@@ -533,6 +533,18 @@ export default class Preview extends UbuntuIsland {
                 const bottom = last.get_transformed_position()[1] + last.get_transformed_size()[1];
                 const scrollBottom = card._scroll.get_transformed_position()[1] + card._scroll.get_transformed_size()[1];
                 assert(bottom <= scrollBottom + 1 || adjustment.upper > adjustment.page_size, `Overflow unreachable at ${where}`);
+                // Corner actions stay inside the card, and the last row can scroll clear of them.
+                const bar = view._actionsBar, island = this._island.actor;
+                const [barX, barY] = bar.get_transformed_position(), [barW, barH] = bar.get_transformed_size();
+                const [islandX, islandY] = island.get_transformed_position();
+                assert(bar.mapped && barX >= islandX && barX + barW <= islandX + island.width && barY + barH <= islandY + island.height,
+                    `Corner actions leave the card at ${where}`);
+                assert(barW < island.width / 2 + barW / 2 || font > 1, `Corner actions span the card at ${where}`);
+                adjustment.value = adjustment.upper - adjustment.page_size; await delay(80);
+                const lastBottom = last.get_transformed_position()[1] + last.get_transformed_size()[1];
+                assert(lastBottom <= bar.get_transformed_position()[1] + 1, `Last row cannot scroll clear of the actions at ${where}`);
+                await this._capture(`notifications-${layout}-${width}-${scale}x-${font}-end`);
+                adjustment.value = 0; await delay(40);
                 await this._capture(`notifications-${layout}-${width}-${scale}x-${font}`);
             }
         } finally {

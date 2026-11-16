@@ -30,7 +30,7 @@ import {BluetoothService} from './services/bluetooth.js';
 import {AudioService} from './services/audio.js';
 import {audioWithBatteries} from './services/audio-model.js';
 import {ArtLoader} from './services/art.js';
-import {surfaceStyle} from './services/appearance.js';
+import {surfaceStyle, cornerFadeStyle} from './services/appearance.js';
 import {layoutSignature} from './services/presentation.js';
 
 const QUICK_ASK_SHORTCUT = 'island-quick-ask-shortcut';
@@ -401,6 +401,7 @@ export default class UbuntuIsland extends Extension {
         const opacity = this._settings.get_int('surface-opacity');
         const matte = this._settings.get_int('surface-matte');
         this._island.setAppearance(surfaceStyle(theme, opacity, matte), matte, opacity);
+        this._card._notificationsView?.setCornerStyle(cornerFadeStyle(theme, opacity, matte));
         const classes = this._card.actor.get_style_class_name().split(/\s+/)
             .filter(name => !name.startsWith('ubuntu-island-theme-'));
         this._card.actor.set_style_class_name([...classes, `ubuntu-island-theme-${theme}`].join(' '));

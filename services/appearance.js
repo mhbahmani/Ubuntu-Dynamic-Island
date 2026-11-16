@@ -21,6 +21,22 @@ export function surfaceStyle(theme, opacity, matte = 0) {
         `border-color: rgba(${palette.edge.join(',')},0.13);`;
 }
 
+// Floating corner controls: a radial fade and a solid pill in the tint's lower
+// stop, matte-flattened like the surface, so the corner reads as the card
+// thickening rather than a separate panel.
+export function cornerFadeStyle(theme, opacity, matte = 0) {
+    const palette = THEMES[theme] ?? THEMES[DEFAULT_THEME];
+    const alpha = Math.min(0.94, percent(opacity, 98) / 100);
+    const flatten = percent(matte, 0) / 100;
+    const color = palette.bottom.map((channel, index) =>
+        Math.round(flatten * (palette.top[index] + channel) / 2 + (1 - flatten) * channel)).join(',');
+    return {
+        fade: `background-gradient-direction: radial; background-gradient-start: rgba(${color},${alpha}); ` +
+            `background-gradient-end: rgba(${color},0);`,
+        actions: `background-color: rgba(${color},${alpha}); border-color: rgba(${palette.edge.join(',')},0.16);`,
+    };
+}
+
 // Matte drives the frosted-glass strength: the backdrop blur radius (logical
 // pixels, scaled for HiDPI) and a gentle dimming of what is behind. Opacity
 // never changes the radius; a fully opaque tint hides the blur, so the effect
