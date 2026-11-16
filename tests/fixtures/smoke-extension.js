@@ -452,8 +452,11 @@ export default class Smoke extends UbuntuIsland {
             await this._capture('media-modern-large-text');
             adjustment.value = adjustment.upper - adjustment.page_size;
             await this._capture('media-modern-large-text-scrolled');
-            const footerTop = card._pageCaption.get_parent().get_transformed_position()[1];
-            assert(card._openPlayer.get_transformed_position()[1] + card._openPlayer.height <= footerTop + 1, 'Enlarged controls are unreachable');
+            const navigation = card._navigation, island = this._island.actor;
+            const navigationBottom = navigation.get_transformed_position()[1] + navigation.height;
+            const cardBottom = island.get_transformed_position()[1] + island.height;
+            const [, playerY] = card._openPlayer.get_transformed_position();
+            assert(playerY >= navigationBottom - 1 && playerY + card._openPlayer.height <= cardBottom + 1, 'Enlarged controls are unreachable');
             textSettings.set_double('text-scaling-factor', textScale);
             this._settings.set_int('expanded-width', 440);
             for (const [opener, mode] of [[card._playerPicker, 'players'], [card._soundButton, 'sound'],
@@ -1366,8 +1369,8 @@ export default class Smoke extends UbuntuIsland {
         this._checkNavigationAlignment();
         const [captionX, captionY] = this._card._iface.get_transformed_position();
         const [, captionHeight] = this._card._iface.get_transformed_size();
-        const [, footerY] = this._card._tabs.get('system').get_parent().get_transformed_position();
-        assert(captionY + captionHeight <= footerY, 'System history caption is clipped');
+        const island = this._island.actor, cardBottom = island.get_transformed_position()[1] + island.height;
+        assert(captionY + captionHeight <= cardBottom, 'System history caption is clipped');
         this._card.selectPage('media');
         context.scale_factor = originalScale;
         await delay(200);

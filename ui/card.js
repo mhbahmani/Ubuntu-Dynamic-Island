@@ -143,8 +143,7 @@ export class Card {
         if (enabled) {
             this._calendarView = new CalendarView(this._settings, this._actions);
             this._calendarView.actor.hide();
-            this.actor.add_child(this._calendarView.actor);
-            this.actor.set_child_at_index(this._calendarView.actor, this.actor.get_n_children() - 2);
+            this.actor.insert_child_below(this._calendarView.actor, this._quickAsk.actor);
             this._pages.set('calendar', {box: this._calendarView.actor, available: true});
             this._sectionCount++;
         } else {
@@ -201,13 +200,14 @@ export class Card {
     _buildNavigation() {
         const navigation = row('ubuntu-island-navigation');
         this._navigation = navigation;
+        // Tabs pack at their natural, shared width from the leading edge; the
+        // freed space holds the page name and Settings stays at the far end.
         this._tabStrip = row('ubuntu-island-tab-strip');
-        this._tabStrip.x_expand = true;
         this._tabStrip.layout_manager.homogeneous = true;
         // One shared marker glides between tabs. It lives in a pass-through
         // overlay so it never takes a slot in the homogeneous strip; the
         // strip alone determines the overlay's size.
-        this._tabWrapper = new St.Widget({layout_manager: new Clutter.BinLayout(), x_expand: true});
+        this._tabWrapper = new St.Widget({layout_manager: new Clutter.BinLayout()});
         this._tabWrapper.add_child(this._tabStrip);
         this._tabSlider = new St.Widget({style_class: 'ubuntu-island-tab-slider', reactive: false,
             can_focus: false, track_hover: false, opacity: 0,
@@ -231,7 +231,6 @@ export class Card {
         for (const [id, glyph, title] of items) {
             if (!this._pages.has(id) && id !== 'calendar') continue;
             const tab = button(glyph, title, () => this.selectPage(id), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab');
-            tab.x_expand = true;
             // Keep the glyph centered on the same axis as the caption and
             // preferences icon; the selection marker must not shift it upward.
             const face = new St.Widget({style_class: 'ubuntu-island-tab-face',
@@ -263,8 +262,13 @@ export class Card {
         navigation.add_child(this._pageCaption);
         this._preferencesButton = button(settingsIcon, 'Island preferences',
             () => this._actions.preferences(['calendar', 'notifications'].includes(this._page) ? this._page : undefined), NAVIGATION_ICON_SIZE, 'ubuntu-island-tab');
+        // Settings holds the trailing edge whether or not the page name fits.
+        this._preferencesButton.x_expand = true;
+        this._preferencesButton.x_align = Clutter.ActorAlign.END;
         navigation.add_child(this._preferencesButton);
-        this.actor.add_child(navigation);
+        // The bar heads the card: tab heights may differ, but the bar never
+        // moves under the pointer that opened the island from the notch.
+        this.actor.insert_child_at_index(navigation, 0);
         navigation.connect('notify::allocation', () => this._queueNavigationFit());
         // Showing or hiding modules changes the tab strip, not the bar.
         this._tabStrip.connect('notify::allocation', () => this._queueNavigationFit());
@@ -852,7 +856,7 @@ export class Card {
         const accent = this._mediaAccent;
         const rgb = Array.isArray(accent) && accent.length === 3 ? accent.map(v => Math.max(0, Math.min(255, Math.round(v)))) : [120, 135, 158];
         const alpha = 0.15 * this._settings.get_int('surface-opacity') / 100;
-        this._scroll.set_style(this._page === 'media' ? `border-radius: 19px 19px 0 0; background-gradient-direction: horizontal; background-gradient-start: rgba(${rgb.join(',')},${alpha}); background-gradient-end: rgba(${rgb.join(',')},0);` : '');
+        this._scroll.set_style(this._page === 'media' ? `border-radius: 0 0 19px 19px; background-gradient-direction: horizontal; background-gradient-start: rgba(${rgb.join(',')},${alpha}); background-gradient-end: rgba(${rgb.join(',')},0);` : '');
     }
 
     renderProgress(positionSec) {

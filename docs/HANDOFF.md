@@ -28,6 +28,28 @@ reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
 
+## Packed top tab bar (2026-11-16)
+
+The tab bar now heads the expanded card instead of closing it, so a later
+per-tab height (taller Notifications/Agents/Calendar) cannot move it from under
+the pointer or out from under hover. Tabs pack from the leading edge at one
+shared width; Settings is kept and holds the trailing edge; the page name uses
+the freed space and still hides when the longest name cannot fit, so new tabs
+fall back to icons only. The bar is compact (about 37px instead of 49px); card,
+Sound and weather padding take the returned space. Media's tint and the weather
+scene round their lower corners now. `_fitNavigation` also re-runs when the tab
+strip's allocation changes: showing or hiding modules changes the strip, not
+the bar, and previously left a stale caption (the source of the earlier 380px
+Calendar navigation failure on HEAD).
+
+Validation: `make check` passed (238, one skip); `make smoke` passed. The full
+headless preview needs `--duration` (its 12s default ends before the navigation
+loop) and `--connection offline` (the online notch rate-width check fails on the
+unchanged tree too). With both, it passed once; other runs failed on an
+intermittent Agents keyboard-reveal assertion and once on a navigation overlap
+during combined width/text-scale changes. Neither reproduced consistently, and
+HEAD could not reach them. Per-tab heights are not implemented yet.
+
 ## Headphone battery in Sound (2026-11-16)
 
 Headphone rows now show a compact battery icon and percentage on the name line,
@@ -551,7 +573,9 @@ menus) and the media tint still switch instantly; reuse the helper if needed.
   tab markers, secondary text). Not yet verified on hardware: `make smoke`
   captures `matte-*-opacity-75`, `opacity-*-matte-75` and `frosted-*`; check
   them and an external monitor before calling the blur done.
-- Navigation tabs share spare width evenly across available modules. A caption
+- Navigation is a compact bar heading the card, so it stays put if tab heights
+  ever differ. Tabs pack from the leading edge at one shared natural width and
+  Settings holds the trailing edge. A caption
   slot reserves the longest available tab name, with padding before Settings;
   changing tabs never moves icons or changes caption visibility. The entire slot
   hides when it cannot fit. Appearance updates preserve module layout classes, so changing opacity

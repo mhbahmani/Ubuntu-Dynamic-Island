@@ -125,7 +125,7 @@ and [compact playing pill](screenshots/playing-pill.png).
   Shuffle/repeat and Open player appear when supported; ±10-second seek buttons
   are available for seekable tracks. The speaker button provides system volume,
   mute, current output and a shortcut to Sound (when that module is enabled).
-  Lyrics and Up next open inside the card, with navigation fixed below them.
+  Lyrics and Up next open inside the card, with navigation fixed above them.
 - **System**: CPU and RAM percentages plus RX/TX rate for the lowest-metric
   default-route interface (VPN tunnels win), read asynchronously from procfs.
   IPv6 defaults are used when no IPv4 default exists; failed reads leave gaps

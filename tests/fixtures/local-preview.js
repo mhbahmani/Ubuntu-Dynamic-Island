@@ -209,9 +209,12 @@ export default class Preview extends UbuntuIsland {
             await delay(400);
             if (tab === 'weather') {
                 const surface = this._card._weatherView.surface, nav = this._card._navigation;
-                const gap = nav.get_transformed_position()[1] - (surface.get_transformed_position()[1] + surface.height);
+                const top = surface.get_transformed_position()[1], navBottom = nav.get_transformed_position()[1] + nav.height;
+                const cardBottom = this._island.actor.get_transformed_position()[1] + this._island.actor.height;
+                const gap = cardBottom - (top + surface.height);
                 const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
-                assert(gap <= 8 * scale, `Surplus band above navigation: ${gap / scale}px`);
+                assert(top >= navBottom - 1, 'Weather surface overlaps navigation');
+                assert(gap <= 8 * scale, `Surplus band below weather: ${gap / scale}px`);
             }
             await this._capture(`preview-${tab}`);
         }
@@ -247,6 +250,8 @@ export default class Preview extends UbuntuIsland {
         const bounds = actor => [actor.get_transformed_position()[0], actor.get_transformed_size()[0]];
         try {
             this._island.expand();
+            // Measure the settled card, not the scaled opening transition.
+            await delay(400);
             for (const scale of [1,2]) for (const font of [1,2]) for (const width of [380,440,480]) {
                 context.scale_factor = scale; text.set_double('text-scaling-factor',font);
                 settings.set_int('expanded-width',width);
@@ -265,7 +270,14 @@ export default class Preview extends UbuntuIsland {
                             `Overlapping navigation at ${width}px/${scale}x/${font} text/${count} tabs`);
                         end = x + w;
                     }
-                    assert(tabs.every(tab => Math.abs(tab.width - tabs[0].width) <= 1), 'Tabs do not share spare width evenly');
+                    assert(tabs.every(tab => Math.abs(tab.width - tabs[0].width) <= 1), 'Tabs do not share one width');
+                    assert(card.actor.get_first_child() === card._navigation, 'Navigation does not head the card');
+                    const stripSpacing = card._tabStrip.get_theme_node().get_length('spacing');
+                    assert(tabs.every((tab, i) => !i || Math.abs(bounds(tab)[0] - (bounds(tabs[i - 1])[0] + tabs[i - 1].width + stripSpacing)) <= 1),
+                        `Tabs are not packed at ${width}px/${scale}x/${font} text/${count} tabs`);
+                    const [gearX, gearWidth] = bounds(card._preferencesButton);
+                    const navPadding = card._navigation.get_theme_node().get_padding(St.Side.RIGHT);
+                    assert(Math.abs(gearX + gearWidth - (left + navWidth - navPadding)) <= 1, 'Settings left the trailing edge');
                     if (card._pageCaption.visible) {
                         shown = true;
                         const layout = card._pageCaption.clutter_text.get_layout().copy(); layout.set_width(-1);
@@ -990,7 +1002,7 @@ export default class Preview extends UbuntuIsland {
             for (const label of [view.title, view.agenda.heading])
                 assert(label.height + 1 >= label.clutter_text.get_preferred_height(label.width)[1], 'Date text is clipped');
             for (const scroll of [view.scroll, view.agenda.scroll])
-                assert(scroll.get_transformed_position()[1] + scroll.height <= nav.get_transformed_position()[1] + 1, 'Panel overlaps navigation');
+                assert(scroll.get_transformed_position()[1] >= nav.get_transformed_position()[1] + nav.height - 1, 'Panel overlaps navigation');
         };
         this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);
         for (const scale of [1, 2]) {
@@ -1527,7 +1539,10 @@ export default class Preview extends UbuntuIsland {
         context.scale_factor = 2;
         await delay(200);
         assert(this._island.actor.width === 880, 'Agents layout did not follow 200% display scaling');
-        assert(view.footer.get_transformed_position()[1] + view.footer.height <= this._card._tabs.get('agents').get_parent().get_transformed_position()[1], 'Agents footer overlaps navigation at 200%');
+        const navigation = this._card._navigation, island = this._island.actor;
+        assert(view.footer.get_transformed_position()[1] >= navigation.get_transformed_position()[1] + navigation.height - 1 &&
+            view.footer.get_transformed_position()[1] + view.footer.height <= island.get_transformed_position()[1] + island.height + 1,
+        'Agents footer overlaps navigation or leaves the card at 200%');
         await this._capture('agents-scaled');
         await click(first.menu); await this._capture('agents-session-menu-scaled'); view.handleEscape();
         const regularSize = [this._island.actor.width, this._island.actor.height];

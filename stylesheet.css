@@ -55,7 +55,7 @@
 .ubuntu-island-dot-low { background-color: #87ad8b; }
 .ubuntu-island-dot-mid { background-color: #d4a75d; }
 .ubuntu-island-dot-high { background-color: #e0563b; }
-.ubuntu-island-card { padding: 16px 18px 8px; spacing: 12px; }
+.ubuntu-island-card { padding: 10px 18px 14px; spacing: 12px; }
 .ubuntu-island-card-media { padding: 0; spacing: 0; }
 .ubuntu-island-section-box { spacing: 12px; }
 .ubuntu-island-section-heading { spacing: 8px; }
@@ -111,11 +111,11 @@
 .ubuntu-island-calendar-event .ubuntu-island-calendar-event-meta { height: 1.5em; }
 .ubuntu-island-calendar-event-date { font-size: 11pt; font-weight: 600; color: #f5f6f9; }
 /* Keep all module icons reachable; the active caption uses spare width only. */
-.ubuntu-island-with-calendar .ubuntu-island-navigation { spacing: 2px; padding-left: 8px; padding-right: 8px; }
+.ubuntu-island-with-calendar .ubuntu-island-navigation { spacing: 2px; padding-left: 6px; padding-right: 6px; }
 .ubuntu-island-with-calendar .ubuntu-island-tab,
 .ubuntu-island-with-calendar.ubuntu-island-with-agents .ubuntu-island-tab { padding-left: 5px; padding-right: 5px; }
 /* Artwork-led media face. Color is sampled once when a cover loads. */
-.ubuntu-island-card-media .ubuntu-island-section-box { border-radius: 19px 19px 0 0; }
+.ubuntu-island-card-media .ubuntu-island-section-box { border-radius: 0 0 19px 19px; }
 .ubuntu-island-media-main { padding: 6px 14px 2px; spacing: 2px; }
 .ubuntu-island-media-row { spacing: 14px; }
 .ubuntu-island-cover { width: 112px; height: 112px; border-radius: 13px; background-color: rgba(210,220,240,0.07); border: 1px solid rgba(220,230,250,0.13); }
@@ -177,8 +177,9 @@
     color: #eceef2;
 }
 .ubuntu-island-progress-row .slider { -slider-handle-radius: 3px; }
-/* Module navigation is secondary to the current face. */
-.ubuntu-island-navigation { spacing: 4px; padding: 6px 12px; border-top: 1px solid rgba(235, 239, 255, 0.09); border-radius: 0 0 19px 19px; background-color: rgba(15, 17, 22, 0.18); }
+/* Module navigation is secondary to the current face: a compact bar heading
+   the card with packed tabs, the page name, then Settings. */
+.ubuntu-island-navigation { spacing: 4px; padding: 3px 10px; border-bottom: 1px solid rgba(235, 239, 255, 0.09); border-radius: 19px 19px 0 0; background-color: rgba(15, 17, 22, 0.18); }
 .ubuntu-island-tab-strip { spacing: 2px; }
 .ubuntu-island-navigation-caption { padding: 0 8px; }
 /* System face */
@@ -196,7 +197,7 @@
 .ubuntu-island-metric-sub { color: #b7bbc5; font-size: 8pt; font-feature-settings: "tnum"; }
 /* Sound and connection faces */
 .ubuntu-island-volume { spacing: 10px; }
-.ubuntu-island-card-audio { padding: 10px 18px 6px; }
+.ubuntu-island-card-audio { padding: 8px 18px 8px; }
 .ubuntu-island-card-audio .ubuntu-island-section-box { spacing: 8px; }
 .ubuntu-island-volume .ubuntu-island-metric-value { min-width: 42px; }
 .ubuntu-island-outputs, .ubuntu-island-devices { spacing: 6px; }
@@ -286,7 +287,7 @@
 
 /* Theme palettes: see the end of this file. */
 
-.ubuntu-island-card-system { padding-top: 12px; }
+.ubuntu-island-card-system { padding-top: 10px; }
 .ubuntu-island-system-section { spacing: 8px; }
 .ubuntu-island-system-content { spacing: 6px; }
 
@@ -303,7 +304,7 @@
 .ubuntu-island-title-hidden { color: #f2f5fa; background-color: rgba(235, 239, 255, 0.10); }
 
 /* Selection is a child marker, never a rounded button shadow. */
-.ubuntu-island-tab { padding: 7px 10px; border: none; border-radius: 0; background-color: transparent; box-shadow: none; color: #b7bbc5; }
+.ubuntu-island-tab { padding: 4px 7px; border: none; border-radius: 0; background-color: transparent; box-shadow: none; color: #b7bbc5; }
 .ubuntu-island-tab:hover, .ubuntu-island-tab:active, .ubuntu-island-tab:focus { background-color: transparent; box-shadow: none; border: none; color: #f8f9fc; }
 .ubuntu-island-tab-face { min-height: 22px; }
 .ubuntu-island-tab-marker { width: 16px; height: 3px; border-radius: 2px; background-color: transparent; }
@@ -315,7 +316,7 @@
 .ubuntu-island-tab-selected .ubuntu-island-tab-marker { background-color: transparent; }
 .ubuntu-island-tab:focus .ubuntu-island-tab-marker { background-color: #f8f9fc; }
 .ubuntu-island-tab-selected:focus .ubuntu-island-tab-marker { background-color: transparent; }
-.ubuntu-island-with-agents .ubuntu-island-tab { padding: 7px 7px; }
+.ubuntu-island-with-agents .ubuntu-island-tab { padding: 4px 6px; }
 .ubuntu-island-with-agents .ubuntu-island-navigation { spacing: 2px; }
 /* Agents: fixed header and footer, only the content scrolls. */
 .ubuntu-island-agents { padding: 4px 12px 0; spacing: 3px; }
@@ -389,14 +390,14 @@
 /* A single atmospheric surface; artwork is a background layer behind real text. */
 .ubuntu-island-card-weather { padding: 0; spacing: 0; }
 .ubuntu-island-weather-section { spacing: 0; }
-.ubuntu-island-weather-surface { border-radius: 19px 19px 0 0; }
-.ubuntu-island-weather-scene { border-radius: 19px 19px 0 0; background-gradient-direction: vertical; background-gradient-start: #28435b; background-gradient-end: #172630; }
+.ubuntu-island-weather-surface { border-radius: 0 0 19px 19px; }
+.ubuntu-island-weather-scene { border-radius: 0 0 19px 19px; background-gradient-direction: vertical; background-gradient-start: #28435b; background-gradient-end: #172630; }
 .weather-sun { background-gradient-start: #4a3e35; background-gradient-end: #272b32; }
 .weather-clouds { background-gradient-start: #344e66; background-gradient-end: #1b2b3b; }
 .weather-rain { background-gradient-start: #263d55; background-gradient-end: #14202e; }
 .weather-snow { background-gradient-start: #3b526a; background-gradient-end: #253545; }
 .weather-night { background-gradient-start: #252c4d; background-gradient-end: #131a2b; }
-.ubuntu-island-weather-content { padding: 6px 16px; spacing: 1px; }
+.ubuntu-island-weather-content { padding: 10px 16px 14px; spacing: 1px; }
 .ubuntu-island-weather-heading { spacing: 8px; }
 .ubuntu-island-weather-location { color: #f2f5fc; font-size: 11pt; font-weight: 600; }
 .ubuntu-island-weather-temperature { color: #ffffff; font-size: 32pt; font-weight: 300; font-feature-settings: "tnum"; }
