@@ -76,7 +76,7 @@ export class NotificationsView {
         this.floating.add_child(this._fade);
         const corner = new St.Widget({style_class: 'ubuntu-island-notification-corner',
             layout_manager: new Clutter.BinLayout(), x_expand: true, y_expand: true});
-        this._actionsBar = row('ubuntu-island-notification-actions');
+        this._actionsBar = row('ubuntu-island-notification-toolbar');
         this._actionsBar.set({x_expand: true, y_expand: true, x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.END});
         this._silencedLabel = label('', 'ubuntu-island-device-status ubuntu-island-notification-silenced', false);
         this._silencedLabel.y_align = Clutter.ActorAlign.CENTER;
