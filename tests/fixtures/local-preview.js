@@ -272,6 +272,7 @@ export default class Preview extends UbuntuIsland {
         // headless shell can delay it past a fixed wait.
         const settle = async () => {
             for (let i = 0; i < 50 && (card._navigationFit || card._sliderSnap); i++) await delay(20);
+            await delay(40); // the fit's tab widths are allocated on the next frame
         };
         try {
             this._island.expand();
