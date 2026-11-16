@@ -289,7 +289,8 @@ export default class Smoke extends UbuntuIsland {
             for (let x = left; x < zone.x + zone.width - 4 * scale; x += 40 * scale) { move(x, top[1]); await delay(50); }
             const sweep = Math.round((zone.width - 8 * scale) / (40 * scale)) * 50;
             assert(sweep > 300 && island.concealed, `A ${sweep}ms sweep along the edge revealed the notch`);
-            move(...top); await delay(150);
+            // Hover slightly below the edge, beyond the old 3px reveal strip.
+            move(top[0], monitor.y + 6 * scale); await delay(150);
             assert(island.concealed, 'Notch revealed before the delay');
             await delay(300 + animation);
             assert(!island.concealed && island.actor.y === monitor.y && island.actor.opacity === 255, 'Resting pointer did not reveal the notch');

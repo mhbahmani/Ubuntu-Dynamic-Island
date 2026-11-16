@@ -7,7 +7,7 @@ import {IslandState} from './island.js';
 // Grace before a revealed notch hides again after the pointer leaves it.
 export const HIDE_GRACE_MS = 700;
 // Height of the reveal strip at the top edge while the notch is hidden.
-const EDGE_HEIGHT = 3;
+const EDGE_HEIGHT = 8;
 // A resting pointer may drift this far (logical px) and still count as resting.
 const DWELL_TOLERANCE = 24;
 
