@@ -52,7 +52,7 @@ test('media updates render seek, pause, resume and new tracks without a zero fra
     const cardUrl = new URL('../ui/card.js', import.meta.url);
     const source = readFileSync(cardUrl, 'utf8')
         .replaceAll('import.meta.url', JSON.stringify(cardUrl.href))
-        .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
+        .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
     // Navigation's SVG is initialized at module load; keep its GI boundary fake.
     const iconFile = {get_parent() { return this; }, resolve_relative_path() { return this; }};
     const Card = vm.runInNewContext(`${source}\nCard`, {

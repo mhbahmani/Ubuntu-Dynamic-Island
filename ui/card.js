@@ -23,6 +23,9 @@ import {formatCapacity} from '../services/proc.js';
 // Symbolic theme artwork uses a 16px grid. Keep the native size and an even
 // allocation so its strokes do not land on half-pixels at 100% scale.
 const NAVIGATION_ICON_SIZE = 16;
+// Few tabs spread into spare bar width up to this logical width each, so they
+// breathe without turning into wide cells.
+export const TAB_MAX_WIDTH = 44;
 const settingsIcon = new Gio.FileIcon({file: Gio.File.new_for_uri(import.meta.url).get_parent().get_parent()
     .resolve_relative_path('assets/icons/hicolor/scalable/actions/ubuntu-island-settings-symbolic.svg')});
 
@@ -292,7 +295,9 @@ export class Card {
         const node = this._navigation.get_theme_node();
         const spacing = node.get_length('spacing');
         const stripSpacing = this._tabStrip.get_theme_node().get_length('spacing');
-        const tabWidth = Math.max(0, ...tabs.map(tab => tab.get_preferred_width(-1)[1]));
+        // Natural width from the face, independent of any width set below.
+        const tabWidth = Math.max(0, ...tabs.map(tab =>
+            tab.child.get_preferred_width(-1)[1] + tab.get_theme_node().get_horizontal_padding()));
         const stripWidth = tabWidth * tabs.length + stripSpacing * Math.max(0, tabs.length - 1);
         // Reserve the longest available tab name, independent of the selection.
         // Both the icon positions and the caption breakpoint stay fixed while
@@ -308,7 +313,19 @@ export class Card {
         if (this._pageCaption.width !== captionWidth) this._pageCaption.width = captionWidth;
         const available = width - node.get_horizontal_padding() -
             this._preferencesButton.get_preferred_width(-1)[1] - stripWidth - 2 * spacing;
-        this._pageCaption.visible = Boolean(this._pageCaption.text) && captionWidth <= available;
+        const captionVisible = Boolean(this._pageCaption.text) && captionWidth <= available;
+        this._pageCaption.visible = captionVisible;
+        // Remaining width spreads the tabs evenly, up to a cap. It depends on
+        // the tab count and caption slot only, so switching pages never moves
+        // an icon.
+        const spare = Math.max(0, available - (captionVisible ? captionWidth : 0));
+        const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
+        const target = Math.floor(Math.max(tabWidth,
+            Math.min(TAB_MAX_WIDTH * scale, tabWidth + spare / Math.max(1, tabs.length))));
+        if (this._tabWidth !== target) {
+            this._tabWidth = target;
+            for (const tab of this._tabs.values()) tab.width = target;
+        }
     }
 
     selectExpansionPage() {

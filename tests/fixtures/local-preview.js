@@ -9,6 +9,7 @@ import Clutter from 'gi://Clutter';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {localTime} from './services/weather-model.js';
 import {formatRate} from './services/proc.js';
+import {TAB_MAX_WIDTH} from './ui/card.js';
 import {sampleDevices, sampleAgents, sampleCalendar, sampleNotifications, postNotification} from './preview-data.js';
 import {THEMES, THEME_IDS, themeAccent} from './services/appearance.js';
 import {notchTime} from './services/notch-model.js';
@@ -248,6 +249,11 @@ export default class Preview extends UbuntuIsland {
             available:new Map([...card._pages].map(([id,page]) => [id,page.available]))};
         let shown = false, hidden = false;
         const bounds = actor => [actor.get_transformed_position()[0], actor.get_transformed_size()[0]];
+        // Caption and tab widths are fitted on an idle after layout; a busy
+        // headless shell can delay it past a fixed wait.
+        const settle = async () => {
+            for (let i = 0; i < 50 && (card._navigationFit || card._sliderSnap); i++) await delay(20);
+        };
         try {
             this._island.expand();
             // Measure the settled card, not the scaled opening transition.
@@ -258,7 +264,7 @@ export default class Preview extends UbuntuIsland {
                 for (const count of [2,4,9]) {
                     const enabled = ['bluetooth','calendar','system','audio','weather','commute','agents','media','notifications'].slice(0,count);
                     for (const [id,page] of card._pages) page.available = enabled.includes(id);
-                    card.selectPage('bluetooth'); await delay(80);
+                    card.selectPage('bluetooth'); await delay(80); await settle();
                     const tabs = [...card._tabs.values()].filter(tab => tab.visible);
                     assert(tabs.length === count, 'Navigation did not follow available modules');
                     const [left, navWidth] = bounds(card._navigation);
@@ -271,6 +277,8 @@ export default class Preview extends UbuntuIsland {
                         end = x + w;
                     }
                     assert(tabs.every(tab => Math.abs(tab.width - tabs[0].width) <= 1), 'Tabs do not share one width');
+                    assert(tabs[0].width <= TAB_MAX_WIDTH * scale + 1, `Tabs grew past the cap at ${width}px/${scale}x/${count} tabs`);
+                    if (count === 2) assert(tabs[0].width >= TAB_MAX_WIDTH * scale - 1, `Few tabs did not spread at ${width}px/${scale}x/${font} text`);
                     assert(card.actor.get_first_child() === card._navigation, 'Navigation does not head the card');
                     const stripSpacing = card._tabStrip.get_theme_node().get_length('spacing');
                     assert(tabs.every((tab, i) => !i || Math.abs(bounds(tab)[0] - (bounds(tabs[i - 1])[0] + tabs[i - 1].width + stripSpacing)) <= 1),
@@ -286,14 +294,14 @@ export default class Preview extends UbuntuIsland {
                     const before = tabs.map(bounds);
                     settings.set_int('surface-opacity',settings.get_int('surface-opacity') === 75 ? 98 : 75);
                     settings.set_string('color-theme',settings.get_string('color-theme') === 'ocean' ? 'graphite' : 'ocean');
-                    await delay(60);
+                    await delay(60); await settle();
                     assert(card.actor.has_style_class_name('ubuntu-island-with-calendar') && card.actor.has_style_class_name('ubuntu-island-with-agents'),
                         'Appearance update discarded module layout classes');
                     assert(tabs.every((tab,i) => bounds(tab).every((v,j) => Math.abs(v-before[i][j]) <= 1)),
                         'Appearance update changed navigation geometry');
                     const captionShown = card._pageCaption.visible;
                     for (const id of enabled) {
-                        card.selectPage(id); await delay(40);
+                        card.selectPage(id); await delay(40); await settle();
                         assert(card._pageCaption.visible === captionShown, 'Changing tab names changed caption visibility');
                         assert(tabs.every((tab,i) => bounds(tab).every((v,j) => Math.abs(v-before[i][j]) <= 1)),
                             `Changing to ${id} moved navigation icons at ${width}px/${scale}x/${font} text`);
