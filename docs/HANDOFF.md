@@ -1,6 +1,6 @@
 # Implementation handoff
 
-Updated 2026-11-15. Target: GNOME Shell 46 on Ubuntu Wayland.
+Updated 2026-11-16. Target: GNOME Shell 46 on Ubuntu Wayland.
 
 - [AGENTS.md](../AGENTS.md): engineering, packaging and commit rules.
 - [README](../README.md): installation, development commands and hardware checks.
@@ -28,6 +28,34 @@ Clear and the notch eye toggle are in the main header. Session states are event
 reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
+
+## Headphone battery in Sound (2026-11-16)
+
+Headphone rows now show a compact battery icon and percentage on the name line,
+above the existing Music/Calls buttons. Unknown, disconnected or ambiguous
+batteries stay hidden; 0% is valid. Accessible names include the percentage and
+battery updates retain row/control identity and focus.
+
+The existing BlueZ observer is shared by Sound and Bluetooth, including when
+only Sound is enabled. No polling or battery notch item is added. Gvc sink names
+provide the Bluetooth address for PipeWire/PulseAudio; matching uses Device1's
+address, never an alias. Unrecognized sink names remain unmatched. The existing
+deferred Gvc refresh remains intact. BlueZ snapshot interface order and battery
+property invalidation are handled explicitly.
+
+The focused native check is `python3 tests/preview.py --check-audio --headless
+--defaults --duration 30`. It checks 380/440px, 100/200% scale, 1/1.5/2× text,
+focus, battery updates, and scroll reachability. It explicitly sets Clutter font
+DPI in the isolated preview: the headless session has no settings daemon to
+forward text-scale changes. The broader smoke's rate-width check now waits for
+stable font/scale layout before recording its baseline; its traffic-width
+assertions remain unchanged.
+
+Validation: `make check` passed (238 tests, one ancestry skip), focused audio
+preview passed (`/tmp/ubuntu-island-preview-t8o9xpjz`), and full smoke passed
+(`/tmp/ubuntu-island-smoke-zpaqjc34`). Temporary installation checks, ZIP integrity
+and packaged source comparisons passed. Live headset battery reporting remains
+unverified; the user's installation has not been replaced.
 
 ## Audio crash on resume (2026-11-15)
 

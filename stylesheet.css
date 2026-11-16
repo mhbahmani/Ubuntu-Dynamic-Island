@@ -210,6 +210,7 @@
 .ubuntu-island-output-active { background-color: rgba(192, 68, 43, 0.18); border-color: #c67f69; }
 .ubuntu-island-output-label, .ubuntu-island-device-name { color: #eceef2; font-size: 10.5pt; }
 .ubuntu-island-output-row, .ubuntu-island-device { spacing: 10px; }
+.ubuntu-island-output-battery { spacing: 4px; }
 .ubuntu-island-output-group { padding: 7px 10px; spacing: 5px; }
 .ubuntu-island-output-modes { spacing: 6px; }
 .ubuntu-island-output-mode { padding: 5px 8px; border-radius: 6px; font-size: 9pt; color: #eceef2; background-color: rgba(235,239,255,0.06); }

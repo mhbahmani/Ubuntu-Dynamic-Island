@@ -1,6 +1,7 @@
 import Gvc from 'gi://Gvc';
 import GLib from 'gi://GLib';
 import * as Volume from 'resource:///org/gnome/shell/ui/status/volume.js';
+import {audioBluetoothAddress} from './audio-model.js';
 
 // Reuse GNOME's shared mixer singleton; NEVER close it on extension disable.
 // Output devices are enumerated through the Gvc output-added/removed signals:
@@ -90,7 +91,8 @@ export class AudioService {
         else if (/headphone|headset|lineout|line-out|aux/.test(port) ||
             /headphone|headset/.test(`${icon} ${form}`) || (bluetooth && form !== 'speaker')) kind = 'headphones';
         else if (/speaker/.test(port) && !/usb/.test(`${icon} ${streamName}`)) kind = 'speakers';
-        const output = {id: device.get_id(), name: parts.join(' — ') || 'Audio output', kind};
+        const output = {id: device.get_id(), name: parts.join(' — ') || 'Audio output', kind,
+            bluetoothAddress: bluetooth ? audioBluetoothAddress(streamName) : null};
         const music = profiles.length && profiles.every(p => p.n_sources === 0 && /^a2dp[-_]sink(?:[-_]|$)/.test(p.profile));
         const calls = profiles.length && profiles.every(p => p.n_sources > 0 && /^(headset[-_]head[-_]unit|handsfree[-_]head[-_]unit)(?:[-_]|$)/.test(p.profile));
         if (!music && !calls) return output;
@@ -162,6 +164,7 @@ export class AudioService {
                 groups.set(output.group, group);
             }
             group.active ||= output.active;
+            group.bluetoothAddress ||= output.bluetoothAddress;
             group.modes.push({id: output.id, mode: output.mode, active: output.active});
         }
         const rank = {headphones: 0, speakers: 1, hdmi: 2, other: 3};

@@ -95,7 +95,7 @@ export function sampleDevices(preview, sampleMetrics) {
     ]}); }, cancel() {}, stop() {}};
     emitMedia();
     const audio = {available: true, volume: 0.64, muted: false, outputs: [
-        {id: 'bluetooth:sample', name: 'Studio headphones (sample)', active: false, modes: [
+        {id: 'bluetooth:sample', name: 'Studio headphones (sample)', kind: 'headphones', bluetoothAddress: 'AA:BB:CC:DD:EE:FF', active: false, modes: [
             {id: 2, mode: 'music', active: false}, {id: 3, mode: 'calls', active: false},
         ]},
         {id: 1, name: 'Built-in speakers (sample)', active: true},
@@ -117,7 +117,7 @@ export function sampleDevices(preview, sampleMetrics) {
     };
     emitAudio();
     const bluetooth = {available: true, hasAdapter: true, powered: true, devices: [
-        {path: '/preview/headphones', name: 'Studio headphones (sample)', connected: true, battery: 82},
+        {path: '/preview/headphones', address: 'AA:BB:CC:DD:EE:FF', name: 'Studio headphones (sample)', connected: true, battery: 82},
         {path: '/preview/keyboard', name: 'Wireless keyboard (sample)', connected: false, battery: 67},
     ]};
     const emitBluetooth = () => preview._renderBluetooth({...bluetooth, devices: bluetooth.devices.map(device => ({...device}))});

@@ -28,6 +28,7 @@ import {ConnectivityService} from './services/connectivity.js';
 import {MediaService} from './services/media.js';
 import {BluetoothService} from './services/bluetooth.js';
 import {AudioService} from './services/audio.js';
+import {audioWithBatteries} from './services/audio-model.js';
 import {ArtLoader} from './services/art.js';
 import {surfaceStyle} from './services/appearance.js';
 import {layoutSignature} from './services/presentation.js';
@@ -149,7 +150,8 @@ export default class UbuntuIsland extends Extension {
         }
         if (this._settings.get_boolean('enable-audio'))
             this._audio = new AudioService(state => this._renderAudio(state));
-        if (this._settings.get_boolean('enable-bluetooth'))
+        // Sound also consumes battery reports when the Bluetooth tab is off.
+        if (this._settings.get_boolean('enable-bluetooth') || this._settings.get_boolean('enable-audio'))
             this._bluetooth = new BluetoothService(state => this._renderBluetooth(state));
 
         if (this._settings.get_boolean('enable-weather')) {
@@ -416,7 +418,7 @@ export default class UbuntuIsland extends Extension {
             system: this._states.system,
             connection: this._states.connection,
             offlineMode: this._settings.get_string('pill-offline-mode'),
-            bluetooth: this._states.bluetooth,
+            bluetooth: this._settings.get_boolean('enable-bluetooth') ? this._states.bluetooth : null,
             // Keep the notch layout while it fades out; hide its collapsed-only
             // items once covered, and restore them as the close begins.
             expanded: this._island?.state === IslandState.EXPANDED,
@@ -630,7 +632,7 @@ export default class UbuntuIsland extends Extension {
         this._island?.invalidateBackdrop();
         if (!this._enabled) return;
         this._states.audio = state;
-        this._card.renderAudio(state);
+        this._card.renderAudio(audioWithBatteries(state, this._states.bluetooth));
         this._layoutIfChanged();
     }
 
@@ -639,6 +641,7 @@ export default class UbuntuIsland extends Extension {
         if (!this._enabled) return;
         this._states.bluetooth = state;
         this._card.renderBluetooth(state);
+        this._card.renderAudio(audioWithBatteries(this._states.audio, state));
         this._renderPill();
         this._layoutIfChanged();
     }

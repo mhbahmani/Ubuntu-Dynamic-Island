@@ -892,6 +892,13 @@ export class Card {
                 const text = label('', 'ubuntu-island-output-label');
                 text.x_expand = true;
                 content.add_child(text);
+                item._battery = row('ubuntu-island-output-battery');
+                item._battery.y_align = Clutter.ActorAlign.CENTER;
+                item._batteryIcon = icon('battery-full-symbolic', 12);
+                item._batteryText = label('', 'ubuntu-island-output-note', false);
+                item._battery.add_child(item._batteryIcon);
+                item._battery.add_child(item._batteryText);
+                content.add_child(item._battery);
                 const check = icon('object-select-symbolic', 16);
                 content.add_child(check);
                 if (output.modes) {
@@ -915,7 +922,14 @@ export class Card {
                 `ubuntu-island-output${output.modes ? ' ubuntu-island-output-group' : ''}${output.active ? ' ubuntu-island-output-active' : ''}`);
             item._name.text = String(output.name ?? 'Audio output');
             item._check.opacity = output.active ? 255 : 0;
-            item.accessible_name = `${output.active ? 'Active output:' : 'Switch to'} ${output.name}`;
+            const battery = output.battery;
+            item._battery.visible = Number.isFinite(battery);
+            item._batteryText.text = item._battery.visible ? `${battery}%` : '';
+            item._batteryIcon.icon_name = battery <= 10 ? 'battery-empty-symbolic'
+                : battery <= 30 ? 'battery-low-symbolic' : battery <= 60 ? 'battery-good-symbolic' : 'battery-full-symbolic';
+            const batteryDescription = item._battery.visible ? `, battery ${battery}%` : '';
+            item._battery.accessible_name = item._battery.visible ? `Battery ${battery}%` : '';
+            item.accessible_name = `${output.active ? 'Active output:' : 'Switch to'} ${output.name}${batteryDescription}`;
             if (output.modes) {
                 const modes = new Set(output.modes.map(mode => mode.mode));
                 for (const [mode, control] of item._modeButtons) {
@@ -935,7 +949,7 @@ export class Card {
                     control.label = `${mode.active ? '✓  ' : ''}${name}`;
                     if (mode.active) control.add_style_pseudo_class('checked');
                     else control.remove_style_pseudo_class('checked');
-                    control.accessible_name = `${output.name}, ${name}${mode.active ? ', selected' : ''}. ${mode.mode === 'music' ? 'High quality playback; headphone microphone off' : 'Headphone microphone available; lower playback quality'}`;
+                    control.accessible_name = `${output.name}${batteryDescription}, ${name}${mode.active ? ', selected' : ''}. ${mode.mode === 'music' ? 'High quality playback; headphone microphone off' : 'Headphone microphone available; lower playback quality'}`;
                     if (item._modes.get_child_at_index(modeIndex) !== control)
                         item._modes.set_child_at_index(control, modeIndex);
                 }

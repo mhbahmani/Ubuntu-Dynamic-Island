@@ -77,6 +77,7 @@ export class BluetoothService {
                 if ('Alias' in changed || 'Name' in changed)
                     device.name = String(changed.Alias ?? changed.Name ?? device.name);
                 if ('Connected' in changed) device.connected = Boolean(changed.Connected);
+                if ('Address' in changed) device.address = String(changed.Address ?? '');
                 if ('Paired' in changed && !changed.Paired) this._devices.delete(path);
                 this._emit();
             }),
@@ -85,9 +86,9 @@ export class BluetoothService {
                 this._adapter.powered = Boolean(changed.Powered);
                 this._emit();
             }),
-            this._propertiesChanged(BATTERY, (path, changed) => {
+            this._propertiesChanged(BATTERY, (path, changed, invalidated) => {
                 const device = this._devices.get(path);
-                if (!device || !('Percentage' in changed)) return;
+                if (!device || (!('Percentage' in changed) && !invalidated.includes('Percentage'))) return;
                 device.battery = changed.Percentage == null ? null : Number(changed.Percentage);
                 this._emit();
             }),
@@ -97,13 +98,17 @@ export class BluetoothService {
     _propertiesChanged(ifaceName, apply) {
         return Gio.DBus.system.signal_subscribe(BLUEZ, PROPERTIES, 'PropertiesChanged', null, ifaceName,
             Gio.DBusSignalFlags.NONE, (connection, sender, path, iface, signal, params) => {
-                const [, changed] = params.deep_unpack();
-                apply(path, unpackValues(changed));
+                const [, changed, invalidated = []] = params.deep_unpack();
+                apply(path, unpackValues(changed), invalidated);
             });
     }
 
     _applyInterfaces(path, interfaces) {
-        for (const [name, props] of Object.entries(interfaces ?? {})) {
+        // D-Bus dictionaries have no ordering guarantee: create the device
+        // before applying Battery1 when both arrive in the initial snapshot.
+        for (const name of [ADAPTER, DEVICE, BATTERY]) {
+            const props = interfaces?.[name];
+            if (!props) continue;
             const value = key => unpack(props?.[key]);
             if (name === ADAPTER) {
                 this._adapter = {path, powered: Boolean(value('Powered'))};
@@ -111,6 +116,7 @@ export class BluetoothService {
                 if (!value('Paired')) continue; // unpaired devices are invisible to the island
                 this._devices.set(path, {
                     path,
+                    address: String(value('Address') ?? ''),
                     name: String(value('Alias') || value('Name') || 'Bluetooth device'),
                     connected: Boolean(value('Connected')),
                     battery: null,

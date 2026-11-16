@@ -128,6 +128,7 @@ export default class Preview extends UbuntuIsland {
             if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') this._openPreferencesLive('commute');
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_INPUT') === '1') this._checkInput().catch(error => console.error(`[Island Preview] INPUT FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') this._checkFullPreview().catch(error => console.error(`[Island Preview] FULL FAIL: ${error.message}`));
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_AUDIO') === '1') this._checkAudio().catch(error => console.error(`[Island Preview] AUDIO FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_METADATA') === '1') this._checkAgentMetadata().catch(error => console.error(`[Island Preview] AGENT METADATA FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_HOVER') === '1') this._checkAgentHover().catch(error => console.error(`[Island Preview] AGENT HOVER FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_NOTIFICATIONS') === '1') this._checkNotifications().catch(error => console.error(`[Island Preview] NOTIFICATIONS FAIL: ${error.message}: ${error.stack}`));
@@ -139,7 +140,7 @@ export default class Preview extends UbuntuIsland {
             const monitor = Main.layoutManager.primaryMonitor;
             const uiScale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             console.log(`[Island Preview] READY: ${monitor.width}x${monitor.height}, ${uiScale * 100}% UI; all modules enabled; ${tab === 'notch' ? 'collapsed notch' : tab} visible. Device controls use sample data.`);
-            if (['FULL', 'CALENDAR', 'COMMUTE', 'MOTION', 'NOTIFICATIONS'].some(check => GLib.getenv(`ISLAND_PREVIEW_CHECK_${check}`) === '1')) return GLib.SOURCE_REMOVE;
+            if (['FULL', 'AUDIO', 'CALENDAR', 'COMMUTE', 'MOTION', 'NOTIFICATIONS'].some(check => GLib.getenv(`ISLAND_PREVIEW_CHECK_${check}`) === '1')) return GLib.SOURCE_REMOVE;
             this._captureTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 20000 : GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1' || preferences ? 8000 : 1500, () => {
                 this._captureTimer = 0;
                 this._capture().catch(error => console.warn(`[Island Preview] Screenshot: ${error.message}`));
@@ -1193,6 +1194,7 @@ export default class Preview extends UbuntuIsland {
         const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
         const assert = (condition, message) => { if (!condition) throw new Error(`Audio: ${message}`); };
         this._card.selectPage('audio');
+        this._island.expand();
         await delay(200);
         const group = this._card._outputRows.get('bluetooth:sample');
         assert(['bluetooth:sample', 1, 4, 5].every((id, index) =>
@@ -1228,7 +1230,63 @@ export default class Preview extends UbuntuIsland {
         await this._capture('sound-other-outputs');
         adjustment.value = adjustment.lower;
         this._settings.set_int('expanded-width',440);
-        console.log('[Island Preview] AUDIO PASS: category order, grouped modes, native click, stable focus, narrow layout and reachable overflow');
+        const bluetooth = this._states.bluetooth;
+        const context = St.ThemeContext.get_for_stage(global.stage);
+        const desktop = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'});
+        const originalScale = context.scale_factor, originalText = desktop.get_double('text-scaling-factor');
+        // The headless session has no settings daemon to forward the desktop
+        // text scale to Clutter. Exercise actual font metrics, not just the key.
+        const fontSettings = Clutter.Settings.get_default(), originalDpi = fontSettings.font_dpi;
+        let normalBatteryWidth = 0;
+        const updateBattery = battery => this._renderBluetooth({...bluetooth,
+            devices: bluetooth.devices.map(device => ({...device, battery}))});
+        calls.grab_key_focus();
+        updateBattery(0);
+        assert(group._battery.visible && group._batteryText.text === '0%', 'Empty battery was treated as missing');
+        assert(calls.has_key_focus() && calls.accessible_name.includes('battery 0%'), 'Battery update lost focus or accessible context');
+        updateBattery(null);
+        assert(!group._battery.visible, 'Unavailable battery retained its old percentage');
+        this._renderBluetooth({...bluetooth, powered: false});
+        assert(!group._battery.visible, 'Powered-off Bluetooth retained a battery');
+        this._settings.set_boolean('enable-bluetooth', false);
+        updateBattery(100);
+        assert(group._battery.visible && !this._pill._bluetooth.visible, 'Sound battery depends on the Bluetooth tab or enables its notch indicator');
+        this._settings.set_boolean('enable-bluetooth', true);
+        try {
+            for (const scale of [1, 2]) for (const font of [1, 1.5, 2]) for (const width of [380, 440]) {
+                context.scale_factor = scale;
+                desktop.set_double('text-scaling-factor', font);
+                fontSettings.font_dpi = Math.round(96 * 1024 * font);
+                this._settings.set_int('expanded-width', width);
+                await delay(250);
+                const where = `${width}px/${scale}x/${font}text`;
+                const batteryWidth = group._batteryText.get_preferred_width(-1)[1] / scale;
+                if (font === 1) normalBatteryWidth = batteryWidth;
+                else assert(batteryWidth > normalBatteryWidth * 1.2, `Enlarged text did not apply at ${where}`);
+                const left = actor => actor.get_transformed_position()[0];
+                const right = actor => left(actor) + actor.get_transformed_size()[0];
+                assert(group._batteryText.width >= group._batteryText.get_preferred_width(-1)[1] - 1, `Battery clipped at ${where}`);
+                assert(right(group._name) <= left(group._battery) + 1, `Name overlaps battery at ${where}`);
+                assert(right(group._battery) <= left(group._check) + 1, `Battery overlaps selection at ${where}`);
+                assert(right(group._check) <= right(group) + 1 && right(group) <= right(this._island.actor) + 1, `Row overflows at ${where}`);
+                assert(group._name.width > 40 * scale, `Name has no useful space at ${where}`);
+                await this._capture(`sound-battery-${width}-${scale}-${font}`);
+                adjustment.value = adjustment.upper - adjustment.page_size;
+                await delay(60);
+                const lastY = last.get_transformed_position()[1];
+                const viewportY = viewport.get_transformed_position()[1];
+                assert(lastY >= viewportY - 1 && lastY + last.get_transformed_size()[1] <= viewportY + viewport.get_transformed_size()[1] + 1,
+                    `Other outputs are unreachable at ${where}`);
+                adjustment.value = adjustment.lower;
+            }
+        } finally {
+            context.scale_factor = originalScale;
+            desktop.set_double('text-scaling-factor', originalText);
+            fontSettings.font_dpi = originalDpi;
+            this._settings.set_int('expanded-width',440);
+            this._renderBluetooth(bluetooth);
+        }
+        console.log('[Island Preview] AUDIO PASS: category order, grouped modes, focus, battery updates, missing/zero battery, 380/440px at 100/200% scale and enlarged text');
     }
 
     async _checkAgentMetadata() {

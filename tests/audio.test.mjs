@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {audioBluetoothAddress, audioWithBatteries} from '../services/audio-model.js';
 
 // Evaluate the real service classes with GI boundaries replaced by fakes.
 // No Shell session, D-Bus changes, or developer-machine hardware is required.
 function service(file, name, dependencies) {
     const source = readFileSync(new URL(`../services/${file}.js`, import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
-    return vm.runInNewContext(`${source}\n${name}`, {...dependencies, console});
+    return vm.runInNewContext(`${source}\n${name}`, {audioBluetoothAddress, ...dependencies, console});
 }
 
 function mainLoop() {
@@ -93,7 +94,7 @@ test('Bluetooth modes share a physical device row, preserve selection, and follo
     const card = id => ({get_id: () => id, get_index: () => id, get_name: () => 'Headphones',
         get_ports: () => [{port:'headset-output'}, {port:'headset-hf-output'}]});
     let cards = [card(7)], active = music, selected, mixerState = 2;
-    const sink = {volume: 50, is_muted: false, get_card_index: () => 7, get_form_factor: () => 'headset', get_name: () => 'bluez_output', connect: () => 1, disconnect() {}};
+    const sink = {volume: 50, is_muted: false, get_card_index: () => 7, get_form_factor: () => 'headset', get_name: () => 'bluez_output.AA_BB_CC_DD_EE_FF.1', connect: () => 1, disconnect() {}};
     const control = {
         connect: (name, callback) => { signals.set(name, callback); return signals.size; }, disconnect() {},
         get_sinks: () => [sink], lookup_device_from_stream: () => active,
@@ -113,6 +114,7 @@ test('Bluetooth modes share a physical device row, preserve selection, and follo
     assert.equal(state.outputs.length, 2, 'Wired outputs remain separate');
     let group = state.outputs.find(output => output.modes);
     assert.equal(group.name, 'Headphones');
+    assert.equal(group.bluetoothAddress, 'AA:BB:CC:DD:EE:FF');
     assert.deepEqual(Array.from(group.modes, mode => mode.mode), ['music', 'calls']);
     assert.equal(group.modes[0].active, true);
     audio.selectOutput(group.modes[1].id);
@@ -120,6 +122,7 @@ test('Bluetooth modes share a physical device row, preserve selection, and follo
     assert.equal(selected, calls, 'Switch with the real Gvc device, not a group ID');
     group = state.outputs.find(output => output.modes);
     assert.equal(group.id, 'bluetooth:7', 'Keep the row identity across profile changes');
+    assert.equal(group.bluetoothAddress, 'AA:BB:CC:DD:EE:FF', 'Keep battery identity when the other mode supplies the stream');
     assert.equal(group.modes[1].active, true);
     // Same model name on two cards cannot establish the inactive port's identity.
     cards = [card(7), card(8)];

@@ -30,6 +30,7 @@ def main():
     parser.add_argument('--connection', choices=['auto', 'online', 'offline', 'limited', 'portal'], help='Simulate connection status; defaults to online for samples, auto with --live')
     parser.add_argument('--offline-style', choices=['icon', 'edge', 'hide'], help='Override the copied offline notch design')
     parser.add_argument('--check-full', action='store_true', help='Check populated notch, all tabs and sample device controls (headless sample mode)')
+    parser.add_argument('--check-audio', action='store_true', help='Check Sound controls and headphone battery layouts (headless samples)')
     parser.add_argument('--check-calendar', action='store_true', help='Check calendar modes, keyboard access and scaled layouts (headless)')
     parser.add_argument('--check-notifications', action='store_true', help='Check notification rows, peek, policy and cleanup (headless samples)')
     parser.add_argument('--check-commute', action='store_true', help='Check provider credits and traffic tooltips (headless samples)')
@@ -44,6 +45,8 @@ def main():
     parser.add_argument('--calendar-date', type=date.fromisoformat, metavar='YYYY-MM-DD', help='Select a civil date in the calendar preview')
     parser.add_argument('--duration', type=int, default=0, help='Exit after N seconds (default: until window closes or Ctrl+C)')
     args = parser.parse_args()
+    if args.check_audio and (not args.headless or args.live or any(value for key, value in vars(args).items() if key.startswith('check_') and key != 'check_audio')):
+        parser.error('--check-audio requires headless sample mode without other checks')
     if args.check_commute and (not args.headless or args.live or args.check_full or args.check_calendar or args.check_input or args.check_motion):
         parser.error('--check-commute requires headless sample mode without other checks')
     if args.check_notifications and (not args.headless or args.live or args.check_full or args.check_calendar or args.check_input or args.check_motion or args.check_commute):
@@ -123,6 +126,7 @@ def main():
                        XDG_DATA_DIRS=f'{root}/share:/usr/local/share:/usr/share', XDG_CURRENT_DESKTOP='GNOME',
                        GSETTINGS_BACKEND='keyfile', ISLAND_PREVIEW_OUTPUT=str(root),
                        ISLAND_PREVIEW_CHECK_FULL='1' if args.check_full else '0',
+                       ISLAND_PREVIEW_CHECK_AUDIO='1' if args.check_audio else '0',
                        ISLAND_PREVIEW_CHECK_CALENDAR='1' if args.check_calendar else '0',
                        ISLAND_PREVIEW_CHECK_COMMUTE='1' if args.check_commute else '0',
                        ISLAND_PREVIEW_CHECK_MOTION='1' if args.check_motion else '0',
@@ -174,6 +178,8 @@ def main():
         print(f'Preview crashed. See {root / "runtime.log"}')
         return 1
     if args.check_input and '[Island Preview] INPUT PASS' not in output:
+        return 1
+    if args.check_audio and ('[Island Preview] AUDIO PASS' not in output or '[Island Preview] AUDIO FAIL' in output):
         return 1
     if args.check_full and ('[Island Preview] FULL PASS' not in output or '[Island Preview] FULL FAIL' in output):
         return 1

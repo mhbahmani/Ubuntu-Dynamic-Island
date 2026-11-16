@@ -130,6 +130,19 @@ export default class Smoke extends UbuntuIsland {
                 text.set_double('text-scaling-factor', textScale * scale);
                 render(0, 0);
                 await delay(200);
+                // Font and St scale notifications can settle in separate
+                // frames, especially with more hidden actors. Establish the
+                // baseline after layout stops changing; traffic below must
+                // still preserve it exactly (no waiting for a new baseline).
+                let previous = '', stable = 0;
+                for (let attempt = 0; attempt < 12 && stable < 3; attempt++) {
+                    const current = [this._island.actor.width, pill.actor.width,
+                        pill._network.width, pill._down.width, pill._up.width].join(':');
+                    stable = current === previous && !pill._layoutIdle ? stable + 1 : 0;
+                    previous = current;
+                    await delay(100);
+                }
+                assert(stable >= 3, 'Font/scale layout did not settle before the rate-width check');
                 const width = this._island.actor.width, pillWidth = pill.actor.width;
                 const networkWidth = pill._network.width;
                 const reserved = [pill._down.width, pill._up.width];

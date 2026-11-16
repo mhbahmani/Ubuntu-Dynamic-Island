@@ -142,6 +142,11 @@ and [compact playing pill](screenshots/playing-pill.png).
   the controls does not remove the Bluetooth profile trade-off.
   Outputs are ordered by headphones (Bluetooth or AUX), built-in speakers,
   HDMI/DisplayPort, then other devices. Switching outputs keeps that order.
+  Bluetooth headphones show a small battery icon and percentage beside their
+  name when BlueZ reports a battery level. Device addresses match the audio
+  output to its battery; missing or disconnected batteries stay hidden.
+  This works even with the Bluetooth tab disabled and adds no battery indicator
+  to the notch or polling timer.
 - **Bluetooth**: event-driven BlueZ state (`GetManagedObjects` snapshot +
   `InterfacesAdded/Removed` + per-interface `PropertiesChanged`), paired
   devices with connect/disconnect, Battery1 percentage, adapter power toggle;
