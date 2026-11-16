@@ -13,7 +13,7 @@ share their services; hidden consumers do not keep refreshing.
 Enable **Preferences → Modules → Calendar**. In **Preferences → Calendar**, choose
 Jalali (شمسی), Gregorian (میلادی) or Hijri (قمری) as the main calendar. The popup
 uses that calendar for its selected-day heading and monthly grid. Optional read-only desktop events use EDS;
-[the implementation record](GOOGLE_CALENDAR_PLAN.md) lists live acceptance gaps.
+[the handoff](HANDOFF.md) lists live acceptance gaps.
 
 Under **Calendar display**, **Show holidays and observances** controls both the
 short holiday note and events from recognized Google holiday calendars, including

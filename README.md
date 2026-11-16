@@ -436,8 +436,8 @@ development scripts, tests and docs are not shipped.
 Read-only account calendars, event markers, split-view daily events and an optional upcoming
 notch indicator are implemented through GNOME Online Accounts/EDS. Start with
 [event setup](docs/MODULES.md#desktop-events). Live Google synchronization remains
-unverified; the [implementation record](docs/GOOGLE_CALENDAR_PLAN.md) distinguishes
-native fixture coverage from the remaining live acceptance checks.
+unverified; the [handoff](docs/HANDOFF.md) distinguishes native fixture coverage
+from the remaining live acceptance checks.
 
 ## Notch indicators
 

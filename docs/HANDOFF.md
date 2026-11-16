@@ -5,7 +5,6 @@ Updated 2026-11-16. Target: GNOME Shell 46 on Ubuntu Wayland.
 - [AGENTS.md](../AGENTS.md): engineering, packaging and commit rules.
 - [README](../README.md): installation, development commands and hardware checks.
 - [Module guide](MODULES.md): current Calendar, Agents, Weather and Commute behavior.
-- [Google Calendar plan](GOOGLE_CALENDAR_PLAN.md): implementation progress and remaining phases.
 
 ## Current implementation
 
@@ -21,7 +20,7 @@ remain independent. Read-only EDS account events now have explicit calendar
 selection, event lines, a split-view daily event list and an optional upcoming-event notch.
 The optional EDS bindings are now installed and the probe passes; live Google sync
 is unverified.
-See the plan for setup, architecture and acceptance gaps.
+See the module guide for setup and the Calendar records below for acceptance gaps.
 
 Agents provides local hook/plugin status, unique process-to-window matching and Quick Ask.
 Clear and the notch eye toggle are in the main header. Session states are event
@@ -781,7 +780,7 @@ Calendar checks pass at 380/440px and 100/200% scale with enlarged-text overflow
 event dots, agenda/details, removed events, Back/Escape, notch activation and
 hidden cleanup. `make smoke` passes. Native Pango resolves Persian text to Vazir.
 Live Google sync/authentication, cache freshness, Meet metadata and suspend/timezone
-changes remain acceptance gaps. See `docs/GOOGLE_CALENDAR_PLAN.md` for details.
+changes remain acceptance gaps; see the Calendar follow-up records below.
 
 Delivery: the full sample preview passed all eight tabs and existing Agents/audio
 interactions. Installer and ZIP checks passed. `make install` installed this
