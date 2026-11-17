@@ -6,10 +6,9 @@ notifications, calendars and coding-agent tracking when you need them.
 
 **For Ubuntu 24.04 with GNOME Shell 46 on Wayland.** Other Shell versions are not supported.
 
-[![Watch the Ubuntu Island demo](screenshots/demo-poster.jpg)](screenshots/demo.mp4)
+https://github.com/user-attachments/assets/0d6e1b67-579b-4400-afae-7a3b5dbe287e
 
-[Watch the 58-second demo](screenshots/demo.mp4) — silent, with demo data.
-No personal notifications or calendar events are shown.
+[Download the 58-second feature tour](screenshots/demo.mp4).
 
 ## Installation (recommended)
 
