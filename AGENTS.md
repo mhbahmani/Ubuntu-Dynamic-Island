@@ -2,7 +2,7 @@
 
 ## Scope and environment
 
-- Read `docs/HANDOFF.md` and `README.md` for orientation, then verify the relevant
+- Read `docs/DEVELOPMENT.md` and `README.md` for orientation, then verify the relevant
   implementation, schemas and tests before changing code. Documentation and old
   task briefs can lag the working tree; they are not evidence that a feature is
   missing or a historical failure still occurs. Current user instructions take
@@ -85,7 +85,7 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
 - Current location requires explicit permission. Never enable system location
   services automatically or silently substitute a saved start for live location.
 - Keep map selection in the native preferences editor, outside Shell. Do not
-  reintroduce WebKit sandbox workarounds. See `docs/MODULES.md`.
+  reintroduce WebKit sandbox workarounds. See `docs/GUIDE.md`.
 - Calendar reads explicitly selected EDS sources; GNOME Online Accounts/EDS own
   authentication and remote synchronization. Keep optional ECal/EDataServer/
   ICalGLib imports inside the reader process, and keep date browsing usable when

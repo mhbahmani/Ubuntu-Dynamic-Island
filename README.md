@@ -1,24 +1,21 @@
 # Ubuntu Island
 
-A compact notch for Ubuntu that expands into music controls, system stats,
-sound outputs and Bluetooth devices. Add weather, commute estimates,
-notifications, calendars and coding-agent tracking when you need them.
+Music, system activity and your next appointment in a notch at the top of your Ubuntu desktop. Click it to open a panel with playback controls, device settings and the tabs you choose.
 
-**For Ubuntu 24.04 with GNOME Shell 46 on Wayland.** Other Shell versions are not supported.
+**Ubuntu 24.04** · **GNOME Shell 46** · **Wayland**
 
 https://github.com/user-attachments/assets/0d6e1b67-579b-4400-afae-7a3b5dbe287e
 
-## Installation
+## Install
 
-**Recommended:** install the latest version directly from GitHub. You need `curl`, `tar`, GLib
-schema tools (`glib-compile-schemas`) and Fontconfig (`fc-cache`).
+Run the **recommended GitHub installer** from your desktop account. Use the same command to update. The installer backs up the previous version and requests administrator authentication only for missing Calendar packages.
 
 ```sh
-curl -fsSL \
-  https://raw.githubusercontent.com/mhbahmani/Ubuntu-Dynamic-Island/master/scripts/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/mhbahmani/Ubuntu-Dynamic-Island/master/scripts/install.sh | sh
 ```
 
-Or clone the repository and install locally (requires `git` and `make`):
+<details>
+<summary>Install from a local checkout</summary>
 
 ```sh
 git clone https://github.com/mhbahmani/Ubuntu-Dynamic-Island.git
@@ -26,38 +23,20 @@ cd Ubuntu-Dynamic-Island
 make install
 ```
 
-Run as your regular desktop user. The installer backs up an existing installation
-and may request administrator authentication for missing Calendar dependencies.
+To update your clone, run `git pull --ff-only` and `make install`.
 
-**Log out and back in**, then enable the extension:
+</details>
+
+**Log out and back in**, then enable the extension.
 
 ```sh
 gnome-extensions enable ubuntu-island@mhbahmani.github.io
 ```
 
-To update, rerun the recommended command, or run `git pull --ff-only` followed by
-`make install` in your clone, then log out and back in. For specific versions and
-troubleshooting, see the [development guide](docs/DEVELOPMENT.md#install).
-
 ## Make it yours
 
-- Click the notch or press **Super+Alt+I** to open it. **Escape** closes it.
-- Open the gear button to choose themes, transparency, notch indicators and their order.
-- Enable Weather, Commute, Notifications, Calendar or experimental Agents in
-  **Preferences → Modules**. Calendar applies immediately; other module changes
-  need the extension disabled and re-enabled.
+- **Open the island** with a click or **Super+Alt+I**. Switch tabs with **Ctrl+Tab** and close with **Escape**.
+- **Arrange the notch** in **Preferences → Notch**. Put the track title, CPU meter, bandwidth, weather or upcoming event where you want it.
+- **Choose your tabs** in **Preferences → Modules**. Music, System, Sound and Bluetooth start enabled. Add Weather, Commute, Calendar, Notifications or Agents when you need them.
 
-Open preferences directly with:
-
-```sh
-gnome-extensions prefs ubuntu-island@mhbahmani.github.io
-```
-
-## Learn more
-
-- [Usage and settings](docs/USAGE.md)
-- [Optional modules: setup, privacy and limitations](docs/MODULES.md)
-- [Preview, development and hardware checks](docs/DEVELOPMENT.md)
-- [Editable video project](docs/demo/README.md)
-
-Design inspired by [Ricelin](https://github.com/Gakuseei/Ricelin).
+[Settings and module setup](docs/GUIDE.md) · [Development and preview](docs/DEVELOPMENT.md) · [Design inspiration](https://github.com/Gakuseei/Ricelin)
