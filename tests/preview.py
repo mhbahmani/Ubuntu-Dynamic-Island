@@ -109,6 +109,9 @@ def main():
     shutil.copy2(extension / 'assets/ubuntu-island.desktop', apps / 'ubuntu-island.desktop')
     mode = root / 'share/gnome-shell/modes/island-preview.json'
     mode.parent.mkdir(parents=True)
+    # Without GDM, Shell asynchronously posts a one-time lock warning. Mark it
+    # as shown in the preview's private XDG_DATA_HOME before Shell starts.
+    (root / 'share/gnome-shell/lock-warning-shown').touch()
     mode.write_text(json.dumps({'parentMode': 'user', 'enabledExtensions': [uuid],
                                'showWelcomeDialog': False, 'components': []}))
     runtime = root / 'runtime'

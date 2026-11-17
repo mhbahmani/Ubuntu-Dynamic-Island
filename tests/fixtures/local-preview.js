@@ -53,12 +53,6 @@ export default class Preview extends UbuntuIsland {
         sampleDevices(this, sample);
         sampleAgents(this);
         sampleCalendar(this, {enableIndicator: !snapshot});
-        if (['AUDIO', 'NOTIFICATIONS'].some(name => GLib.getenv(`ISLAND_PREVIEW_CHECK_${name}`) === '1')) {
-            // Headless Shell can post startup notices such as “Screen Lock
-            // disabled”. Keep them out of the row counts and pointer path.
-            for (const source of Main.messageTray.getSources())
-                for (const notification of [...source.notifications]) notification.destroy();
-        }
         sampleNotifications();
         const connection = GLib.getenv('ISLAND_PREVIEW_CONNECTION') || 'online';
         if (connection !== 'auto') {
