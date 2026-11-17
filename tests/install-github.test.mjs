@@ -6,7 +6,7 @@ import {join, resolve} from 'node:path';
 import {execFileSync, spawnSync} from 'node:child_process';
 
 const root = resolve(import.meta.dirname, '..');
-const installer = join(root, 'scripts/install-github.sh');
+const installer = join(root, 'scripts/install.sh');
 const uuid = 'ubuntu-island@mhbahmani.github.io';
 
 // Only HTTP and UID detection are stubbed. Extraction and the regular installer
@@ -18,8 +18,7 @@ function fixture() {
     for (const path of [bin, temporary, checkout]) mkdirSync(path);
     cpSync(join(root, 'extension'), join(checkout, 'extension'), {recursive: true});
     mkdirSync(join(checkout, 'scripts'));
-    for (const name of ['install.sh', 'install-dependencies.sh'])
-        cpSync(join(root, 'scripts', name), join(checkout, 'scripts', name));
+    cpSync(installer, join(checkout, 'scripts/install.sh'));
     const archive = join(directory, 'source.tar.gz');
     const pack = () => execFileSync('tar', ['-czf', archive, '-C', directory, 'owner-project-abcd']);
     pack();
@@ -40,8 +39,8 @@ if (process.env.TEST_DOWNLOAD === 'failed') process.exit(22);
     const base = join(env.XDG_DATA_HOME, 'gnome-shell/extensions');
     const destination = join(base, uuid);
     return {directory, checkout, archive, pack, calls, env, base, destination,
-        run: (...args) => spawnSync('sh', [installer, ...args],
-            {env, encoding: 'utf8', timeout: 20000}),
+        run: (...args) => spawnSync('sh', ['-s', '--', ...args],
+            {input: readFileSync(installer), env, encoding: 'utf8', timeout: 20000}),
         assertClean: () => assert.deepEqual(readdirSync(temporary), [], 'Temporary downloads must be removed'),
         seed: () => { mkdirSync(destination, {recursive: true}); writeFileSync(join(destination, 'previous'), 'keep me'); },
         cleanup: () => rmSync(directory, {recursive: true, force: true})};
@@ -96,6 +95,19 @@ test('failed, corrupt and incomplete downloads leave the installed extension unt
             assert.deepEqual(readdirSync(f.base), [uuid]);
             f.assertClean();
         }
+    } finally { f.cleanup(); }
+});
+
+test('a schema compilation failure preserves the installed extension and removes the stage', () => {
+    const f = fixture();
+    try {
+        f.seed();
+        writeFileSync(join(f.checkout, 'extension/schemas/broken.gschema.xml'), '<invalid>');
+        const result = f.run('--local', f.checkout);
+        assert.notEqual(result.status, 0);
+        assert.equal(readFileSync(join(f.destination, 'previous'), 'utf8'), 'keep me');
+        assert.deepEqual(readdirSync(f.base), [uuid]);
+        assert.ok(!existsSync(f.calls), 'Local installs must not download a checkout');
     } finally { f.cleanup(); }
 });
 

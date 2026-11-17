@@ -17,7 +17,7 @@ function fixture(installed = []) {
     script('apt-get',`const fs=require('fs');fs.appendFileSync(process.env.TEST_CALLS,JSON.stringify(process.argv.slice(1))+'\\n');fs.writeFileSync(process.env.TEST_PACKAGES,JSON.stringify(process.argv.slice(5)));`);
     const env = {...process.env,PATH:`${bin}:${process.env.PATH}`,TEST_PACKAGES:state,TEST_CALLS:log,XDG_DATA_HOME:join(directory,'share'),INSTALL_DEPS:'1'};
     return {directory,bin,env,calls:()=>readFileSync(log,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse),
-        run:(file='install-dependencies.sh')=>spawnSync('sh',[resolve('scripts',file)],{env,encoding:'utf8',timeout:10000}),
+        run:()=>spawnSync('sh',[resolve('scripts/install.sh'),'--local','.'],{env,encoding:'utf8',timeout:10000}),
         cleanup:()=>rmSync(directory,{recursive:true,force:true})};
 }
 const packages=['gir1.2-ecal-2.0','gir1.2-edataserver-1.2'];
@@ -44,7 +44,7 @@ test('declined package authentication leaves the existing extension untouched',(
         f.env.TEST_DENY='1';
         const base=join(f.env.XDG_DATA_HOME,'gnome-shell/extensions'),dest=join(base,'ubuntu-island@mhbahmani.github.io');
         mkdirSync(dest,{recursive:true});writeFileSync(join(dest,'original'),'preserve');
-        assert.notEqual(f.run('install.sh').status,0);
+        assert.notEqual(f.run().status,0);
         assert.equal(readFileSync(join(dest,'original'),'utf8'),'preserve');
         assert.deepEqual(readdirSync(base),['ubuntu-island@mhbahmani.github.io']);
         assert.equal(existsSync(join(dest,'extension.js')),false);

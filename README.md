@@ -15,7 +15,7 @@ schema tools (`glib-compile-schemas`) and Fontconfig (`fc-cache`).
 
 ```sh
 curl -fsSL \
-  https://raw.githubusercontent.com/mhbahmani/Ubuntu-Dynamic-Island/master/scripts/install-github.sh | sh
+  https://raw.githubusercontent.com/mhbahmani/Ubuntu-Dynamic-Island/master/scripts/install.sh | sh
 ```
 
 Or clone the repository and install locally (requires `git` and `make`):
