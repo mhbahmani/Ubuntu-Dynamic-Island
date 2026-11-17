@@ -6,7 +6,7 @@ fixtures, including native expansion and tab transitions.
 
 The published artifacts are [demo.mp4](../../screenshots/demo.mp4) and
 [demo-poster.jpg](../../screenshots/demo-poster.jpg). The repository README uses
-a GitHub attachment URL to play the video inline, with a link to the MP4 download.
+a GitHub attachment URL to play the video inline.
 After uploading a new render, replace the attachment URL in the repository README.
 
 ## Recording

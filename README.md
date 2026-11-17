@@ -8,16 +8,22 @@ notifications, calendars and coding-agent tracking when you need them.
 
 https://github.com/user-attachments/assets/0d6e1b67-579b-4400-afae-7a3b5dbe287e
 
-[Download the 58-second feature tour](screenshots/demo.mp4).
+## Installation
 
-## Installation (recommended)
-
-Install the latest version directly from GitHub. You need `curl`, `tar`, GLib
+**Recommended:** install the latest version directly from GitHub. You need `curl`, `tar`, GLib
 schema tools (`glib-compile-schemas`) and Fontconfig (`fc-cache`).
 
 ```sh
 curl -fsSL \
   https://raw.githubusercontent.com/mhbahmani/Ubuntu-Dynamic-Island/master/scripts/install-github.sh | sh
+```
+
+Or clone the repository and install locally (requires `git` and `make`):
+
+```sh
+git clone https://github.com/mhbahmani/Ubuntu-Dynamic-Island.git
+cd Ubuntu-Dynamic-Island
+make install
 ```
 
 Run as your regular desktop user. The installer backs up an existing installation
@@ -29,8 +35,9 @@ and may request administrator authentication for missing Calendar dependencies.
 gnome-extensions enable ubuntu-island@mhbahmani.github.io
 ```
 
-To update, run the same command and log out and back in. For local-source installs,
-specific versions and troubleshooting, see the [development guide](docs/DEVELOPMENT.md#install).
+To update, rerun the recommended command, or run `git pull --ff-only` followed by
+`make install` in your clone, then log out and back in. For specific versions and
+troubleshooting, see the [development guide](docs/DEVELOPMENT.md#install).
 
 ## Make it yours
 
