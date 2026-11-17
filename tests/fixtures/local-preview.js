@@ -498,7 +498,16 @@ export default class Preview extends UbuntuIsland {
 
         assert(cards().length === 5, `Expected 5 compact rows, found ${cards().length}`);
         assert(find('Sara')._body.text === 'Are we still on for lunch & the design review?', 'Markup not stripped');
-        assert(view._newChip.visible && view._newChip.text === '5 new', `Unexpected new count: ${view._newChip.text}`);
+        const tab = card._tabs.get('notifications'), badge = card._tabBadges.get('notifications');
+        assert(!view._header.visible, 'Notifications header still takes space');
+        assert(badge?.get_parent().visible && badge.text === '5', `Unexpected tab badge: ${badge?.text}`);
+        assert(tab.accessible_name === 'Notifications, 5 new', `Tab name lacks the count: ${tab.accessible_name}`);
+        const tabWidth = tab.width;
+        settings.set_boolean('notifications-tab-badge', false); await delay(50);
+        assert(!badge.get_parent().visible && tab.accessible_name === 'Notifications', 'Badge setting did not hide the count');
+        settings.set_boolean('notifications-tab-badge', true); await delay(50);
+        assert(badge.get_parent().visible && tab.width === tabWidth, 'Badge changed the tab width');
+        assert(!view._todayButton.visible, 'Today toggle shown in the compact list');
         assert(cards().every(entry => entry._dot.visible), 'Unseen rows lack the new marker');
         const headings = view._list.get_children().filter(entry => !entry._openButton).map(entry => entry.text);
         assert(headings.includes('Earlier'), `Missing Earlier heading: ${headings}`);
@@ -522,13 +531,6 @@ export default class Preview extends UbuntuIsland {
                     const [x] = entry.get_transformed_position(), [w] = entry.get_transformed_size();
                     assert(x >= listX - 1 && x + w <= listX + listWidth + 1, `Row overflows at ${where}`);
                     assert(entry._title.get_transformed_size()[0] > 20 * scale, `Title squeezed at ${where}`);
-                }
-                const [headerX] = view._header.get_transformed_position(), [headerWidth] = view._header.get_transformed_size();
-                let end = headerX;
-                for (const actor of view._header.get_children().filter(child => child.visible && child.width > 0)) {
-                    const [x] = actor.get_transformed_position(), [w] = actor.get_transformed_size();
-                    assert(x >= end - 1 && x + w <= headerX + headerWidth + 1, `Toolbar overlaps at ${where}`);
-                    end = x + w;
                 }
                 const adjustment = card._scroll.get_vscroll_bar().get_adjustment();
                 const last = cards().at(-1);
@@ -580,9 +582,11 @@ export default class Preview extends UbuntuIsland {
         const children = cards().filter(entry => entry.has_style_class_name('ubuntu-island-notification-child'));
         assert(children.length === 2 && !group._shelf.visible, 'Group did not expand');
         await this._capture('notifications-grouped-expanded');
-        view._filterButtons.get('today').emit('clicked', 1); await delay(150);
-        assert(!find('Weekly sync starts in 10 minutes'), 'Today filter kept an older notification');
-        view._filterButtons.get('all').emit('clicked', 1); await delay(150);
+        assert(view._todayButton.visible && !view._todayButton.checked, 'Today toggle missing from the grouped corner');
+        view._todayButton.emit('clicked', 1); await delay(150);
+        assert(view._todayButton.checked && !find('Weekly sync starts in 10 minutes'), 'Today filter kept an older notification');
+        view._todayButton.emit('clicked', 1); await delay(150);
+        assert(!view._todayButton.checked && find('Weekly sync starts in 10 minutes'), 'Today toggle did not restore all');
         group._dismissButton.reactive = true; group._dismissButton.emit('clicked', 1); await delay(150);
         assert(!view._entries.has('g:Messages (sample)') && !find('Lena'), 'Dismissing a group left its notifications');
         view._layoutButton.emit('clicked', 1); await delay(150);
@@ -590,6 +594,7 @@ export default class Preview extends UbuntuIsland {
 
         this._island.collapse(); await delay(400);
         assert(!pill._notifications.visible, 'Seen notifications still counted in the notch');
+        assert(!card._tabBadges.get('notifications').get_parent().visible, 'Seen notifications still badged on the tab');
         postNotification({app: 'Chat (sample)', icon: 'user-available-symbolic', quiet: false,
             title: 'A deliberately long notification title that must not widen the collapsed notch'});
         await delay(250);

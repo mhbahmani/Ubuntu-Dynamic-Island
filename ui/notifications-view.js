@@ -8,9 +8,9 @@ import {notificationAge, notificationCount, notificationSections, filterNotifica
 const FALLBACK_ICON = 'preferences-system-notifications-symbolic';
 const DELETE_KEYS = [Clutter.KEY_Delete, Clutter.KEY_KP_Delete, Clutter.KEY_BackSpace];
 
-function chip(text, action, toggle = false) {
+function chip(text, action) {
     const control = new St.Button({style_class: 'ubuntu-island-notification-chip', label: text,
-        can_focus: true, reactive: true, track_hover: true, toggle_mode: toggle});
+        can_focus: true, reactive: true, track_hover: true});
     control.connect('clicked', action);
     return control;
 }
@@ -50,18 +50,9 @@ export class NotificationsView {
     }
 
     _buildToolbar() {
-        // The header carries only context ("N new", grouped filters) and hides
-        // when it has none; actions float in the bottom-right corner instead.
-        this._newChip = label('', 'ubuntu-island-notification-new', false);
-        this._header.add_child(this._newChip);
-        this._filters = row('ubuntu-island-notification-filters');
-        this._filterButtons = new Map(['all', 'today'].map(id => {
-            const control = chip(id === 'all' ? 'All' : 'Today', () => { this._filter = id; this._render(); }, true);
-            this._filters.add_child(control);
-            return [id, control];
-        }));
-        this._header.add_child(this._filters);
-
+        // The tab badge carries the unseen count, so the header stays hidden and
+        // every control floats in the bottom-right corner instead.
+        this._header.hide();
         // Fixed over the scrolling list (Card stacks it above its scroll view).
         // A radial fade centred on the corner settles the rows passing beneath;
         // only the cluster itself takes input.
@@ -81,11 +72,18 @@ export class NotificationsView {
         this._silencedLabel = label('', 'ubuntu-island-device-status ubuntu-island-notification-silenced', false);
         this._silencedLabel.y_align = Clutter.ActorAlign.CENTER;
         this._actionsBar.add_child(this._silencedLabel);
+        // Grouped rows span days, so this narrows them to today; the compact
+        // list already splits Today from Earlier.
+        this._todayButton = button('x-office-calendar-symbolic', '', () => {
+            this._filter = this._filter === 'today' ? 'all' : 'today';
+            this._render();
+        }, 15, 'ubuntu-island-ghost ubuntu-island-notification-toggle');
+        this._actionsBar.add_child(this._todayButton);
         this._layoutButton = button('view-list-symbolic', '', () => this._settings.set_string('notifications-layout',
             this._grouped ? 'compact' : 'grouped'), 15, 'ubuntu-island-ghost');
         this._actionsBar.add_child(this._layoutButton);
         this._dndButton = button(FALLBACK_ICON, '', () => this._actions.notificationsDoNotDisturb(!this._state.dnd),
-            15, 'ubuntu-island-ghost ubuntu-island-notification-dnd');
+            15, 'ubuntu-island-ghost ubuntu-island-notification-toggle');
         this._actionsBar.add_child(this._dndButton);
         this._clear = chip('Clear', () => this._actions.notificationsClear());
         this._actionsBar.add_child(this._clear);
@@ -128,7 +126,7 @@ export class NotificationsView {
     }
 
     _render() {
-        const {items, count, unseen, dnd, silenced} = this._state;
+        const {items, count, dnd, silenced} = this._state;
         const now = Math.floor(Date.now() / 1000), todayStart = startOfDay(Date.now());
         const grouped = this._grouped;
         const visible = grouped ? filterNotifications(items, this._filter, todayStart) : items;
@@ -156,16 +154,14 @@ export class NotificationsView {
         }
 
         const empty = !visible.length;
-        this._header.visible = Boolean(count) && (unseen > 0 || grouped);
         // The corner actions and the list's reserved bottom space exist only
         // with notifications; the empty state keeps its own DND control.
         this._fade.visible = this._actionsBar.visible = Boolean(count);
         if (count) this._list.add_style_class_name('ubuntu-island-notification-list-actions');
         else this._list.remove_style_class_name('ubuntu-island-notification-list-actions');
-        this._newChip.text = `${unseen} new`;
-        this._newChip.visible = unseen > 0;
-        this._filters.visible = grouped;
-        for (const [id, control] of this._filterButtons) control.checked = id === this._filter;
+        this._todayButton.visible = grouped;
+        this._todayButton.checked = this._filter === 'today';
+        this._todayButton.accessible_name = `Today only, ${this._filter === 'today' ? 'on' : 'off'}`;
         this._layoutButton.child.icon_name = grouped ? 'view-list-symbolic' : 'view-grid-symbolic';
         this._layoutButton.accessible_name = grouped ? 'Show as a list' : 'Group by app';
         this._dndButton.child.icon_name = dnd ? 'notifications-disabled-symbolic' : FALLBACK_ICON;
@@ -179,7 +175,7 @@ export class NotificationsView {
         const filtered = Boolean(count) && empty;
         this._emptyIcon.icon_name = dnd ? 'notifications-disabled-symbolic' : 'emblem-ok-symbolic';
         this._emptyTitle.text = filtered ? 'Nothing today' : 'You’re all caught up';
-        this._emptyBody.text = filtered ? 'Earlier notifications are under All.' : 'New notifications appear here.';
+        this._emptyBody.text = filtered ? 'Turn off Today only to see earlier ones.' : 'New notifications appear here.';
         this._emptyDnd.visible = !count;
         this._emptySwitch.state = dnd;
         this._emptyDnd.accessible_name = `Do Not Disturb, ${dnd ? 'on' : 'off'}`;

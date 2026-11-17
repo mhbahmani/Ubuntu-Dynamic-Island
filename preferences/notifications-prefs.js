@@ -18,6 +18,9 @@ export function notificationsPreferences(settings, window) {
     const layoutId = settings.connect('changed::notifications-layout', syncLayout);
     window.connect('close-request', () => { settings.disconnect(layoutId); return false; });
     group.add(layout);
+    const badge = new Adw.SwitchRow({title: 'Count on the tab', subtitle: 'Small number on the Notifications tab for unseen notifications'});
+    settings.bind('notifications-tab-badge', badge, 'active', Gio.SettingsBindFlags.DEFAULT);
+    group.add(badge);
 
     const notch = new Adw.PreferencesGroup({title: 'In the notch'});
     for (const [key, title, subtitle] of [

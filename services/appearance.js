@@ -21,9 +21,9 @@ export function surfaceStyle(theme, opacity, matte = 0) {
         `border-color: rgba(${palette.edge.join(',')},0.13);`;
 }
 
-// Floating corner controls: a radial fade and a solid pill in the tint's lower
-// stop, matte-flattened like the surface, so the corner reads as the card
-// thickening rather than a separate panel.
+// Floating corner controls: a radial fade and an opaque pill in the tint's
+// lower stop, matte-flattened like the surface, so the corner reads as the card
+// thickening rather than a separate panel and no row text shows through it.
 export function cornerFadeStyle(theme, opacity, matte = 0) {
     const palette = THEMES[theme] ?? THEMES[DEFAULT_THEME];
     const alpha = Math.min(0.94, percent(opacity, 98) / 100);
@@ -33,7 +33,7 @@ export function cornerFadeStyle(theme, opacity, matte = 0) {
     return {
         fade: `background-gradient-direction: radial; background-gradient-start: rgba(${color},${alpha}); ` +
             `background-gradient-end: rgba(${color},0);`,
-        actions: `background-color: rgba(${color},${alpha}); border-color: rgba(${palette.edge.join(',')},0.16);`,
+        actions: `background-color: rgba(${color},1); border-color: rgba(${palette.edge.join(',')},0.16);`,
     };
 }
 

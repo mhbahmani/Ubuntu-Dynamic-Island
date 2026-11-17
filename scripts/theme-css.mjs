@@ -57,7 +57,7 @@ export function themeBlock(theme) {
         `${sel('.ubuntu-island-network-up')} { color: ${theme.chartUp}; }`,
         `${sel('.ubuntu-island-history-network')} { -ubuntu-island-chart-down: ${theme.chartDown}; ` +
             `-ubuntu-island-chart-up: ${theme.chartUp}; }`,
-        `${sel('.ubuntu-island-seal', '.ubuntu-island-agent-primary', '.ubuntu-island-quick-ask-send')} { background-color: ${theme.strong}; }`,
+        `${sel('.ubuntu-island-seal', '.ubuntu-island-agent-primary', '.ubuntu-island-quick-ask-send', '.ubuntu-island-tab-badge')} { background-color: ${theme.strong}; }`,
         `${sel('.ubuntu-island-seal')} { border-color: ${rgba(surface, 0.26)}; }`,
         `${sel('.ubuntu-island-seal:hover', '.ubuntu-island-agent-primary:hover', '.ubuntu-island-agent-primary:focus',
             '.ubuntu-island-quick-ask-send:hover')} { background-color: ${theme.strongHover}; }`,
@@ -67,7 +67,7 @@ export function themeBlock(theme) {
         `${sel('.slider')} { -barlevel-active-background-color: ${accent}; -barlevel-overdrive-color: ${accent}; }`,
         `${sel('.ubuntu-island-output-active')} { background-color: ${rgba(checked, 0.20)}; border-color: ${accent}; }`,
         `${sel('.ubuntu-island-media-mode:checked', '.ubuntu-island-media-text-button:checked', '.ubuntu-island-notification-chip:checked',
-            '.ubuntu-island-notification-dnd:checked', '.ubuntu-island-notification-new')} ` +
+            '.ubuntu-island-notification-toggle:checked')} ` +
             `{ color: ${accent}; background-color: ${rgba(checked, 0.16)}; }`,
         `${sel('.ubuntu-island-calendar-today .ubuntu-island-calendar-date')} ` +
             `{ background-color: ${theme.strong}; border-color: ${theme.todayBorder}; }`,

@@ -25,9 +25,10 @@ test('corner fade uses the tint lower stop and fades to clear', () => {
         assert.equal(start, `rgba(${theme.bottom.join(',')},0.94)`, id);
         assert.equal(end, `rgba(${theme.bottom.join(',')},0)`, id);
         assert(fade.includes('background-gradient-direction: radial'));
-        assert(actions.includes(`background-color: rgba(${theme.bottom.join(',')},0.94)`), id);
+        assert(actions.includes(`background-color: rgba(${theme.bottom.join(',')},1)`), id);
     }
     assert(stops(cornerFadeStyle('ocean', 60).fade)[0].endsWith(',0.6)'));
+    assert(cornerFadeStyle('ocean', 60).actions.includes(',1);'), 'Corner actions must stay opaque');
     assert.deepEqual(cornerFadeStyle('invalid', NaN), cornerFadeStyle('graphite', 98));
     const flat = stops(cornerFadeStyle('ocean', 98, 100).fade)[0];
     const mean = THEMES.ocean.bottom.map((c, i) => Math.round((THEMES.ocean.top[i] + c) / 2)).join(',');

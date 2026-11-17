@@ -193,6 +193,7 @@ if (shortcutLabel.accelerator !== '') throw new Error('Shortcut display did not 
 for (const [title, key] of [['Show music name', 'pill-show-title'], ['Show weather icon', 'pill-show-weather'],
     ['Show upload/download rates', 'pill-show-network'], ['Show new notifications', 'notifications-peek'],
     ['Enable Notifications', 'enable-notifications'], ['Show unseen count', 'pill-show-notifications'],
+    ['Count on the tab', 'notifications-tab-badge'],
     ['Hide CPU dot while load is low', 'pill-cpu-hide-idle']]) {
     const row = find(window, title);
     if (!row) throw new Error(`Missing notch control: ${title}`);

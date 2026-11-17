@@ -207,6 +207,10 @@
       <choices><choice value="compact"/><choice value="grouped"/></choices>
       <summary>Notifications tab layout</summary>
     </key>
+    <key name="notifications-tab-badge" type="b">
+      <default>true</default>
+      <summary>Show the unseen notification count on the Notifications tab</summary>
+    </key>
     <key name="pill-show-notifications" type="b">
       <default>true</default>
       <summary>Show the unseen notification count in the collapsed notch</summary>

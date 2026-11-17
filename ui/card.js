@@ -49,6 +49,8 @@ export class Card {
         this._tabs = new Map();
         this._tabMarkers = new Map();
         this._tabGlyphs = new Map();
+        this._tabTitles = new Map();
+        this._tabBadges = new Map();
         this._page = null;
         this._manualPage = false;
         this._outputRows = new Map();
@@ -192,6 +194,33 @@ export class Card {
         if (glyph && glyph.icon_name !== name) glyph.icon_name = name;
     }
 
+    // A small count over the glyph's top-right corner. It sits in a zero-size
+    // holder, so it never widens the tab or shifts the shared tab strip.
+    setTabBadge(id, count, description = '') {
+        const tab = this._tabs.get(id);
+        if (!tab) return;
+        let badge = this._tabBadges.get(id);
+        if (!badge && count > 0) {
+            const holder = new Clutter.Actor({width: 0, height: 0, x_expand: true, y_expand: true,
+                x_align: Clutter.ActorAlign.END, y_align: Clutter.ActorAlign.START});
+            badge = label('', 'ubuntu-island-tab-badge', false);
+            badge.reactive = false;
+            badge.connect('notify::allocation', () => {
+                badge.translation_x = -Math.round(badge.width / 2);
+                badge.translation_y = -Math.round(badge.height / 2);
+            });
+            holder.add_child(badge);
+            this._tabGlyphs.get(id).get_parent().add_child(holder);
+            this._tabBadges.set(id, badge);
+        }
+        if (badge) {
+            badge.text = count > 9 ? '9+' : String(count);
+            badge.get_parent().visible = count > 0;
+        }
+        const title = this._tabTitles.get(id);
+        tab.accessible_name = count > 0 && description ? `${title}, ${description}` : title;
+    }
+
     setPillTitleVisible(visible) {
         if (!this._pillTitle) return;
         this._pillTitle.child.icon_name = visible
@@ -280,6 +309,7 @@ export class Card {
             this._tabs.set(id, tab);
             this._tabMarkers.set(id, marker);
             this._tabGlyphs.set(id, glyphActor);
+            this._tabTitles.set(id, title);
             // Tab visibility changes move siblings without resizing the strip.
             tab.connect('notify::allocation', queueSnap);
             marker.connect('notify::allocation', queueSnap);
@@ -328,8 +358,10 @@ export class Card {
         const layout = this._pageCaption.clutter_text.get_layout().copy();
         layout.set_width(-1);
         let textWidth = 0;
-        for (const tab of tabs) {
-            layout.set_text(tab.accessible_name, -1);
+        // Plain titles: a tab's accessible name may carry a badge description.
+        for (const [id, tab] of this._tabs) {
+            if (!tab.visible) continue;
+            layout.set_text(this._tabTitles.get(id), -1);
             textWidth = Math.max(textWidth, layout.get_pixel_size()[0]);
         }
         const captionWidth = Math.ceil(textWidth + this._pageCaption.get_theme_node().get_horizontal_padding());

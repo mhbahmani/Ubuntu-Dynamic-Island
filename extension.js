@@ -284,6 +284,7 @@ export default class UbuntuIsland extends Extension {
         });
         for (const key of ['pill-title-mode', 'pill-title-characters', 'disable-animations', 'pill-show-weather', 'pill-show-agents', 'pill-show-notifications', 'pill-show-network', 'pill-show-commute', 'pill-offline-mode', 'weather-units', 'pill-order', 'pill-arrow-style', 'pill-weather-style', 'pill-arrow-angle', 'pill-cpu-hide-idle', 'pill-cpu-idle-threshold', 'pill-network-layout'])
             watch(key, () => { this._renderPill(); this._syncWeather(); });
+        watch('notifications-tab-badge', () => this._renderTabBadge());
         watch('color-theme', () => this._applyAppearance());
         watch('pill-text-scale', () => this._applyTextScale());
         for (const key of ['pill-show-date', 'pill-date-calendars', 'pill-date-order', 'pill-date-formats', 'pill-date-digits', 'pill-date-short-months', 'calendar-use-calendar-language', 'pill-show-time', 'pill-time-24h', 'pill-time-seconds'])
@@ -323,7 +324,13 @@ export default class UbuntuIsland extends Extension {
         this._states.notifications = state;
         this._card._notificationsView?.render(state);
         this._card.setTabIcon('notifications', state.dnd ? 'notifications-disabled-symbolic' : 'preferences-system-notifications-symbolic');
+        this._renderTabBadge();
         this._renderPill();
+    }
+
+    _renderTabBadge() {
+        const unseen = this._settings.get_boolean('notifications-tab-badge') ? this._states.notifications?.unseen ?? 0 : 0;
+        this._card?.setTabBadge('notifications', unseen, `${unseen} new`);
     }
 
     // Notifications listed while the tab was open count as seen once it closes.
