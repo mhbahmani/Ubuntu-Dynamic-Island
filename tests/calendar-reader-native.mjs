@@ -55,7 +55,11 @@ async function run() {
     cached.watch(monthA);
     check(cached.process===process2 && cached.generation===generation2 && !cached.idle && seen2.length===0,
         'Reopening within the grace period reuses the live reader without a query');
-    cached.suspend(); await delay(1400);
+    cached.suspend();
+    // GLib's seconds timer coalesces wakeups; a one-second timeout need not
+    // fire within 1400 ms. Wait for the state with a bound, including on CI.
+    const idleDeadline=GLib.get_monotonic_time()+3_000_000;
+    while(cached.idle && GLib.get_monotonic_time()<idleDeadline) await delay(25);
     check(!cached.process && !cached.idle && cached.cache.size===2,'Idle expiry ends the reader and keeps the cache');
     seen2.length=0;
     const restored=await next2(monthA);

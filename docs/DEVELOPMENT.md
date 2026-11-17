@@ -155,6 +155,10 @@ make logs
 
 ## Development checks
 
+[GNOME compatibility CI](CI.md) runs the native checks in isolated containers for
+Shell 46, 48 and 50. Shell 46 is the required baseline; other versions are
+experimental and do not expand the published support list.
+
 ```sh
 make help                # all commands; also the default for plain `make`
 make check               # Node tests, JS/Python syntax, strict schema validation

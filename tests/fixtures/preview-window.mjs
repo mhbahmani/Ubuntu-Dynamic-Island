@@ -4,6 +4,7 @@ import {editRoute} from '../preferences/commute-map.js';
 import Gio from 'gi://Gio';
 import Adw from 'gi://Adw';
 import GLib from 'gi://GLib';
+import GLibUnix from 'gi://GLibUnix';
 import Gdk from 'gi://Gdk';
 Gio.Resource.load('/usr/share/gnome-shell/org.gnome.Shell.Extensions.src.gresource')._register();
 const {default: Preferences} = await import('../prefs.js');
@@ -21,6 +22,12 @@ preferences.fillPreferencesWindow(window);
 window.set_visible_page_name('notch');
 window.present();
 const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+// SIGUSR1 is sent by the parent after its focus, map capture and raise checks.
+// A fixed delay can close this window before software-rendered CI reaches them.
+const parentFinished = new Promise(resolve => GLibUnix.signal_add_full(GLib.PRIORITY_DEFAULT, 10, () => {
+    resolve();
+    return GLib.SOURCE_REMOVE;
+}));
 const run = async () => {
     await delay(1000);
     let saved;
@@ -43,7 +50,7 @@ const run = async () => {
     if (!editor.save.sensitive) throw new Error('Route name is still required');
     if (!near(editor.draft.origin?.latitude, 35.73) || !near(editor.draft.destination?.longitude, 51.39))
         throw new Error('Map click/drag failed to update endpoint coordinates');
-    await delay(3000); // Allow the parent fixture to check the agent composer and capture the map window.
+    await parentFinished;
     editor.save.emit('clicked');
     if (!saved || saved.name !== '' || !near(saved.origin.latitude, 35.73)) throw new Error('Map did not save confirmed endpoints');
     if (!map.dead || map.timer) throw new Error('Map resources not cleaned up');

@@ -53,6 +53,12 @@ export default class Preview extends UbuntuIsland {
         sampleDevices(this, sample);
         sampleAgents(this);
         sampleCalendar(this, {enableIndicator: !snapshot});
+        if (['AUDIO', 'NOTIFICATIONS'].some(name => GLib.getenv(`ISLAND_PREVIEW_CHECK_${name}`) === '1')) {
+            // Headless Shell can post startup notices such as “Screen Lock
+            // disabled”. Keep them out of the row counts and pointer path.
+            for (const source of Main.messageTray.getSources())
+                for (const notification of [...source.notifications]) notification.destroy();
+        }
         sampleNotifications();
         const connection = GLib.getenv('ISLAND_PREVIEW_CONNECTION') || 'online';
         if (connection !== 'auto') {
@@ -496,7 +502,7 @@ export default class Preview extends UbuntuIsland {
         settings.set_string('notifications-layout', 'compact');
         await open();
 
-        assert(cards().length === 5, `Expected 5 compact rows, found ${cards().length}`);
+        assert(cards().length === 5, `Expected 5 compact rows, found ${cards().map(entry => entry._title.text).join(', ')}`);
         assert(find('Sara')._body.text === 'Are we still on for lunch & the design review?', 'Markup not stripped');
         const tab = card._tabs.get('notifications'), badge = card._tabBadges.get('notifications');
         assert(!view._header.visible, 'Notifications header still takes space');
@@ -718,7 +724,7 @@ export default class Preview extends UbuntuIsland {
             quickSettings._powerProfiles = {quickSettingsItems: [{_proxy: {ActiveProfile: 'balanced'}}]};
             view.todayButton.grab_key_focus(); view.select(todayDay(),true);
             assert(view.dayTip.tip.get_transition('opacity'), 'Normal date popup did not animate');
-            await delay(200);
+            for (let i = 0; i < 100 && view.dayTip.tip.get_transition('opacity'); i++) await delay(20);
             assert(view.dayTip.tip.opacity === 255 && !view.dayTip.tip.get_transition('opacity'), 'Date popup fade did not settle');
             for (const mode of ['power-saver', 'extension', 'desktop']) {
                 view.todayButton.grab_key_focus();
@@ -1234,9 +1240,13 @@ export default class Preview extends UbuntuIsland {
             assert(!pill._date.visible && !pill._dateClock, 'Disabled dates retained clock subscription');
             settings.set_boolean('pill-show-date', true);
             assert(pill._dateClock === clock, 'Dates did not resume after enabling');
-            this._island.expand(); await delay(300);
+            this._island.expand();
+            for (let j = 0; j < 100 && this._island.state !== 'expanded'; j++) await delay(20);
+            assert(this._island.state === 'expanded', 'Date subscription check did not finish expanding');
             assert(!pill._dateClock && !dates.tip.visible, 'Expanded notch retained dates subscription/tooltip');
-            this._island.collapse(); await delay(300);
+            this._island.collapse();
+            for (let j = 0; j < 100 && this._island.state !== 'collapsed'; j++) await delay(20);
+            assert(this._island.state === 'collapsed', 'Date subscription check did not finish collapsing');
             assert(pill._dateClock === clock, 'Dates did not resume after collapsing');
         }
         this._island.actor.hide(); await delay(100);

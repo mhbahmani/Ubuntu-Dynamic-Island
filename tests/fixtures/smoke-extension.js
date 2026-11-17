@@ -620,8 +620,14 @@ export default class Smoke extends UbuntuIsland {
             const right = actor => actor.get_transformed_position()[0] + actor.get_transformed_size()[0];
             const bottom = actor => actor.get_transformed_position()[1] + actor.get_transformed_size()[1];
             assert(right(quick.send) <= right(card.actor) && quick.prompt.width > 30 * scale, 'Narrow enlarged-text composer overflowed');
-            assert(bottom(quick.error) <= bottom(this._island.actor) && bottom(quick.target) <= bottom(this._island.actor),
-                'Compact error or destination hint is clipped at enlarged text');
+            // Text scaling queues a relayout after style propagation. Allow
+            // the software-rendered session to allocate it before measuring.
+            for (let i = 0; i < 100 && Math.max(bottom(quick.error), bottom(quick.target)) > bottom(this._island.actor) + 1; i++) await delay(20);
+            const islandBottom = bottom(this._island.actor);
+            const errorBottom = bottom(quick.error), targetBottom = bottom(quick.target);
+            // Transformed actor bounds can differ by a fractional pixel.
+            assert(Math.max(errorBottom, targetBottom) <= islandBottom + 1,
+                `Compact error or destination hint is clipped at enlarged text (error=${errorBottom}, target=${targetBottom}, island=${islandBottom})`);
             await this._capture('quick-ask-error-large-text');
             interfaceSettings.set_double('text-scaling-factor', textScale);
             settings.set_int('expanded-width', width);
@@ -793,9 +799,13 @@ export default class Smoke extends UbuntuIsland {
         await delay(950);
         assert(titleTransition.is_playing(), 'Scrolling stopped after its first round trip');
         titleTransition.duration = titleDuration;
-        this._island.expand(); await delay(300);
+        this._island.expand();
+        for (let i = 0; i < 100 && this._island.state !== 'expanded'; i++) await delay(20);
+        assert(this._island.state === 'expanded', 'Title scroll check did not finish expanding');
         assert(this._pill._title.translation_x === 0 && !this._pill._mediaTitle.animationKey, 'Expanded notch kept scrolling');
-        this._island.collapse(); await delay(300);
+        this._island.collapse();
+        for (let i = 0; i < 100 && this._island.state !== 'collapsed'; i++) await delay(20);
+        assert(this._island.state === 'collapsed', 'Title scroll check did not finish collapsing');
         assert(Boolean(this._pill._mediaTitle.animationKey), 'Collapsed title did not resume');
         assert(!this._island._backdrop.visible, 'Collapsed notch kept the backdrop blur running');
         this._island.actor.hide();
@@ -851,6 +861,9 @@ export default class Smoke extends UbuntuIsland {
         }
         await this._checkTabSlider();
         let weatherRequests = 0;
+        // All requests below use the fixture response, including when the CI
+        // container has no network interface with an internet route.
+        this._weather.controller.online = () => true;
         this._weather.http.get = async () => {
             weatherRequests++;
             return {current: {temperature_2m: 18, apparent_temperature: 16,
@@ -1322,14 +1335,17 @@ export default class Smoke extends UbuntuIsland {
         const previousPage = this._card._page;
         this._card.selectPage('agents');
         const agentView = this._card._agentsView;
+        const waitForDraftFocus = async () => {
+            for (let i = 0; i < 100 && !agentView.prompt.clutter_text.has_key_focus(); i++) await delay(20);
+        };
         agentView.folder.text = '/tmp'; agentView.prompt.text = 'A preserved draft';
         agentView.show('ask');
-        await delay(150);
+        await waitForDraftFocus();
         assert(agentView.prompt.clutter_text.has_key_focus(), 'Quick Ask did not focus the entry under a real modal grab');
         this._island._onCapturedEvent(null, {type: () => Clutter.EventType.KEY_PRESS, get_key_symbol: () => Clutter.KEY_Escape});
         assert(agentView.mode === 'list' && this._island.expanded && agentView.prompt.text === 'A preserved draft', 'Nested Escape discarded the draft or closed the island');
         agentView.show('ask');
-        await delay(150);
+        await waitForDraftFocus();
         assert(agentView.prompt.clutter_text.has_key_focus(), 'Reopening a draft lost focus');
         const composerHeight = this._island.actor.height;
         agentView.providerButton.emit('clicked', 1);
@@ -1392,6 +1408,7 @@ export default class Smoke extends UbuntuIsland {
         await this._capture('commute-map');
         this._openPreferencesLive();
         assert(this._prefsWindow, 'Raising preferences lost its close watcher');
+        process.send_signal(10); // SIGUSR1: let the child finish its checks and close.
         await new Promise((resolve, reject) => process.wait_check_async(null, (child, result) => {
             try { child.wait_check_finish(result); resolve(); } catch (error) { reject(error); }
         }));

@@ -1,0 +1,95 @@
+name: GNOME compatibility
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 5 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gnome-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: Shell ${{ matrix.shell }} (${{ matrix.label }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    continue-on-error: ${{ matrix.experimental }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shell: 46
+            image: ubuntu:24.04
+            label: supported
+            experimental: false
+          - shell: 48
+            image: debian:13-slim
+            label: experimental
+            experimental: true
+          - shell: 50
+            image: ubuntu:26.04
+            label: experimental
+            experimental: true
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Build matching GNOME environment
+        env:
+          BASE_IMAGE: ${{ matrix.image }}
+        run: |
+          docker build --pull --build-arg BASE_IMAGE="$BASE_IMAGE" \
+            --build-arg TEST_UID="$(id -u)" \
+            -t island-ci -f scripts/ci/Dockerfile scripts/ci
+      - name: Test in isolated container
+        env:
+          SHELL_MAJOR: ${{ matrix.shell }}
+          EXPERIMENTAL: ${{ matrix.experimental }}
+        run: |
+          mkdir -p dist/ci
+          args=()
+          if [ "$EXPERIMENTAL" = true ]; then args+=(--experimental); fi
+          docker run --rm --init --network none --cap-drop ALL \
+            --security-opt no-new-privileges --shm-size 256m \
+            --memory 3g --pids-limit 1024 \
+            --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$PWD,target=/source,readonly" \
+            --mount "type=bind,source=$PWD/dist/ci,target=/artifacts" \
+            island-ci --shell-major "$SHELL_MAJOR" --artifacts /artifacts "${args[@]}"
+      - name: Publish check summary
+        if: always()
+        env:
+          SHELL_MAJOR: ${{ matrix.shell }}
+          LABEL: ${{ matrix.label }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          report = pathlib.Path('dist/ci/summary.json')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+              output.write(f"## Shell {os.environ['SHELL_MAJOR']} ({os.environ['LABEL']})\n\n")
+              if not report.exists():
+                  output.write('Environment setup or test execution failed before producing a report. See job logs.\n')
+              else:
+                  data = json.loads(report.read_text())
+                  output.write(f"Installed: {data.get('actual_shell', 'unavailable')}\n\n")
+                  if 'error' in data:
+                      output.write(f"Setup error: {data['error']}\n\n")
+                  output.write('| Check | Result | Seconds |\n|---|---|---|\n')
+                  for check in data['checks']:
+                      status = 'PASS' if check['exit_code'] == 0 else 'FAIL'
+                      output.write(f"| {check['name']} | {status} | {check['seconds']} |\n")
+                  output.write('\nExperimental results do not change the supported versions in metadata.json.\n')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: gnome-${{ matrix.shell }}-results
+          path: dist/ci/
+          if-no-files-found: warn
+          retention-days: 14

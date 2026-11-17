@@ -9,6 +9,9 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
+
+from shell_command import shell_command
 
 
 def preview_size(value):
@@ -141,12 +144,9 @@ def main():
                        ISLAND_PREVIEW_CHECK_INPUT='1' if args.check_input else '0',
                        ISLAND_PREVIEW_IGNORE_POWER='1' if args.ignore_power_saver else '0', ISLAND_PREVIEW_SCENE=args.scene, ISLAND_PREVIEW_MOTION=args.motion or '',
                        ISLAND_PREVIEW_EDIT_ROUTE='1' if args.edit_route else '0', ISLAND_PREVIEW_TAB=args.tab, ISLAND_PREVIEW_LIVE='1' if args.live else '0')
-    command = ['dbus-run-session', '--', 'gnome-shell',
-               '--headless' if args.headless else '--nested', '--wayland', '--no-x11',
-               '--wayland-display=island-preview', '--mode=island-preview']
-    if args.headless:
-        command.append(f'--virtual-monitor={size}')
-    else:
+    command = shell_command('island-preview', 'island-preview', headless=args.headless, size=size,
+                            test_animations=args.headless and (args.check_motion or args.check_calendar))
+    if not args.headless:
         # GNOME 46's nested backend otherwise selects its 800x600 default mode.
         # This only changes the private child compositor, never the host display.
         environment['MUTTER_DEBUG_DUMMY_MODE_SPECS'] = size
@@ -158,7 +158,27 @@ def main():
         process = subprocess.Popen(command, env=environment, stdout=log, stderr=subprocess.STDOUT,
                                    start_new_session=True)
         try:
-            code = process.wait(timeout=args.duration or (12 if args.headless else None))
+            check_names = [key.removeprefix('check_').upper() for key, value in vars(args).items()
+                           if key.startswith('check_') and value]
+            duration = args.duration or (12 if args.headless else None)
+            if check_names and args.headless:
+                # Check fixtures report completion without exiting Shell. Keep
+                # two seconds for trailing errors, as smoke.py does, then stop.
+                # --duration remains the upper bound for hung/incomplete checks.
+                deadline = time.monotonic() + duration
+                finished_at = None
+                while process.poll() is None:
+                    now = time.monotonic()
+                    output = (root / 'runtime.log').read_text(errors='replace')
+                    if finished_at is None and (any(f'[Island Preview] {name} FAIL' in output for name in check_names)
+                            or all(f'[Island Preview] {name} PASS' in output for name in check_names)):
+                        finished_at = now
+                    if now >= deadline or (finished_at is not None and now - finished_at >= 2):
+                        raise subprocess.TimeoutExpired(command, duration)
+                    time.sleep(0.2)
+                code = process.returncode
+            else:
+                code = process.wait(timeout=duration)
         except (KeyboardInterrupt, subprocess.TimeoutExpired):
             import signal
             os.killpg(process.pid, signal.SIGTERM)
