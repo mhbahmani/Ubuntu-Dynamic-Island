@@ -30,7 +30,7 @@
     "upgrade": "remotion upgrade",
     "lint": "eslint src && tsc",
     "capture": "python3 capture.py && python3 prepare.py",
-    "render": "remotion render UbuntuIsland ../../screenshots/demo.mp4 --codec=h264 --crf=20 --pixel-format=yuv420p --concurrency=2"
+    "render": "remotion render UbuntuIsland out/demo.mp4 --codec=h264 --crf=20 --pixel-format=yuv420p --concurrency=2"
   },
   "allowScripts": {
     "esbuild": false

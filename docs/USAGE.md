@@ -5,10 +5,6 @@
 Detailed controls, appearance options and notch behavior. For installation, start
 with the [README](../README.md#installation-recommended).
 
-Example views: [Media](../screenshots/expanded.png), [System](../screenshots/system.png),
-[Sound](../screenshots/sound.png), [Bluetooth](../screenshots/bluetooth.png),
-[narrow layout](../screenshots/narrow.png), and [playing notch](../screenshots/playing-pill.png).
-
 ## What's included
 
 - **Calendar (prototype, opt-in)**: choose Jalali (شمسی), Gregorian (میلادی), or

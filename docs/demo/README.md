@@ -4,9 +4,7 @@ A 58-second, 1920×1080, 60fps tour of the real GNOME Shell UI. Remotion
 adds the feature captions; the interface is recorded from the bundled preview
 fixtures, including native expansion and tab transitions.
 
-The published artifacts are [demo.mp4](../../screenshots/demo.mp4) and
-[demo-poster.jpg](../../screenshots/demo-poster.jpg). The repository README uses
-a GitHub attachment URL to play the video inline.
+The [project README](../../README.md) plays the published tour inline.
 After uploading a new render, replace the attachment URL in the repository README.
 
 ## Recording
@@ -57,9 +55,4 @@ Remotion Studio (`npm run dev`). The render uses two workers to limit load on th
 desktop. The final MP4 has no audio track and uses browser-compatible H.264/yuv420p.
 Noto Sans is bundled for consistent typography; its license is in `public/fonts`.
 
-To refresh the README poster after rendering:
-
-```sh
-ffmpeg -y -ss 11.2 -i ../../screenshots/demo.mp4 -frames:v 1 \
-  -vf scale=1280:-1 -q:v 2 ../../screenshots/demo-poster.jpg
-```
+The render command writes the video to `out/demo.mp4`.

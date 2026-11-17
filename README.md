@@ -58,6 +58,6 @@ gnome-extensions prefs ubuntu-island@mhbahmani.github.io
 - [Usage and settings](docs/USAGE.md)
 - [Optional modules: setup, privacy and limitations](docs/MODULES.md)
 - [Preview, development and hardware checks](docs/DEVELOPMENT.md)
-- [Editable video project](scripts/readme-video/README.md)
+- [Editable video project](docs/demo/README.md)
 
 Design inspired by [Ricelin](https://github.com/Gakuseei/Ricelin).
