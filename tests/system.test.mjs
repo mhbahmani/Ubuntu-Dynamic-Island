@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import * as proc from '../services/proc.js';
+import * as proc from '../extension/services/proc.js';
 
 const flush = () => new Promise(resolve => setImmediate(resolve));
 function harness() {
@@ -18,7 +18,7 @@ function harness() {
     const failures = new Set(), stalls = new Set();
     let id = 0, now = 1;
     const timer = (type, callback) => { timers.set(++id, {type, callback}); return id; };
-    const source = readFileSync(new URL('../services/system.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../extension/services/system.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
     const Monitor = vm.runInNewContext(`${source}\nSystemMonitor`, {...proc, TextDecoder, console,
         Gio: {

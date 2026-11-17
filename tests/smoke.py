@@ -40,14 +40,8 @@ def main():
     source = Path(__file__).resolve().parents[1]
     root = Path(tempfile.mkdtemp(prefix="ubuntu-island-smoke-"))
     extension = root / "share/gnome-shell/extensions/ubuntu-island@mhbahmani.github.io"
-    extension.mkdir(parents=True)
-    for path in source.glob("*.js"):
-        shutil.copy2(path, extension / path.name)
-    for name in ("ui", "preferences", "services", "schemas", "assets", "helpers"):
-        shutil.copytree(source / name, extension / name)
-    for name in ("metadata.json", "stylesheet.css"):
-        shutil.copy2(source / name, extension / name)
-    shutil.copytree(source / 'assets/fonts', root / 'share/fonts/ubuntu-island', dirs_exist_ok=True)
+    shutil.copytree(source / 'extension', extension)
+    shutil.copytree(extension / 'assets/fonts', root / 'share/fonts/ubuntu-island', dirs_exist_ok=True)
     (extension / "tests").mkdir()
     shutil.copy2(source / "tests/fixtures/preview-window.mjs", extension / "tests/preview-window.mjs")
     (extension / "extension.js").rename(extension / "implementation.js")

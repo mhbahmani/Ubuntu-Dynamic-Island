@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {validateRoutingKey} from '../services/commute-validation.js';
+import {validateRoutingKey} from '../extension/services/commute-validation.js';
 
 test('validation uses one public test route with correct provider credentials', async () => {
     for (const provider of ['mapbox', 'neshan', 'ors', 'graphhopper']) {

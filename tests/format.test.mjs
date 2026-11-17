@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {hashUri, formatTime, clampFraction, estimatePositionSec, compactRate} from '../services/format.js';
+import {hashUri, formatTime, clampFraction, estimatePositionSec, compactRate} from '../extension/services/format.js';
 
 test('compact binary rates stay within four characters across rounding boundaries', () => {
     for (const [bytes, expected] of [

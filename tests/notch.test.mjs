@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {notchOrder, notchTime, NOTCH_ITEMS, connectionIndicator, migrateOfflineMode, cpuDotVisible, textScale} from '../services/notch-model.js';
+import {notchOrder, notchTime, NOTCH_ITEMS, connectionIndicator, migrateOfflineMode, cpuDotVisible, textScale} from '../extension/services/notch-model.js';
 
 test('notch time handles midnight, noon, 24-hour time and optional seconds', () => {
     const date = hour => new Date(2026,10,12,hour,4,9);
@@ -69,7 +69,7 @@ test('notch order preserves choices and repairs missing or duplicated items', ()
 });
 
 test('configurable chevrons retain the requested angle within safe bounds', async () => {
-    const {arrowSvg, arrowAngle} = await import('../services/notch-model.js');
+    const {arrowSvg, arrowAngle} = await import('../extension/services/notch-model.js');
     assert.equal(arrowAngle(0), 40); assert.equal(arrowAngle(180), 120); assert.equal(arrowAngle(undefined), 80);
     for (const angle of [40, 60, 80, 95, 120]) {
         const svg = arrowSvg('chevron', 'down', angle);
@@ -80,7 +80,7 @@ test('configurable chevrons retain the requested angle within safe bounds', asyn
     }
 });
 test('old compact arrows migrate without overwriting an explicit angle', async () => {
-    const {migrateArrowStyle} = await import('../services/notch-model.js');
+    const {migrateArrowStyle} = await import('../extension/services/notch-model.js');
     for (const explicit of [null, 92]) {
         const state = {style: 'compact', angle: explicit ?? 80};
         migrateArrowStyle({get_string: () => state.style, get_user_value: () => explicit,
@@ -90,7 +90,7 @@ test('old compact arrows migrate without overwriting an explicit angle', async (
 });
 
 test('Commute notch distinguishes baseline, traffic, stale and missing estimates', async () => {
-    const {commuteIndicator} = await import('../services/notch-model.js');
+    const {commuteIndicator} = await import('../extension/services/notch-model.js');
     const route = {name: 'Home'}, data = {seconds: 1080, traffic: false};
     assert.equal(commuteIndicator({}).visible, false);
     assert.equal(commuteIndicator({route, data}).text, '18m');
@@ -102,7 +102,7 @@ test('Commute notch distinguishes baseline, traffic, stale and missing estimates
 });
 
 test('media title modes preserve Unicode and bound fixed character limits', async () => {
-    const {titleText, titleLimit} = await import('../services/notch-model.js');
+    const {titleText, titleLimit} = await import('../extension/services/notch-model.js');
     assert.equal(titleLimit(1000), 40); assert.equal(titleLimit(1), 5);
     assert.equal(titleText('abcdefghij', 'fixed', 5), 'abcde…');
     assert.equal(titleText('abc', 'fixed', 5), 'abc');

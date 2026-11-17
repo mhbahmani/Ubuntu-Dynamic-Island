@@ -7,12 +7,14 @@
   task briefs can lag the working tree; they are not evidence that a feature is
   missing or a historical failure still occurs. Current user instructions take
   precedence over historical designs and roadmap proposals.
-- Target GNOME Shell 46 on Ubuntu Wayland. Root entry points use native St/Clutter;
+- Target GNOME Shell 46 on Ubuntu Wayland. Entry points under `extension/` use native St/Clutter;
   preferences use GTK/Adwaita. `metadata.json` declares Shell 46 support only.
 - Keep changes scoped to the request. Do not implement future roadmap features
   without authorization. Never use sudo or weaken sandbox/privacy protections.
 
 ## Implementation map
+
+Runtime paths in this guide are relative to `extension/`. Run development commands from the repository root.
 
 - `extension.js` owns service construction, shared snapshots, visibility routing,
   settings handlers and teardown. `ui/island.js` owns the surface, modal input and
@@ -122,7 +124,7 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
 - Palettes live in `services/themes.js`: each theme is a dark tint gradient and
   one accent; all other tokens are derived. Append themes to preserve preference
   ordering; saved `color-theme` values are string IDs, so keep existing IDs stable.
-  Add the schema choice, then run `node scripts/theme-css.mjs` to regenerate the
+  Add the schema choice, then run `node scripts/generate/theme-css.mjs` to regenerate the
   stylesheet block. Tests enforce contrast (text ≥ 7:1, secondary/accent ≥ 4.5:1,
   button text ≥ 4.5:1) and that the generated CSS is current. Never hand-edit it.
 - Charts use the existing metrics sampler and four 60-sample typed buffers.
@@ -236,7 +238,7 @@ features. This extension runs inside GNOME Shell: blocking it blocks the desktop
 - Whenever adding, renaming, moving, or removing a runtime module or asset,
   update `scripts/install.sh` and `scripts/build.sh` as needed so both deliver the
   complete runtime.
-- Keep only GNOME entry points (`extension.js` and `prefs.js`) in the root. Shell
+- Keep only GNOME entry points (`extension.js` and `prefs.js`) in the extension root. Shell
   components belong in `ui/`, GTK preferences in `preferences/`, service/model
   code in `services/`, subprocess helpers in `helpers/`, and assets in `assets/`.
   Both scripts copy those directories recursively. Development/test helpers
@@ -258,7 +260,7 @@ When diagnosing the installed extension, first compare the relevant installed
 files with the working tree; checking only `extension.js` can miss stale modules:
 
 ```sh
-diff -q ~/.local/share/gnome-shell/extensions/ubuntu-island@mhbahmani.github.io/extension.js extension.js
+diff -q ~/.local/share/gnome-shell/extensions/ubuntu-island@mhbahmani.github.io/extension.js extension/extension.js
 cat ~/.local/share/gnome-shell/extensions/ubuntu-island@mhbahmani.github.io/metadata.json
 ```
 

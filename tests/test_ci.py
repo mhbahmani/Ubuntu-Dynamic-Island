@@ -59,19 +59,19 @@ class CompatibilityHarness(unittest.TestCase):
             root = Path(directory)
             source = root / 'original'
             source.mkdir()
-            for name in ('extension.js', 'prefs.js', 'stylesheet.css', 'Makefile'):
+            for name in ('Makefile', 'package.json'):
                 (source / name).write_text('')
-            for name in ('ui', 'preferences', 'services', 'helpers', 'assets', 'schemas', 'scripts', 'tests'):
+            for name in ('extension', 'scripts', 'tests'):
                 (source / name).mkdir()
             original = '{"shell-version": ["46"]}\n'
-            (source / 'metadata.json').write_text(original)
+            (source / 'extension/metadata.json').write_text(original)
             with self.assertRaisesRegex(ValueError, 'not declared supported'):
                 runner.prepare_source(source, root / 'rejected', 48, False)
             runner.prepare_source(source, root / 'probe', 48, True)
-            self.assertEqual(json.loads((root / 'probe/metadata.json').read_text())['shell-version'], ['46', '48'])
-            self.assertEqual((source / 'metadata.json').read_text(), original)
+            self.assertEqual(json.loads((root / 'probe/extension/metadata.json').read_text())['shell-version'], ['46', '48'])
+            self.assertEqual((source / 'extension/metadata.json').read_text(), original)
             runner.prepare_source(source, root / 'baseline', 46, False)
-            self.assertEqual((root / 'baseline/metadata.json').read_text(), original)
+            self.assertEqual((root / 'baseline/extension/metadata.json').read_text(), original)
 
     def test_failing_and_timed_out_checks_keep_logs_and_failure_status(self):
         with tempfile.TemporaryDirectory() as directory, redirect_stdout(StringIO()):

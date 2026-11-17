@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {containsPoint} from '../services/presentation.js';
+import {containsPoint} from '../extension/services/presentation.js';
 
 const ANIMATED = ['width', 'height', 'translation_y', 'scale_x', 'scale_y', 'opacity', 'x', 'y'];
 
@@ -62,7 +62,7 @@ function harness(animation = 220, backdrop = null, panel = null) {
         pushModal: () => { const grab = {}; modal.add(grab); return grab; },
         popModal: grab => { assert.equal(modal.delete(grab), true); },
     };
-    const source = readFileSync(new URL('../ui/island.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../extension/ui/island.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replaceAll('export ', '');
     const Surface = vm.runInNewContext(`${source}\nIslandSurface`, {
         St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1, TAB_BACKWARD: -1}},

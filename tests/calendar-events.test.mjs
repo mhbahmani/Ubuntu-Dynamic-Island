@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {civilDay, numericDate} from '../services/calendar-model.js';
+import {civilDay, numericDate} from '../extension/services/calendar-model.js';
 import {EVENT_LIMITS, normalizeOccurrences, validateMeetUri, localDayRange,
-    eventQueryRanges, eventsForDay, upcomingEvents, calendarColor, isGoogleHolidayCalendar, visibleCalendarEvents} from '../services/calendar-events-model.js';
+    eventQueryRanges, eventsForDay, upcomingEvents, calendarColor, isGoogleHolidayCalendar, visibleCalendarEvents} from '../extension/services/calendar-events-model.js';
 
 test('holiday sources use Google identifiers rather than names or event titles', () => {
     const path = id => `events::https://apidata.googleusercontent.com/caldav/v2/${encodeURIComponent(id)}/events/`;

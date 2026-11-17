@@ -18,6 +18,10 @@ EOF
 
 main() {
     set -eu
+    if [ "${1:-}" = --local ] && [ "$#" -eq 2 ]; then
+        sh "$2/scripts/install.sh"
+        return
+    fi
     repository='mhbahmani/Ubuntu-Dynamic-Island'
     revision=''
     while [ "$#" -gt 0 ]; do
@@ -69,14 +73,20 @@ main() {
         --no-same-owner --no-same-permissions; then
         fail 'Could not extract the download. Nothing was installed.'
     fi
-    for file in extension.js prefs.js metadata.json stylesheet.css scripts/install.sh scripts/install-dependencies.sh; do
-        [ -f "$download_dir/source/$file" ] || fail "Incomplete download: missing $file. Nothing was installed."
+    checkout="$download_dir/source"
+    runtime="$checkout/extension"
+    [ -d "$runtime" ] || runtime="$checkout"
+    for file in scripts/install.sh scripts/install-dependencies.sh; do
+        [ -f "$checkout/$file" ] || fail "Incomplete download: missing $file. Nothing was installed."
+    done
+    for file in extension.js prefs.js metadata.json stylesheet.css; do
+        [ -f "$runtime/$file" ] || fail "Incomplete download: missing $file. Nothing was installed."
     done
     for directory in ui preferences services helpers assets schemas; do
-        [ -d "$download_dir/source/$directory" ] || fail "Incomplete download: missing $directory. Nothing was installed."
+        [ -d "$runtime/$directory" ] || fail "Incomplete download: missing $directory. Nothing was installed."
     done
     grep -Eq '"uuid"[[:space:]]*:[[:space:]]*"ubuntu-island@mhbahmani.github.io"' \
-        "$download_dir/source/metadata.json" || fail 'The download is not Ubuntu Island. Nothing was installed.'
+        "$runtime/metadata.json" || fail 'The download is not Ubuntu Island. Nothing was installed.'
     sh "$download_dir/source/scripts/install.sh"
 }
 

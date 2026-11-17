@@ -1,7 +1,7 @@
 import Gio from 'gi://Gio';
 import GioUnix from 'gi://GioUnix';
 import GLib from 'gi://GLib';
-import {readLines,write,encode} from '../../helpers/calendar/io.js';
+import {readLines,write,encode} from '../../extension/helpers/calendar/io.js';
 const loop = new GLib.MainLoop(null,false), cancel = new Gio.Cancellable();
 const input = new GioUnix.InputStream({fd:0,close_fd:false});
 const output = new GioUnix.OutputStream({fd:1,close_fd:false});

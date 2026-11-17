@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {checkUrl, classifyHost, isPrivateIpv4, isPrivateIpv6} from '../services/urlguard.js';
+import {checkUrl, classifyHost, isPrivateIpv4, isPrivateIpv6} from '../extension/services/urlguard.js';
 
 test('private IPv4 ranges are refused', () => {
     for (const host of ['127.0.0.1', '10.1.2.3', '192.168.1.1', '172.16.0.1', '172.31.255.255',

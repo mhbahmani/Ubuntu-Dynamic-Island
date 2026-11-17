@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {routesFrom, point, intervalMs, providerPriority, providerOrder, requestFor, normalizeRoute, CommuteController, routeLink} from '../services/commute-model.js';
+import {routesFrom, point, intervalMs, providerPriority, providerOrder, requestFor, normalizeRoute, CommuteController, routeLink} from '../extension/services/commute-model.js';
 const route = {id: 'home', name: 'Home', originMode: 'fixed', origin: {latitude: 35.72, longitude: 51.33}, destination: {latitude: 35.68, longitude: 51.39}};
 const response = {code: 'Ok', routes: [{duration: 1920, distance: 18400}]};
 test('route input validation rejects malformed endpoints and limits saved routes', () => {
@@ -91,7 +91,7 @@ test('errors keep cached results stale and respect the refresh interval', async 
 });
 
 test('unnamed routes derive their title from endpoints, including reversal', async () => {
-    const {routeTitle} = await import('../services/commute-model.js');
+    const {routeTitle} = await import('../extension/services/commute-model.js');
     const unnamed = routesFrom([{...route, name: '   ', originName: 'Work', destinationName: 'Home'}])[0];
     assert.equal(unnamed.name, '');
     assert.equal(routeTitle(unnamed), 'Work → Home');
@@ -99,7 +99,7 @@ test('unnamed routes derive their title from endpoints, including reversal', asy
     assert.equal(routeTitle({...unnamed, name: 'Custom'}), 'Custom');
 });
 test('location failure never silently sends the saved pin, explicit recovery works', async () => {
-    const {useSavedStart} = await import('../services/commute-model.js');
+    const {useSavedStart} = await import('../extension/services/commute-model.js');
     let calls = 0; const h = harness(async () => { calls++; return response; });
     h.controller.locate = async () => { throw Object.assign(new Error('Location Services are off.'), {code: 'location-disabled'}); };
     const moving = {...route, originMode: 'current'};

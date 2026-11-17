@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {selectPlayer, mediaTitle} from '../services/presentation.js';
-import {estimatePositionSec, formatTime, clampFraction} from '../services/format.js';
+import {selectPlayer, mediaTitle} from '../extension/services/presentation.js';
+import {estimatePositionSec, formatTime, clampFraction} from '../extension/services/format.js';
 
 // Evaluate the real service classes with GI boundaries replaced by fakes.
 // No Shell session, D-Bus changes, or developer-machine hardware is required.
 function service(file, name, dependencies) {
-    const source = readFileSync(new URL(`../services/${file}.js`, import.meta.url), 'utf8')
+    const source = readFileSync(new URL(`../extension/services/${file}.js`, import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
     return vm.runInNewContext(`${source}\n${name}`, {...dependencies, console,
         Gio: {DBusCallFlags: {NONE: 0}, Cancellable: class {
@@ -49,7 +49,7 @@ test('media position freezes on pause, resumes without jumping, and ignores idle
 });
 
 test('media updates render seek, pause, resume and new tracks without a zero frame', () => {
-    const cardUrl = new URL('../ui/card.js', import.meta.url);
+    const cardUrl = new URL('../extension/ui/card.js', import.meta.url);
     const source = readFileSync(cardUrl, 'utf8')
         .replaceAll('import.meta.url', JSON.stringify(cardUrl.href))
         .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');

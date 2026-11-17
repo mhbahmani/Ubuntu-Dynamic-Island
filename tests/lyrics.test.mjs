@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {parseLyrics, lyricsKey, lyricsUrl} from '../services/lyrics-model.js';
-import {roundedCover} from '../services/artwork-model.js';
+import {parseLyrics, lyricsKey, lyricsUrl} from '../extension/services/lyrics-model.js';
+import {roundedCover} from '../extension/services/artwork-model.js';
 
-const source = readFileSync(new URL('../services/lyrics.js', import.meta.url), 'utf8')
+const source = readFileSync(new URL('../extension/services/lyrics.js', import.meta.url), 'utf8')
     .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
 const Lyrics = vm.runInNewContext(`${source}\nLyricsService`, {parseLyrics, lyricsKey, lyricsUrl});
 const song = {title: 'A & B', artist: 'Singer', album: 'Album', lengthSec: 180};

@@ -7,7 +7,7 @@ import {join,resolve} from 'node:path';
 import net from 'node:net';
 import {once} from 'node:events';
 import {pathToFileURL} from 'node:url';
-import {openCodePlugin} from '../services/agents-setup-model.js';
+import {openCodePlugin} from '../extension/services/agents-setup-model.js';
 
 const root=resolve(import.meta.dirname,'..');
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
@@ -43,7 +43,7 @@ test('real GJS broker and relay: status, privacy, bounds, clear and shutdown',as
     const temp=mkdtempSync(join(tmpdir(),'island-agents-'));
     const env={...process.env,XDG_RUNTIME_DIR:temp,UBUNTU_ISLAND_AGENT_SOCKET:join(temp,'bridge','events.sock'),
         TERMINATOR_DBUS_NAME:'net.tenshu.Terminator2',TERMINATOR_UUID:'urn:uuid:11111111-1111-1111-1111-111111111111'};
-    const child=spawn('gjs',['-m',join(root,'helpers/agents/bridge.js')],{env});
+    const child=spawn('gjs',['-m',join(root,'extension/helpers/agents/bridge.js')],{env});
     let output='',errors='';const snapshots=[];
     child.stdout.on('data',bytes=>{output+=bytes;let end;while((end=output.indexOf('\n'))>=0){snapshots.push(JSON.parse(output.slice(0,end)));output=output.slice(end+1);}});
     child.stderr.on('data',b=>{errors+=b;});
@@ -51,7 +51,7 @@ test('real GJS broker and relay: status, privacy, bounds, clear and shutdown',as
         await until(()=>snapshots.length||child.exitCode!==null);
         assert.equal(child.exitCode,null,errors);assert.equal(snapshots.at(-1).connected,true);
         assert.equal(statSync(env.UBUNTU_ISLAND_AGENT_SOCKET).mode&0o777,0o600);
-        const relay=spawn('gjs',['-m',join(root,'helpers/agents/relay.js'),'claude'],{env});
+        const relay=spawn('gjs',['-m',join(root,'extension/helpers/agents/relay.js'),'claude'],{env});
         let reply='';relay.stdout.on('data',b=>{reply+=b;});
         relay.stdin.end(JSON.stringify({hook_event_name:'UserPromptSubmit',session_id:'test',cwd:'/private/demo',prompt:'SENSITIVE-PROMPT'}));
         assert.equal((await once(relay,'exit'))[0],0);assert.equal(reply,'');
@@ -89,7 +89,7 @@ test('real GJS broker and relay: status, privacy, bounds, clear and shutdown',as
 test('real setup preserves settings, backup, repeated installs and removal',()=>{
     const temp=mkdtempSync(join(tmpdir(),'island-agent-setup-'));
     const env={...process.env,XDG_RUNTIME_DIR:temp};
-    const run=(action,provider,dir,major='1')=>JSON.parse(execFileSync('gjs',['-m',join(root,'helpers/agents/setup.js'),action,provider,dir,major],{env,encoding:'utf8'}));
+    const run=(action,provider,dir,major='1')=>JSON.parse(execFileSync('gjs',['-m',join(root,'extension/helpers/agents/setup.js'),action,provider,dir,major],{env,encoding:'utf8'}));
     try {
         for(const provider of ['claude','codex']) {
             const dir=join(temp,provider);mkdirSync(dir);
@@ -162,7 +162,7 @@ test('generated OpenCode V1 plugin forwards lifecycle metadata without content',
 test('relay failure without a broker exits promptly without a decision',()=>{
     const temp=mkdtempSync(join(tmpdir(),'island-agent-off-'));
     try {
-        const result=execFileSync('gjs',['-m',join(root,'helpers/agents/relay.js'),'codex'],{
+        const result=execFileSync('gjs',['-m',join(root,'extension/helpers/agents/relay.js'),'codex'],{
             env:{...process.env,XDG_RUNTIME_DIR:temp,UBUNTU_ISLAND_AGENT_SOCKET:join(temp,'absent.sock')},
             input:JSON.stringify({hook_event_name:'PermissionRequest',session_id:'s',tool_name:'Bash'}),timeout:2000,encoding:'utf8'});
         assert.equal(result,'');
@@ -223,7 +223,7 @@ else:
         const env={...process.env,UBUNTU_ISLAND_AGENT_SOCKET:path,CLAUDE_CONFIG_DIR:join(temp,'profile'),
             CLAUDE_CODE_SESSION_ID:'parent',CLAUDE_CODE_HOST_SESSION_ID:'WRONG-HOST'};
         const run=async (name, values=env) => {
-            const process=spawn('python3',[script,name,join(root,'helpers/agents/relay.js')],{env:values});
+            const process=spawn('python3',[script,name,join(root,'extension/helpers/agents/relay.js')],{env:values});
             let errors=''; process.stderr.on('data',b=>errors+=b);
             assert.equal((await once(process,'exit'))[0],0,errors);
         };

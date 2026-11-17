@@ -5,7 +5,7 @@
 node_modules/
 *.zip
 dist/
-schemas/gschemas.compiled
+extension/schemas/gschemas.compiled
 
 __pycache__/
 *.py[cod]

@@ -1,16 +1,16 @@
-import {CurrentLocation} from '../services/commute-location.js';
+import {CurrentLocation} from '../extension/services/commute-location.js';
 // Run with GSETTINGS_BACKEND=memory and GNOME's helper typelib/library paths.
 // Constructs real GTK controls without presenting a window or touching user settings.
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {routingKeyPreferences} from '../preferences/commute-prefs.js';
+import {routingKeyPreferences} from '../extension/preferences/commute-prefs.js';
 import Adw from 'gi://Adw';
 import Gtk from 'gi://Gtk';
-import {THEMES, THEME_IDS} from '../services/themes.js';
+import {THEMES, THEME_IDS} from '../extension/services/themes.js';
 
 Gio.Resource.load('/usr/share/gnome-shell/org.gnome.Shell.Extensions.src.gresource')._register();
-const {default: Preferences} = await import('../prefs.js');
-const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent();
+const {default: Preferences} = await import('../extension/prefs.js');
+const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().get_child('extension');
 const [, bytes] = root.get_child('metadata.json').load_contents(null);
 const metadata = JSON.parse(new TextDecoder().decode(bytes));
 metadata.path = root.get_path();

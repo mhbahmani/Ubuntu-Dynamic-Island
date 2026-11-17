@@ -1,9 +1,9 @@
 // Run through Node's calendar-events.test.mjs with a separate TZ per process.
 // Fixtures only: does not import EDS or contact the session bus.
 import GLib from 'gi://GLib';
-import {civilDay} from '../services/calendar-model.js';
+import {civilDay} from '../extension/services/calendar-model.js';
 import {localDayRange, eventQueryRanges, normalizeOccurrences, eventsForDay,
-    upcomingEvents, validateMeetUri} from '../services/calendar-events-model.js';
+    upcomingEvents, validateMeetUri} from '../extension/services/calendar-events-model.js';
 
 function check(condition, message) { if (!condition) throw new Error(message); }
 const timezone = GLib.getenv('TZ');

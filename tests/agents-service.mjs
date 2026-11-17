@@ -1,11 +1,11 @@
 // Real GJS client/bridge lifecycle; launched only with an isolated runtime.
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {AgentsService} from '../services/agents.js';
-import {launchAgent, initializeAgentSettings, agentConfigDirectory, agentExecutable, defaultTerminal, agentTerminal} from '../services/agent-launch.js';
-import {runtimePath} from '../helpers/agents/io.js';
+import {AgentsService} from '../extension/services/agents.js';
+import {launchAgent, initializeAgentSettings, agentConfigDirectory, agentExecutable, defaultTerminal, agentTerminal} from '../extension/services/agent-launch.js';
+import {runtimePath} from '../extension/helpers/agents/io.js';
 
-const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().get_path();
+const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().get_child('extension').get_path();
 const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {resolve(); return GLib.SOURCE_REMOVE;}));
 const assert = (condition, message) => {if (!condition) throw new Error(message);};
 async function until(fn) {

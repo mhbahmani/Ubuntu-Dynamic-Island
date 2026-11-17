@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
-import {History} from '../services/history.js';
+import {History} from '../extension/services/history.js';
 
 test('history stays bounded and preserves gaps and chronological order', () => {
     const history = new History(3);
@@ -22,7 +22,7 @@ test('history stays bounded and preserves gaps and chronological order', () => {
 
 test('hidden charts store samples without requesting redraws', () => {
     let redraws = 0, invalidations = 0;
-    const source = readFileSync(new URL('../ui/charts.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../extension/ui/charts.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
     const Chart = vm.runInNewContext(`${source}\nHistoryChart`, {History, invalidateBackdrop: () => invalidations++,
         St: {DrawingArea: class {

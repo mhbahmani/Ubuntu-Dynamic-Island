@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {audioBluetoothAddress, audioWithBatteries} from '../services/audio-model.js';
+import {audioBluetoothAddress, audioWithBatteries} from '../extension/services/audio-model.js';
 
 test('battery identity uses recognized sink addresses, never display names', () => {
     for (const name of ['bluez_output.aa_bb_cc_dd_ee_ff.1', 'bluez_sink.AA_BB_CC_DD_EE_FF.a2dp_sink'])
@@ -36,7 +36,7 @@ test('BlueZ snapshot ordering, battery changes, invalidation and removal update 
         signal_subscribe(...args) { subscriptions.push(args); return subscriptions.length; },
         signal_unsubscribe() {},
     }}};
-    const source = readFileSync(new URL('../services/bluetooth.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../extension/services/bluetooth.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
     const Bluetooth = vm.runInNewContext(`${source}\nBluetoothService`, {Gio, console});
     let state;

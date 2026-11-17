@@ -8,12 +8,15 @@ import {execFileSync} from 'node:child_process';
 // Exercise the actual installer without touching the user's installation.
 test('installer includes every runtime module and preserves the previous install', () => {
     const temporary = mkdtempSync(join(tmpdir(), 'island-install-test-'));
-    const root = resolve(import.meta.dirname, '..');
+    const project = resolve(import.meta.dirname, '..');
+    const root = join(project, 'extension');
     const env = {...process.env, XDG_DATA_HOME: temporary, INSTALL_DEPS: '0'};
     const destination = join(temporary, 'gnome-shell/extensions/ubuntu-island@mhbahmani.github.io');
     try {
-        execFileSync('sh', [join(root, 'scripts/install.sh')], {env});
+        execFileSync('sh', [join(project, 'scripts/install.sh')], {env});
         const modules = runtimeFiles(root);
+        for (const name of ['services/connectivity.js', 'assets/notch/unplug-symbolic.svg'])
+            assert.ok(modules.includes(name), `Missing offline status file: ${name}`);
         verifyRuntime(root, destination, modules);
         assert.ok(existsSync(join(destination, 'schemas/gschemas.compiled')));
         verifyLegacySettings(destination);
@@ -21,7 +24,7 @@ test('installer includes every runtime module and preserves the previous install
         for (const name of ['Vazir-Regular.ttf','Vazir-Medium.ttf','Vazir-Bold.ttf','OFL.txt'])
             assert.deepEqual(readFileSync(join(temporary,'fonts/ubuntu-island-vazir-v30.1.0',name)),
                 readFileSync(join(root,'assets/fonts',name)));
-        execFileSync('sh', [join(root, 'scripts/install.sh')], {env});
+        execFileSync('sh', [join(project, 'scripts/install.sh')], {env});
         const backup = readdirSync(join(temporary, 'gnome-shell/extensions')).find(name => name.includes('.backup.'));
         assert.ok(backup, 'Reinstallation must preserve the old extension');
         const backupDirectory = join(temporary, 'gnome-shell/extensions', backup);
@@ -78,15 +81,14 @@ function verifyLegacySettings(destination) {
 
 test('ZIP preserves the runtime layout and replaces stale archive entries', () => {
     const temporary = mkdtempSync(join(tmpdir(), 'island-build-test-'));
-    const root = resolve(import.meta.dirname, '..');
+    const project = resolve(import.meta.dirname, '..');
+    const root = join(project, 'extension');
     const files = runtimeFiles(root);
     try {
         // Build from a private checkout so the test does not replace release artifacts.
-        for (const name of [...files, 'scripts/build.sh']) {
-            mkdirSync(resolve(temporary, name, '..'), {recursive: true});
-            cpSync(join(root, name), join(temporary, name));
-        }
-        cpSync(join(root, 'schemas'), join(temporary, 'schemas'), {recursive: true});
+        cpSync(root, join(temporary, 'extension'), {recursive: true});
+        mkdirSync(join(temporary, 'scripts'));
+        cpSync(join(project, 'scripts/build.sh'), join(temporary, 'scripts/build.sh'));
         const build = () => execFileSync('sh', [join(temporary, 'scripts/build.sh')], {cwd: tmpdir()});
         build();
         const archive = join(temporary, 'dist', readdirSync(join(temporary, 'dist')).find(name => name.endsWith('.zip')));

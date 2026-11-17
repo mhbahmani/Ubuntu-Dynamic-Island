@@ -1,7 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {CalendarEventsService} from '../services/calendar-events.js';
-import {readLines,encode} from '../helpers/calendar/io.js';
+import {CalendarEventsService} from '../extension/services/calendar-events.js';
+import {readLines,encode} from '../extension/helpers/calendar/io.js';
 const check=(v,m)=>{if(!v) throw Error(m);};
 const delay=ms=>new Promise(resolve=>GLib.timeout_add(GLib.PRIORITY_DEFAULT,ms,()=>{resolve();return GLib.SOURCE_REMOVE;}));
 const root=Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().get_path();

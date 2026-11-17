@@ -16,13 +16,12 @@ import time
 def prepare_source(source, destination, major, experimental):
     # Copy only source needed by tests, never .git, credentials or video captures.
     destination.mkdir()
-    for name in ('extension.js', 'prefs.js', 'metadata.json', 'stylesheet.css', 'Makefile'):
+    for name in ('Makefile', 'package.json'):
         shutil.copy2(source / name, destination / name)
-    for name in ('ui', 'preferences', 'services', 'helpers', 'assets', 'schemas', 'scripts', 'tests'):
+    for name in ('extension', 'scripts', 'tests'):
         shutil.copytree(source / name, destination / name,
-                        ignore=shutil.ignore_patterns('node_modules', '__pycache__', '*.pyc',
-                                                     'gschemas.compiled', 'readme-video'))
-    path = destination / 'metadata.json'
+                        ignore=shutil.ignore_patterns('node_modules', '__pycache__', '*.pyc', 'gschemas.compiled'))
+    path = destination / 'extension/metadata.json'
     metadata = json.loads(path.read_text())
     if str(major) not in metadata['shell-version']:
         if not experimental:

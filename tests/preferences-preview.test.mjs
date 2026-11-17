@@ -15,7 +15,7 @@ function harness(windows = []) {
     const display = new Signals();
     const timers = new Map();
     let next = 0;
-    const source = readFileSync(new URL('../extension.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../extension/extension.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export default class ', 'class ');
     const Extension = vm.runInNewContext(`${source}\nUbuntuIsland`, {
         Extension: class {}, console,

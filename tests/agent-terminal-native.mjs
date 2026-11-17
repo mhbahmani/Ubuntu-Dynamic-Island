@@ -1,7 +1,7 @@
 // Own a fake terminal endpoint on a private session bus. No host windows/accounts.
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {terminalWindowIdentity} from '../services/agent-terminal.js';
+import {terminalWindowIdentity} from '../extension/services/agent-terminal.js';
 
 const check = (value, message) => { if (!value) throw Error(message); };
 const bus = 'net.tenshu.Terminator2';

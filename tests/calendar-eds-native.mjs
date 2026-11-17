@@ -4,10 +4,10 @@ import GLib from 'gi://GLib';
 import EData from 'gi://EDataServer?version=1.2';
 import ECal from 'gi://ECal?version=2.0';
 import ICal from 'gi://ICalGLib?version=3.0';
-import {expandSeries, builtinZone} from '../helpers/calendar/occurrences.js';
-import {CalendarEventsService} from '../services/calendar-events.js';
-import {normalizeOccurrences, eventQueryRanges} from '../services/calendar-events-model.js';
-import {civilDay} from '../services/calendar-model.js';
+import {expandSeries, builtinZone} from '../extension/helpers/calendar/occurrences.js';
+import {CalendarEventsService} from '../extension/services/calendar-events.js';
+import {normalizeOccurrences, eventQueryRanges} from '../extension/services/calendar-events-model.js';
+import {civilDay} from '../extension/services/calendar-model.js';
 
 const check = (value,message) => {if (!value) throw Error(message);};
 check(GLib.getenv('ISLAND_PRIVATE_CALENDAR_TEST') === '1' && GLib.getenv('XDG_DATA_HOME')?.startsWith('/tmp/'), 'Private test environment required');
@@ -64,7 +64,7 @@ async function run() {
         try {resolve(ECal.Client.connect_finish(r));} catch(e) {reject(e);}
     }));
     await call(client,'create_object',[master,ECal.OperationFlags.NONE]);
-    const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().get_path();
+    const root = Gio.File.new_for_uri(import.meta.url).get_parent().get_parent().get_child('extension').get_path();
     let pending;
     service = new CalendarEventsService(root,snapshot => {if (snapshot.status !== 'loading') pending?.(snapshot);});
     const next = request => new Promise(resolve => {pending=resolve; service.watch(request);});

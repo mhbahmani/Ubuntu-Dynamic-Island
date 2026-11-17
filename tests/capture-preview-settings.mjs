@@ -1,6 +1,6 @@
 // Read the host backend before preview.py creates its isolated environment.
 import Gio from 'gi://Gio';
-import {capturePreviewSettings} from '../tests/fixtures/preview-settings.js';
+import {capturePreviewSettings} from './fixtures/preview-settings.js';
 
 const source = Gio.SettingsSchemaSource.new_from_directory(ARGV[0], Gio.SettingsSchemaSource.get_default(), false);
 const settings = new Gio.Settings({settings_schema: source.lookup('org.gnome.shell.extensions.ubuntu-island', false)});

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {project, unproject, visibleTiles} from '../services/map-model.js';
+import {project, unproject, visibleTiles} from '../extension/services/map-model.js';
 
 test('map clicks round-trip coordinates at all supported zooms', () => {
     for (const zoom of [2, 12, 19]) for (const p of [

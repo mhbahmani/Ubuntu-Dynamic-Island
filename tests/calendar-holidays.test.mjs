@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {civilDay, dateParts} from '../services/calendar-model.js';
-import {calendarHolidays, holidayDescription, isCalendarWeekend} from '../services/calendar-holidays.js';
+import {civilDay, dateParts} from '../extension/services/calendar-model.js';
+import {calendarHolidays, holidayDescription, isCalendarWeekend} from '../extension/services/calendar-holidays.js';
 
 test('English observance descriptions preserve the holiday dates', () => {
     const info = calendarHolidays(civilDay(2026,11,13),'jalali');

@@ -16,9 +16,7 @@ function fixture() {
     const bin = join(directory, 'bin'), temporary = join(directory, 'temporary');
     const checkout = join(directory, 'owner-project-abcd');
     for (const path of [bin, temporary, checkout]) mkdirSync(path);
-    for (const name of ['extension.js', 'prefs.js', 'metadata.json', 'stylesheet.css',
-        'ui', 'preferences', 'services', 'helpers', 'assets', 'schemas'])
-        cpSync(join(root, name), join(checkout, name), {recursive: true});
+    cpSync(join(root, 'extension'), join(checkout, 'extension'), {recursive: true});
     mkdirSync(join(checkout, 'scripts'));
     for (const name of ['install.sh', 'install-dependencies.sh'])
         cpSync(join(root, 'scripts', name), join(checkout, 'scripts', name));
@@ -59,7 +57,7 @@ test('GitHub installer installs a default-branch archive and backs up updates', 
         for (const flag of ['--fail', '--location', '--connect-timeout', '--max-time', '--proto-redir'])
             assert.ok(args.includes(flag), flag);
         for (const name of ['extension.js', 'ui/pill.js', 'helpers/agents/bridge.js'])
-            assert.deepEqual(readFileSync(join(f.destination, name)), readFileSync(join(root, name)));
+            assert.deepEqual(readFileSync(join(f.destination, name)), readFileSync(join(root, 'extension', name)));
         assert.ok(existsSync(join(f.destination, 'schemas/gschemas.compiled')));
         assert.ok(existsSync(join(f.env.XDG_DATA_HOME, 'applications/ubuntu-island.desktop')));
         assert.ok(existsSync(join(f.env.XDG_DATA_HOME, 'fonts/ubuntu-island-vazir-v30.1.0/Vazir-Regular.ttf')));
@@ -88,7 +86,7 @@ test('failed, corrupt and incomplete downloads leave the installed extension unt
             if (mode === 'incomplete') rmSync(join(f.checkout, 'scripts/install.sh'));
             if (mode === 'wrong-extension') {
                 cpSync(join(root, 'scripts/install.sh'), join(f.checkout, 'scripts/install.sh'));
-                writeFileSync(join(f.checkout, 'metadata.json'), '{"uuid":"different-extension"}');
+                writeFileSync(join(f.checkout, 'extension/metadata.json'), '{"uuid":"different-extension"}');
             }
             if (['incomplete', 'wrong-extension'].includes(mode)) f.pack();
             const result = f.run();

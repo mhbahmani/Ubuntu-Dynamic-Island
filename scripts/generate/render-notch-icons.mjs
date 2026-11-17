@@ -1,6 +1,6 @@
 // Static, full-color Meteocons derivatives. No browser or runtime animation.
 import {readFileSync, writeFileSync, mkdirSync} from 'node:fs';
-const root = new URL('../assets/weather/', import.meta.url);
+const root = new URL('../../extension/assets/weather/', import.meta.url);
 const sources = {sun: 'clear-day', night: 'clear-night', clouds: 'partly-cloudy-day',
     'clouds-night': 'partly-cloudy-night', rain: 'rain', snow: 'snow',
     'rain-night': 'partly-cloudy-night-rain', 'snow-night': 'partly-cloudy-night-snow'};

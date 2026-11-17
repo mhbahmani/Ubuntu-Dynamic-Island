@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {AgentStore, fromAgentHook, normalizeAgentEvent, agentLaunchArgv, agentCounts, agentSessionReferences, agentTerminalIdentity, matchAgentWindow} from '../services/agents-model.js';
-import {HOOK_MARKER, hasAgentHooks, mergeAgentHooks, hookEntries, openCodePlugin} from '../services/agents-setup-model.js';
+import {AgentStore, fromAgentHook, normalizeAgentEvent, agentLaunchArgv, agentCounts, agentSessionReferences, agentTerminalIdentity, matchAgentWindow} from '../extension/services/agents-model.js';
+import {HOOK_MARKER, hasAgentHooks, mergeAgentHooks, hookEntries, openCodePlugin} from '../extension/services/agents-setup-model.js';
 
 const event = (state, changes = {}) => ({v:1,provider:'claude',session:'one',state,...changes});
 test('confirmed process exit removes working and hidden rows without completion or undo',()=>{

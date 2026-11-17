@@ -18,7 +18,7 @@ Playwright (development dependencies only):
 
 ```sh
 npm install --prefix /tmp/island-weather-assets playwright
-PLAYWRIGHT_MODULE=/tmp/island-weather-assets/node_modules/playwright/index.mjs node scripts/render-weather-assets.mjs
+PLAYWRIGHT_MODULE=/tmp/island-weather-assets/node_modules/playwright/index.mjs node scripts/generate/render-weather-assets.mjs
 ```
 
 Set `CHROME` if Chrome is not at `/usr/bin/google-chrome`. Rendering uses the
@@ -34,4 +34,4 @@ visible. The common cloud scale is 0.99225 (another 5% increase), centered consi
 across conditions. The sun is shifted slightly right/down behind the cloud. Each
 icon is cropped to a square viewBox centered on its rendered ink, so rain drops
 hanging below the cloud no longer push the icon low inside the notch slot.
-Regenerate with `node scripts/render-notch-icons.mjs`.
+Regenerate with `node scripts/generate/render-notch-icons.mjs`.

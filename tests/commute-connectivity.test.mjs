@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {CommuteController} from '../services/commute-model.js';
+import {CommuteController} from '../extension/services/commute-model.js';
 
 const response = {code: 'Ok', routes: [{duration: 1920, distance: 18400}]};
 const flush = () => new Promise(resolve => setImmediate(resolve));
 
 function harness(fetch = async () => response) {
-    const source = readFileSync(new URL('../extension.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../extension/extension.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export default class ', 'class ');
     const Extension = vm.runInNewContext(`${source}\nUbuntuIsland`, {Extension: class {}});
     const extension = new Extension();

@@ -1,7 +1,7 @@
 // GJS cache integration check. Run with a temporary XDG_CACHE_HOME.
 import GLib from 'gi://GLib';
-import {WeatherCache} from '../services/weather-cache.js';
-import {normalize} from '../services/weather-model.js';
+import {WeatherCache} from '../extension/services/weather-cache.js';
+import {normalize} from '../extension/services/weather-model.js';
 const loop = new GLib.MainLoop(null, false);
 let failed = false;
 (async () => {

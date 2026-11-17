@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {containsPoint, selectPlayer, layoutSignature, mediaTitle, pageDirection} from '../services/presentation.js';
+import {containsPoint, selectPlayer, layoutSignature, mediaTitle, pageDirection} from '../extension/services/presentation.js';
 
 test('outside dismissal uses global geometry, including negative monitor origins', () => {
     assert.equal(containsPoint(-900, 30, -1000, 0, 440, 500), true);

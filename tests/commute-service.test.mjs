@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import * as model from '../services/commute-model.js';
+import * as model from '../extension/services/commute-model.js';
 
 function harness() {
     const route = {id: 'test', originMode: 'fixed', origin: {latitude: 35.7, longitude: 51.3},
@@ -16,7 +16,7 @@ function harness() {
         get_strv: key => values[key], get_boolean: key => values[key], set_string: set,
         connect: (signal, callback) => { signals.set(++id, [signal, callback]); return id; },
         disconnect: id => signals.delete(id)};
-    const source = readFileSync(new URL('../services/commute.js', import.meta.url), 'utf8')
+    const source = readFileSync(new URL('../extension/services/commute.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
     const Service = vm.runInNewContext(`${source}\nCommuteService`, {...model,
         WeatherHttp: class {cancel() {}}, CurrentLocation: class {cancel() {}},

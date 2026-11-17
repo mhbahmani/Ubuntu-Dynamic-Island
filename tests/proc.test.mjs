@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {parseCpu, cpuPercent, memoryPercent, memoryUsage, parseLoadAvg, countCores, defaultInterface, networkBytes, formatRate, formatCapacity} from '../services/proc.js';
+import {parseCpu, cpuPercent, memoryPercent, memoryUsage, parseLoadAvg, countCores, defaultInterface, networkBytes, formatRate, formatCapacity} from '../extension/services/proc.js';
 
 test('CPU counter delta, not cumulative percentage', () => {
     const first = parseCpu('cpu  100 0 100 800 0 0 0 0 0 0\ncpu0 1 2 3');

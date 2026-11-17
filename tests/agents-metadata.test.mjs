@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {AgentStore, fromAgentHook, agentKey, agentCounts, agentSummary, agentStatus, agentNotificationNeeded, matchAgentWindow, normalizeAgentEvent} from '../services/agents-model.js';
-import {hookEntries, mergeAgentHooks} from '../services/agents-setup-model.js';
+import {AgentStore, fromAgentHook, agentKey, agentCounts, agentSummary, agentStatus, agentNotificationNeeded, matchAgentWindow, normalizeAgentEvent} from '../extension/services/agents-model.js';
+import {hookEntries, mergeAgentHooks} from '../extension/services/agents-setup-model.js';
 const hook = (name, data = {}, extra = {}) => fromAgentHook('claude', {session_id:'parent',hook_event_name:name,cwd:'/repo/project',...data},extra);
 const rows = store => store.snapshot().sessions;
 const parent = store => rows(store).find(r => r.session === 'parent');

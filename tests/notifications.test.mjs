@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {plainText, notificationAge, orderNotifications, notificationCount, shouldPeek, startOfDay,
-    notificationSections, filterNotifications, groupNotifications, groupPreview, unseenCount} from '../services/notifications-model.js';
+    notificationSections, filterNotifications, groupNotifications, groupPreview, unseenCount} from '../extension/services/notifications-model.js';
 
 test('plain text strips body markup and collapses whitespace', () => {
     assert.equal(plainText('<b>Build</b> &amp; deploy\n\n<i>done</i>', true), 'Build & deploy done');

@@ -1,7 +1,7 @@
 import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
-import {AgentTitles, titleLocation} from '../helpers/agents/titles.js';
-import {AgentStore, agentKey} from '../services/agents-model.js';
+import {AgentTitles, titleLocation} from '../extension/helpers/agents/titles.js';
+import {AgentStore, agentKey} from '../extension/services/agents-model.js';
 const root = GLib.getenv('ISLAND_AGENT_TEST_DIR');
 const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {resolve(); return GLib.SOURCE_REMOVE;}));
 const assert = (value, message) => {if (!value) throw new Error(message);};

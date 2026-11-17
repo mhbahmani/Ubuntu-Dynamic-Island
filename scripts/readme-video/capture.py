@@ -15,10 +15,8 @@ def main():
     root = Path(tempfile.mkdtemp(prefix='ubuntu-island-video-'))
     source = root / 'source'
     source.mkdir()
-    for name in ('ui', 'preferences', 'services', 'schemas', 'assets', 'helpers', 'tests'):
+    for name in ('extension', 'tests'):
         shutil.copytree(repository / name, source / name)
-    for name in ('extension.js', 'prefs.js', 'metadata.json', 'stylesheet.css'):
-        shutil.copy2(repository / name, source / name)
     # Clean presentation labels in the private fixture copy; keep data isolated.
     for name in ('preview-data.js', 'local-preview.js', 'local-preferences.mjs'):
         path = source / 'tests/fixtures' / name
@@ -44,7 +42,7 @@ def main():
     shutil.copy2(project / 'tour.js', source / 'tests/fixtures/readme-tour.js')
     shutil.copy2(project / 'fixtures.js', source / 'tests/fixtures/readme-fixtures.js')
     shutil.copy2(project / 'preferences-tour.js', source / 'tests/fixtures/preferences-tour.js')
-    shutil.copytree(project / 'assets', source / 'assets/video')
+    shutil.copytree(project / 'assets', source / 'extension/assets/video')
     preferences = source / 'tests/fixtures/local-preferences.mjs'
     preferences.write_text("import {runPreferencesTour} from './preferences-tour.js';\n" + preferences.read_text().replace(
         'window.present();', "window.present();\nrunPreferencesTour(window, new Preferences(metadata).getSettings()).catch(error => console.error(error));"))

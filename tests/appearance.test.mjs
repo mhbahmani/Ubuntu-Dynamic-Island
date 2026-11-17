@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {surfaceStyle, cornerFadeStyle, blurParams, backdropSlices, THEMES, MAX_BLUR_RADIUS} from '../services/appearance.js';
+import {surfaceStyle, cornerFadeStyle, blurParams, backdropSlices, THEMES, MAX_BLUR_RADIUS} from '../extension/services/appearance.js';
 
 const stops = style => [style.match(/gradient-start: (rgba\([^)]+\))/)[1], style.match(/gradient-end: (rgba\([^)]+\))/)[1]];
 
@@ -135,8 +135,8 @@ test('backdrop slices stay inside the rounded surface without overlapping', () =
 });
 
 import {readFileSync} from 'node:fs';
-import {THEME_IDS, TEXT, BUTTON_TEXT, hexToRgb, contrast, mix, themeSwatchCss} from '../services/themes.js';
-import {themeCss, generatedRegion} from '../scripts/theme-css.mjs';
+import {THEME_IDS, TEXT, BUTTON_TEXT, hexToRgb, contrast, mix, themeSwatchCss} from '../extension/services/themes.js';
+import {themeCss, generatedRegion} from '../scripts/generate/theme-css.mjs';
 
 const rgb = value => typeof value === 'string' ? hexToRgb(value) : value;
 const hex = /^#[0-9a-f]{6}$/;
@@ -177,11 +177,11 @@ test('themes are distinct and colorful, with graphite kept neutral', () => {
 });
 
 test('schema choices and the stylesheet follow the theme list', () => {
-    const schema = readFileSync(new URL('../schemas/org.gnome.shell.extensions.ubuntu-island.gschema.xml', import.meta.url), 'utf8');
+    const schema = readFileSync(new URL('../extension/schemas/org.gnome.shell.extensions.ubuntu-island.gschema.xml', import.meta.url), 'utf8');
     const key = schema.slice(schema.indexOf('<key name="color-theme"'), schema.indexOf('</key>', schema.indexOf('<key name="color-theme"')));
     assert.deepEqual([...key.matchAll(/<choice value="([^"]+)"/g)].map(m => m[1]), [...THEME_IDS]);
-    const css = readFileSync(new URL('../stylesheet.css', import.meta.url), 'utf8');
-    assert.equal(generatedRegion(css), themeCss(), 'stylesheet.css is stale: run `node scripts/theme-css.mjs`');
+    const css = readFileSync(new URL('../extension/stylesheet.css', import.meta.url), 'utf8');
+    assert.equal(generatedRegion(css), themeCss(), 'stylesheet.css is stale: run `node scripts/generate/theme-css.mjs`');
     for (const id of THEME_IDS) assert(css.includes(`.ubuntu-island-theme-${id} .ubuntu-island-tab-marker`) ||
         css.includes(`.ubuntu-island-theme-${id} .ubuntu-island-tab-selected .ubuntu-island-tab-marker`), id);
 });
@@ -189,7 +189,7 @@ test('schema choices and the stylesheet follow the theme list', () => {
 test('generated CSS themes tabs, navigation, headings and focus rings', () => {
     const css = themeCss();
     assert(!css.includes(':hover .ubuntu-island-tab-marker'), 'no hover marker rule');
-    assert(!readFileSync(new URL('../stylesheet.css', import.meta.url), 'utf8')
+    assert(!readFileSync(new URL('../extension/stylesheet.css', import.meta.url), 'utf8')
         .includes(':hover .ubuntu-island-tab-marker'), 'no base hover marker rule');
     for (const id of THEME_IDS) {
         const T = `.ubuntu-island-theme-${id}`;

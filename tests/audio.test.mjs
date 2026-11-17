@@ -2,12 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-import {audioBluetoothAddress, audioWithBatteries} from '../services/audio-model.js';
+import {audioBluetoothAddress, audioWithBatteries} from '../extension/services/audio-model.js';
 
 // Evaluate the real service classes with GI boundaries replaced by fakes.
 // No Shell session, D-Bus changes, or developer-machine hardware is required.
 function service(file, name, dependencies) {
-    const source = readFileSync(new URL(`../services/${file}.js`, import.meta.url), 'utf8')
+    const source = readFileSync(new URL(`../extension/services/${file}.js`, import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
     return vm.runInNewContext(`${source}\n${name}`, {audioBluetoothAddress, ...dependencies, console});
 }

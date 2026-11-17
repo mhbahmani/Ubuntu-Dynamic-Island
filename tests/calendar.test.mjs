@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {civilDay, dateParts, monthBounds, shiftMonths, monthGrid, todayDay, numericDate, dateTitle, fullDate, calendarTodayLabel, primaryCalendar, shownCalendars, migrateCalendarSettings, notchDate, notchDates, formatNotchDate, dateFormatError, dateOrder, migrateNotchDates} from '../services/calendar-model.js';
+import {civilDay, dateParts, monthBounds, shiftMonths, monthGrid, todayDay, numericDate, dateTitle, fullDate, calendarTodayLabel, primaryCalendar, shownCalendars, migrateCalendarSettings, notchDate, notchDates, formatNotchDate, dateFormatError, dateOrder, migrateNotchDates} from '../extension/services/calendar-model.js';
 
 test('English date display keeps calendar conversion and overrides saved Persian numerals', () => {
     const day = civilDay(2026,11,10);

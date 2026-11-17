@@ -77,14 +77,8 @@ def main():
     root = Path(tempfile.mkdtemp(prefix='ubuntu-island-preview-'))
     uuid = 'ubuntu-island@mhbahmani.github.io'
     extension = root / 'share/gnome-shell/extensions' / uuid
-    extension.mkdir(parents=True)
-    for path in source.glob('*.js'):
-        shutil.copy2(path, extension / path.name)
-    for name in ('ui', 'preferences', 'services', 'schemas', 'assets', 'helpers'):
-        shutil.copytree(source / name, extension / name)
-    for name in ('metadata.json', 'stylesheet.css'):
-        shutil.copy2(source / name, extension / name)
-    shutil.copytree(source / 'assets/fonts', root / 'share/fonts/ubuntu-island', dirs_exist_ok=True)
+    shutil.copytree(source / 'extension', extension)
+    shutil.copytree(extension / 'assets/fonts', root / 'share/fonts/ubuntu-island', dirs_exist_ok=True)
     # Retain the user's Persian font in this isolated session, without changing
     # or installing any host fonts. Other machines exercise the CSS fallback.
     fonts = subprocess.run(['fc-list', '-f', '%{family}\t%{file}\n'],
@@ -107,12 +101,12 @@ def main():
         value == '1' for key, value in os.environ.items() if key.startswith('ISLAND_PREVIEW_CHECK_'))
     ui_settings = ''
     if not args.defaults and not checks:
-        result = subprocess.run(['gjs', '-m', str(source / 'scripts/preview-settings.mjs'), str(extension / 'schemas')],
+        result = subprocess.run(['gjs', '-m', str(source / 'tests/capture-preview-settings.mjs'), str(extension / 'schemas')],
                                 capture_output=True, text=True, check=True, timeout=5)
         ui_settings = json.dumps(json.loads(result.stdout))
     apps = root / 'share/applications'
     apps.mkdir(parents=True)
-    shutil.copy2(source / 'assets/ubuntu-island.desktop', apps / 'ubuntu-island.desktop')
+    shutil.copy2(extension / 'assets/ubuntu-island.desktop', apps / 'ubuntu-island.desktop')
     mode = root / 'share/gnome-shell/modes/island-preview.json'
     mode.parent.mkdir(parents=True)
     mode.write_text(json.dumps({'parentMode': 'user', 'enabledExtensions': [uuid],

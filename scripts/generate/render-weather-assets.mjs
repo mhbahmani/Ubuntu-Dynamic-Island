@@ -1,11 +1,11 @@
 // Development only. npm install --prefix /tmp/island-weather-assets playwright
-// PLAYWRIGHT_MODULE=/tmp/island-weather-assets/node_modules/playwright/index.mjs node scripts/render-weather-assets.mjs
+// PLAYWRIGHT_MODULE=/tmp/island-weather-assets/node_modules/playwright/index.mjs node scripts/generate/render-weather-assets.mjs
 import {readFile, writeFile, mkdtemp} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join, resolve} from 'node:path';
 import {spawnSync} from 'node:child_process';
 const {chromium} = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const folder = resolve('assets/weather');
+const folder = resolve('extension/assets/weather');
 const temporary = await mkdtemp(join(tmpdir(), 'island-weather-frames-'));
 const browser = await chromium.launch({executablePath: process.env.CHROME || '/usr/bin/google-chrome', headless: true});
 const page = await browser.newPage({viewport: {width: 192, height: 192}, deviceScaleFactor: 1});

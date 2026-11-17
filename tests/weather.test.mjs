@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {weatherSceneKind, WeatherController, metCondition, normalize, parseLocation, temperature, localTime, weatherUrl, FRESH_MS} from '../services/weather-model.js';
+import {weatherSceneKind, WeatherController, metCondition, normalize, parseLocation, temperature, localTime, weatherUrl, FRESH_MS} from '../extension/services/weather-model.js';
 const location = {latitude: 35.6892, longitude: 51.389, timezone: 'Asia/Tehran', name: 'Tehran'};
 const now = Date.parse('2026-10-28T20:45:00Z');
 const open = {current: {temperature_2m: 12, apparent_temperature: null, weather_code: 1234},
