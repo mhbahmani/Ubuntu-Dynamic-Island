@@ -1,6 +1,6 @@
 # Implementation handoff
 
-Updated 2026-11-16. Target: GNOME Shell 46 on Ubuntu Wayland.
+Updated 2026-11-17. Target: GNOME Shell 46 on Ubuntu Wayland.
 
 - [AGENTS.md](../AGENTS.md): engineering, packaging and commit rules.
 - [README](../README.md): installation, development commands and hardware checks.
@@ -27,6 +27,22 @@ Clear and the notch eye toggle are in the main header. Session states are event
 reports, not continuous liveness checks. Weather and Commute use bounded async
 requests, caches and explicit stale/error states. See the module guide for setup,
 provider limits and privacy details.
+
+## Music title character limit (2026-11-17)
+
+Trim mode now measures the character-limited text in its actual font instead of
+also imposing a seven-pixels-per-character cap. Its notch budget uses available
+monitor space both with and without an upcoming event; previously showing an
+event lifted the 600px growth cap and unexpectedly restored a squeezed title.
+Fit mode retains its separate growth limit. Title style changes share the pill's
+existing layout idle, so font changes do not wait for another service update.
+
+The regression failed before the fix. `make check` passed (244 tests, one skip,
+syntax and strict schema validation), and `make smoke` passed. Native title checks
+cover 5/17/40 characters, dense indicators, event appearance/removal, 100/200%
+scale with matching font DPI, and enlarged notch text. The build passed and the
+ZIP's changed runtime files match the source. No host installation or physical
+mixed-monitor validation was performed.
 
 ## Notification corner actions (2026-11-16)
 

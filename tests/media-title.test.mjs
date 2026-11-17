@@ -75,3 +75,18 @@ test('scrolling survives repeated remaps and releases its native transition on e
     title.sync();
     assert.equal(title.label.transitions.size, 0, 'Destroyed titles must not restart scrolling');
 });
+
+test('trim measures the requested characters instead of imposing a second pixel limit', () => {
+    const {title} = harness();
+    title.setBudget(600);
+    title.configure('W'.repeat(30), 'fixed', 17, true, false, true);
+    assert.equal(title.label.text, 'W'.repeat(17) + '…');
+    assert.equal(title.actor.width, 420, 'Wide characters must keep their measured width');
+    title.setBudget(90);
+    assert.equal(title.actor.width, 90, 'Real screen constraints still limit the viewport');
+    title.setBudget(600);
+    assert.equal(title.actor.width, 420, 'The title must recover when space returns');
+    title.label.clutter_text.get_preferred_width = () => [25, 25];
+    title.configure('Hi', 'fixed', 17, true, false, true);
+    assert.equal(title.actor.width, 25, 'Short titles must not reserve the full limit');
+});

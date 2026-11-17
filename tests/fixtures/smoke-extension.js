@@ -45,6 +45,65 @@ export default class Smoke extends UbuntuIsland {
         finally { stream.close(null); }
     }
 
+    async _checkTitleTrimming(media) {
+        const settings = this._settings, pill = this._pill;
+        const context = St.ThemeContext.get_for_stage(global.stage);
+        const fonts = Clutter.Settings.get_default();
+        const keys = ['pill-title-mode', 'pill-title-characters', 'pill-text-scale',
+            'pill-show-network', 'pill-show-date', 'pill-show-time', 'pill-show-commute',
+            'pill-show-notifications'];
+        const saved = keys.map(key => [key, settings.get_value(key)]);
+        const original = {scale: context.scale_factor, dpi: fonts.font_dpi,
+            states: {...this._states}, event: this._eventIndicator};
+        try {
+            settings.set_string('pill-title-mode', 'fixed');
+            this._states.commute = {route: {name: 'Work'}, data: {seconds: 1620}};
+            this._states.notifications = {unseen: 11};
+            for (const scale of [1, 2]) for (const text of [100, 150]) {
+                context.scale_factor = scale;
+                // No settings daemon forwards font DPI in the private Shell.
+                fonts.font_dpi = 96 * 1024 * scale;
+                settings.set_int('pill-text-scale', text);
+                // Dense at 100%; leave room for the enlarged title on the
+                // headless monitor's fixed 1280 physical pixels at 200%.
+                settings.set_boolean('pill-show-date', scale === 1);
+                settings.set_boolean('pill-show-network', scale === 1);
+                settings.set_boolean('pill-show-time', scale === 1);
+                settings.set_boolean('pill-show-commute', scale === 1);
+                settings.set_boolean('pill-show-notifications', scale === 1);
+                for (const [limit, title] of [[17, 'Stay (with Justin Bieber)'], [5, 'WWWWWWWW'], [40, 'i'.repeat(50)]]) {
+                    settings.set_int('pill-title-characters', limit);
+                    let width;
+                    for (const event of [null, {text: 'Event in 15 min'}, null]) {
+                        this._eventIndicator = event;
+                        this._renderMedia({...media, title});
+                        await settle();
+                        const measured = pill._title.clutter_text.get_preferred_width(-1)[1];
+                        assert(Math.abs(pill._mediaTitle.actor.width - measured) < 1 &&
+                            !pill._title.clutter_text.get_layout().is_ellipsized(),
+                        `Trim added a second ellipsis: limit=${limit} scale=${scale} text=${text} event=${Boolean(event)} ` +
+                            `width=${pill._mediaTitle.actor.width} measured=${measured}`);
+                        if (width !== undefined)
+                            assert(pill._mediaTitle.actor.width === width, 'Upcoming event changed the title limit');
+                        width = pill._mediaTitle.actor.width;
+                        assert(this._island.actor.width <= Main.layoutManager.primaryMonitor.width,
+                            'Trim title pushed the notch off screen');
+                    }
+                }
+                await this._capture(`trim-dense-${scale}-${text}`);
+            }
+            console.log('[Island Smoke] Title trim PASS: measured characters, dense indicators, event changes, scale and enlarged text');
+        } finally {
+            context.scale_factor = original.scale;
+            fonts.font_dpi = original.dpi;
+            this._states = original.states;
+            this._eventIndicator = original.event;
+            for (const [key, value] of saved) settings.set_value(key, value);
+            this._renderMedia(media);
+            await settle();
+        }
+    }
+
     _checkNavigationAlignment() {
         const center = actor => actor.get_transformed_position()[1] + actor.get_transformed_size()[1] / 2;
         const caption = this._card._pageCaption;
@@ -689,6 +748,7 @@ export default class Smoke extends UbuntuIsland {
         this._togglePillTitle();
         assert(this._pill._title.visible, 'Title did not return');
         await this._capture('playing-pill');
+        await this._checkTitleTrimming(media);
         const longTitle = 'A long music title that should scroll completely across the collapsed notch';
         // Real Pango measurement catches the unused fixed slot after a long
         // title is replaced by a shorter one, including narrow/RTL text.

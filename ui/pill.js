@@ -52,6 +52,7 @@ export class Pill {
         this._mediaIcon = icon('audio-x-generic-symbolic', 14);
         this._mediaTitle = new MediaTitle();
         this._title = this._mediaTitle.label;
+        this._title.connect('style-changed', () => this._queueLayout());
         this._bluetooth = icon('bluetooth-symbolic', 12);
         this._bluetooth.visible = false;
         this._cpuDot = new St.Widget({style_class: 'ubuntu-island-cpu-dot', y_align: Clutter.ActorAlign.CENTER});
@@ -160,11 +161,19 @@ export class Pill {
             this._fitNetwork();
             const scale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             const monitor = Main.layoutManager.primaryMonitor;
+            const screenWidth = monitor?.width ?? 1000 * scale;
+            // Trim already bounds the text by character count. Let it use the
+            // available screen, regardless of whether an event is showing.
+            // Only fit-to-title mode needs the extra notch growth cap.
+            const maximum = this._mediaTitle.mode === 'fit'
+                ? Math.min(600 * scale, screenWidth * 0.6) : screenWidth - 32 * scale;
+            const titleMaximum = this._mediaTitle.mode === 'fixed' ? Infinity : 240 * scale;
             if (this._event.visible) {
                 const fixed = groups.filter(g => g.visible && ![this._media,this._date,this._event].includes(g));
                 const visibleCount = groups.filter(g => g.visible).length;
-                const overhead = (26 + Math.max(0,visibleCount - 1) * 12 + 19 + (this._media.visible ? 20 : 0)) * scale;
-                let room = Math.max(0,(monitor?.width ?? 1000 * scale) - 32 * scale - overhead -
+                const overhead = (26 + Math.max(0,visibleCount - 1) * 12 + this._iconSize(13) + 6 +
+                    (this._media.visible ? this._iconSize(14) + 6 : 0)) * scale;
+                let room = Math.max(0,maximum - overhead -
                     fixed.reduce((sum,g) => sum + g.get_preferred_width(-1)[1],0));
                 if (this._date.visible) {
                     this._dates.setBudget(Math.min(320 * scale,room * 0.55));
@@ -173,7 +182,7 @@ export class Pill {
                 const eventWidth = !this._eventText.visible ? 0 : Math.min(160 * scale,room * (this._title.visible ? 0.65 : 1),
                     this._eventText.clutter_text.get_preferred_width(-1)[1]);
                 this._eventText.width = Math.max(0,Math.floor(eventWidth));
-                this._mediaTitle.setBudget(Math.max(0,Math.min(240 * scale,room - eventWidth)));
+                this._mediaTitle.setBudget(Math.max(0,Math.min(titleMaximum,room - eventWidth)));
             } else {
                 if (this._date.visible) {
                     const fixed = groups.filter(g => g.visible && ![this._media, this._date].includes(g));
@@ -182,9 +191,9 @@ export class Pill {
                     this._dates.setBudget(Math.max(100 * scale, Math.min(320 * scale, room)));
                 }
                 const others = groups.filter(g => g !== this._media && g.visible);
-                const otherWidth = others.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0) + (52 + others.length * 12) * scale;
-                const maximum = Math.min(600 * scale, (monitor?.width ?? 1000 * scale) * 0.6);
-                this._mediaTitle.setBudget(Math.max(20 * scale, Math.min(240 * scale, maximum - otherWidth)));
+                const otherWidth = others.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0) +
+                    (26 + this._iconSize(14) + 6 + others.length * 12) * scale;
+                this._mediaTitle.setBudget(Math.max(0, Math.min(titleMaximum, maximum - otherWidth)));
             }
             const visible = groups.filter(g => g.visible);
             return visible.reduce((sum, g) => sum + (g === this._media
