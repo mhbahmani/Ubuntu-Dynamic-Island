@@ -1,4 +1,6 @@
 """Regression checks for isolation, version gates, failures and Shell launch flags."""
+from contextlib import redirect_stdout
+from io import StringIO
 import importlib.util
 import json
 import os
@@ -22,7 +24,8 @@ class CompatibilityHarness(unittest.TestCase):
                 patch.object(runner.os, 'getuid', return_value=1000), \
                 patch.object(runner.subprocess, 'check_output', return_value='GNOME Shell 50.1\n'), \
                 patch.object(runner, 'prepare_source') as prepare:
-            self.assertEqual(runner.main(), 1)
+            with redirect_stdout(StringIO()):
+                self.assertEqual(runner.main(), 1)
             prepare.assert_not_called()
             report = json.loads((Path(directory) / 'summary.json').read_text())
             self.assertEqual(report['checks'], [])
@@ -71,7 +74,7 @@ class CompatibilityHarness(unittest.TestCase):
             self.assertEqual((root / 'baseline/metadata.json').read_text(), original)
 
     def test_failing_and_timed_out_checks_keep_logs_and_failure_status(self):
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory() as directory, redirect_stdout(StringIO()):
             root = Path(directory)
             result = runner.run_check('failure', ['sh', '-c', 'echo diagnostic; exit 7'],
                                       root, os.environ.copy(), root)
