@@ -3,7 +3,9 @@
 Updated 2026-11-17. Target: GNOME Shell 46 on Ubuntu Wayland.
 
 - [AGENTS.md](../AGENTS.md): engineering, packaging and commit rules.
-- [README](../README.md): installation, development commands and hardware checks.
+- [README](../README.md): demo, installation and basic controls.
+- [Development guide](DEVELOPMENT.md): previews, checks and hardware acceptance.
+- [Usage guide](USAGE.md): detailed controls and settings.
 - [Module guide](MODULES.md): current Calendar, Agents, Weather and Commute behavior.
 
 ## Current implementation
@@ -317,13 +319,12 @@ JavaScript/Python syntax and strict schema checks passed. `make prefs-test`,
 `make smoke` and `make build` passed. The smoke artifacts are in
 `/tmp/ubuntu-island-smoke-elnksao4`. Packaging tests passed with a temporary
 installation; ZIP runtime files were compared with the working tree.
-Live providers and physical mixed-monitor behavior were not tested. Historical
-briefs in `docs/briefs/` retain their original instructions and findings; use the
-implementation notes below for current behavior.
+Live providers and physical mixed-monitor behavior were not tested. Retired task
+briefs remain in Git history; use the implementation notes below for current behavior.
 
 ## Agent session metadata (2026-11-13)
 
-Implemented the authorized `briefs/agent-session-metadata.md` scope over the
+Implemented the authorized agent session metadata plan over the
 existing themes, backdrop, slider, charts, network-rate and smoke work.
 
 - Session titles are separate from a stable initial project fallback. Provider
@@ -606,7 +607,7 @@ menus) and the media tint still switch instantly; reuse the helper if needed.
   widths as before) and section headings (`heading` token, ≥ 4.5:1; Graphite
   stays neutral). Not yet verified in a live session: `make smoke` runs
   `_checkTabSlider()` (centred after a glide, instant with animations disabled).
-  Next, via Codex briefs in `docs/briefs/`: themed chart fill and themed notch.
+  The themed chart fill and notch work was completed in the subsequent changes.
 - Themes: palettes moved to `services/themes.js` and grew from four to eleven
   (new: Lagoon, Amethyst, Berry, Midnight, Aurora and Sunset as two-hue
   gradients, and Mocha). Tints and accents are more saturated. Each theme is

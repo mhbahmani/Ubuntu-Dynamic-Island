@@ -1,7 +1,8 @@
 # Optional modules
 
 Current setup, behavior and limitations for Calendar, Agents, Weather and Commute.
-See [README](../README.md) for general controls, previews and installation, and
+See the [README](../README.md) for installation, [usage guide](USAGE.md) for
+controls, [development guide](DEVELOPMENT.md) for previews, and
 [AGENTS.md](../AGENTS.md) for development rules.
 
 Calendar's module switch applies immediately. After changing the other module

@@ -306,7 +306,8 @@ only README-linked example screenshots in the repository.
 Record actual results and skips; historical validation is not a current pass.
 Automated checks do not establish physical mixed-monitor rendering,
 HDMI hotplug/routing, live MPRIS control, Bluetooth, suspend/resume, or fullscreen
-behavior. Run the README hardware acceptance checks before claiming those pass.
+behavior. Run the [hardware acceptance checks](docs/DEVELOPMENT.md#hardware-acceptance)
+before claiming those pass.
 
 `make install` (via `scripts/install.sh`) first checks Calendar dependencies and
 may invoke `pkexec apt-get` for missing `gir1.2-ecal-2.0` and
