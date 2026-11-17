@@ -89,7 +89,7 @@ test:
 	$(NODE) --test
 
 syntax:
-	@find extension.js prefs.js ui preferences services helpers scripts tests -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -n1 $(NODE) --check
+	@find extension.js prefs.js ui preferences services helpers scripts tests -type d -name node_modules -prune -o -type f \( -name '*.js' -o -name '*.mjs' \) -print0 | xargs -0 -n1 $(NODE) --check
 	$(PYTHON) -c "import ast, pathlib; [ast.parse(p.read_text(), filename=str(p)) for p in pathlib.Path('tests').glob('*.py')]"
 
 check-schema:

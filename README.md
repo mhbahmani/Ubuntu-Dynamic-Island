@@ -18,6 +18,12 @@ documentation for current coverage, pricing, and limits.
 The v10 visual baseline was accepted on 2026-10-28. v11 includes optional Weather
 and Commute, refreshed music controls, and configurable notch indicators.
 
+[![Watch the Ubuntu Island feature tour](screenshots/demo-poster.jpg)](screenshots/demo.mp4)
+
+[Watch the 58-second feature tour](screenshots/demo.mp4) — real GNOME interface,
+fictional demo data. No personal notifications or calendar events are included.
+The [editable video project](scripts/readme-video/README.md) includes the isolated capture workflow.
+
 ![Media face rendered in GNOME Shell 46 with fixture data](screenshots/expanded.png)
 
 More fixture renders: [System](screenshots/system.png), [Sound](screenshots/sound.png),
