@@ -13,7 +13,7 @@ test('installer includes every runtime module and preserves the previous install
     const env = {...process.env, XDG_DATA_HOME: temporary, INSTALL_DEPS: '0'};
     const destination = join(temporary, 'gnome-shell/extensions/ubuntu-island@mhbahmani.github.io');
     try {
-        execFileSync('sh', [join(project, 'scripts/install.sh')], {env});
+        execFileSync('sh', [join(project, 'scripts/install.sh'), '--local', project], {env});
         const modules = runtimeFiles(root);
         for (const name of ['services/connectivity.js', 'assets/notch/unplug-symbolic.svg'])
             assert.ok(modules.includes(name), `Missing offline status file: ${name}`);
@@ -24,7 +24,7 @@ test('installer includes every runtime module and preserves the previous install
         for (const name of ['Vazir-Regular.ttf','Vazir-Medium.ttf','Vazir-Bold.ttf','OFL.txt'])
             assert.deepEqual(readFileSync(join(temporary,'fonts/ubuntu-island-vazir-v30.1.0',name)),
                 readFileSync(join(root,'assets/fonts',name)));
-        execFileSync('sh', [join(project, 'scripts/install.sh')], {env});
+        execFileSync('sh', [join(project, 'scripts/install.sh'), '--local', project], {env});
         const backup = readdirSync(join(temporary, 'gnome-shell/extensions')).find(name => name.includes('.backup.'));
         assert.ok(backup, 'Reinstallation must preserve the old extension');
         const backupDirectory = join(temporary, 'gnome-shell/extensions', backup);

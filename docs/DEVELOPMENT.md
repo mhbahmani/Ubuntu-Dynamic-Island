@@ -15,7 +15,7 @@ Use `make help` for scene shortcuts and `python3 tests/preview.py --help` for fo
 
 ## Install and troubleshoot
 
-The [README](../README.md#install) covers GitHub and clone installs. The installer needs GLib schema tools, Fontconfig and `flock`. GitHub installs also need `curl` and GNU tar. Run `make install INSTALL_DEPS=0` to skip Calendar package installation. To install a specific revision from a checkout, run `sh scripts/install.sh --ref TAG_OR_COMMIT`. Use `--help` for fork and local-source options.
+The [README](../README.md#install) covers GitHub and clone installs. The installer needs GLib schema tools, Fontconfig and `flock`. GitHub installs also need `curl` and GNU tar. The default install uses Python 3 to read the latest published release tag. Use `sh scripts/install.sh --dev` for the current `master` branch. Run `make install INSTALL_DEPS=0` to skip Calendar package installation. To install a specific revision from a checkout, run `sh scripts/install.sh --ref TAG_OR_COMMIT`. Use `--help` for fork and local-source options.
 
 The installer prints the per-user destination and the previous version's backup path. After changing code on Wayland, log out and back in to load the new version. Check `make status` and `make logs` if the extension fails to load. `make build` writes a Shell-installable ZIP under `dist/`. Manual ZIP installs also need the bundled fonts and the desktop launcher for GeoClue integration.
 

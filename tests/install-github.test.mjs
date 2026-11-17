@@ -28,6 +28,12 @@ const fs = require('node:fs');
 const args = process.argv.slice(2);
 fs.writeFileSync(process.env.TEST_CURL_CALLS, JSON.stringify(args));
 const output = args[args.indexOf('--output') + 1];
+if (args.at(-1).endsWith('/releases/latest')) {
+    if (process.env.TEST_DOWNLOAD === 'no-release') { process.stdout.write('404'); process.exit(22); }
+    fs.writeFileSync(output, JSON.stringify({tag_name: 'release/v11'}));
+    process.stdout.write('200');
+    process.exit(0);
+}
 if (process.env.TEST_DOWNLOAD === 'corrupt') fs.writeFileSync(output, 'not an archive');
 else fs.copyFileSync(process.env.TEST_ARCHIVE, output);
 if (process.env.TEST_DOWNLOAD === 'failed') process.exit(22);
@@ -46,13 +52,13 @@ if (process.env.TEST_DOWNLOAD === 'failed') process.exit(22);
         cleanup: () => rmSync(directory, {recursive: true, force: true})};
 }
 
-test('GitHub installer installs a default-branch archive and backs up updates', () => {
+test('GitHub installer installs the latest release and backs up updates', () => {
     const f = fixture();
     try {
         let result = f.run();
         assert.equal(result.status, 0, result.stderr);
         const args = JSON.parse(readFileSync(f.calls, 'utf8'));
-        assert.equal(args.at(-1), 'https://api.github.com/repos/mhbahmani/Ubuntu-Dynamic-Island/tarball');
+        assert.equal(args.at(-1), 'https://api.github.com/repos/mhbahmani/Ubuntu-Dynamic-Island/tarball/refs/tags/release%2Fv11');
         for (const flag of ['--fail', '--location', '--connect-timeout', '--max-time', '--proto-redir'])
             assert.ok(args.includes(flag), flag);
         for (const name of ['extension.js', 'ui/pill.js', 'helpers/agents/bridge.js'])
@@ -73,6 +79,23 @@ test('GitHub installer installs a default-branch archive and backs up updates', 
         assert.ok(!existsSync(join(f.destination, 'previous')));
         assert.match(result.stdout, /log out and back in/);
         f.assertClean();
+    } finally { f.cleanup(); }
+});
+
+test('missing releases stop the default install and --dev explicitly downloads master', () => {
+    const f = fixture();
+    try {
+        f.seed();
+        f.env.TEST_DOWNLOAD = 'no-release';
+        const stable = f.run();
+        assert.notEqual(stable.status, 0);
+        assert.match(stable.stderr, /No published release.*--dev/);
+        assert.equal(readFileSync(join(f.destination, 'previous'), 'utf8'), 'keep me');
+        f.assertClean();
+        const dev = f.run('--dev');
+        assert.equal(dev.status, 0, dev.stderr);
+        assert.equal(JSON.parse(readFileSync(f.calls, 'utf8')).at(-1),
+            'https://api.github.com/repos/mhbahmani/Ubuntu-Dynamic-Island/tarball/refs/heads/master');
     } finally { f.cleanup(); }
 });
 
@@ -116,7 +139,7 @@ test('invalid options and root execution fail before fetching or changing files'
     try {
         f.seed();
         for (const args of [['--repo', '../wrong'], ['--repo', 'a/b/c'], ['--repo', 'https://github.com/a/b'],
-            ['--ref', 'main?redirect=other'], ['--ref', '../../main'], ['--ref'], ['--unknown']]) {
+            ['--ref', 'main?redirect=other'], ['--ref', '../../main'], ['--ref'], ['--unknown'], ['--dev', '--ref', 'v11'], ['--local', '.', '--dev']]) {
             assert.notEqual(f.run(...args).status, 0, args.join(' '));
             assert.ok(!existsSync(f.calls));
         }

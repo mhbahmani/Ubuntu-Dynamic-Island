@@ -8,11 +8,13 @@ https://github.com/user-attachments/assets/0d6e1b67-579b-4400-afae-7a3b5dbe287e
 
 ## Install
 
-Run the **recommended GitHub installer** from your desktop account. Use the same command to update. The installer backs up the previous version and requests administrator authentication only for missing Calendar packages.
+Run the **recommended GitHub installer** from your desktop account to install or update to the latest release. The installer backs up the previous version and requests administrator authentication only for missing Calendar packages.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/mhbahmani/Ubuntu-Dynamic-Island/master/scripts/install.sh | sh
 ```
+
+To install the development version from `master`, replace `| sh` with `| sh -s -- --dev`.
 
 <details>
 <summary>Install from a local checkout</summary>

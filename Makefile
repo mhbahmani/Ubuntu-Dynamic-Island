@@ -65,7 +65,7 @@ $(WEATHER_PREVIEWS): preview-%:
 	$(PYTHON) tests/preview.py --tab weather --scene $(patsubst %-day,%,$*) --ignore-power-saver $(PREVIEW_ARGS)
 
 install:
-	INSTALL_DEPS=$(INSTALL_DEPS) ./scripts/install.sh
+	INSTALL_DEPS=$(INSTALL_DEPS) ./scripts/install.sh --local .
 
 build:
 	./scripts/build.sh

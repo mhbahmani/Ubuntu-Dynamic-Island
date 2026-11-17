@@ -9,11 +9,11 @@ fail() {
 
 usage() {
     cat <<'EOF'
-Usage: sh install.sh [--repo OWNER/REPO] [--ref BRANCH|TAG|COMMIT]
+Usage: sh install.sh [--repo OWNER/REPO] [--dev | --ref BRANCH|TAG|COMMIT]
        sh install.sh --local CHECKOUT
 
-Running scripts/install.sh from a checkout installs that copy. When piped to sh,
-the installer fetches the default GitHub branch unless --ref is given.
+Install the latest published GitHub release by default. Use --dev for master,
+--ref for a specific revision, or make install to install your local checkout.
 Run as your desktop user. INSTALL_DEPS=0 skips Calendar package installation.
 EOF
 }
@@ -114,18 +114,43 @@ install_local() (
     printf '\nOn Wayland, log out and back in, then run\n  gnome-extensions enable %s\n' "$uuid"
 )
 
+fetch() {
+    curl --fail --silent --show-error --location \
+        --proto '=https' --proto-redir '=https' --max-redirs 5 \
+        --connect-timeout 15 --max-time 180 --retry 2 --retry-max-time 300 "$@"
+}
+
 download_checkout() (
     download_dir=$(mktemp -d "${TMPDIR:-/tmp}/ubuntu-island-install.XXXXXX")
     trap 'rm -rf -- "$download_dir"' EXIT
     trap 'exit 130' INT
     trap 'exit 143' HUP TERM
-    archive_url="https://api.github.com/repos/$repository/tarball"
-    if [ -n "$revision" ]; then archive_url="$archive_url/$revision"; fi
-    progress 'Download' "$repository (${revision:-default branch})"
-    if ! curl --fail --silent --show-error --location \
-        --proto '=https' --proto-redir '=https' --max-redirs 5 \
-        --connect-timeout 15 --max-time 180 --retry 2 --retry-max-time 300 \
-        --output "$download_dir/source.tar.gz" "$archive_url"; then
+    api="https://api.github.com/repos/$repository"
+    if [ -z "$revision" ]; then
+        command -v python3 >/dev/null || fail 'Python 3 is required to read GitHub release metadata.'
+        if ! status=$(fetch --write-out '%{http_code}' --max-filesize 4194304 \
+            --output "$download_dir/release.json" "$api/releases/latest"); then
+            if [ "$status" = 404 ]; then
+                fail "No published release found for $repository. Use --dev to install master. Nothing was installed."
+            fi
+            fail 'Could not look up the latest GitHub release. Nothing was installed.'
+        fi
+        tag=$(python3 - "$download_dir/release.json" <<'PYTAG'
+import json
+import sys
+from urllib.parse import quote
+
+with open(sys.argv[1]) as response:
+    tag = json.load(response)["tag_name"]
+if not isinstance(tag, str) or not tag:
+    sys.exit(1)
+print(quote(tag, safe=""))
+PYTAG
+        ) || fail 'GitHub returned invalid release metadata. Nothing was installed.'
+        revision="refs/tags/$tag"
+    fi
+    progress 'Download' "$repository ($revision)"
+    if ! fetch --output "$download_dir/source.tar.gz" "$api/tarball/$revision"; then
         fail 'Download failed. Check the repository/ref and connection, then retry. Nothing was installed.'
     fi
     mkdir "$download_dir/source"
@@ -155,15 +180,10 @@ main() {
     revision=''
     local_checkout=''
     remote_option=''
-    if [ "$#" -eq 0 ]; then
-        case "$0" in
-            */install.sh|install.sh)
-                candidate=$(dirname -- "$0")/..
-                if [ -f "$candidate/extension/metadata.json" ]; then local_checkout=$candidate; fi ;;
-        esac
-    fi
+    dev=''
     while [ "$#" -gt 0 ]; do
         case "$1" in
+            --dev) dev=1; remote_option=1; shift ;;
             --local|--repo|--ref)
                 [ "$#" -ge 2 ] && [ -n "$2" ] || fail "$1 requires a value."
                 case "$1" in
@@ -181,6 +201,8 @@ main() {
         */*) ;;
         *) fail 'Use --repo OWNER/REPO with a public GitHub repository.' ;;
     esac
+    [ -z "$dev" ] || [ -z "$revision" ] || fail 'Choose either --dev or --ref.'
+    if [ -n "$dev" ]; then revision=refs/heads/master; fi
     case "$revision" in
         *[!A-Za-z0-9_./-]*|/*|*/|*..*|-*) fail 'Invalid branch, tag or commit.' ;;
     esac
