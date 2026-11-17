@@ -263,6 +263,30 @@ export default class Preview extends UbuntuIsland {
         console.log('[Island Preview] FULL PASS: populated notch, all nine tabs, sample controls and Agents interactions');
     }
 
+    async _waitForCardLayout() {
+        // Size changes queue navigation fitting after allocation. The next paint
+        // applies the fitted tab widths, even on a slow software renderer.
+        let stableFrames = 0;
+        const paint = global.stage.connect('after-paint', () => {
+            const pending = this._card._navigationFit || this._card._sliderSnap ||
+                this._island.actor.get_transition('width') || this._island.actor.get_transition('height');
+            stableFrames = pending ? 0 : stableFrames + 1;
+        });
+        const deadline = GLib.get_monotonic_time() + 3_000_000;
+        try {
+            while (stableFrames < 2) {
+                if (GLib.get_monotonic_time() >= deadline) throw new Error('Card layout did not settle');
+                global.stage.queue_redraw();
+                await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 20, () => {
+                    resolve();
+                    return GLib.SOURCE_REMOVE;
+                }));
+            }
+        } finally {
+            global.stage.disconnect(paint);
+        }
+    }
+
     async _checkNavigation() {
         const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
         const assert = (condition, message) => { if (!condition) throw new Error(message); };
@@ -275,12 +299,6 @@ export default class Preview extends UbuntuIsland {
             available:new Map([...card._pages].map(([id,page]) => [id,page.available]))};
         let shown = false, hidden = false;
         const bounds = actor => [actor.get_transformed_position()[0], actor.get_transformed_size()[0]];
-        // Caption and tab widths are fitted on an idle after layout; a busy
-        // headless shell can delay it past a fixed wait.
-        const settle = async () => {
-            for (let i = 0; i < 50 && (card._navigationFit || card._sliderSnap); i++) await delay(20);
-            await delay(40); // the fit's tab widths are allocated on the next frame
-        };
         try {
             this._island.expand();
             // Measure the settled card, not the scaled opening transition.
@@ -291,7 +309,7 @@ export default class Preview extends UbuntuIsland {
                 for (const count of [2,4,9]) {
                     const enabled = ['bluetooth','calendar','system','audio','weather','commute','agents','media','notifications'].slice(0,count);
                     for (const [id,page] of card._pages) page.available = enabled.includes(id);
-                    card.selectPage('bluetooth'); await delay(80); await settle();
+                    card.selectPage('bluetooth'); await delay(80); await this._waitForCardLayout();
                     const tabs = [...card._tabs.values()].filter(tab => tab.visible);
                     assert(tabs.length === count, 'Navigation did not follow available modules');
                     const [left, navWidth] = bounds(card._navigation);
@@ -321,14 +339,14 @@ export default class Preview extends UbuntuIsland {
                     const before = tabs.map(bounds);
                     settings.set_int('surface-opacity',settings.get_int('surface-opacity') === 75 ? 98 : 75);
                     settings.set_string('color-theme',settings.get_string('color-theme') === 'ocean' ? 'graphite' : 'ocean');
-                    await delay(60); await settle();
+                    await delay(60); await this._waitForCardLayout();
                     assert(card.actor.has_style_class_name('ubuntu-island-with-calendar') && card.actor.has_style_class_name('ubuntu-island-with-agents'),
                         'Appearance update discarded module layout classes');
                     assert(tabs.every((tab,i) => bounds(tab).every((v,j) => Math.abs(v-before[i][j]) <= 1)),
                         'Appearance update changed navigation geometry');
                     const captionShown = card._pageCaption.visible;
                     for (const id of enabled) {
-                        card.selectPage(id); await delay(40); await settle();
+                        card.selectPage(id); await delay(40); await this._waitForCardLayout();
                         assert(card._pageCaption.visible === captionShown, 'Changing tab names changed caption visibility');
                         assert(tabs.every((tab,i) => bounds(tab).every((v,j) => Math.abs(v-before[i][j]) <= 1)),
                             `Changing to ${id} moved navigation icons at ${width}px/${scale}x/${font} text`);
@@ -1036,7 +1054,8 @@ export default class Preview extends UbuntuIsland {
         const context = St.ThemeContext.get_for_stage(global.stage), originalScale = context.scale_factor;
         const text = new Gio.Settings({schema_id: 'org.gnome.desktop.interface'}), originalText = text.get_double('text-scaling-factor');
         const originalWidth = this._settings.get_int('expanded-width');
-        const verifyBounds = () => {
+        const verifyBounds = async () => {
+            await this._waitForCardLayout();
             const nav = this._card._navigation, [left] = this._island.actor.get_transformed_position();
             const right = left + this._island.actor.width;
             for (const actor of [view.previous, view.next, view.todayButton, view.title, view.agenda.heading,
@@ -1061,7 +1080,7 @@ export default class Preview extends UbuntuIsland {
             context.scale_factor = scale;
             for (const width of [440, 380]) {
                 this._settings.set_int('expanded-width', width); this._island.applyDimensions(); await delay(300);
-                verifyBounds();
+                await verifyBounds();
                 await this._capture(`calendar-${width}-scale${scale}`);
                 assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Common month scrolls at ${width}/${scale}: ${view.adjustment.upper}/${view.adjustment.page_size}`);
                 assert(view.scroll.get_hscroll_bar().get_adjustment().upper <= view.scroll.width + 1, 'Common month needs horizontal scrolling');
@@ -1071,21 +1090,21 @@ export default class Preview extends UbuntuIsland {
         this._settings.set_strv('calendar-additional', ['gregorian', 'hijri']);
         view.select(civilDay(2026, 6, 4)); // Two overlapping holidays and all dates.
         text.set_double('text-scaling-factor', 1.5); this._island.relayout(); await delay(400);
-        verifyBounds();
+        await verifyBounds();
         const heightBudget = this._island._heightBudget;
         this._island._heightBudget = () => 230 * context.scale_factor;
         this._island.relayout(); await delay(200);
         const last = view.cells.filter(cell => cell.day !== null).at(-1).control;
         last.can_focus = true; last.grab_key_focus(); await delay(200);
         assert(last.get_transformed_position()[1] + last.height <= view.scroll.get_transformed_position()[1] + view.scroll.height + 1, 'Last date unreachable with enlarged text');
-        verifyBounds();
+        await verifyBounds();
         await this._capture('calendar-large-text');
         this._island._heightBudget = heightBudget;
         text.set_double('text-scaling-factor', originalText); context.scale_factor = originalScale;
         this._settings.set_int('expanded-width', originalWidth); this._island.applyDimensions(); await delay(300);
         this._settings.set_strv('calendar-additional', []); await delay(200);
         assert(!view.selectedDate, 'Redundant multi-calendar header remains');
-        verifyBounds(); await this._capture('calendar-single-date');
+        await verifyBounds(); await this._capture('calendar-single-date');
         this._settings.set_strv('calendar-additional', ['gregorian']); await delay(200);
         view.select(todayDay()); await delay(200);
         for (let i = 0; i < 3; i++) {
@@ -1261,22 +1280,37 @@ export default class Preview extends UbuntuIsland {
     async _checkAudio() {
         const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
         const assert = (condition, message) => { if (!condition) throw new Error(`Audio: ${message}`); };
-        this._card.selectPage('audio');
+        const waitFor = async (condition, message) => {
+            const deadline = GLib.get_monotonic_time() + 5_000_000;
+            while (!condition()) {
+                assert(GLib.get_monotonic_time() < deadline, message);
+                await delay(20);
+            }
+        };
         this._island.expand();
-        await delay(200);
+        await waitFor(() => this._island.state === 'expanded', 'Island did not finish expanding');
+        // Opening can route to the configured page or a notification peek.
+        this._card.selectPage('audio');
         const group = this._card._outputRows.get('bluetooth:sample');
         assert(['bluetooth:sample', 1, 4, 5].every((id, index) =>
             this._card._outputs.get_child_at_index(index) === this._card._outputRows.get(id)), 'Output category order is incorrect');
         const calls = group._modeButtons.get('calls');
         const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
-        const [x,y] = calls.get_transformed_position();
-        pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + calls.width / 2, y + calls.height / 2);
-        await delay(50);
+        // Hit-test the painted button after Shell has laid out the expanded card.
+        // A fixed sleep can land the click on a moving row or a startup banner.
+        await waitFor(() => {
+            const [left, top] = calls.get_transformed_position();
+            const [width, height] = calls.get_transformed_size();
+            const x = left + width / 2, y = top + height / 2;
+            const target = global.stage.get_actor_at_pos(Clutter.PickMode.REACTIVE, x, y);
+            if (!calls.mapped || !target || !(target === calls || calls.contains(target))) return false;
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(), x, y);
+            return calls.hover;
+        }, 'Calls button did not receive pointer hover');
         pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
-        await delay(50);
         pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
-        await delay(150);
-        assert(calls.has_style_pseudo_class('checked') && /lower audio quality/.test(group._note.text), 'Calls click did not switch mode or explain quality');
+        await waitFor(() => calls.has_style_pseudo_class('checked'), 'Calls click did not switch mode');
+        assert(/lower audio quality/.test(group._note.text), 'Calls mode did not explain audio quality');
         calls.grab_key_focus();
         this._audio.setVolume(0.45);
         assert(this._card._outputRows.get('bluetooth:sample') === group && calls.has_key_focus(), 'Volume update replaced the focused mode');

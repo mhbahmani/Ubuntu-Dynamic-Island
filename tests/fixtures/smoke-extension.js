@@ -1352,7 +1352,7 @@ export default class Smoke extends UbuntuIsland {
         await delay(100);
         assert(agentView.harnessMenu.visible && agentView.prompt.mapped, 'Harness menu hid the prompt');
         agentView.harnessMenu.get_children()[1].emit('clicked', 1);
-        await delay(150);
+        await waitForDraftFocus();
         assert(agentView.provider === 'codex' && agentView.prompt.clutter_text.has_key_focus(), 'Changing harness lost typing focus');
         assert(this._island.actor.height === composerHeight, 'Harness selection resized the island');
         const keyboard = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
