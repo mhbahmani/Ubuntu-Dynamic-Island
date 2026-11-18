@@ -1,3 +1,4 @@
+import {delay, moveToControl, waitFor} from './native-input.js';
 import {formatTime} from './services/format.js';
 import {imageContent} from './services/art.js';
 import {roundedCover} from './services/artwork-model.js';
@@ -16,10 +17,6 @@ import Cogl from 'gi://Cogl';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const assert = (condition, message) => { if (!condition) throw new Error(message); };
-const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
-    resolve();
-    return GLib.SOURCE_REMOVE;
-}));
 // Before pressing a just-registered shortcut. Adding a binding makes Mutter
 // rebuild its binding table; under load, a virtual chord injected before the
 // queued rebuild and layout work run never reaches the handler. A low-priority
@@ -144,7 +141,8 @@ export default class Smoke extends UbuntuIsland {
                 assert(!box('system').visible && box('system').opacity === 255 && box('system').translation_x === 0,
                     'Interrupted page kept its transition pose');
             }
-            await delay(duration + 150);
+            await waitFor(() => !card._revealing && !slider.get_transition('translation-x'),
+                'Tab and page transitions did not finish');
             assert(card._page === 'audio' && slider.opacity === 255 && onTab('audio'),
                 'Tab slider did not settle under the selected tab');
             assert(box('audio').opacity === 255 && box('audio').translation_x === 0 && !card._revealing,
@@ -454,13 +452,12 @@ export default class Smoke extends UbuntuIsland {
             await delay(80);
             const slider = card._progressTrack;
             const [x, y] = slider.get_transformed_position(), [width, sliderHeight] = slider.get_transformed_size();
-            pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + width * 0.25, y + sliderHeight / 2);
-            await delay(30);
+            await moveToControl(pointer, slider, 0.25);
             pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
             await delay(40);
             pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + width * 0.6, y + sliderHeight / 2);
             await delay(50);
-            assert(card._draggingProgress, 'Pointer did not begin seek drag');
+            await waitFor(() => card._draggingProgress, 'Pointer did not begin seek drag');
             assert(card._elapsed.text === formatTime(slider.value * state.lengthSec), 'Time did not follow dragged thumb');
             card.renderProgress(12);
             assert(card._elapsed.text === formatTime(slider.value * state.lengthSec), 'Timer overwrote drag preview');
@@ -966,8 +963,12 @@ export default class Smoke extends UbuntuIsland {
         const clickRouteActor = async actor => {
             const [x, y] = actor.get_transformed_position();
             const [width, height] = actor.get_transformed_size();
-            routePointer.notify_absolute_motion(GLib.get_monotonic_time(), x + width / 2, y + height / 2);
-            await delay(30);
+            if (actor.reactive) {
+                await moveToControl(routePointer, actor);
+            } else {
+                routePointer.notify_absolute_motion(GLib.get_monotonic_time(), x + width / 2, y + height / 2);
+                await delay(30);
+            }
             routePointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
             await delay(30);
             routePointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
@@ -1016,7 +1017,7 @@ export default class Smoke extends UbuntuIsland {
         await clickRouteActor(commute.provider);
         this._commute.controller.lastAttempt = -Infinity;
         await clickRouteActor(commute.providerRows.get('mapbox'));
-        assert(this._commute.reversed && this._states.commute.preferred === 'mapbox', 'Source selection reversed the journey');
+        assert(this._commute.reversed && this._states.commute.preferred === 'mapbox', `Provider click: reversed=${this._commute.reversed} provider=${this._states.commute.preferred} panel=${commute.providerPanel.visible} reactive=${commute.providerRows.get('mapbox').reactive}`);
         assert(this._commute.route.origin.latitude === readyCommute.route.destination.latitude, 'Wrong source coordinates after source selection');
         for (const [app, host] of [['google', 'www.google.com'], ['balad', 'balad.ir'], ['neshan', 'neshan.org']]) {
             this._settings.set_string('commute-open-with', app);
@@ -1424,15 +1425,10 @@ export default class Smoke extends UbuntuIsland {
         for (let i = 0; i < 12; i++) {
             const page = i % 2 ? 'system' : 'audio';
             const tab = this._card._tabs.get(page);
-            const [x, y] = tab.get_transformed_position();
-            const [w, h] = tab.get_transformed_size();
-            pointer.notify_absolute_motion(GLib.get_monotonic_time(), x + w / 2, y + h / 2);
-            await delay(50);
-            assert(tab.hover, `Tab hover lost on iteration ${i}`);
+            await moveToControl(pointer, tab);
             pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
             pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
-            await delay(50);
-            assert(this._card._page === page, `Tab click lost on iteration ${i}`);
+            await waitFor(() => this._card._page === page, `Tab click lost on iteration ${i}`);
         }
         this._card.selectPage('media');
         const context = St.ThemeContext.get_for_stage(global.stage);
@@ -1461,9 +1457,7 @@ export default class Smoke extends UbuntuIsland {
         pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
         await delay(250);
         assert(!this._island.expanded && !this._island._grab, 'Real outside click did not dismiss');
-        const [reopenX, reopenY] = this._pill.actor.get_transformed_position();
-        pointer.notify_absolute_motion(GLib.get_monotonic_time(), reopenX + this._pill.actor.width / 2, reopenY + 12);
-        await delay(50);
+        await moveToControl(pointer, this._pill.actor);
         pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
         await delay(50);
         pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);
@@ -1477,8 +1471,7 @@ export default class Smoke extends UbuntuIsland {
         });
         await delay(50);
         assert(!this._island.expanded && !this._island._grab, 'Escape did not dismiss');
-        pointer.notify_absolute_motion(GLib.get_monotonic_time(), reopenX + this._pill.actor.width / 2, reopenY + 12);
-        await delay(50);
+        await moveToControl(pointer, this._pill.actor);
         pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.PRESSED);
         await delay(50);
         pointer.notify_button(GLib.get_monotonic_time(), 1, Clutter.ButtonState.RELEASED);

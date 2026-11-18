@@ -90,6 +90,7 @@ def main():
             destination.mkdir(parents=True, exist_ok=True)
             shutil.copy2(path, destination / Path(path).name)
     (extension / 'extension.js').rename(extension / 'implementation.js')
+    shutil.copy2(source / 'tests/fixtures/native-input.js', extension / 'native-input.js')
     shutil.copy2(source / 'tests/fixtures/local-preview.js', extension / 'extension.js')
     shutil.copy2(source / 'tests/fixtures/preview-data.js', extension / 'preview-data.js')
     shutil.copy2(source / 'tests/fixtures/preview-settings.js', extension / 'preview-settings.js')

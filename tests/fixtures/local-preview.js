@@ -1,4 +1,5 @@
 // Development-only wrapper; never packaged or installed.
+import {moveToControl, waitFor} from './native-input.js';
 import Pango from 'gi://Pango';
 import UbuntuIsland from './implementation.js';
 import Gio from 'gi://Gio';
@@ -260,16 +261,17 @@ export default class Preview extends UbuntuIsland {
     async _waitForCardLayout() {
         // Size changes queue navigation fitting after allocation. The next paint
         // applies the fitted tab widths, even on a slow software renderer.
-        let stableFrames = 0;
+        let stableFrames = 0, previous = null;
         const paint = global.stage.connect('after-paint', () => {
-            const pending = this._card._navigationFit || this._card._sliderSnap ||
-                this._island.actor.get_transition('width') || this._island.actor.get_transition('height');
-            stableFrames = pending ? 0 : stableFrames + 1;
+            const geometry = [this._card._navigation.width, this._card._tabStrip.width,
+                this._card._pageCaption.width, this._island.actor.width, this._island.actor.height].join(',');
+            stableFrames = geometry === previous ? stableFrames + 1 : 0;
+            previous = geometry;
         });
         const deadline = GLib.get_monotonic_time() + 3_000_000;
         try {
-            while (stableFrames < 2) {
-                if (GLib.get_monotonic_time() >= deadline) throw new Error('Card layout did not settle');
+            while (stableFrames < 2 || this._island.actor.get_transition('width') || this._island.actor.get_transition('height')) {
+                if (GLib.get_monotonic_time() >= deadline) throw new Error(`Card layout did not settle: ${previous}, state=${this._island.state}`);
                 global.stage.queue_redraw();
                 await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 20, () => {
                     resolve();
@@ -520,11 +522,13 @@ export default class Preview extends UbuntuIsland {
         assert(!view._header.visible, 'Notifications header still takes space');
         assert(badge?.get_parent().visible && badge.text === '5', `Unexpected tab badge: ${badge?.text}`);
         assert(tab.accessible_name === 'Notifications, 5 new', `Tab name lacks the count: ${tab.accessible_name}`);
+        await waitFor(() => this._island.state === 'expanded', 'Notifications did not finish expanding');
+        await this._waitForCardLayout();
         const tabWidth = tab.width;
-        settings.set_boolean('notifications-tab-badge', false); await delay(50);
+        settings.set_boolean('notifications-tab-badge', false); await this._waitForCardLayout();
         assert(!badge.get_parent().visible && tab.accessible_name === 'Notifications', 'Badge setting did not hide the count');
-        settings.set_boolean('notifications-tab-badge', true); await delay(50);
-        assert(badge.get_parent().visible && tab.width === tabWidth, 'Badge changed the tab width');
+        settings.set_boolean('notifications-tab-badge', true); await this._waitForCardLayout();
+        assert(badge.get_parent().visible && tab.width === tabWidth, `Badge layout: widths=${tabWidth}/${tab.width} visible=${badge.get_parent().visible} state=${this._island.state}`);
         assert(!view._todayButton.visible, 'Today toggle shown in the compact list');
         assert(cards().every(entry => entry._dot.visible), 'Unseen rows lack the new marker');
         const headings = view._list.get_children().filter(entry => !entry._openButton).map(entry => entry.text);
@@ -680,9 +684,19 @@ export default class Preview extends UbuntuIsland {
         console.log('[Island Preview] NOTIFICATIONS PASS: compact and grouped layouts, logos, actions, keys, sections, filters, peek, unseen, DND, clear and stop');
     }
 
+    async _setIslandExpanded(expanded) {
+        const state = expanded ? 'expanded' : 'collapsed';
+        if (expanded) this._island.expand();
+        else this._island.collapse();
+        await waitFor(() => this._island.state === state, `Island did not reach ${state}`);
+    }
+
     async _checkCalendar() {
         const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
         const assert = (condition, message) => { if (!condition) throw new Error(message); };
+        // A virtual pointer starts at the screen edge. Keep its first motion
+        // from opening Activities over the preferences window in this session.
+        new Gio.Settings({schema_id: 'org.gnome.desktop.interface'}).set_boolean('enable-hot-corners', false);
         const pointer = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.POINTER_DEVICE);
         const keyboard = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         const click = async actor => {
@@ -702,7 +716,7 @@ export default class Preview extends UbuntuIsland {
         await this._checkNotchDate();
         const card = this._card, navigation = card._navigation, soundRows = card._outputRows;
         for (let i = 0; i < 3; i++) {
-            card.selectPage('calendar'); this._island.expand(); await delay(400);
+            card.selectPage('calendar'); await this._setIslandExpanded(true);
             const previous = card._calendarView;
             previous.todayButton.grab_key_focus();
             assert(previous.todayButton.has_key_focus(), 'Calendar focus setup failed');
@@ -720,7 +734,7 @@ export default class Preview extends UbuntuIsland {
                 'Calendar must appear immediately without changing the current tab');
             assert(card._navigation === navigation && card._outputRows === soundRows, 'Calendar toggle rebuilt unrelated controls');
         }
-        this._card.selectPage('calendar'); this._island.expand(); await delay(600);
+        this._card.selectPage('calendar'); await this._setIslandExpanded(true);
         const view = this._card._calendarView;
         view.select(todayDay()); await delay(200);
         // Simulate the cached Shell profile in this private session only.
@@ -759,14 +773,15 @@ export default class Preview extends UbuntuIsland {
             this._settings.set_boolean('calendar-use-calendar-language',native);
             view.todayButton.grab_key_focus(); await delay(100);
             const cell = view.cells.find(item => item.day != null && item.day !== view.selected);
-            const [x,y] = cell.control.get_transformed_position(), [w,h] = cell.control.get_transformed_size();
             const selected = view.selected;
-            pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2); await delay(100);
             const tip = view.dayTip.tip;
+            await moveToControl(pointer, cell.control);
             assert(!tip.visible && view.dayTip.timer, 'Day hover opened without its pause');
-            pointer.notify_absolute_motion(GLib.get_monotonic_time(),50,500); await delay(80);
+            pointer.notify_absolute_motion(GLib.get_monotonic_time(),50,500);
+            await waitFor(() => !cell.control.hover, 'Pointer did not leave the day');
             assert(!tip.visible && !view.dayTip.timer, 'Leaving retained a pending popup');
-            pointer.notify_absolute_motion(GLib.get_monotonic_time(),x+w/2,y+h/2); await delay(550);
+            await moveToControl(pointer, cell.control);
+            await waitFor(() => tip.visible, 'Day tooltip did not appear after hover');
             assert(!/Hijri:|Gregorian:|Jalali:|calculated|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday/.test(tip.text), 'Day popup has unnecessary labels');
             assert(tip.visible && tip.text.split('\n').length === 2 && !tip.text.includes(`${primary[0].toUpperCase()+primary.slice(1)}:`),
                 'Day hover did not show the other two calendars');
@@ -835,7 +850,7 @@ export default class Preview extends UbuntuIsland {
         this._settings.set_strv('calendar-event-sources',[]); await delay(100);
         assert(view.agenda.actor.visible && view.agenda.message.text === 'No events' && !view.agenda.rows.size, 'Unconfigured day panel must retain its date and empty state');
         this._settings.set_strv('calendar-event-sources',['sample-calendar']);
-        this._island.collapse(); await delay(350);
+        await this._setIslandExpanded(false);
         assert(this._pill._event.visible && this._eventIndicator?.label === 'Event now' && !this._pill._eventText.visible &&
             this._pill._event.accessible_name === 'Event now', 'Ongoing event must show only its icon, with an accessible label');
         await click(this._pill._event); await delay(350);
@@ -843,7 +858,7 @@ export default class Preview extends UbuntuIsland {
             'Event click did not reveal inline events');
         await key(Clutter.KEY_Escape); await delay(250);
         assert(!this._island.expanded, 'Inline calendar Escape did not close the island');
-        this._island.expand(); await delay(250);
+        await this._setIslandExpanded(true);
         this._card.selectPage('media');
         assert(!this._calendarClock && !this._calendarDeadline && this._calendarEvents.suspended, 'Hidden calendar retains timers or an active reader');
         assert(view.agenda.rows.size > 0, 'Hidden calendar discarded its last events');
@@ -1055,7 +1070,7 @@ export default class Preview extends UbuntuIsland {
             for (const actor of [view.previous, view.next, view.todayButton, view.title, view.agenda.heading,
                 view.agenda.scroll, view.scroll, ...this._card._tabs.values(), nav.get_last_child()]) {
                 const [x] = actor.get_transformed_position();
-                assert(x >= left - 1 && x + actor.width <= right + 1, `Control outside card width: ${actor.style_class}`);
+                assert(x >= left - 1 && x + actor.width <= right + 1, `Control outside card width: ${actor.accessible_name || actor.style_class} at ${x}.. ${x + actor.width}, card ${left}.. ${right}, tab width ${this._card._tabWidth}, navigation ${nav.width}`);
             }
             const titleCenter = view.title.get_transformed_position()[0] + view.title.width / 2;
             const arrowsCenter = (view.previous.get_transformed_position()[0] + view.previous.width + view.next.get_transformed_position()[0]) / 2;
@@ -1105,21 +1120,22 @@ export default class Preview extends UbuntuIsland {
             view.select(todayDay() + 40);
             this._card.selectPage('media'); this._card.selectPage('calendar');
             assert(view.selected === todayDay() + 40, 'Tab switching reset the selected date');
-            this._island.collapse(); await delay(300); assert(!view.midnightTimer && !view.dayTip.tip.visible, 'Hidden calendar retains timer or popup');
-            this._island.expand(); await delay(300); assert(view.midnightTimer, 'Visible calendar clock missing');
+            await this._setIslandExpanded(false);
+            assert(!view.midnightTimer && !view.dayTip.tip.visible, 'Hidden calendar retains timer or popup');
+            await this._setIslandExpanded(true);
+            assert(view.midnightTimer, 'Visible calendar clock missing');
             assert(view.selected === todayDay() && view.displayed === todayDay(), 'Reopening retained the browsed date/month');
             assert(view.agenda.adjustment.value === 0, 'Reopening retained the agenda scroll position');
         }
         this._card.selectPage('media'); assert(!view.midnightTimer, 'Inactive calendar retains timer');
         this._card.selectPage('calendar'); await delay(300); await this._capture('calendar');
         // The shared preferences action should open Calendar directly.
-        await click(this._card._navigation.get_last_child());
-        let preferences;
-        for (let i = 0; i < 40 && !preferences; i++) {
-            await delay(100);
-            preferences = this._agentWindows.all().find(w => w.get_title() === 'Ubuntu Island' && w.get_compositor_private()?.mapped);
-        }
-        assert(preferences && this._settings.get_string('preferences-page') === 'calendar', 'Calendar preferences shortcut failed');
+        const preferencesButton = this._card._navigation.get_last_child();
+        await moveToControl(pointer, preferencesButton);
+        await click(preferencesButton);
+        assert(this._settings.get_string('preferences-page') === 'calendar', 'Preferences shortcut did not select Calendar');
+        await waitFor(() => this._prefsWindow?.get_compositor_private()?.mapped, 'Calendar preferences window did not appear', 10_000);
+        const preferences = this._prefsWindow;
         assert(!this._pill._dates.tip.visible, 'Opening a preferences window exposed a hidden date tooltip');
         await delay(500); await this._capture('calendar-preferences');
         preferences.delete(global.get_current_time());
@@ -1129,7 +1145,7 @@ export default class Preview extends UbuntuIsland {
     async _checkNotchDate() {
         const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
         const assert = (condition, message) => { if (!condition) throw new Error(message); };
-        this._island.collapse(); await delay(400);
+        await this._setIslandExpanded(false);
         const pill = this._pill, settings = this._settings, dates = pill._dates;
         const clock = Main.panel.statusArea.dateMenu._clock;
         const dateLabel = id => dates.items.get(id).date;
@@ -1148,9 +1164,9 @@ export default class Preview extends UbuntuIsland {
         assert(pill._time.text !== firstTime && pill._time.width === firstWidth, 'Seconds did not update in a stable slot');
         assert(pill.actor.accessible_name.includes(pill._time.text), 'Clock time missing from accessible name');
         await this._capture('notch-time-seconds');
-        this._island.expand(); await delay(350);
+        await this._setIslandExpanded(true);
         assert(!pill._secondsTimer && !pill._dateClock && !pill._time.visible, 'Expanded island retains a clock timer/subscription');
-        this._island.collapse(); await delay(350);
+        await this._setIslandExpanded(false);
         assert(pill._secondsTimer, 'Clock seconds did not resume when visible');
         pill.actor.hide();
         const hiddenTime = pill._time.text;
@@ -1253,13 +1269,9 @@ export default class Preview extends UbuntuIsland {
             assert(!pill._date.visible && !pill._dateClock, 'Disabled dates retained clock subscription');
             settings.set_boolean('pill-show-date', true);
             assert(pill._dateClock === clock, 'Dates did not resume after enabling');
-            this._island.expand();
-            for (let j = 0; j < 100 && this._island.state !== 'expanded'; j++) await delay(20);
-            assert(this._island.state === 'expanded', 'Date subscription check did not finish expanding');
+            await this._setIslandExpanded(true);
             assert(!pill._dateClock && !dates.tip.visible, 'Expanded notch retained dates subscription/tooltip');
-            this._island.collapse();
-            for (let j = 0; j < 100 && this._island.state !== 'collapsed'; j++) await delay(20);
-            assert(this._island.state === 'collapsed', 'Date subscription check did not finish collapsing');
+            await this._setIslandExpanded(false);
             assert(pill._dateClock === clock, 'Dates did not resume after collapsing');
         }
         this._island.actor.hide(); await delay(100);
@@ -1274,13 +1286,6 @@ export default class Preview extends UbuntuIsland {
     async _checkAudio() {
         const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
         const assert = (condition, message) => { if (!condition) throw new Error(`Audio: ${message}`); };
-        const waitFor = async (condition, message) => {
-            const deadline = GLib.get_monotonic_time() + 5_000_000;
-            while (!condition()) {
-                assert(GLib.get_monotonic_time() < deadline, message);
-                await delay(20);
-            }
-        };
         this._island.expand();
         await waitFor(() => this._island.state === 'expanded', 'Island did not finish expanding');
         // Opening can route to the configured page or a notification peek.

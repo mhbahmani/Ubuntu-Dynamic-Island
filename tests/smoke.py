@@ -45,6 +45,7 @@ def main():
     (extension / "tests").mkdir()
     shutil.copy2(source / "tests/fixtures/preview-window.mjs", extension / "tests/preview-window.mjs")
     (extension / "extension.js").rename(extension / "implementation.js")
+    shutil.copy2(source / 'tests/fixtures/native-input.js', extension / 'native-input.js')
     shutil.copy2(source / "tests/fixtures/smoke-extension.js", extension / "extension.js")
     subprocess.run(["glib-compile-schemas", "--strict", str(extension / "schemas")], check=True)
     mode = root / "share/gnome-shell/modes/island-smoke.json"
