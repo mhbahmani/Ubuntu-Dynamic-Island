@@ -77,7 +77,7 @@ export class NotchAutoHide {
     _start() {
         const island = this._island;
         this._zone = new St.Widget({name: 'ubuntu-island-reveal-zone', reactive: true, visible: false});
-        Main.layoutManager.addChrome(this._zone, {trackFullscreen: true, affectsStruts: false, affectsInputRegion: true});
+        Main.layoutManager.addChrome(this._zone, {trackFullscreen: true, affectsStruts: false});
         // Below the island, so the notch's content receives its own events.
         this._zone.get_parent()?.set_child_below_sibling(this._zone, island.actor);
         const track = (owner, signal, handler) => this._connections.push([owner, owner.connect(signal, handler)]);

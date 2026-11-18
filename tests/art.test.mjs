@@ -8,7 +8,7 @@ import {roundedCover} from '../extension/services/artwork-model.js';
 // No Shell session, D-Bus changes, or developer-machine hardware is required.
 function service(file, name, dependencies) {
     const source = readFileSync(new URL(`../extension/services/${file}.js`, import.meta.url), 'utf8')
-        .replace(/^import .*;\n/gm, '').replace('export class ', 'class ');
+        .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
     return vm.runInNewContext(`${source}\n${name}`, {...dependencies, console});
 }
 

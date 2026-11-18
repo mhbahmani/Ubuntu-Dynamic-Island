@@ -475,7 +475,7 @@ export default class Preview extends UbuntuIsland {
                 this._settings.set_int('expanded-width',cardWidth); await delay(150);
                 const scroll = this._card._scroll, [left] = scroll.get_transformed_position(), [available] = scroll.get_transformed_size();
                 if (typeScale === 1) {
-                    const adjustment = scroll.get_vscroll_bar().get_adjustment();
+                    const adjustment = scroll.vadjustment;
                     assert(adjustment.upper-adjustment.lower <= adjustment.page_size+1, 'Default Commute requires scrolling');
                 }
                 assert(!view.creditLink.mapped, 'Attribution remains on the route face');
@@ -550,7 +550,7 @@ export default class Preview extends UbuntuIsland {
                     assert(x >= listX - 1 && x + w <= listX + listWidth + 1, `Row overflows at ${where}`);
                     assert(entry._title.get_transformed_size()[0] > 20 * scale, `Title squeezed at ${where}`);
                 }
-                const adjustment = card._scroll.get_vscroll_bar().get_adjustment();
+                const adjustment = card._scroll.vadjustment;
                 const last = cards().at(-1);
                 const bottom = last.get_transformed_position()[1] + last.get_transformed_size()[1];
                 const scrollBottom = card._scroll.get_transformed_position()[1] + card._scroll.get_transformed_size()[1];
@@ -1077,7 +1077,7 @@ export default class Preview extends UbuntuIsland {
                 await verifyBounds();
                 await this._capture(`calendar-${width}-scale${scale}`);
                 assert(view.adjustment.upper <= view.adjustment.page_size + 1, `Common month scrolls at ${width}/${scale}: ${view.adjustment.upper}/${view.adjustment.page_size}`);
-                assert(view.scroll.get_hscroll_bar().get_adjustment().upper <= view.scroll.width + 1, 'Common month needs horizontal scrolling');
+                assert(view.scroll.hadjustment.upper <= view.scroll.width + 1, 'Common month needs horizontal scrolling');
                 console.log(`[Island Preview] Calendar layout: ${width}px / ${scale * 100}%, height ${this._island.actor.height / scale}px, independent day and month panels`);
             }
         }
@@ -1316,7 +1316,7 @@ export default class Preview extends UbuntuIsland {
         const bounds = this._island.actor.get_transformed_position();
         assert(group.get_transformed_position()[0] + group.width <= bounds[0] + this._island.actor.width, 'Sound group overflows narrow card');
         await this._capture('sound-music-narrow');
-        const adjustment = this._card._scroll.get_vscroll_bar().get_adjustment();
+        const adjustment = this._card._scroll.vadjustment;
         adjustment.value = adjustment.upper - adjustment.page_size;
         await delay(100);
         const last = this._card._outputRows.get(5), viewport = this._card._scroll;

@@ -34,7 +34,7 @@ export class CalendarAgenda {
         this.header.add_child(this.heading); this.actor.add_child(this.header);
         this.scroll = new St.ScrollView({x_expand:true, y_expand:true, overlay_scrollbars:true});
         this.scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
-        this.adjustment = this.scroll.get_vscroll_bar().get_adjustment();
+        this.adjustment = this.scroll.vadjustment;
         this.titleTip = new HoverTip(this.actor, {delay: 450, motionSettings: settings, viewport: this.scroll});
         this.actor.add_child(this.scroll);
         this.content = column('ubuntu-island-calendar-event-list'); this.scroll.set_child(this.content);

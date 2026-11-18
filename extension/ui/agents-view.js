@@ -41,7 +41,7 @@ export class AgentsView {
         this.scroll.set_policy(St.PolicyType.NEVER, St.PolicyType.AUTOMATIC);
         this.stack = new St.Widget({layout_manager:new Clutter.BinLayout(), x_expand:true, y_expand:true});
         this.actor.add_child(this.stack); this.stack.add_child(this.scroll);
-        this.adjustment = this.scroll.get_vscroll_bar().get_adjustment();
+        this.adjustment = this.scroll.vadjustment;
         this.content = column('ubuntu-island-agents-content'); this.content.y_expand = true; this.scroll.set_child(this.content);
         this.list = column('ubuntu-island-agent-list'); this.content.add_child(this.list);
         this.activeList = column('ubuntu-island-agent-list'); this.list.add_child(this.activeList);

@@ -59,7 +59,7 @@ export class WeatherScene {
     setViewport(viewport) {
         this.viewport = viewport;
         viewport.connect('destroy', () => { this.viewport = null; this.adjustment = null; this.scrollId = 0; this.setActive(false); });
-        this.adjustment = viewport.get_vscroll_bar().get_adjustment();
+        this.adjustment = viewport.vadjustment;
         this.scrollId = this.adjustment.connect('notify::value', () => {
             if (this.scrollIdle) return;
             this.scrollIdle = GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {

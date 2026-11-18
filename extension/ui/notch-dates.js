@@ -30,14 +30,13 @@ export class NotchDates {
         // The date actor's mapped state already tracks fullscreen. Asking the
         // layout manager to track the tooltip separately would force it visible
         // whenever a normal window appears, even without hover or focus.
-        Main.layoutManager.addTopChrome(this.tip, {affectsInputRegion: false});
+        Main.uiGroup.add_child(this.tip);
         this.actor.connect('notify::hover', () => this.syncTip());
         this.actor.connect('notify::mapped', () => this.syncTip());
         this.actor.connect('notify::allocation', () => this.syncTip());
         pill.connect('key-focus-in', () => this.syncTip());
         pill.connect('key-focus-out', () => this.syncTip());
         this.actor.connect('destroy', () => {
-            Main.layoutManager.removeChrome(this.tip);
             this.tip.destroy();
         });
         this.entries = [];

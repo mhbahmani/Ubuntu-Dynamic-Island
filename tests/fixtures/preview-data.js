@@ -1,7 +1,7 @@
 import {AgentStore} from './services/agents-model.js';
+import {imageContent} from './services/art.js';
 import {roundedCover} from './services/artwork-model.js';
 // Development fixtures only. Controls update these snapshots, never real devices.
-import St from 'gi://St';
 import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import Shell from 'gi://Shell';
@@ -63,8 +63,7 @@ export function sampleDevices(preview, sampleMetrics) {
         pixels.set(sun ? [192, 68, 43, 255] : ridge ? [51, 47, 42, 255]
             : [224 - Math.round(y / 8), 211 - Math.round(y / 6), 190 - Math.round(y / 5), 255], (y * 160 + x) * 4);
     }
-    const cover = St.ImageContent.new_with_preferred_size(160, 160);
-    cover.set_data(roundedCover(pixels, 160, 160, 160 * 4, 4).data, Cogl.PixelFormat.RGBA_8888, 160, 160, 160 * 4);
+    const cover = imageContent(roundedCover(pixels, 160, 160, 160 * 4, 4).data, Cogl.PixelFormat.RGBA_8888, 160, 160, 160 * 4);
     cover._islandAccent = [178, 105, 66];
     const emitMedia = () => { preview._renderMedia({...media}); preview._card.renderArt(cover); };
     preview._media = {

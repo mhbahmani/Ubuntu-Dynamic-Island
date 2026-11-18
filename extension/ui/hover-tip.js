@@ -23,10 +23,10 @@ export class HoverTip {
         this.tip.clutter_text.line_wrap_mode = Pango.WrapMode.WORD_CHAR;
         this.tip.set_text_direction(Clutter.TextDirection.LTR);
         this.tip.hide();
-        Main.layoutManager.addTopChrome(this.tip, {affectsInputRegion: false});
+        Main.uiGroup.add_child(this.tip);
         owner.connect('notify::mapped', () => this.refresh());
         owner.connect('notify::allocation', () => this.refresh());
-        viewport?.get_vscroll_bar().get_adjustment().connectObject('notify::value', () => {
+        viewport?.vadjustment.connectObject('notify::value', () => {
             if (this.scrollLater || !owner.mapped) return;
             this.scrollLater = global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
                 this.scrollLater = 0;
@@ -37,7 +37,6 @@ export class HoverTip {
         owner.connect('destroy', () => {
             this._cancel();
             this.destroyed = true;
-            Main.layoutManager.removeChrome(this.tip);
             this.tip.destroy();
             this.target = null;
             this.suppressed = this.pointerFocus = null;

@@ -189,7 +189,7 @@ export class CommuteView {
     showProviders(show, focus = true) {
         this.main.visible = !show;
         this.providerPanel.visible = show;
-        const adjustment = this.viewport.get_vscroll_bar().get_adjustment();
+        const adjustment = this.viewport.vadjustment;
         adjustment.value = adjustment.lower;
         this._relayout();
         if (focus) (show ? this.providerBack : this.provider).grab_key_focus();

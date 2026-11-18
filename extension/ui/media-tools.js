@@ -103,7 +103,7 @@ export class MediaTools {
         this.panel.visible = Boolean(mode);
         this.title.text = {players: 'Choose player', sound: 'Sound', lyrics: 'Lyrics', queue: 'Up next'}[mode] || '';
         for (const [key, view] of this.views) view.visible = key === mode;
-        const adjustment = this.card._scroll.vscroll.adjustment;
+        const adjustment = this.card._scroll.vadjustment;
         adjustment.value = adjustment.lower;
         this.actions.mediaViewChanged?.();
         this.actions.relayout?.();

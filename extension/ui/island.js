@@ -198,7 +198,6 @@ export class IslandSurface {
         Main.layoutManager.addChrome(this.actor, {
             trackFullscreen: true, // hidden while the monitor has a fullscreen window
             affectsStruts: false,
-            affectsInputRegion: true,
         });
         this._layoutSignal = Main.layoutManager.connect('monitors-changed', () => {
             this.applyDimensions();

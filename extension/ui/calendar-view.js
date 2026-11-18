@@ -56,7 +56,7 @@ export class CalendarView {
         this.scroll = new St.ScrollView({style_class: 'ubuntu-island-calendar-scroll',
             x_expand: true, y_expand: true, overlay_scrollbars: true});
         this.scroll.set_policy(St.PolicyType.AUTOMATIC, St.PolicyType.AUTOMATIC);
-        this.adjustment = this.scroll.get_vscroll_bar().get_adjustment();
+        this.adjustment = this.scroll.vadjustment;
         this.dayTip = new HoverTip(this.actor, {delay: 450, styleClass: 'ubuntu-island-calendar-day-tooltip',
             motionSettings: settings, dismissOnPress: true, viewport: this.scroll});
         this.month.add_child(this.scroll);
@@ -261,8 +261,7 @@ export class CalendarView {
         // at enlarged text sizes. The other panel keeps its scroll position.
         const position = scroll.get_transformed_position(), size = scroll.get_transformed_size();
         const targetPosition = target.get_transformed_position(), targetSize = target.get_transformed_size();
-        [scroll.get_hscroll_bar(), scroll.get_vscroll_bar()].forEach((bar, axis) => {
-            const adjustment = bar.get_adjustment();
+        [scroll.hadjustment, scroll.vadjustment].forEach((adjustment, axis) => {
             const offset = targetPosition[axis] < position[axis] ? targetPosition[axis] - position[axis] :
                 Math.max(0, targetPosition[axis] + targetSize[axis] - position[axis] - size[axis]);
             if (Number.isFinite(offset)) adjustment.value = Math.max(adjustment.lower,

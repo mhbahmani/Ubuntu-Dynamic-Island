@@ -1,4 +1,5 @@
 import {formatTime} from './services/format.js';
+import {imageContent} from './services/art.js';
 import {roundedCover} from './services/artwork-model.js';
 import {THEME_IDS} from './services/themes.js';
 import {formatRate} from './services/proc.js';
@@ -410,7 +411,7 @@ export default class Smoke extends UbuntuIsland {
             render();
             await delay(100);
             const height = this._island.actor.height;
-            const adjustment = card._scroll.vscroll.adjustment;
+            const adjustment = card._scroll.vadjustment;
             assert(adjustment.upper <= adjustment.page_size + 1, 'Normal media scrolls');
             assert(card._cover.width === card._cover.height, 'Cover is not square');
             card._shuffle.emit('clicked', 1);
@@ -745,8 +746,7 @@ export default class Smoke extends UbuntuIsland {
             pixels.set(sun ? [192, 68, 43, 255] : ridge ? [51, 47, 42, 255]
                 : [224 - Math.round(y / 8), 211 - Math.round(y / 6), 190 - Math.round(y / 5), 255], offset);
         }
-        const cover = St.ImageContent.new_with_preferred_size(160, 160);
-        cover.set_data(roundedCover(pixels, 160, 160, 160 * 4, 4).data, Cogl.PixelFormat.RGBA_8888, 160, 160, 160 * 4);
+        const cover = imageContent(roundedCover(pixels, 160, 160, 160 * 4, 4).data, Cogl.PixelFormat.RGBA_8888, 160, 160, 160 * 4);
         this._card.renderArt(cover);
         this._card._pillTitle.emit('clicked', 1);
         assert(!this._pill._title.visible && this._pill._mediaIcon.visible, 'Hide title removed the playback icon');
@@ -1035,7 +1035,7 @@ export default class Smoke extends UbuntuIsland {
             const [left, top] = this._card._scroll.get_transformed_position();
             const [width, height] = this._card._scroll.get_transformed_size();
             if (withinViewport) {
-                const adjustment = this._card._scroll.get_vscroll_bar().get_adjustment();
+                const adjustment = this._card._scroll.vadjustment;
                 assert(adjustment.upper - adjustment.lower <= adjustment.page_size + 1,
                     `Default Commute needs scrolling (${adjustment.upper - adjustment.lower} > ${adjustment.page_size})`);
             }
@@ -1069,7 +1069,7 @@ export default class Smoke extends UbuntuIsland {
         assert(!commute.arrival.clutter_text.get_layout().is_ellipsized(), 'Commute arrival was truncated');
         assert(this._island.actor.height === standardTabHeight, 'Enlarged Commute resized the tabs');
         const largeTextNavigationTop = navigationTop();
-        const commuteScroll = this._card._scroll.get_vscroll_bar().get_adjustment();
+        const commuteScroll = this._card._scroll.vadjustment;
         commuteScroll.value = commuteScroll.upper - commuteScroll.page_size;
         await this._capture('commute-large-text-scrolled');
         assert(navigationTop() === largeTextNavigationTop, 'Scrolling Commute moved navigation');

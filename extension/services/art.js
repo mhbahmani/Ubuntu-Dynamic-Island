@@ -12,6 +12,18 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const ALLOWED_MIME = ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/bmp'];
 const CACHE_LIMIT = 24;
 
+// Newer St versions require the texture's Cogl context explicitly.
+export function imageContent(data, format, width, height, stride) {
+    const content = St.ImageContent.new_with_preferred_size(width, height);
+    if (content.set_data.length === 6) {
+        const context = global.stage.context.get_backend().get_cogl_context();
+        content.set_data(context, data, format, width, height, stride);
+    } else {
+        content.set_data(data, format, width, height, stride);
+    }
+    return content;
+}
+
 // Bounded, asynchronous artwork loading. file:// URIs are read straight from
 // disk; remote art goes through a size/MIME-checked, host-validated,
 // disk-cached Soup request. Nothing here blocks the Shell main loop, requests
@@ -224,16 +236,13 @@ class ArtworkRequest {
         // Sprite atlases must retain every pixel and their rectangular geometry.
         // Album-cover cropping shifts tile boundaries and exposes adjacent frames.
         if (!this._cover) {
-            const content = St.ImageContent.new_with_preferred_size(width, height);
-            content.set_data(pixbuf.get_pixels(), pixbuf.get_has_alpha()
+            return imageContent(pixbuf.get_pixels(), pixbuf.get_has_alpha()
                 ? Cogl.PixelFormat.RGBA_8888 : Cogl.PixelFormat.RGB_888,
             width, height, pixbuf.get_rowstride());
-            return content;
         }
         const rounded = roundedCover(pixbuf.get_pixels(), width, height, pixbuf.get_rowstride(), pixbuf.get_n_channels());
-        const content = St.ImageContent.new_with_preferred_size(rounded.side, rounded.side);
         try {
-            content.set_data(rounded.data, Cogl.PixelFormat.RGBA_8888, rounded.side, rounded.side, rounded.side * 4);
+            const content = imageContent(rounded.data, Cogl.PixelFormat.RGBA_8888, rounded.side, rounded.side, rounded.side * 4);
             // Sample a small fixed grid once per decoded cover, never per frame.
             const pixels = pixbuf.get_pixels();
             const stride = pixbuf.get_rowstride(), channels = pixbuf.get_n_channels();
