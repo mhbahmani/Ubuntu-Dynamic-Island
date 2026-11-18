@@ -131,6 +131,8 @@ export default class Preview extends UbuntuIsland {
             if (GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1') this._openPreferencesLive('commute');
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_INPUT') === '1') this._checkInput().catch(error => console.error(`[Island Preview] INPUT FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_FULL') === '1') this._checkFullPreview().catch(error => console.error(`[Island Preview] FULL FAIL: ${error.message}`));
+            if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_LAYOUT') === '1') this._checkSparseAgentLayout()
+                .catch(error => console.error(`[Island Preview] AGENT_LAYOUT FAIL: ${error.message}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_AUDIO') === '1') this._checkAudio().catch(error => console.error(`[Island Preview] AUDIO FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_METADATA') === '1') this._checkAgentMetadata().catch(error => console.error(`[Island Preview] AGENT METADATA FAIL: ${error.message}: ${error.stack}`));
             if (GLib.getenv('ISLAND_PREVIEW_CHECK_AGENT_HOVER') === '1') this._checkAgentHover().catch(error => console.error(`[Island Preview] AGENT HOVER FAIL: ${error.message}`));
@@ -143,7 +145,7 @@ export default class Preview extends UbuntuIsland {
             const monitor = Main.layoutManager.primaryMonitor;
             const uiScale = St.ThemeContext.get_for_stage(global.stage).scale_factor;
             console.log(`[Island Preview] READY: ${monitor.width}x${monitor.height}, ${uiScale * 100}% UI; all modules enabled; ${tab === 'notch' ? 'collapsed notch' : tab} visible. Device controls use sample data.`);
-            if (['FULL', 'AUDIO', 'CALENDAR', 'COMMUTE', 'MOTION', 'NOTIFICATIONS'].some(check => GLib.getenv(`ISLAND_PREVIEW_CHECK_${check}`) === '1')) return GLib.SOURCE_REMOVE;
+            if (['FULL', 'AGENT_LAYOUT', 'AUDIO', 'CALENDAR', 'COMMUTE', 'MOTION', 'NOTIFICATIONS'].some(check => GLib.getenv(`ISLAND_PREVIEW_CHECK_${check}`) === '1')) return GLib.SOURCE_REMOVE;
             this._captureTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GLib.getenv('ISLAND_PREVIEW_LIVE') === '1' ? 20000 : GLib.getenv('ISLAND_PREVIEW_EDIT_ROUTE') === '1' || preferences ? 8000 : 1500, () => {
                 this._captureTimer = 0;
                 this._capture().catch(error => console.warn(`[Island Preview] Screenshot: ${error.message}`));
@@ -205,6 +207,7 @@ export default class Preview extends UbuntuIsland {
         }
         if (connection === 'online') await this._checkNetworkWidths();
         await this._checkNavigation();
+        await this._checkSparseAgentLayout();
         let navigationY = null;
         for (const tab of ['media', 'system', 'audio', 'bluetooth', 'weather', 'commute', 'agents', 'notifications', 'calendar']) {
             assert(this._card._pages.get(tab)?.available, `${tab} module unavailable`);
@@ -280,6 +283,44 @@ export default class Preview extends UbuntuIsland {
             }
         } finally {
             global.stage.disconnect(paint);
+        }
+    }
+
+    async _checkSparseAgentLayout() {
+        const card = this._card, settings = this._settings;
+        const context = St.ThemeContext.get_for_stage(global.stage);
+        const text = new Gio.Settings({schema_id:'org.gnome.desktop.interface'});
+        const original = {state:this._states.agents, scale:context.scale_factor,
+            font:text.get_double('text-scaling-factor'), width:settings.get_int('expanded-width'), page:card._page};
+        const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => { resolve(); return GLib.SOURCE_REMOVE; }));
+        try {
+            card.setTabBadge('notifications', 0);
+            card.selectPage('agents'); this._island.expand(); await delay(400);
+            for (const scale of [1,2]) for (const font of [1,2]) for (const width of [380,440]) {
+                context.scale_factor = scale; text.set_double('text-scaling-factor',font);
+                settings.set_int('expanded-width',width);
+                for (const count of [0,1]) {
+                    this._renderAgents({...original.state, sessions:original.state.sessions.slice(0,count)});
+                    await delay(100); await this._waitForCardLayout();
+                    const nav = card._navigation;
+                    const natural = nav.get_preferred_height(nav.width)[1];
+                    if (Math.abs(nav.height - natural) > 1)
+                        throw new Error(`Agents navigation stretched to ${nav.height}, expected ${natural}: ${count} sessions, ${width}px/${scale}x/${font} text`);
+                    const view = card._agentsView;
+                    if (Math.abs(view.header.height - view.header.get_preferred_height(view.header.width)[1]) > 1)
+                        throw new Error('Agents header consumed spare list height');
+                    const gap = view.actor.get_transformed_position()[1] - (nav.get_transformed_position()[1] + nav.height);
+                    if (Math.abs(gap) > 1) throw new Error(`Extra space above Agents: ${gap}`);
+                    if (count === 1 && font === 1) await this._capture(`agents-single-${width}-${scale}`);
+                }
+            }
+            console.log('[Island Preview] AGENT_LAYOUT PASS: empty/single session, compact navigation, 380/440px, 100/200% scale and text');
+        } finally {
+            context.scale_factor = original.scale; text.set_double('text-scaling-factor',original.font);
+            settings.set_int('expanded-width',original.width); this._renderAgents(original.state);
+            this._renderTabBadge();
+            card.selectPage(original.page); this._island.collapse();
+            await delay(400);
         }
     }
 

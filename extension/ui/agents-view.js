@@ -30,6 +30,8 @@ export class AgentsView {
         this.actor = column('ubuntu-island-agents'); this.actor.y_expand = true;
         this.relationshipTip = new HoverTip(this.actor);
         this.header = row('ubuntu-island-agent-header'); this.actor.add_child(this.header);
+        this.header.y_expand = false;
+        this.header.y_align = Clutter.ActorAlign.START;
         this.back = button('go-previous-symbolic', 'Back to sessions', () => this.handleEscape(), 14, 'ubuntu-island-agent-menu-button');
         this.header.add_child(this.back);
         this.heading = label('Agents', 'ubuntu-island-agent-heading'); this.header.add_child(this.heading);

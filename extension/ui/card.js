@@ -254,6 +254,10 @@ export class Card {
 
     _buildNavigation() {
         const navigation = row('ubuntu-island-navigation');
+        // Expanding marker/overlay descendants must not make the bar consume
+        // spare page height. Only the page below it grows.
+        navigation.y_expand = false;
+        navigation.y_align = Clutter.ActorAlign.START;
         this._navigation = navigation;
         // Tabs pack at their natural, shared width from the leading edge; the
         // freed space holds the page name and Settings stays at the far end.
