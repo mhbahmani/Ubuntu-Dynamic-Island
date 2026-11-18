@@ -57,6 +57,8 @@ test('GitHub installer installs the latest release and backs up updates', () => 
     try {
         let result = f.run();
         assert.equal(result.status, 0, result.stderr);
+        assert.ok(result.stdout.includes(`gnome-extensions enable ${uuid}`));
+        assert.equal(result.stdout.match(/open the Extensions app and turn on Ubuntu Island/g)?.length, 1);
         const args = JSON.parse(readFileSync(f.calls, 'utf8'));
         assert.equal(args.at(-1), 'https://api.github.com/repos/mhbahmani/Ubuntu-Dynamic-Island/tarball/refs/tags/release%2Fv11');
         for (const flag of ['--fail', '--location', '--connect-timeout', '--max-time', '--proto-redir'])

@@ -160,6 +160,8 @@ PYTAG
         fail 'Could not extract the download. Nothing was installed.'
     fi
     checkout="$download_dir/source"
+    # The outer installer prints the app hint even for releases that predate it.
+    export UBUNTU_ISLAND_DELEGATED_INSTALL=1
     if [ -d "$checkout/extension" ]; then
         [ -f "$checkout/scripts/install.sh" ] || fail 'Missing installer. Nothing was installed.'
         check_runtime "$checkout/extension"
@@ -223,6 +225,9 @@ main() {
             command -v "$tool" >/dev/null || fail "Missing $tool; install it and try again."
         done
         download_checkout
+    fi
+    if [ "${UBUNTU_ISLAND_DELEGATED_INSTALL:-0}" != 1 ]; then
+        printf '%s\n' 'You can also open the Extensions app and turn on Ubuntu Island.'
     fi
 }
 

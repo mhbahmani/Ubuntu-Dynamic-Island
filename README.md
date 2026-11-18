@@ -29,7 +29,7 @@ To update your clone, run `git pull --ff-only` and `make install`.
 
 </details>
 
-**Log out and back in**, then enable the extension.
+**Log out and back in**, then open the **Extensions** app and turn on **Ubuntu Island**. You can also enable it from a terminal.
 
 ```sh
 gnome-extensions enable ubuntu-island@mhbahmani.github.io
