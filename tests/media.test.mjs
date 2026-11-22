@@ -151,6 +151,16 @@ test('the card returns to a page that left only because it became unavailable', 
     card.selectPage('audio');
     setMedia(true);
     assert.equal(card._page, 'audio', 'A later user choice wins over the lost page');
+    // Disabling a module removes its page; re-enabling it keeps the current tab.
+    const calendar = page();
+    card._pages.set('calendar', calendar);
+    card.selectPage('calendar');
+    card._pages.delete('calendar');
+    card._syncPages();
+    assert.equal(card._page, 'media');
+    card._pages.set('calendar', calendar);
+    card._syncPages();
+    assert.equal(card._page, 'media', 'Re-enabling a module must not change the current tab');
 });
 
 test('media updates render seek, pause, resume and new tracks without a zero frame', () => {

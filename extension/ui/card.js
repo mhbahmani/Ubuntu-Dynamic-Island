@@ -539,7 +539,9 @@ export class Card {
             this._fallbackFrom = null;
         }
         if (!this._pages.get(this._page)?.available) {
-            this._fallbackFrom ??= this._page;
+            // A disabled module's page is removed; re-enabling it must not
+            // change the current tab.
+            if (this._pages.has(this._page)) this._fallbackFrom ??= this._page;
             this._page = [...this._pages].find(([, page]) => page.available)?.[0] ?? null;
         }
         const previous = this._shownPage;
