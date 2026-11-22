@@ -9,6 +9,9 @@ const PLAYER = 'org.mpris.MediaPlayer2.Player';
 const ROOT = 'org.mpris.MediaPlayer2';
 const TRACKS = 'org.mpris.MediaPlayer2.TrackList';
 const COMMANDS = ['Previous', 'PlayPause', 'Next', 'Play', 'Stop'];
+// Browsers briefly clear metadata/status (or re-register) while changing
+// tracks. Hold the last state this long before reporting that media is gone.
+const GAP_GRACE_MS = 2500;
 const unpack = value => value?.deep_unpack?.() ?? value;
 const monotonicSec = () => GLib.get_monotonic_time() / 1e6;
 
@@ -42,6 +45,8 @@ export class MediaService {
         this._trackId = null;
         this._trackIdentity = null;
         this._trackRevision = 0;
+        this._shown = false;
+        this._gapTimer = 0;
     }
 
     start() {
@@ -179,6 +184,20 @@ export class MediaService {
         if (!eligible.some(p => p.name === this._preferred)) this._preferred = null;
         const selected = eligible.find(p => p.name === this._preferred) ?? selectPlayer(players, this._selected);
         if (!selected) {
+            if (this._shown && !this._gapTimer) {
+                // Freeze the progress clock and keep the published state until
+                // a player returns or the grace period ends.
+                this._positionUs = this.positionSec() * 1e6;
+                this._positionAt = monotonicSec();
+                this._playing = false;
+                this._gapTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, GAP_GRACE_MS, () => {
+                    this._gapTimer = 0;
+                    this._shown = false;
+                    this._sync();
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+            if (this._gapTimer) return;
             this._cancelPositionRead();
             this._positionProxy = null;
             this._selected = null;
@@ -193,6 +212,8 @@ export class MediaService {
             this._onChange({available: false});
             return;
         }
+        this._clearGap();
+        this._shown = true;
         const {name, proxy} = selected;
         const meta = this._prop(proxy, 'Metadata') ?? {};
         const trackId = unpack(meta['mpris:trackid']) ?? null;
@@ -272,6 +293,11 @@ export class MediaService {
             canPlayPause: canControl && this._prop(proxy, status === 'Playing' ? 'CanPause' : 'CanPlay') !== false,
         });
         this._syncQueue();
+    }
+
+    _clearGap() {
+        if (this._gapTimer) GLib.source_remove(this._gapTimer);
+        this._gapTimer = 0;
     }
 
     // Live position estimate; the UI polls this once per second while expanded.
@@ -470,6 +496,8 @@ export class MediaService {
 
     stop() {
         this._alive = false;
+        this._clearGap();
+        this._shown = false;
         this._cancelPositionRead();
         this._positionProxy = null;
         this._dropQueue();

@@ -14,15 +14,33 @@ function service(file, name, dependencies) {
         Gio: {DBusCallFlags: {NONE: 0}, Cancellable: class {
             cancel() { this.cancelled = true; }
         }, ...dependencies.Gio},
-        GLib: {Variant: class { constructor(type, value) { this.value = value; } }, ...dependencies.GLib},
+        GLib: {Variant: class { constructor(type, value) { this.value = value; } }, ...fakeTimers(), ...dependencies.GLib},
     });
+}
+
+// Manual GLib timeout sources: tests fire them explicitly with run().
+function fakeTimers() {
+    const sources = new Map();
+    let next = 1;
+    return {
+        PRIORITY_DEFAULT: 0, SOURCE_REMOVE: false, sources,
+        timeout_add(priority, ms, callback) { sources.set(next, {ms, callback}); return next++; },
+        source_remove(id) { sources.delete(id); },
+        run() {
+            for (const [id, source] of [...sources]) {
+                sources.delete(id);
+                source.callback();
+            }
+        },
+    };
 }
 
 test('media position freezes on pause, resumes without jumping, and ignores idle registrations', () => {
     let now = 10;
     let state;
+    const timers = fakeTimers();
     const Media = service('media', 'MediaService', {
-        selectPlayer, mediaTitle, estimatePositionSec, GLib: {get_monotonic_time: () => now * 1e6},
+        selectPlayer, mediaTitle, estimatePositionSec, GLib: {...timers, get_monotonic_time: () => now * 1e6},
     });
     const media = new Media(value => { state = value; });
     const props = {PlaybackStatus: 'Playing', Position: 2e6,
@@ -44,8 +62,65 @@ test('media position freezes on pause, resumes without jumping, and ignores idle
     assert.equal(media.positionSec(), 10);
     props.PlaybackStatus = 'Stopped';
     media._sync();
+    timers.run();
     assert.equal(state.available, false);
     assert.equal(media._canSeek, false);
+});
+
+test('a brief player gap during a track change keeps media available', () => {
+    let now = 10;
+    const states = [];
+    const timers = fakeTimers();
+    const Media = service('media', 'MediaService', {
+        selectPlayer, mediaTitle, estimatePositionSec, GLib: {...timers, get_monotonic_time: () => now * 1e6},
+    });
+    const media = new Media(value => states.push(value));
+    const track = id => ({'xesam:title': `Song ${id}`, 'mpris:trackid': `/track/${id}`, 'mpris:length': 100e6});
+    const props = {PlaybackStatus: 'Playing', Position: 0, Metadata: track(1), CanControl: true, CanGoNext: true};
+    const browser = {get_cached_property: name => props[name], call() {}, _islandSignals: [], disconnect() {}};
+    media._alive = true;
+    media._proxies.set('browser', browser);
+    media._sync();
+    now = 14;
+    // Browsers clear metadata and pause, or drop their bus name, while
+    // Spotify Web loads the next track.
+    props.PlaybackStatus = 'Paused';
+    props.Metadata = {};
+    media._sync();
+    media._proxies.delete('browser');
+    media._sync();
+    assert.equal(timers.sources.size, 1, 'One bounded grace timer covers the gap');
+    assert.ok(states.every(state => state.available), 'The gap must not publish missing media');
+    now = 20;
+    assert.equal(media.positionSec(), 4, 'The progress clock freezes during the gap');
+    props.PlaybackStatus = 'Playing';
+    props.Metadata = track(2);
+    media._proxies.set('browser', browser);
+    media._sync();
+    assert.equal(timers.sources.size, 0, 'Recovery cancels the grace timer');
+    assert.equal(states.at(-1).title, 'Song 2');
+    assert.equal(media.positionSec(), 0);
+    assert.ok(states.every(state => state.available));
+
+    // A genuine stop still hides media once the grace period ends.
+    props.PlaybackStatus = 'Stopped';
+    media._sync();
+    assert.equal(states.at(-1).available, true);
+    timers.run();
+    assert.equal(states.at(-1).available, false);
+    assert.equal(timers.sources.size, 0);
+    // Idle registrations publish immediately when nothing was showing.
+    media._sync();
+    assert.equal(timers.sources.size, 0);
+
+    // Stopping the service removes a pending grace timer.
+    props.PlaybackStatus = 'Playing';
+    media._sync();
+    props.PlaybackStatus = 'Stopped';
+    media._sync();
+    assert.equal(timers.sources.size, 1);
+    media.stop();
+    assert.equal(timers.sources.size, 0);
 });
 
 test('media updates render seek, pause, resume and new tracks without a zero frame', () => {
