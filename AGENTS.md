@@ -335,6 +335,20 @@ Use `journalctl --user -b` to inspect extension errors.
   commits. Remove obsolete generated files when requested, using explicit paths.
   Preserve user reference screenshots and README-linked assets; avoid broad cleans.
 
+## Releases
+
+- Release only when asked. Bump `version` in `extension/metadata.json` in a
+  `chore(release): vX.Y.Z` commit, run the local checks and `make build`, then
+  push `master`.
+- Wait for the GitHub Actions run for that exact commit to finish with
+  conclusion `success` before tagging or publishing. If it fails, fix the
+  cause, push, and wait for a green run on the new head; never release over a
+  red, cancelled or still-running pipeline, and never move a published tag.
+- After the green run, tag that commit (`v.X.Y.Z`, matching earlier tags),
+  push the tag, and publish release `vX.Y.Z` with the built ZIP attached as
+  `ubuntu-island-X.Y.Z-shell46.zip`. Keep earlier releases' notes layout and
+  link that green CI run.
+
 ## Scope of follow-up work
 
 Read-only desktop Calendar events, agent titles/waiting/parent attribution,
