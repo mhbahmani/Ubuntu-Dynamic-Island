@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 import time
 
-from shell_command import shell_command
+from shell_command import shell_command, stop_process_group
 
 
 def preview_size(value):
@@ -182,13 +182,7 @@ def main():
             else:
                 code = process.wait(timeout=duration)
         except (KeyboardInterrupt, subprocess.TimeoutExpired):
-            import signal
-            os.killpg(process.pid, signal.SIGTERM)
-            try:
-                process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
+            stop_process_group(process)
             code = 0
     output = (root / 'runtime.log').read_text()
     ready = '[Island Preview] READY' in output

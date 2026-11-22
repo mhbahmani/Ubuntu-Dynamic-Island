@@ -11,29 +11,14 @@ from pathlib import Path
 import shutil
 import subprocess
 import re
-import signal
 import tempfile
 import time
-from shell_command import shell_command
+from shell_command import shell_command, stop_process_group
 
 SMOKE_TIMEOUT = 240
 # The fixture's last line: the overall PASS summary or the first failure.
 FINAL_RESULT = re.compile(r"\[Island Smoke\] (PASS:|FAIL)")
 EXTENSION_ERROR = re.compile(r"Extension ubuntu-island@mhbahmani\.github\.io: (?:\w*Error:|Exception:)")
-
-
-def stop_session(session):
-    """End timeout, dbus-run-session and gnome-shell together."""
-    for sig, wait in ((signal.SIGTERM, 5), (signal.SIGKILL, 5)):
-        try:
-            os.killpg(session.pid, sig)
-        except ProcessLookupError:
-            return
-        try:
-            session.wait(timeout=wait)
-            return
-        except subprocess.TimeoutExpired:
-            continue
 
 
 def main():
@@ -77,7 +62,7 @@ def main():
                     finished_at = time.monotonic()
             # Leave time for trailing JS errors or unref assertions to be logged.
             if finished_at is not None and time.monotonic() - finished_at >= 2:
-                stop_session(session)
+                stop_process_group(session)
         timed_out = session.returncode == 124
     log = log_path.read_text(errors="replace")
     results = [line for line in log.splitlines() if "[Island Smoke]" in line or EXTENSION_ERROR.search(line)]

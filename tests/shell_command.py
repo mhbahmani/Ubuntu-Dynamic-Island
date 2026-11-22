@@ -1,5 +1,36 @@
 """Build native Shell commands without assuming X11 is compiled in."""
+import os
+import signal
 import subprocess
+import time
+
+
+def stop_process_group(process, grace=5):
+    """Stop a session started with start_new_session and wait for all of it.
+
+    Waiting only for the leader lets Shell children keep writing into TMPDIR
+    while the caller (or the CI harness) removes it.
+    """
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(process.pid, sig)
+        except ProcessLookupError:
+            break
+        deadline = time.monotonic() + grace
+        while time.monotonic() < deadline:
+            process.poll()
+            try:
+                os.killpg(process.pid, 0)
+            except ProcessLookupError:
+                break
+            time.sleep(0.05)
+        else:
+            continue
+        break
+    try:
+        process.wait(timeout=grace)
+    except subprocess.TimeoutExpired:
+        pass
 
 
 def shell_command(mode, display, *, headless, size, test_animations=False):

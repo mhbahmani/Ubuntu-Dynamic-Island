@@ -6,11 +6,12 @@ import json
 import os
 from pathlib import Path
 import tempfile
+import time
 import subprocess
 import unittest
 from unittest.mock import patch
 
-from shell_command import shell_command
+from shell_command import shell_command, stop_process_group
 
 spec = importlib.util.spec_from_file_location('ci_runner', Path(__file__).resolve().parents[1] / 'scripts/ci/run.py')
 runner = importlib.util.module_from_spec(spec)
@@ -83,6 +84,17 @@ class CompatibilityHarness(unittest.TestCase):
             result = runner.run_check('timeout', ['sleep', '30'], root, os.environ.copy(), root, timeout=0.05)
             self.assertEqual(result['exit_code'], 124)
             self.assertIn('CI timeout', (root / 'timeout.log').read_text())
+
+    def test_stopping_a_session_waits_for_the_whole_process_group(self):
+        # The leader exits on SIGTERM; its child ignores it for a moment, as
+        # Shell helpers can while shutting down and writing into TMPDIR.
+        process = subprocess.Popen(['sh', '-c', '(trap "" TERM; sleep 0.4) & exec sleep 30'],
+                                   start_new_session=True)
+        time.sleep(0.1)
+        stop_process_group(process)
+        self.assertIsNotNone(process.returncode)
+        with self.assertRaises(ProcessLookupError):
+            os.killpg(process.pid, 0)
 
     def test_launch_flags_follow_available_backend(self):
         with patch('shell_command.subprocess.check_output', return_value='--headless --nested --no-x11 --force-animations'):
