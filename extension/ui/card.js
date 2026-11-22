@@ -53,6 +53,9 @@ export class Card {
         this._tabBadges = new Map();
         this._page = null;
         this._manualPage = false;
+        // The page left only because it became unavailable (for example, a
+        // player gap longer than the media grace period); restored on return.
+        this._fallbackFrom = null;
         this._outputRows = new Map();
         this._deviceRows = new Map();
 
@@ -402,6 +405,7 @@ export class Card {
         if (!this._pages.get(id)?.available) return;
         this.quickAskOpen = false;
         this._manualPage = true;
+        this._fallbackFrom = null;
         this._page = id;
         this._syncPages(animate);
         this._actions.relayout?.();
@@ -530,8 +534,14 @@ export class Card {
     }
 
     _syncPages(animateSlider = false) {
-        if (!this._pages.get(this._page)?.available)
+        if (this._pages.get(this._fallbackFrom)?.available) {
+            this._page = this._fallbackFrom;
+            this._fallbackFrom = null;
+        }
+        if (!this._pages.get(this._page)?.available) {
+            this._fallbackFrom ??= this._page;
             this._page = [...this._pages].find(([, page]) => page.available)?.[0] ?? null;
+        }
         const previous = this._shownPage;
         this._shownPage = this.quickAskOpen ? null : this._page;
         this._scroll.visible = !this.quickAskOpen && !['agents', 'calendar'].includes(this._page);

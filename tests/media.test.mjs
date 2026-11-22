@@ -123,6 +123,36 @@ test('a brief player gap during a track change keeps media available', () => {
     assert.equal(timers.sources.size, 0);
 });
 
+test('the card returns to a page that left only because it became unavailable', () => {
+    const cardUrl = new URL('../extension/ui/card.js', import.meta.url);
+    const source = readFileSync(cardUrl, 'utf8')
+        .replaceAll('import.meta.url', JSON.stringify(cardUrl.href))
+        .replace(/^import .*;\n/gm, '').replace(/^export /gm, '');
+    const iconFile = {get_parent() { return this; }, resolve_relative_path() { return this; }};
+    const Card = vm.runInNewContext(`${source}\nCard`, {
+        Gio: {File: {new_for_uri: () => iconFile}, FileIcon: class {}},
+    });
+    const card = Object.create(Card.prototype);
+    const page = () => ({available: true, box: {}});
+    const styles = {add_style_class_name() {}, remove_style_class_name() {}, set_style_class_name() {}};
+    Object.assign(card, {
+        _pages: new Map([['media', page()], ['system', page()], ['audio', page()]]),
+        _tabs: new Map(), _actions: {}, _scroll: {}, _scrollStack: {}, actor: styles, _body: styles,
+        _page: null, _fallbackFrom: null,
+        _queueNavigationFit() {}, updateMediaTint() {}, _placeSlider() {}, _revealPage() {}, _queueSliderSnap() {},
+    });
+    const setMedia = available => { card._pages.get('media').available = available; card._syncPages(); };
+    card.selectPage('media');
+    setMedia(false);
+    assert.equal(card._page, 'system');
+    setMedia(true);
+    assert.equal(card._page, 'media', 'A returning player restores the selected Media tab');
+    setMedia(false);
+    card.selectPage('audio');
+    setMedia(true);
+    assert.equal(card._page, 'audio', 'A later user choice wins over the lost page');
+});
+
 test('media updates render seek, pause, resume and new tracks without a zero frame', () => {
     const cardUrl = new URL('../extension/ui/card.js', import.meta.url);
     const source = readFileSync(cardUrl, 'utf8')
