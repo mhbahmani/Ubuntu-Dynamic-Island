@@ -1476,7 +1476,8 @@ export default class Preview extends UbuntuIsland {
                 assert(order.every((actor,index) => actor === view.activeList.get_children()[index]),'Rename reordered rows');
                 view._session(child); await delay(80);
                 assert(view.sessionMenu.visible, `Menu closed before Escape at ${width}/${scale}/${text}, focus=${global.stage.get_key_focus()}, adjustment=${view.adjustment.value}`);
-                assert(view.menuUpdated.text.includes('Started by Renamed parent'),'Session details omit parent');
+                assert(view.sessionMenu.get_children().every(item => item === view.hideSession),'Session menu shows more than its actions');
+                assert(child.open.accessible_description.includes('Started by Renamed parent'),'Row details omit parent');
                 view.handleEscape(); await delay(50); assert(child.menu.has_key_focus(),`Escape lost menu focus at ${width}/${scale}/${text}, expanded=${this._island.expanded}, menu=${view.sessionMenu.visible}, focus=${global.stage.get_key_focus()}`);
                 store.setTitle(parent.session.id,'Codex 3 fixes review'); update();
                 await this._capture(`agent-metadata-${width}-${scale}-${text}`);
@@ -1581,8 +1582,8 @@ export default class Preview extends UbuntuIsland {
         const listHeight = this._island.actor.height;
         await click(first.menu);
         assert(view.mode === 'list' && view.sessionMenu.visible && view.hideSession.has_key_focus(), 'Session menu replaced the list or lost focus');
-        assert(view.menuIdentity.text === first.session.session && !view.menuIdentity.clutter_text.editable,
-            'Full session ID is missing or editable');
+        assert(view.sessionMenu.get_children().every(item => item === view.hideSession) && view.hideSession.accessible_name.includes(first.reference),
+            'Session menu shows more than its actions or lost its accessible label');
         const keyboard = Clutter.get_default_backend().get_default_seat().create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
         const press = async (key, shift = false) => {
             if (shift) keyboard.notify_keyval(GLib.get_monotonic_time(), Clutter.KEY_Shift_L, Clutter.KeyState.PRESSED);
@@ -1592,10 +1593,32 @@ export default class Preview extends UbuntuIsland {
             await delay(100);
         };
         await press(Clutter.KEY_Tab, true);
-        assert(view.sessionMenu.visible && view.menuIdentity.clutter_text.has_key_focus(), 'Full session ID is not keyboard reachable');
-        await press(Clutter.KEY_Tab);
-        assert(view.hideSession.has_key_focus(), 'Tab did not return to the menu action');
+        assert(!view.sessionMenu.visible && first.menu.has_key_focus(), 'Shift+Tab did not leave the one-action menu');
+        await click(first.menu);
+        assert(view.hideSession.has_key_focus(), 'Reopening did not focus the menu action');
         assert(this._island.actor.height === listHeight, 'Session menu changed island height');
+        // The menu follows the theme tint, at both scales, inside the card.
+        const themeContext = St.ThemeContext.get_for_stage(global.stage), oldScale = themeContext.scale_factor;
+        const oldTheme = this._settings.get_string('color-theme');
+        try {
+            for (const [theme, scale] of [['ocean', 1], ['ocean', 2], ['graphite', 1], ['ember', 2]]) {
+                this._settings.set_string('color-theme', theme); themeContext.scale_factor = scale; await delay(250);
+                if (!view.sessionMenu.visible) await click(first.menu);
+                const bg = view.sessionMenu.get_theme_node().get_background_color();
+                const {top, surface} = THEMES[theme];
+                const fill = top.map((channel, i) => Math.round(channel + (surface[i] - channel) * 0.06));
+                assert([bg.red, bg.green, bg.blue].every((channel, i) => Math.abs(channel - fill[i]) <= 1) && bg.alpha === 255,
+                    `${theme} session menu ignores the theme: ${bg.red},${bg.green},${bg.blue}`);
+                const [mx] = view.sessionMenu.get_transformed_position(), [sx] = view.stack.get_transformed_position();
+                assert(mx >= sx - 1 && mx + view.sessionMenu.width <= sx + view.stack.width + 1 &&
+                    view.hideSession.get_child().get_preferred_width(-1)[1] <= view.hideSession.width + 1,
+                `${theme}@${scale}: session menu or its action is clipped`);
+                await this._capture(`agents-session-menu-${theme}-${scale}`);
+            }
+        } finally {
+            this._settings.set_string('color-theme', oldTheme); themeContext.scale_factor = oldScale; await delay(250);
+        }
+        if (!view.sessionMenu.visible) await click(first.menu);
         await this._capture('agents-session-menu');
         assert(this._island._onEscape() && !view.sessionMenu.visible && first.menu.has_key_focus(), 'Escape did not restore menu focus');
         await click(first.menu); await click(view.heading);

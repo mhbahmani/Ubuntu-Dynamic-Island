@@ -116,13 +116,7 @@ export class AgentsView {
         this.sessionMenu.reactive = true;
         this.sessionMenu.x_expand = this.sessionMenu.y_expand = true;
         this.sessionMenu.x_align = Clutter.ActorAlign.END; this.sessionMenu.y_align = Clutter.ActorAlign.START;
-        this.menuIdentity = new St.Entry({style_class:'ubuntu-island-agent-entry', can_focus:true,
-            reactive:true, accessible_name:'Session ID'});
-        this.menuIdentity.clutter_text.editable = false;
-        this.sessionMenu.add_child(this.menuIdentity);
-        this.menuUpdated = label('', 'ubuntu-island-agent-menu-note'); this.sessionMenu.add_child(this.menuUpdated);
-        this.menuUpdated.reactive = this.menuUpdated.track_hover = true;
-        this.relationshipTip.addTarget(this.menuUpdated, () => this.menuUpdated.text);
+        // Actions only: the row already shows status, reference and parent.
         this.hideSession = textButton('', () => {
             const id = this.menuSession?.session.id;
             this._closeSessionMenu();
@@ -137,13 +131,14 @@ export class AgentsView {
         this.sessionMenu.connect('captured-event', (_actor, event) => {
             if (event.type() !== Clutter.EventType.KEY_PRESS) return Clutter.EVENT_PROPAGATE;
             const key = event.get_key_symbol();
-            const backward = key === Clutter.KEY_ISO_Left_Tab || event.get_state() & Clutter.ModifierType.SHIFT_MASK;
+            const backward = key === Clutter.KEY_ISO_Left_Tab || Boolean(event.get_state() & Clutter.ModifierType.SHIFT_MASK);
             if (key === Clutter.KEY_Escape) {
                 this._closeSessionMenu(true); return Clutter.EVENT_STOP;
             }
             if ([Clutter.KEY_Tab, Clutter.KEY_ISO_Left_Tab].includes(key)) {
-                if (backward && this.hideSession.has_key_focus()) this.menuIdentity.grab_key_focus();
-                else if (!backward && this.menuIdentity.contains(global.stage.get_key_focus())) this.hideSession.grab_key_focus();
+                const items = this.sessionMenu.get_children().filter(child => child.visible && child.can_focus);
+                const next = items.indexOf(global.stage.get_key_focus()) + (backward ? -1 : 1);
+                if (next >= 0 && next < items.length) items[next].grab_key_focus();
                 else this._closeSessionMenu(true);
                 return Clutter.EVENT_STOP;
             }
@@ -353,10 +348,6 @@ export class AgentsView {
         this._closeSessionMenu();
         if (wasOpen) { item.menu.grab_key_focus(); return; }
         this.menuSession = item;
-        const time = new Date(item.session.updated).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-        this.menuIdentity.text = item.session.session || item.session.id;
-        this.menuIdentity.accessible_name = `${AGENTS[item.session.provider]} session ID, profile ${item.session.profile || 'default'}`;
-        this.menuUpdated.text = `${item.session.attribution ? `Started by ${item.session.attribution.title} · ` : ''}Last activity · ${time}`;
         this.hideSession.accessible_name = `Hide ${item.session.label}, session ${item.reference} from the list. Keep the agent running`;
         item.menu.add_accessible_state(Atk.StateType.EXPANDED); item.menu.add_style_pseudo_class('active');
         this.sessionMenu.show();
@@ -476,10 +467,6 @@ export class AgentsView {
                 actor.get_parent().remove_child(actor); this.activeList.add_child(actor);
             }
             this.regroup = false;
-        }
-        if (this.menuSession) {
-            const session = this.menuSession.session;
-            this.menuUpdated.text = `${session.attribution ? `Started by ${session.attribution.title} · ` : ''}Last activity · ${new Date(session.updated).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
         }
         this.relationshipTip.refresh();
         this._syncMotion();

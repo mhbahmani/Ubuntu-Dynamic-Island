@@ -311,7 +311,7 @@ export function agentSummary(rows = []) {
 
 // Use the actual session ID, not row order or activity time. Shared suffixes
 // grow only enough to distinguish records, including identical IDs in different
-// profiles/providers. The full identity stays available in the session menu.
+// profiles/providers, so the full ID never needs to be shown.
 export function agentSessionReferences(rows = []) {
     const identities = rows.map(row => {
         const session = token(row.session || row.id);
