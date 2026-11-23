@@ -264,17 +264,29 @@ export default class Preview extends UbuntuIsland {
     async _waitForCardLayout() {
         // Size changes queue navigation fitting after allocation. The next paint
         // applies the fitted tab widths, even on a slow software renderer.
+        // Fitting runs in a default idle that frame dispatch outranks: forced
+        // redraws can starve it on a slow renderer. Frames only count as stable
+        // with no fit pending, and a pending fit gets a lower-priority idle turn
+        // instead of another forced frame.
         let stableFrames = 0, previous = null;
         const paint = global.stage.connect('after-paint', () => {
             const geometry = [this._card._navigation.width, this._card._tabStrip.width,
                 this._card._pageCaption.width, this._island.actor.width, this._island.actor.height].join(',');
-            stableFrames = geometry === previous ? stableFrames + 1 : 0;
+            stableFrames = geometry === previous && !this._card._navigationFit ? stableFrames + 1 : 0;
             previous = geometry;
         });
         const deadline = GLib.get_monotonic_time() + 3_000_000;
         try {
-            while (stableFrames < 2 || this._island.actor.get_transition('width') || this._island.actor.get_transition('height')) {
-                if (GLib.get_monotonic_time() >= deadline) throw new Error(`Card layout did not settle: ${previous}, state=${this._island.state}`);
+            while (stableFrames < 2 || this._card._navigationFit ||
+                this._island.actor.get_transition('width') || this._island.actor.get_transition('height')) {
+                if (GLib.get_monotonic_time() >= deadline) throw new Error(`Card layout did not settle: ${previous}, state=${this._island.state}, fit pending=${Boolean(this._card._navigationFit)}`);
+                if (this._card._navigationFit) {
+                    await new Promise(resolve => GLib.idle_add(GLib.PRIORITY_LOW, () => {
+                        resolve();
+                        return GLib.SOURCE_REMOVE;
+                    }));
+                    continue;
+                }
                 global.stage.queue_redraw();
                 await new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, 20, () => {
                     resolve();
