@@ -226,6 +226,21 @@ test('generated CSS shares network colours between chart properties and rate lab
     }
 });
 
+test('generated CSS themes the anchored Agents menus readably', () => {
+    const css = themeCss();
+    for (const id of THEME_IDS) {
+        const T = `.ubuntu-island-theme-${id}`;
+        const {top, edge, surface, accent, focus} = THEMES[id];
+        const fill = mix(top, surface, 0.06), selected = mix(fill, rgb(accent), 0.16);
+        assert(css.includes(`${T} .ubuntu-island-agent-session-menu, ${T} .ubuntu-island-agent-harness-menu ` +
+            `{ background-color: rgba(${fill.join(',')},1); border-color: rgba(${edge.join(',')},0.2); }`), `${id}: menu surface`);
+        assert(css.includes(`${T} .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover`), `${id}: menu hover`);
+        assert(css.includes(`${T} .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: ${focus};`), `${id}: checked harness`);
+        assert(contrast(hexToRgb(TEXT), fill) >= 7, `${id}: menu text`);
+        assert(contrast(rgb(focus), selected) >= 4.5, `${id}: checked harness text`);
+    }
+});
+
 test('preferences swatches preview every theme tint and accent', () => {
     const css = themeSwatchCss();
     for (const id of THEME_IDS) {

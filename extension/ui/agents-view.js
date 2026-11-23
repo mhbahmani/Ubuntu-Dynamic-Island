@@ -29,6 +29,7 @@ export class AgentsView {
         this.settings = settings; this.actions = actions; this.rows = new Map(); this.mode = 'list';
         this.actor = column('ubuntu-island-agents'); this.actor.y_expand = true;
         this.relationshipTip = new HoverTip(this.actor);
+        this.relationshipTip.setTheme(settings.get_string('color-theme'));
         this.header = row('ubuntu-island-agent-header'); this.actor.add_child(this.header);
         this.header.y_expand = false;
         this.header.y_align = Clutter.ActorAlign.START;
@@ -184,6 +185,8 @@ export class AgentsView {
         this.stSettings = St.Settings.get();
         const motion = this.stSettings.connect('notify::enable-animations', () => this._syncMotion());
         const preference = settings.connect('changed::disable-animations', () => this._syncMotion());
+        const themeChanged = settings.connect('changed::color-theme',
+            () => this.relationshipTip.setTheme(settings.get_string('color-theme')));
         const providerChanged = settings.connect('changed::agents-provider', () => {
             if (this.mode === 'ask') this._syncEditor();
             else this.render(this.snapshot);
@@ -201,7 +204,7 @@ export class AgentsView {
             if (this.menuCapture) global.stage.disconnect(this.menuCapture);
             this.menuCapture = 0;
             this._cancelFocus();
-            this.stSettings.disconnect(motion); settings.disconnect(preference); settings.disconnect(providerChanged);
+            this.stSettings.disconnect(motion); settings.disconnect(preference); settings.disconnect(providerChanged); settings.disconnect(themeChanged);
             global.stage.disconnect(focus);
         });
         this.regroup = true; this.show('list');

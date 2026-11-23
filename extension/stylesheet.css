@@ -520,6 +520,11 @@
 .ubuntu-island-theme-graphite .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-graphite .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-graphite .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-graphite .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-graphite .ubuntu-island-quick-ask-entry:focus { border-color: #f5a995; }
 .ubuntu-island-theme-graphite .ubuntu-island-navigation { background-color: rgba(24,26,32,0.32); border-color: rgba(240,122,92,0.24); }
 .ubuntu-island-theme-graphite .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #f07a5c; }
+.ubuntu-island-theme-graphite .ubuntu-island-agent-session-menu, .ubuntu-island-theme-graphite .ubuntu-island-agent-harness-menu { background-color: rgba(57,59,68,1); border-color: rgba(232,236,246,0.2); }
+.ubuntu-island-theme-graphite .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-graphite .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(235,239,255,0.06); }
+.ubuntu-island-theme-graphite .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-graphite .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-graphite .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-graphite .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(235,239,255,0.12); }
+.ubuntu-island-theme-graphite .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-graphite .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(235,239,255,0.18); }
+.ubuntu-island-theme-graphite .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #f5a995; background-color: rgba(240,122,92,0.16); }
 .ubuntu-island-theme-graphite .ubuntu-island-calendar-month { border-color: rgba(235,239,255,0.11); }
 .ubuntu-island-theme-graphite .ubuntu-island-notification { border-color: rgba(235,239,255,0.09); }
 .ubuntu-island-theme-graphite .ubuntu-island-notification-card:hover { background-color: rgba(235,239,255,0.08); }
@@ -561,6 +566,11 @@
 .ubuntu-island-theme-ocean .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-ocean .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-ocean .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-ocean .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-ocean .ubuntu-island-quick-ask-entry:focus { border-color: #8dcef5; }
 .ubuntu-island-theme-ocean .ubuntu-island-navigation { background-color: rgba(9,25,52,0.32); border-color: rgba(79,179,240,0.24); }
 .ubuntu-island-theme-ocean .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #4fb3f0; }
+.ubuntu-island-theme-ocean .ubuntu-island-agent-session-menu, .ubuntu-island-theme-ocean .ubuntu-island-agent-harness-menu { background-color: rgba(28,61,101,1); border-color: rgba(176,221,248,0.2); }
+.ubuntu-island-theme-ocean .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-ocean .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(149,209,246,0.06); }
+.ubuntu-island-theme-ocean .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-ocean .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-ocean .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-ocean .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(149,209,246,0.12); }
+.ubuntu-island-theme-ocean .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-ocean .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(149,209,246,0.18); }
+.ubuntu-island-theme-ocean .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #8dcef5; background-color: rgba(79,179,240,0.16); }
 .ubuntu-island-theme-ocean .ubuntu-island-calendar-month { border-color: rgba(149,209,246,0.11); }
 .ubuntu-island-theme-ocean .ubuntu-island-notification { border-color: rgba(149,209,246,0.09); }
 .ubuntu-island-theme-ocean .ubuntu-island-notification-card:hover { background-color: rgba(149,209,246,0.08); }
@@ -602,6 +612,11 @@
 .ubuntu-island-theme-forest .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-forest .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-forest .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-forest .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-forest .ubuntu-island-quick-ask-entry:focus { border-color: #8de0b3; }
 .ubuntu-island-theme-forest .ubuntu-island-navigation { background-color: rgba(8,34,24,0.32); border-color: rgba(79,207,138,0.24); }
 .ubuntu-island-theme-forest .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #4fcf8a; }
+.ubuntu-island-theme-forest .ubuntu-island-agent-session-menu, .ubuntu-island-theme-forest .ubuntu-island-agent-harness-menu { background-color: rgba(26,76,52,1); border-color: rgba(176,233,202,0.2); }
+.ubuntu-island-theme-forest .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-forest .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(149,226,185,0.06); }
+.ubuntu-island-theme-forest .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-forest .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-forest .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-forest .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(149,226,185,0.12); }
+.ubuntu-island-theme-forest .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-forest .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(149,226,185,0.18); }
+.ubuntu-island-theme-forest .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #8de0b3; background-color: rgba(79,207,138,0.16); }
 .ubuntu-island-theme-forest .ubuntu-island-calendar-month { border-color: rgba(149,226,185,0.11); }
 .ubuntu-island-theme-forest .ubuntu-island-notification { border-color: rgba(149,226,185,0.09); }
 .ubuntu-island-theme-forest .ubuntu-island-notification-card:hover { background-color: rgba(149,226,185,0.08); }
@@ -643,6 +658,11 @@
 .ubuntu-island-theme-ember .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-ember .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-ember .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-ember .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-ember .ubuntu-island-quick-ask-entry:focus { border-color: #ffb38b; }
 .ubuntu-island-theme-ember .ubuntu-island-navigation { background-color: rgba(42,18,13,0.32); border-color: rgba(255,138,76,0.24); }
 .ubuntu-island-theme-ember .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #ff8a4c; }
+.ubuntu-island-theme-ember .ubuntu-island-agent-session-menu, .ubuntu-island-theme-ember .ubuntu-island-agent-harness-menu { background-color: rgba(96,47,31,1); border-color: rgba(255,202,174,0.2); }
+.ubuntu-island-theme-ember .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-ember .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(255,185,148,0.06); }
+.ubuntu-island-theme-ember .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-ember .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-ember .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-ember .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(255,185,148,0.12); }
+.ubuntu-island-theme-ember .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-ember .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(255,185,148,0.18); }
+.ubuntu-island-theme-ember .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #ffb38b; background-color: rgba(255,138,76,0.16); }
 .ubuntu-island-theme-ember .ubuntu-island-calendar-month { border-color: rgba(255,185,148,0.11); }
 .ubuntu-island-theme-ember .ubuntu-island-notification { border-color: rgba(255,185,148,0.09); }
 .ubuntu-island-theme-ember .ubuntu-island-notification-card:hover { background-color: rgba(255,185,148,0.08); }
@@ -684,6 +704,11 @@
 .ubuntu-island-theme-lagoon .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-lagoon .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-lagoon .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-lagoon .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-lagoon .ubuntu-island-quick-ask-entry:focus { border-color: #82e4db; }
 .ubuntu-island-theme-lagoon .ubuntu-island-navigation { background-color: rgba(6,35,41,0.32); border-color: rgba(63,214,200,0.24); }
 .ubuntu-island-theme-lagoon .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #3fd6c8; }
+.ubuntu-island-theme-lagoon .ubuntu-island-agent-session-menu, .ubuntu-island-theme-lagoon .ubuntu-island-agent-harness-menu { background-color: rgba(20,80,85,1); border-color: rgba(169,237,230,0.2); }
+.ubuntu-island-theme-lagoon .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-lagoon .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(140,230,222,0.06); }
+.ubuntu-island-theme-lagoon .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-lagoon .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-lagoon .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-lagoon .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(140,230,222,0.12); }
+.ubuntu-island-theme-lagoon .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-lagoon .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(140,230,222,0.18); }
+.ubuntu-island-theme-lagoon .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #82e4db; background-color: rgba(63,214,200,0.16); }
 .ubuntu-island-theme-lagoon .ubuntu-island-calendar-month { border-color: rgba(140,230,222,0.11); }
 .ubuntu-island-theme-lagoon .ubuntu-island-notification { border-color: rgba(140,230,222,0.09); }
 .ubuntu-island-theme-lagoon .ubuntu-island-notification-card:hover { background-color: rgba(140,230,222,0.08); }
@@ -725,6 +750,11 @@
 .ubuntu-island-theme-amethyst .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-amethyst .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-amethyst .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-amethyst .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-amethyst .ubuntu-island-quick-ask-entry:focus { border-color: #d0b4ff; }
 .ubuntu-island-theme-amethyst .ubuntu-island-navigation { background-color: rgba(30,16,52,0.32); border-color: rgba(182,140,255,0.24); }
 .ubuntu-island-theme-amethyst .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #b68cff; }
+.ubuntu-island-theme-amethyst .ubuntu-island-agent-session-menu, .ubuntu-island-theme-amethyst .ubuntu-island-agent-harness-menu { background-color: rgba(71,43,107,1); border-color: rgba(222,203,255,0.2); }
+.ubuntu-island-theme-amethyst .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-amethyst .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(211,186,255,0.06); }
+.ubuntu-island-theme-amethyst .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-amethyst .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-amethyst .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-amethyst .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(211,186,255,0.12); }
+.ubuntu-island-theme-amethyst .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-amethyst .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(211,186,255,0.18); }
+.ubuntu-island-theme-amethyst .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #d0b4ff; background-color: rgba(182,140,255,0.16); }
 .ubuntu-island-theme-amethyst .ubuntu-island-calendar-month { border-color: rgba(211,186,255,0.11); }
 .ubuntu-island-theme-amethyst .ubuntu-island-notification { border-color: rgba(211,186,255,0.09); }
 .ubuntu-island-theme-amethyst .ubuntu-island-notification-card:hover { background-color: rgba(211,186,255,0.08); }
@@ -766,6 +796,11 @@
 .ubuntu-island-theme-berry .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-berry .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-berry .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-berry .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-berry .ubuntu-island-quick-ask-entry:focus { border-color: #ffa1ca; }
 .ubuntu-island-theme-berry .ubuntu-island-navigation { background-color: rgba(46,12,34,0.32); border-color: rgba(255,111,174,0.24); }
 .ubuntu-island-theme-berry .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #ff6fae; }
+.ubuntu-island-theme-berry .ubuntu-island-agent-session-menu, .ubuntu-island-theme-berry .ubuntu-island-agent-harness-menu { background-color: rgba(102,35,73,1); border-color: rgba(255,190,219,0.2); }
+.ubuntu-island-theme-berry .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-berry .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(255,169,206,0.06); }
+.ubuntu-island-theme-berry .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-berry .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-berry .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-berry .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(255,169,206,0.12); }
+.ubuntu-island-theme-berry .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-berry .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(255,169,206,0.18); }
+.ubuntu-island-theme-berry .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #ffa1ca; background-color: rgba(255,111,174,0.16); }
 .ubuntu-island-theme-berry .ubuntu-island-calendar-month { border-color: rgba(255,169,206,0.11); }
 .ubuntu-island-theme-berry .ubuntu-island-notification { border-color: rgba(255,169,206,0.09); }
 .ubuntu-island-theme-berry .ubuntu-island-notification-card:hover { background-color: rgba(255,169,206,0.08); }
@@ -807,6 +842,11 @@
 .ubuntu-island-theme-midnight .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-midnight .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-midnight .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-midnight .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-midnight .ubuntu-island-quick-ask-entry:focus { border-color: #b3bfff; }
 .ubuntu-island-theme-midnight .ubuntu-island-navigation { background-color: rgba(13,16,50,0.32); border-color: rgba(138,156,255,0.24); }
 .ubuntu-island-theme-midnight .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #8a9cff; }
+.ubuntu-island-theme-midnight .ubuntu-island-agent-session-menu, .ubuntu-island-theme-midnight .ubuntu-island-agent-harness-menu { background-color: rgba(39,46,106,1); border-color: rgba(202,210,255,0.2); }
+.ubuntu-island-theme-midnight .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-midnight .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(185,196,255,0.06); }
+.ubuntu-island-theme-midnight .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-midnight .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-midnight .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-midnight .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(185,196,255,0.12); }
+.ubuntu-island-theme-midnight .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-midnight .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(185,196,255,0.18); }
+.ubuntu-island-theme-midnight .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #b3bfff; background-color: rgba(138,156,255,0.16); }
 .ubuntu-island-theme-midnight .ubuntu-island-calendar-month { border-color: rgba(185,196,255,0.11); }
 .ubuntu-island-theme-midnight .ubuntu-island-notification { border-color: rgba(185,196,255,0.09); }
 .ubuntu-island-theme-midnight .ubuntu-island-notification-card:hover { background-color: rgba(185,196,255,0.08); }
@@ -848,6 +888,11 @@
 .ubuntu-island-theme-aurora .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-aurora .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-aurora .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-aurora .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-aurora .ubuntu-island-quick-ask-entry:focus { border-color: #96efd9; }
 .ubuntu-island-theme-aurora .ubuntu-island-navigation { background-color: rgba(44,20,82,0.32); border-color: rgba(94,230,197,0.24); }
 .ubuntu-island-theme-aurora .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #5ee6c5; }
+.ubuntu-island-theme-aurora .ubuntu-island-agent-session-menu, .ubuntu-island-theme-aurora .ubuntu-island-agent-harness-menu { background-color: rgba(21,80,83,1); border-color: rgba(183,244,229,0.2); }
+.ubuntu-island-theme-aurora .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-aurora .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(158,240,220,0.06); }
+.ubuntu-island-theme-aurora .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-aurora .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-aurora .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-aurora .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(158,240,220,0.12); }
+.ubuntu-island-theme-aurora .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-aurora .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(158,240,220,0.18); }
+.ubuntu-island-theme-aurora .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #96efd9; background-color: rgba(94,230,197,0.16); }
 .ubuntu-island-theme-aurora .ubuntu-island-calendar-month { border-color: rgba(158,240,220,0.11); }
 .ubuntu-island-theme-aurora .ubuntu-island-notification { border-color: rgba(158,240,220,0.09); }
 .ubuntu-island-theme-aurora .ubuntu-island-notification-card:hover { background-color: rgba(158,240,220,0.08); }
@@ -889,6 +934,11 @@
 .ubuntu-island-theme-sunset .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-sunset .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-sunset .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-sunset .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-sunset .ubuntu-island-quick-ask-entry:focus { border-color: #ffc495; }
 .ubuntu-island-theme-sunset .ubuntu-island-navigation { background-color: rgba(86,34,18,0.32); border-color: rgba(255,164,92,0.24); }
 .ubuntu-island-theme-sunset .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #ffa45c; }
+.ubuntu-island-theme-sunset .ubuntu-island-agent-session-menu, .ubuntu-island-theme-sunset .ubuntu-island-agent-harness-menu { background-color: rgba(89,38,87,1); border-color: rgba(255,214,182,0.2); }
+.ubuntu-island-theme-sunset .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-sunset .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(255,200,157,0.06); }
+.ubuntu-island-theme-sunset .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-sunset .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-sunset .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-sunset .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(255,200,157,0.12); }
+.ubuntu-island-theme-sunset .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-sunset .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(255,200,157,0.18); }
+.ubuntu-island-theme-sunset .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #ffc495; background-color: rgba(255,164,92,0.16); }
 .ubuntu-island-theme-sunset .ubuntu-island-calendar-month { border-color: rgba(255,200,157,0.11); }
 .ubuntu-island-theme-sunset .ubuntu-island-notification { border-color: rgba(255,200,157,0.09); }
 .ubuntu-island-theme-sunset .ubuntu-island-notification-card:hover { background-color: rgba(255,200,157,0.08); }
@@ -930,6 +980,11 @@
 .ubuntu-island-theme-mocha .ubuntu-island-calendar-event:focus, .ubuntu-island-theme-mocha .ubuntu-island-agent-composer:focus, .ubuntu-island-theme-mocha .ubuntu-island-agent-prompt:focus, .ubuntu-island-theme-mocha .ubuntu-island-agent-entry:focus, .ubuntu-island-theme-mocha .ubuntu-island-quick-ask-entry:focus { border-color: #edcda9; }
 .ubuntu-island-theme-mocha .ubuntu-island-navigation { background-color: rgba(38,23,15,0.32); border-color: rgba(227,178,122,0.24); }
 .ubuntu-island-theme-mocha .ubuntu-island-navigation .ubuntu-island-navigation-caption { color: #e3b27a; }
+.ubuntu-island-theme-mocha .ubuntu-island-agent-session-menu, .ubuntu-island-theme-mocha .ubuntu-island-agent-harness-menu { background-color: rgba(86,58,41,1); border-color: rgba(242,220,195,0.2); }
+.ubuntu-island-theme-mocha .ubuntu-island-agent-session-menu .ubuntu-island-agent-button, .ubuntu-island-theme-mocha .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button { background-color: rgba(238,209,175,0.06); }
+.ubuntu-island-theme-mocha .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-mocha .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:focus, .ubuntu-island-theme-mocha .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:hover, .ubuntu-island-theme-mocha .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:focus { background-color: rgba(238,209,175,0.12); }
+.ubuntu-island-theme-mocha .ubuntu-island-agent-session-menu .ubuntu-island-agent-button:active, .ubuntu-island-theme-mocha .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:active { background-color: rgba(238,209,175,0.18); }
+.ubuntu-island-theme-mocha .ubuntu-island-agent-harness-menu .ubuntu-island-agent-button:checked { color: #edcda9; background-color: rgba(227,178,122,0.16); }
 .ubuntu-island-theme-mocha .ubuntu-island-calendar-month { border-color: rgba(238,209,175,0.11); }
 .ubuntu-island-theme-mocha .ubuntu-island-notification { border-color: rgba(238,209,175,0.09); }
 .ubuntu-island-theme-mocha .ubuntu-island-notification-card:hover { background-color: rgba(238,209,175,0.08); }
