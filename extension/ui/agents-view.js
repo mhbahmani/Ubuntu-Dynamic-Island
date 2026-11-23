@@ -6,7 +6,7 @@ import Gio from 'gi://Gio';
 import GObject from 'gi://GObject';
 import Atk from 'gi://Atk';
 import GLib from 'gi://GLib';
-import {AGENTS, AGENT_STATES, agentSummary, agentSessionReferences, agentStatus} from '../services/agents-model.js';
+import {AGENTS, AGENT_STATES, agentSummary, agentSessionReferences, agentStatus, agentWindowReason} from '../services/agents-model.js';
 import {column, row, label, button, setEnabled, notchToggle} from './widgets.js';
 import {harnessIcon} from './agent-icon.js';
 
@@ -362,6 +362,14 @@ export class AgentsView {
         this._positionSessionMenu();
         this.hideSession.grab_key_focus();
     }
+    async _open(item) {
+        if (item.canOpen && await this.actions.agentOpen(item.session) !== false) return;
+        if (this.dead || !item.open.mapped) return;
+        // Re-read the reason: the window may have closed during the recheck.
+        item.unavailable = agentWindowReason(this.actions.agentWindowReason?.(item.session));
+        item.open.grab_key_focus();
+        this.relationshipTip.refresh();
+    }
     _positionSessionMenu() {
         if (!this.menuSession || !this.sessionMenu.visible) return;
         const anchor = this.menuSession.menu;
@@ -433,12 +441,16 @@ export class AgentsView {
                 const arrow = new St.Icon({icon_name:'go-next-symbolic',icon_size:12,y_align:Clutter.ActorAlign.CENTER,
                     style_class:'ubuntu-island-agent-open-arrow'}); face.add_child(arrow);
                 item = {actor, title, status, open, glyph, harness, arrow, session};
-                open.connect('clicked', () => { if (open.reactive) this.actions.agentOpen(item.session); });
+                open.connect('clicked', () => this._open(item));
                 item.menu = button('view-more-symbolic', 'Session options', () => this._session(item), 14, 'ubuntu-island-agent-menu-button'); actor.add_child(item.menu);
                 item.menu.y_align = Clutter.ActorAlign.CENTER;
                 const relationship = () => item.session.attribution ? `Started by ${item.session.attribution.title}` : '';
-                this.relationshipTip.addTarget(actor, relationship);
-                this.relationshipTip.addTarget(open, relationship);
+                // An unmatched row says why on hover and keyboard focus of its
+                // open area, which spans the row; the options button keeps only
+                // the parent cue. A whole-row target would retake the tip on
+                // every allocation update, even while the pointer is on ⋮.
+                const explain = () => [relationship(), item.unavailable].filter(Boolean).join('\n');
+                this.relationshipTip.addTarget(open, explain);
                 this.relationshipTip.addTarget(item.menu, relationship);
                 this.activeList.add_child(actor); this.rows.set(session.id, item);
                 glyph.connect('notify::mapped', () => this._syncMotion());
@@ -449,16 +461,22 @@ export class AgentsView {
             const state = agentStatus(session);
             const relationship = session.attribution ? `Started by ${session.attribution.title}` : '';
             item.status.text = `${state} · ${item.reference}${relationship ? ' · ⤷ From Claude' : ''}`;
-            item.actor.accessible_description = item.open.accessible_description = item.menu.accessible_description = relationship;
+            const canOpen = Boolean(this.actions.agentWindow?.(session));
+            item.unavailable = canOpen ? '' : agentWindowReason(this.actions.agentWindowReason?.(session));
+            const details = [relationship, item.unavailable].filter(Boolean).join('. ');
+            item.actor.accessible_description = item.open.accessible_description = details;
+            item.menu.accessible_description = relationship;
             item.harness.gicon = harnessIcon(session.provider);
             item.harness.accessible_name = AGENTS[session.provider];
             item.glyph.gicon = icons.get(session.state) || icons.get('unknown');
             item.glyph.set_style_class_name(`ubuntu-island-agent-${session.state === 'waiting' ? 'idle' : session.state}`);
-            const canOpen = Boolean(this.actions.agentWindow?.(session));
-            if (!canOpen && item.open.has_key_focus()) item.menu.grab_key_focus();
-            setEnabled(item.open, canOpen); item.open.track_hover = canOpen; item.arrow.visible = canOpen;
-            item.open.accessible_role = canOpen ? Atk.Role.PUSH_BUTTON : Atk.Role.PANEL;
-            item.open.accessible_name = `${canOpen ? 'Open window for ' : ''}${session.label}, ${AGENTS[session.provider]}, session ${item.reference}. Last reported ${state} at ${new Date(session.updated).toLocaleString()}. ${relationship}`;
+            // Keep unmatched rows focusable: activating one explains why no
+            // window opens instead of silently doing nothing.
+            // Hover stays tracked so the reason tip follows the pointer.
+            item.canOpen = canOpen; item.arrow.visible = canOpen;
+            if (canOpen) item.open.remove_style_pseudo_class('unavailable');
+            else item.open.add_style_pseudo_class('unavailable');
+            item.open.accessible_name = `${canOpen ? 'Open window for ' : ''}${session.label}, ${AGENTS[session.provider]}, session ${item.reference}. Last reported ${state} at ${new Date(session.updated).toLocaleString()}. ${details}`;
             item.menu.accessible_name = `Options for ${session.label}, session ${item.reference}. ${relationship}`;
         }
         if (this.regroup) {

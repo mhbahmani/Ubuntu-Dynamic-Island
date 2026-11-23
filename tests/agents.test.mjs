@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {AgentStore, fromAgentHook, normalizeAgentEvent, agentLaunchArgv, agentCounts, agentSessionReferences, agentTerminalIdentity, matchAgentWindow} from '../extension/services/agents-model.js';
+import {AgentStore, fromAgentHook, normalizeAgentEvent, agentLaunchArgv, agentCounts, agentSessionReferences, agentTerminalIdentity, matchAgentWindow, agentWindowMatch, agentWindowReason} from '../extension/services/agents-model.js';
 import {HOOK_MARKER, hasAgentHooks, mergeAgentHooks, hookEntries, openCodePlugin} from '../extension/services/agents-setup-model.js';
 
 const event = (state, changes = {}) => ({v:1,provider:'claude',session:'one',state,...changes});
@@ -261,4 +261,30 @@ test('shared terminal processes require exact authoritative metadata and a uniqu
     assert.equal(matchAgentWindow(hinted,[first,{...first}],{pid:42,title:'First'}),null);
     assert.equal(matchAgentWindow(hinted,[second],{pid:42,title:'First'}),null, 'Closed session window must not fall back to the remaining terminal window');
     assert.equal(matchAgentWindow({...hinted,state:'closed'},[first],{pid:42,title:'First'}),null);
+});
+test('unmatched windows report an explicit reason without relaxing the match', () => {
+    const first = {pid:42,title:'First'}, second = {pid:42,title:'Second'};
+    const session = {...event('working'),pids:[99,42]}, hinted = {...session,terminal:terminalHint};
+    assert.deepEqual(agentWindowMatch(session,[]),{window:null,reason:'none'});
+    assert.deepEqual(agentWindowMatch({...session,pids:[7]},[first]),{window:null,reason:'none'});
+    assert.deepEqual(agentWindowMatch(session,[first]),{window:first,reason:''});
+    // One process hosting several windows (Claude Desktop, gnome-terminal-server).
+    assert.deepEqual(agentWindowMatch(session,[first,second]),{window:null,reason:'shared'});
+    assert.deepEqual(agentWindowMatch(hinted,[first,second],null,true),{window:null,reason:'pending'});
+    assert.deepEqual(agentWindowMatch(hinted,[first,second]),{window:null,reason:'unverified'});
+    assert.deepEqual(agentWindowMatch(hinted,[first,{...first}],{pid:42,title:'First'}),{window:null,reason:'duplicate'});
+    assert.deepEqual(agentWindowMatch(hinted,[second],{pid:42,title:'First'}),{window:null,reason:'unverified'});
+    assert.equal(agentWindowMatch({...session,state:'closed'},[first]).reason,'closed');
+    for (const reason of ['none','shared','duplicate','pending','unverified'])
+        assert(agentWindowReason(reason).length > 10 && agentWindowReason(reason) !== agentWindowReason(''), reason);
+});
+test('dialogs and popups never make a process match ambiguous', () => {
+    const main = {pid:42,title:'Main'}, dialog = {pid:42,title:'Preferences',transient:true};
+    const session = {...event('working'),pids:[99,42]};
+    assert.equal(matchAgentWindow(session,[main,dialog]),main);
+    assert.equal(matchAgentWindow(session,[dialog]),null);
+    assert.equal(matchAgentWindow(session,[main,dialog,{pid:42,title:'Second'}]),null);
+    // A transient terminal popup cannot satisfy exact terminal metadata either.
+    const hinted = {...session,terminal:terminalHint};
+    assert.equal(matchAgentWindow(hinted,[{...main,transient:true}],{pid:42,title:'Main'}),null);
 });

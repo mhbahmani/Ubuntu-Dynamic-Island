@@ -1519,7 +1519,12 @@ export default class Preview extends UbuntuIsland {
                     view.render(initial); await delay(80);
                     assert(first.actor.hover && first.actor.get_theme_node().get_background_color().alpha > 0,
                         'Session hover flickered when window availability changed');
-                    assert(first.open.reactive === available, 'Hover changed safe window activation behavior');
+                    assert(first.canOpen === available && first.arrow.visible === available && first.open.reactive,
+                        'Hover changed safe window activation behavior');
+                    // An unmatched row explains itself instead of silently ignoring clicks.
+                    assert(available ? !first.unavailable : first.unavailable &&
+                        view.relationshipTip.tip.visible && view.relationshipTip.tip.text.includes(first.unavailable),
+                    `Unmatched row hid its reason: tip=${view.relationshipTip.tip.visible} text=${view.relationshipTip.tip.text}`);
                 }
                 await this._capture(`agents-hover-${currentWidth}-${currentScale}`);
                 pointer.notify_absolute_motion(GLib.get_monotonic_time(),50,500);
@@ -1566,7 +1571,9 @@ export default class Preview extends UbuntuIsland {
         }
         const first = [...view.rows.values()][0];
         assert(!view.recentList && !view.recentButton && view.activeList.get_n_children() === 3, 'Sessions are not in one list');
-        assert(!first.open.reactive && !first.open.can_focus && !first.arrow.visible, 'Unmatched session offers window activation');
+        assert(!first.canOpen && !first.arrow.visible && first.unavailable, 'Unmatched session offers window activation');
+        assert(first.open.reactive && first.open.can_focus && first.open.accessible_name.includes(first.unavailable),
+            'Unmatched session cannot explain why no window opens');
         assert(first.harness.gicon && first.status.text === 'Needs approval · sample-1', 'Harness/status/session reference missing');
         const sharedProject = {...initial, sessions:initial.sessions.map(s => ({...s, label:'same-project'}))};
         this._renderAgents(sharedProject);
@@ -1579,6 +1586,9 @@ export default class Preview extends UbuntuIsland {
         const order = view.activeList.get_children();
         await click(first.open);
         assert(view.mode === 'list' && this._island.expanded, 'Unmatched session opened a chooser or dismissed the island');
+        assert(!first.canOpen && first.open.has_key_focus() && view.relationshipTip.tip.visible &&
+            view.relationshipTip.tip.text.includes(first.unavailable) && first.open.accessible_name.includes(first.unavailable),
+        'Clicking an unmatched session was a silent no-op');
         const listHeight = this._island.actor.height;
         await click(first.menu);
         assert(view.mode === 'list' && view.sessionMenu.visible && view.hideSession.has_key_focus(), 'Session menu replaced the list or lost focus');
@@ -1767,11 +1777,13 @@ export default class Preview extends UbuntuIsland {
         this._openAgent(first.session);
         assert(view.mode === 'list' && this._island.expanded, 'Unmatched session opened a chooser');
         await this._agents.send({...first.session, pids:[window.get_pid()]});
-        assert(this._agentWindows.resolve(first.session) === window && first.open.reactive && first.arrow.visible,
+        assert(this._agentWindows.resolve(first.session) === window && first.canOpen && first.arrow.visible,
             'Unique process ancestry match did not enable the row');
         const ambiguous = {is_skip_taskbar:() => false, get_pid:() => window.get_pid()};
         this._agentWindows.windows.set(ambiguous, []); view.render(this._states.agents);
-        assert(!this._agentWindows.resolve(first.session) && !first.open.reactive, 'Shared process ID guessed a window');
+        assert(!this._agentWindows.resolve(first.session) && !first.canOpen, 'Shared process ID guessed a window');
+        assert(this._agentWindows.explain(first.session).reason === 'shared' && first.unavailable.includes('several windows'),
+            `Shared process row hid its reason: ${first.unavailable}`);
         const matcher = this._agentWindows, lookup = matcher.terminalIdentity;
         const second = [...view.rows.values()].find(item => item !== first);
         const secondOriginal = {...second.session};
@@ -1785,20 +1797,22 @@ export default class Preview extends UbuntuIsland {
         await this._agents.send({...first.session,terminal:terminal('1')});
         await this._agents.send({...second.session,pids:[window.get_pid()],terminal:terminal('2')});
         await delay(80);
-        assert(first.open.reactive && second.open.reactive && matcher.resolve(first.session) === window && matcher.resolve(second.session) === ambiguous,
+        assert(first.canOpen && second.canOpen && matcher.resolve(first.session) === window && matcher.resolve(second.session) === ambiguous,
             'Two sessions sharing a terminal process are not independently clickable');
         const beforeActivation = lookups;
         assert(await matcher.resolveForActivation(first.session) === window && lookups > beforeActivation,
             'Activation reused stale terminal metadata');
         secondTitle = window.get_title(); matcher._invalidate(ambiguous); await delay(80);
-        assert(!first.open.reactive && !second.open.reactive, 'Duplicate titles guessed a window');
+        assert(!first.canOpen && !second.canOpen, 'Duplicate titles guessed a window');
+        assert(matcher.explain(first.session).reason === 'duplicate' && first.unavailable.includes('share one title'),
+            `Duplicate-title row hid its reason: ${first.unavailable}`);
         secondTitle = 'Other terminal window'; matcher._invalidate(ambiguous); await delay(80);
         const requestCount = lookups;
         this._card.selectPage('media');
         assert(!matcher.identities.size && !matcher.resolve(first.session) && lookups === requestCount,
             'Hidden Agents retained identity requests or started a lookup');
         this._card.selectPage('agents'); await delay(80);
-        assert(first.open.reactive && second.open.reactive, 'Reopening did not restore terminal matches');
+        assert(first.canOpen && second.canOpen, 'Reopening did not restore terminal matches');
         // A cancelled reply must not recreate a mapping after the view hides.
         let late;
         matcher.terminalIdentity = () => new Promise(resolve => { late = resolve; });
@@ -1823,7 +1837,7 @@ export default class Preview extends UbuntuIsland {
         this._island.expand();
         await delay(200);
         await click(first.menu);
-        assert(!first.open.reactive && !first.arrow.visible, 'Closed window left an activation affordance');
+        assert(!first.canOpen && !first.arrow.visible, 'Closed window left an activation affordance');
         await click(view.hideSession);
         assert(view.rows.size === 2, 'Dismiss did not update the list');
         const latest = {...first.session, state:'input', start:true};

@@ -20,15 +20,30 @@ export function agentTerminalIdentity(value) {
 
 // A terminal's own exact window metadata only narrows process-matched candidates.
 // Duplicate titles remain ambiguous, even when the terminal reports that title.
-export function matchAgentWindow(session, windows, identity = null) {
-    if (session.state === 'closed') return null;
-    let matches = windows.filter(window => session.pids?.includes(window.pid));
+// Dialogs and popups (transient windows) belong to their parent, so they are
+// never a second host. Unmatched results name why, for an explicit row state.
+export function agentWindowMatch(session, windows, identity = null, pending = false) {
+    if (session.state === 'closed') return {window:null, reason:'closed'};
+    let matches = windows.filter(window => session.pids?.includes(window.pid) && !window.transient);
+    if (!matches.length) return {window:null, reason:'none'};
     if (agentTerminalIdentity(session.terminal)) {
-        if (!identity) return null;
+        if (!identity) return {window:null, reason:pending ? 'pending' : 'unverified'};
         matches = matches.filter(window => window.pid === identity.pid && window.title === identity.title);
+        if (matches.length > 1) return {window:null, reason:'duplicate'};
+        if (!matches.length) return {window:null, reason:'unverified'};
     }
-    return matches.length === 1 ? matches[0] : null;
+    return matches.length === 1 ? {window:matches[0], reason:''} : {window:null, reason:'shared'};
 }
+export const matchAgentWindow = (session, windows, identity = null) =>
+    agentWindowMatch(session, windows, identity).window;
+export const AGENT_WINDOW_REASONS = {
+    none: 'No open window belongs to this session',
+    shared: 'Its app has several windows and does not report which one runs this session',
+    duplicate: 'Its terminal windows share one title, so the window cannot be identified',
+    pending: 'Checking its terminal window…',
+    unverified: 'Its terminal did not confirm which window runs this session',
+};
+export const agentWindowReason = reason => AGENT_WINDOW_REASONS[reason] || 'Window unavailable';
 
 // Process birth tokens prevent recycled PIDs from establishing relationships.
 function processIdentity(value) {

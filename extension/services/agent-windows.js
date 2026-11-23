@@ -1,5 +1,5 @@
 import Gio from 'gi://Gio';
-import {AGENT_LIMIT, agentTerminalIdentity, matchAgentWindow} from './agents-model.js';
+import {AGENT_LIMIT, agentTerminalIdentity, agentWindowMatch} from './agents-model.js';
 import {terminalWindowIdentity} from './agent-terminal.js';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -51,19 +51,25 @@ export class AgentWindows {
             record.promise = this.terminalIdentity(session, record.cancel).then(identity => {
                 if (this.identities.get(key) === record) record.value = identity;
             }).catch(() => {}).finally(() => {
+                record.done = true;
                 if (this.active && this.identities.get(key) === record) this.changed();
             });
         }
         return this.identities.get(key);
     }
-    resolve(session) {
-        if (session.state === 'closed') return null;
+    // {window, reason}: the reason explains an unmatched row instead of a
+    // silent no-op. It never relaxes the match itself.
+    explain(session) {
+        if (session.state === 'closed') return {window:null, reason:'closed'};
         const candidates = this.candidates(session);
-        if (!candidates.length) return null;
-        const identity = agentTerminalIdentity(session.terminal) ? this._identity(session)?.value : null;
-        return matchAgentWindow(session, candidates.map(window => ({window, pid:window.get_pid(),
-            title:window.get_title?.()})), identity)?.window ?? null;
+        if (!candidates.length) return {window:null, reason:'none'};
+        const record = agentTerminalIdentity(session.terminal) ? this._identity(session) : null;
+        const match = agentWindowMatch(session, candidates.map(window => ({window, pid:window.get_pid(),
+            title:window.get_title?.(), transient:Boolean(window.get_transient_for?.())})),
+        record?.value ?? null, Boolean(record && !record.done));
+        return {window:match.window?.window ?? null, reason:match.reason};
     }
+    resolve(session) { return this.explain(session).window; }
     async resolveForActivation(session) {
         if (!this.active || session.state === 'closed') return null;
         // A pane can move to another window without changing its UUID. Recheck
