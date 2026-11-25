@@ -2,6 +2,7 @@
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
 import St from 'gi://St';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
 const delay = ms => new Promise(resolve => GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
     resolve(); return GLib.SOURCE_REMOVE;
@@ -15,6 +16,68 @@ async function settled(surface, state) {
     for (let i = 0; i < 200 && surface.state !== state; i++) await delay(20);
     assert(surface.state === state, `Motion did not settle ${state}`);
     await delay(40);
+}
+
+// Notch content changes glide the docked surface from the centre while the
+// content takes its final layout at once; without motion they snap.
+async function checkGlide(app, desktop, scale, tolerance) {
+    const surface = app._island, pill = app._pill.actor;
+    const quickSettings = Main.panel.statusArea.quickSettings;
+    const profiles = quickSettings._powerProfiles;
+    const savedDate = app._settings.get_boolean('pill-show-date');
+    let paintId = 0;
+    const toggle = async show => {
+        await delay(40); // transformed geometry follows the next allocation
+        const before = box(surface.actor), samples = [];
+        paintId = global.stage.connect('after-paint', () => samples.push({surface: box(surface.actor), pillWidth: pill.width}));
+        app._settings.set_boolean('pill-show-date', show);
+        await delay(80); // the notch re-measures on an idle
+        for (let i = 0; i < 100 && surface.actor.get_transition('width'); i++) await delay(20);
+        await delay(60);
+        global.stage.disconnect(paintId); paintId = 0;
+        return {before, after: box(surface.actor), samples};
+    };
+    try {
+        quickSettings._powerProfiles = {quickSettingsItems: [{_proxy: {ActiveProfile: 'balanced'}}]};
+        app._settings.set_boolean('pill-show-date', false); await delay(80);
+        surface._snapCollapsed();
+        for (const show of [true, false]) {
+            const {before, after, samples} = await toggle(show);
+            const grows = after.width > before.width;
+            assert(Math.abs(after.width - before.width) > 10 * scale, 'Date indicator did not change the notch width');
+            assert(Math.abs(after.width - surface._collapsedWidth) <= tolerance, 'Glide did not settle at the notch width');
+            const between = samples.filter(frame => frame.surface.width > Math.min(before.width, after.width) + tolerance &&
+                frame.surface.width < Math.max(before.width, after.width) - tolerance);
+            assert(between.length >= 2, `Notch ${grows ? 'widening' : 'narrowing'} snapped without intermediate frames`);
+            samples.forEach((frame, i) => {
+                assert(Math.abs(frame.surface.cx - before.cx) <= tolerance, 'Notch drifted sideways while gliding');
+                assert(Math.abs(frame.surface.height - before.height) <= tolerance, 'Notch height changed while gliding');
+                assert(i === 0 || (grows ? frame.surface.width >= samples[i - 1].surface.width - 0.01
+                    : frame.surface.width <= samples[i - 1].surface.width + 0.01), 'Notch glide reversed');
+            });
+            assert(between.every(frame => Math.abs(frame.pillWidth - pill.width) <= tolerance),
+                'Notch content reflowed during the glide');
+        }
+        for (const mode of ['power-saver', 'extension', 'desktop']) {
+            quickSettings._powerProfiles.quickSettingsItems[0]._proxy.ActiveProfile = mode;
+            app._settings.set_boolean('disable-animations', mode === 'extension');
+            desktop.set_boolean('enable-animations', mode !== 'desktop');
+            await delay(50);
+            for (const show of [true, false]) {
+                const {before, after, samples} = await toggle(show);
+                assert(samples.every(frame => [before.width, after.width].some(width =>
+                    Math.abs(frame.surface.width - width) <= tolerance)), `${mode} notch width change did not snap`);
+            }
+        }
+    } finally {
+        if (paintId) global.stage.disconnect(paintId);
+        quickSettings._powerProfiles = profiles;
+        app._settings.set_boolean('disable-animations', false);
+        desktop.set_boolean('enable-animations', true);
+        app._settings.set_boolean('pill-show-date', savedDate);
+        await delay(80);
+        surface._snapCollapsed();
+    }
 }
 
 export async function checkMotion(app) {
@@ -40,6 +103,7 @@ export async function checkMotion(app) {
         // (no frames for >100 ms); warm it up before measuring.
         surface.expand(); await settled(surface, 'expanded');
         surface.collapse(); await settled(surface, 'collapsed');
+        await checkGlide(app, desktop, scale, tolerance);
         for (const density of ['compact', 'full']) {
             surface._snapCollapsed();
             indicators.forEach((id, i) => app._settings.set_boolean(`pill-show-${id}`,
@@ -205,7 +269,7 @@ export async function checkMotion(app) {
         }
         const file = Gio.File.new_for_path(`${GLib.getenv('ISLAND_PREVIEW_OUTPUT')}/motion.json`);
         file.replace_contents(JSON.stringify(frames), null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
-        console.log(`[Island Preview] MOTION PASS: centered inward motion, animated close, tab transitions, fixed content sizes, compact/full notch, 380/440px, ${scale * 100}% scale, Quick Ask focus, reversal and reduced motion`);
+        console.log(`[Island Preview] MOTION PASS: centered inward motion, notch width glide, animated close, tab transitions, fixed content sizes, compact/full notch, 380/440px, ${scale * 100}% scale, Quick Ask focus, reversal and reduced motion`);
     } finally {
         if (paintId) global.stage.disconnect(paintId);
         surface._snapCollapsed();

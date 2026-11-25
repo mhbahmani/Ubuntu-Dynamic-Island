@@ -5,6 +5,7 @@ import GLib from 'gi://GLib';
 import Meta from 'gi://Meta';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {label} from './widgets.js';
+import {powerSaverActive} from './power.js';
 
 // One noninteractive popup per view, shared by its hover/focus targets. No
 // repeating timers or hidden updates; a hover delay uses one cancellable source.
@@ -107,9 +108,7 @@ export class HoverTip {
     _animationMs() {
         if (!this.motionSettings || this.motionSettings.get_boolean('disable-animations') ||
             !St.Settings.get().enable_animations) return 0;
-        // Reuse GNOME 46's cached profile; no extra D-Bus client or polling.
-        const profile = Main.panel.statusArea.quickSettings?._powerProfiles?.quickSettingsItems?.[0]?._proxy?.ActiveProfile;
-        if (profile === 'power-saver') return 0;
+        if (powerSaverActive()) return 0;
         return Math.min(160, this.motionSettings.get_int('animation-duration'));
     }
 

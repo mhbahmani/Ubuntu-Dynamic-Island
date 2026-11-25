@@ -4,6 +4,7 @@ import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {containsPoint} from '../services/presentation.js';
+import {powerSaverActive} from './power.js';
 
 export const IslandState = Object.freeze({
     COLLAPSED: 'collapsed',
@@ -220,6 +221,7 @@ export class IslandSurface {
     }
 
     applyDimensions() {
+        const previousScale = this._scale;
         this._scale = this._themeContext?.scale_factor ?? 1;
         // Larger notch text makes the content taller than its 26px minimum;
         // the notch grows with it. Blend style matches the top bar's height.
@@ -240,7 +242,35 @@ export class IslandSurface {
         this._backdrop?.configure({scale: this._scale});
         if (this.expanded) this.relayout();
         else if (this.state === IslandState.COLLAPSING) this._retargetCollapse();
+        else if (this.state === IslandState.COLLAPSED && this._scale === previousScale) this._resizeCollapsed();
         else this._snapCollapsed();
+    }
+
+    // Notch content changes (a media title, an upcoming event, an indicator)
+    // glide the docked surface to its new size from the centre, on the
+    // opening's timing. The content takes its final layout at once and the
+    // surface clip reveals or trims its edges, so no label reflows per frame.
+    // Without motion (power saver, reduced motion, hidden) it snaps.
+    _resizeCollapsed() {
+        const width = this._collapsedWidth;
+        const height = this._collapsedHeight;
+        const running = this.actor.get_transition('width') ?? this.actor.get_transition('height');
+        const duration = this._resizeMs();
+        if (duration <= 0 || (!running && this.actor.width === width && this.actor.height === height)) {
+            this._snapCollapsed();
+            return;
+        }
+        this._pill.width = Math.max(1, width - this._border);
+        // Repeated measurements of the same content keep the running glide.
+        if (running && this._resizeTarget?.[0] === width && this._resizeTarget?.[1] === height) return;
+        this._resizeTarget = [width, height];
+        for (const property of ['width', 'height']) this.actor.remove_transition(property);
+        this.actor.ease({width, height, duration, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+    }
+
+    _resizeMs() {
+        if (!this.actor.mapped || this._concealed || powerSaverActive()) return 0;
+        return this._animationMs();
     }
 
     // ---- blend with the top bar ----

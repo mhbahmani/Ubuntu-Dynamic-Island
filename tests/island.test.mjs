@@ -55,6 +55,7 @@ function harness(animation = 220, backdrop = null, panel = null) {
     const flushIdle = () => { for (const [id, callback] of idle) { idle.delete(id); callback(); } };
     const addSource = (...args) => { idle.set(++nextIdle, args[args.length - 1]); return nextIdle; };
     const modal = new Set();
+    const motion = {enable_animations: true, powerSaver: false};
     const Main = {
         layoutManager: {primaryMonitor: {x: -1280, y: 0, width: 1280, height: 900}},
         panel,
@@ -65,7 +66,7 @@ function harness(animation = 220, backdrop = null, panel = null) {
     const source = readFileSync(new URL('../extension/ui/island.js', import.meta.url), 'utf8')
         .replace(/^import .*;\n/gm, '').replaceAll('export ', '');
     const Surface = vm.runInNewContext(`${source}\nIslandSurface`, {
-        St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => ({enable_animations: true})}, DirectionType: {TAB_FORWARD: 1, TAB_BACKWARD: -1}},
+        St: {Widget: Actor, BoxLayout: Actor, Settings: {get: () => motion}, DirectionType: {TAB_FORWARD: 1, TAB_BACKWARD: -1}},
         Clutter: {Actor, BinLayout: class {}, FixedLayout: class {}, AlignConstraint: class {},
             BindConstraint: class { constructor(props) { Object.assign(this, props); } }, BindCoordinate: {HEIGHT: 3}, AlignAxis: {}, ActorAlign: {}, AnimationMode: {EASE_OUT_QUAD: 0, EASE_OUT_QUART: 1, EASE_OUT_CUBIC: 2, EASE_IN_OUT_CUBIC: 3, EASE_IN_OUT_QUAD: 4},
             EventType: {BUTTON_PRESS: 1, TOUCH_BEGIN: 2, KEY_PRESS: 3, BUTTON_RELEASE: 4,
@@ -76,13 +77,14 @@ function harness(animation = 220, backdrop = null, panel = null) {
             idle_add: addSource, timeout_add: addSource,
             Source: {remove: id => idle.delete(id)}},
         Shell: {ActionMode: {POPUP: 1}}, Main, containsPoint, console, global: {stage: {key_focus: null}},
+        powerSaverActive: () => motion.powerSaver,
     });
     const settings = {get_int: name => ({'pill-width': 170, 'expanded-width': 440, 'animation-duration': animation})[name],
         get_boolean: () => false};
     const pill = new Actor();
     const card = new Actor();
     const surface = new Surface({settings, pill, card, backdrop});
-    return {surface, modal, pill, card, flushIdle};
+    return {surface, modal, pill, card, flushIdle, motion};
 }
 
 test('thirty interrupted toggles settle collapsed and release every modal grab', () => {
@@ -435,4 +437,82 @@ test('blend style takes the top bar color and height while collapsed and the the
     assert.equal(surface.actor.height, 34);
     assert.equal(surface._panelLayer.visible, false);
     assert.equal(surface._material.opacity, 255);
+});
+
+const notchWidth = (surface, width) => {
+    surface._settings.get_int = name => ({'pill-width': width, 'expanded-width': 440, 'animation-duration': 220})[name];
+    surface.applyDimensions();
+};
+
+test('collapsed notch glides to a new content width from the centre', () => {
+    const {surface, pill} = harness();
+    surface.actor.mapped = true;
+    notchWidth(surface, 200);
+    assert.equal(surface.state, 'collapsed');
+    assert.equal(surface.actor.width, 170, 'The surface does not snap');
+    assert.equal(surface.actor.transition.width, 200);
+    assert.equal(surface.actor.transition.height, 34);
+    assert.equal(surface.actor.transition.duration, 220);
+    assert.equal(surface.actor.transition.mode, 2, 'Ease-out cubic');
+    assert.equal(pill.width, 198, 'Content takes its final layout at once');
+    // The same measurement again keeps the running glide.
+    const running = surface.actor.transition;
+    notchWidth(surface, 200);
+    assert.equal(surface.actor.transition, running);
+    surface.actor.finish();
+    assert.equal(surface.actor.width, 200);
+    // Shrinking glides too; a new target mid-glide retargets it.
+    notchWidth(surface, 160);
+    notchWidth(surface, 180);
+    assert.equal(surface.actor.transition.width, 180);
+    assert.equal(pill.width, 178);
+    surface.actor.finish();
+    assert.equal(surface.actor.width, 180);
+});
+
+test('notch width changes snap without motion, while hidden, concealed or rescaled', () => {
+    const cases = [
+        ['power saver', ({motion}) => { motion.powerSaver = true; }],
+        ['reduced motion', ({motion}) => { motion.enable_animations = false; }],
+        ['disabled animations', ({surface}) => { surface._settings.get_boolean = name => name === 'disable-animations'; }],
+        ['unmapped', ({surface}) => { surface.actor.mapped = false; }],
+        ['concealed', ({surface}) => { surface.setConcealed(true, false); }],
+    ];
+    for (const [name, setup] of cases) {
+        const context = harness();
+        context.surface.actor.mapped = true;
+        setup(context);
+        notchWidth(context.surface, 200);
+        assert.equal(context.surface.actor.transition, null, name);
+        assert.equal(context.surface.actor.width, 200, name);
+        assert.equal(context.pill.width, 198, name);
+    }
+    const {surface} = harness();
+    surface.actor.mapped = true;
+    surface._themeContext = {scale_factor: 2};
+    surface.applyDimensions();
+    assert.equal(surface.actor.transition, null, 'Scale changes snap');
+    assert.equal(surface.actor.width, 340);
+});
+
+test('power saver during a glide settles it at the new size', () => {
+    const {surface, motion} = harness();
+    surface.actor.mapped = true;
+    notchWidth(surface, 200);
+    motion.powerSaver = true;
+    notchWidth(surface, 190);
+    assert.equal(surface.actor.transition, null);
+    assert.equal(surface.actor.width, 190);
+});
+
+test('opening during a notch glide takes over from the current size', () => {
+    const {surface} = harness();
+    surface.actor.mapped = true;
+    notchWidth(surface, 200);
+    surface.expand();
+    assert.equal(surface.actor.transition.width, 440);
+    surface.actor.finish();
+    assert.equal(surface.state, 'expanded');
+    surface.collapse(); surface.actor.finish();
+    assert.equal(surface.actor.width, 200);
 });
