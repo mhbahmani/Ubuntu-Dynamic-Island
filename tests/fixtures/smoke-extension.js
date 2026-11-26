@@ -727,7 +727,7 @@ export default class Smoke extends UbuntuIsland {
         ]});
         this._renderMedia({available: false});
         assert(!this._card._mediaSection.box.visible, 'Idle media section is visible');
-        assert(!this._pill._mediaIcon.visible && !this._pill._title.visible,
+        assert(!this._pill._shown(this._pill._media),
             'Idle notch retains media icon or label');
         await this._capture('collapsed');
 
@@ -1170,7 +1170,7 @@ export default class Smoke extends UbuntuIsland {
                 connect(available, state);
                 await this._capture(`notch-${mode}-${name}`);
                 assert(this._pill._connection.visible, 'Disconnected icon missing');
-                assert(!this._pill._weather.visible && !this._pill._network.visible && !this._pill._commute.visible, 'Offline style left dependent indicators visible');
+                assert(!this._pill._shown(this._pill._weather) && !this._pill._shown(this._pill._network) && !this._pill._shown(this._pill._commute), 'Offline style left dependent indicators visible');
                 assert(this._pill._mediaIcon.visible && this._pill._bluetooth.visible && this._pill._cpuDot.visible, 'Offline mode hid local indicators');
                 assert(this._pill._content.get_first_child() === this._pill._connection, 'Connection icon lost indicator order');
                 assert(this._pill.actor.accessible_name.includes(description), 'Connection status has no accessible description');
@@ -1189,7 +1189,7 @@ export default class Smoke extends UbuntuIsland {
             this._island.collapse();
             assert(this._island._connectionEdge.visible === (mode === 'edge'), 'Collapse did not restore edge mode');
             connect(true, Gio.NetworkConnectivity.FULL);
-            assert(!this._pill._connection.visible && !this._island._connectionEdge.visible, 'Reconnection retained offline decoration');
+            assert(!this._pill._shown(this._pill._connection) && !this._island._connectionEdge.visible, 'Reconnection retained offline decoration');
         }
         this._settings.set_string('pill-offline-mode', 'edge');
         connect(false, Gio.NetworkConnectivity.LOCAL);
@@ -1202,17 +1202,17 @@ export default class Smoke extends UbuntuIsland {
         offlineContext.scale_factor = offlineScale;
         this._settings.set_string('pill-offline-mode', 'hide');
         await delay(60);
-        assert(!this._pill._connection.visible && !this._island._connectionEdge.visible && !this._pill._network.visible, 'Hide mode retained a connection icon or disconnected rates');
+        assert(!this._pill._shown(this._pill._connection) && !this._island._connectionEdge.visible && !this._pill._shown(this._pill._network), 'Hide mode retained a connection icon or disconnected rates');
         assert(this._pill._weather.visible && this._pill._commute.visible, 'Hide mode removed fresh cached data');
         this._states.weather = {...onlineWeather, stale: true};
         this._states.commute = {...onlineCommute, stale: true};
         this._renderPill();
         await this._capture('notch-offline-hidden');
-        assert(!this._pill._weather.visible && !this._pill._commute.visible, 'Hide mode retained stale indicators');
+        assert(!this._pill._shown(this._pill._weather) && !this._pill._shown(this._pill._commute), 'Hide mode retained stale indicators');
         this._states.weather = {...onlineWeather, data: null};
         this._states.commute = {...onlineCommute, data: null};
         this._renderSystem({...onlineSystem, iface: 'No default route', rx: '—', tx: '—', rxBytes: null, txBytes: null});
-        assert(!this._pill._weather.visible && !this._pill._network.visible && !this._pill._commute.visible, 'Hide mode retained missing values');
+        assert(!this._pill._shown(this._pill._weather) && !this._pill._shown(this._pill._network) && !this._pill._shown(this._pill._commute), 'Hide mode retained missing values');
         this._settings.set_string('pill-offline-mode', 'icon');
         assert(this._pill._connection.visible, 'Changing offline mode did not apply immediately');
         this._states.weather = onlineWeather;
@@ -1220,7 +1220,7 @@ export default class Smoke extends UbuntuIsland {
         this._renderSystem(onlineSystem);
         connect(true, Gio.NetworkConnectivity.FULL);
         await delay(80);
-        assert(!this._pill._connection.visible && this._pill._weather.visible && this._pill._network.visible && this._pill._commute.visible,
+        assert(!this._pill._shown(this._pill._connection) && this._pill._weather.visible && this._pill._network.visible && this._pill._commute.visible,
             'Reconnection did not restore indicators');
         // Weather-only and Commute-only configurations still show the connection icon.
         this._settings.set_boolean('pill-show-network', false);
@@ -1228,7 +1228,7 @@ export default class Smoke extends UbuntuIsland {
         connect(false, Gio.NetworkConnectivity.LOCAL);
         assert(this._pill._connection.visible, 'Commute-only offline icon missing');
         this._settings.set_boolean('pill-show-commute', false);
-        assert(!this._pill._connection.visible, 'Connection icon appeared with no dependent indicators enabled');
+        assert(!this._pill._shown(this._pill._connection), 'Connection icon appeared with no dependent indicators enabled');
         this._settings.set_boolean('pill-show-weather', true);
         assert(this._pill._connection.visible, 'Weather-only offline icon missing');
         connect(true, Gio.NetworkConnectivity.FULL);
@@ -1238,7 +1238,7 @@ export default class Smoke extends UbuntuIsland {
         assert(!this._commute.controller.active && !this._commute.controller.timer, 'Hidden notch kept Commute active');
         this._island.actor.show();
         this._settings.set_boolean('pill-show-commute', false);
-        assert(!this._pill._commute.visible && !this._commute.controller.timer, 'Disabled Commute notch retained timer');
+        assert(!this._pill._shown(this._pill._commute) && !this._commute.controller.timer, 'Disabled Commute notch retained timer');
         await this._checkNetworkWidths();
         await this._checkNotchOptions();
         await this._checkSystemFits();
@@ -1278,7 +1278,7 @@ export default class Smoke extends UbuntuIsland {
         this._island.actor.show();
         this._settings.set_boolean('pill-show-weather', false);
         this._settings.set_boolean('pill-show-network', false);
-        assert(!this._pill._weather.visible && !this._pill._network.visible, 'Notch indicators did not hide live');
+        assert(!this._pill._shown(this._pill._weather) && !this._pill._shown(this._pill._network), 'Notch indicators did not hide live');
         assert(!this._weather.controller.active, 'Disabled indicator retained weather polling');
         this._island.expand();
         await delay(100);

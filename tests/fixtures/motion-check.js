@@ -13,15 +13,17 @@ const box = actor => {
     return {x, y, width, height, cx: x + width / 2, cy: y + height / 2};
 };
 async function settled(surface, state) {
-    for (let i = 0; i < 200 && surface.state !== state; i++) await delay(20);
+    for (let i = 0; i < 200 && (surface.state !== state ||
+        (state === 'collapsed' && surface.actor.get_transition('width'))); i++) await delay(20);
     assert(surface.state === state, `Motion did not settle ${state}`);
     await delay(40);
 }
 
-// Notch content changes glide the docked surface from the centre while the
-// content takes its final layout at once; without motion they snap.
+// Notch content changes glide the docked surface from the centre. Items move
+// with the border and fade in or out at their natural widths; without motion
+// they snap.
 async function checkGlide(app, desktop, scale, tolerance) {
-    const surface = app._island, pill = app._pill.actor;
+    const surface = app._island, date = app._pill._date;
     const quickSettings = Main.panel.statusArea.quickSettings;
     const profiles = quickSettings._powerProfiles;
     const savedDate = app._settings.get_boolean('pill-show-date');
@@ -29,7 +31,9 @@ async function checkGlide(app, desktop, scale, tolerance) {
     const toggle = async show => {
         await delay(40); // transformed geometry follows the next allocation
         const before = box(surface.actor), samples = [];
-        paintId = global.stage.connect('after-paint', () => samples.push({surface: box(surface.actor), pillWidth: pill.width}));
+        paintId = global.stage.connect('after-paint', () => samples.push({surface: box(surface.actor),
+            items: app._pill._content.get_children().filter(actor => actor.visible)
+                .map(actor => ({actor, box: box(actor), width: actor.width, opacity: actor.get_paint_opacity()}))}));
         app._settings.set_boolean('pill-show-date', show);
         await delay(80); // the notch re-measures on an idle
         for (let i = 0; i < 100 && surface.actor.get_transition('width'); i++) await delay(20);
@@ -55,8 +59,20 @@ async function checkGlide(app, desktop, scale, tolerance) {
                 assert(i === 0 || (grows ? frame.surface.width >= samples[i - 1].surface.width - 0.01
                     : frame.surface.width <= samples[i - 1].surface.width + 0.01), 'Notch glide reversed');
             });
-            assert(between.every(frame => Math.abs(frame.pillWidth - pill.width) <= tolerance),
-                'Notch content reflowed during the glide');
+            const widths = new Map();
+            for (const frame of samples) {
+                for (const item of frame.items) {
+                    if (!widths.has(item.actor)) widths.set(item.actor, item.width);
+                    assert(Math.abs(item.width - widths.get(item.actor)) <= 0.5, 'Notch content reflowed during the glide');
+                    if (item.opacity > 25) {
+                        assert(item.box.x >= frame.surface.x - tolerance &&
+                            item.box.x + item.box.width <= frame.surface.x + frame.surface.width + tolerance,
+                        'A notch item crossed the border during the glide');
+                    }
+                }
+            }
+            assert(samples.some(frame => frame.items.some(item => item.actor === date &&
+                item.opacity > 10 && item.opacity < 245)), `Date indicator did not fade ${show ? 'in' : 'out'}`);
         }
         for (const mode of ['power-saver', 'extension', 'desktop']) {
             quickSettings._powerProfiles.quickSettingsItems[0]._proxy.ActiveProfile = mode;

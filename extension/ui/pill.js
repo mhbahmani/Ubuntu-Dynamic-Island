@@ -12,6 +12,8 @@ import Clutter from 'gi://Clutter';
 import {weatherSceneKind, temperature} from '../services/weather-model.js';
 import {icon, label, row} from './widgets.js';
 import {compactRate} from '../services/format.js';
+import {itemFrame, SHRUNK_SCALE} from '../services/notch-motion.js';
+import {NotchLayout} from './notch-layout.js';
 
 // Compact notch content shown while collapsed. The St.Button gives keyboard
 // focus semantics and an accessibility name for the toggle action.
@@ -29,9 +31,17 @@ export class Pill {
             onToggleTitle();
             return Clutter.EVENT_STOP;
         });
-        const content = row('ubuntu-island-pill-content');
-        content.x_expand = true;
+        this._layout = new NotchLayout();
+        const content = new St.Widget({style_class: 'ubuntu-island-pill-content',
+            layout_manager: this._layout, x_expand: true});
+        content.connect('style-changed', () => {
+            this._layout.spacing = content.get_theme_node().get_length('spacing');
+            this._layout.layout_changed();
+        });
         this._content = content;
+        this._motion = new Map();
+        this._baseOpacity = new Map();
+        this._timeline = null;
         // The peek overlays the indicators at their width; a zero natural
         // size keeps a long title from widening the notch.
         const face = new St.Widget({layout_manager: new Clutter.BinLayout(), x_expand: true});
@@ -124,7 +134,10 @@ export class Pill {
         this._event.set_child(eventFace); this._event.hide(); content.add_child(this._event);
         this._event.connect('clicked', () => onEvent?.());
         this._onChanged = onChanged;
-        this.actor.connect('notify::mapped', () => { this._syncDateClock(); this._queueLayout(); });
+        this.actor.connect('notify::mapped', () => {
+            if (!this.actor.mapped) this._finishMotion();
+            this._syncDateClock(); this._queueLayout();
+        });
         this._date.connect('style-changed', () => this._queueLayout());
         this._time.connect('style-changed', () => this._queueLayout());
         this.actor.connect('destroy', () => {
@@ -133,6 +146,8 @@ export class Pill {
             this._peekTimer = 0;
             if (this._layoutIdle) GLib.Source.remove(this._layoutIdle);
             this._layoutIdle = 0;
+            this._timeline?.stop();
+            this._timeline = null;
         });
         this._connection = row('ubuntu-island-pill-connection');
         this._connection.y_align = Clutter.ActorAlign.CENTER;
@@ -150,10 +165,12 @@ export class Pill {
         this._items = {media: this._media, weather: this._weather, network: this._network,
             cpu: this._cpuDot, bluetooth: this._bluetooth, commute: this._commute, agents: this._agents, notifications: this._notifications, date: this._date, event:this._event, time:this._time};
         const groups = [...Object.values(this._items), this._connection];
-        for (const group of groups) {
-            group.x_expand = true;
-            group.x_align = Clutter.ActorAlign.CENTER;
-        }
+        this._groups = groups;
+        for (const group of groups) group.set_pivot_point(0.5, 0.5);
+        // A leaving item still shows while it fades; size the notch without it.
+        const shown = group => this._shown(group);
+        this.actor._islandSettle = () => this._finishMotion();
+        this.actor._islandGlide = () => this._startMotion();
         // The configured width is a minimum. Rate slots reserve the format's
         // widest templates; other groups keep their content-based sizing.
         this.actor._islandMinimumWidth = () => {
@@ -168,34 +185,34 @@ export class Pill {
             const maximum = this._mediaTitle.mode === 'fit'
                 ? Math.min(600 * scale, screenWidth * 0.6) : screenWidth - 32 * scale;
             const titleMaximum = this._mediaTitle.mode === 'fixed' ? Infinity : 240 * scale;
-            if (this._event.visible) {
-                const fixed = groups.filter(g => g.visible && ![this._media,this._date,this._event].includes(g));
-                const visibleCount = groups.filter(g => g.visible).length;
+            if (shown(this._event)) {
+                const fixed = groups.filter(g => shown(g) && ![this._media,this._date,this._event].includes(g));
+                const visibleCount = groups.filter(shown).length;
                 const overhead = (26 + Math.max(0,visibleCount - 1) * 12 + this._iconSize(13) + 6 +
-                    (this._media.visible ? this._iconSize(14) + 6 : 0)) * scale;
+                    (shown(this._media) ? this._iconSize(14) + 6 : 0)) * scale;
                 let room = Math.max(0,maximum - overhead -
                     fixed.reduce((sum,g) => sum + g.get_preferred_width(-1)[1],0));
-                if (this._date.visible) {
+                if (shown(this._date)) {
                     this._dates.setBudget(Math.min(320 * scale,room * 0.55));
                     room = Math.max(0,room - this._date.get_preferred_width(-1)[1]);
                 }
                 const eventWidth = !this._eventText.visible ? 0 : Math.min(160 * scale,room * (this._title.visible ? 0.65 : 1),
                     this._eventText.clutter_text.get_preferred_width(-1)[1]);
                 this._eventText.width = Math.max(0,Math.floor(eventWidth));
-                this._mediaTitle.setBudget(Math.max(0,Math.min(titleMaximum,room - eventWidth)));
+                if (shown(this._media)) this._mediaTitle.setBudget(Math.max(0,Math.min(titleMaximum,room - eventWidth)));
             } else {
-                if (this._date.visible) {
-                    const fixed = groups.filter(g => g.visible && ![this._media, this._date].includes(g));
+                if (shown(this._date)) {
+                    const fixed = groups.filter(g => shown(g) && ![this._media, this._date].includes(g));
                     const fixedWidth = fixed.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0);
                     const room = (monitor?.width ?? 1000 * scale) * 0.85 - fixedWidth - (100 + fixed.length * 12) * scale;
                     this._dates.setBudget(Math.max(100 * scale, Math.min(320 * scale, room)));
                 }
-                const others = groups.filter(g => g !== this._media && g.visible);
+                const others = groups.filter(g => g !== this._media && shown(g));
                 const otherWidth = others.reduce((sum, g) => sum + g.get_preferred_width(-1)[1], 0) +
                     (26 + this._iconSize(14) + 6 + others.length * 12) * scale;
-                this._mediaTitle.setBudget(Math.max(0, Math.min(titleMaximum, maximum - otherWidth)));
+                if (shown(this._media)) this._mediaTitle.setBudget(Math.max(0, Math.min(titleMaximum, maximum - otherWidth)));
             }
-            const visible = groups.filter(g => g.visible);
+            const visible = groups.filter(shown);
             return visible.reduce((sum, g) => sum + (g === this._media
                 ? this._iconSize(14) * scale + (this._title.visible ? 6 * scale + this._mediaTitle.desiredWidth : 0)
                 : g.get_preferred_width(-1)[1]), 0)
@@ -243,15 +260,19 @@ export class Pill {
     }
 
     render({agents, showAgents = false, notifications = null, showNotifications = false, event = null, media, system, connection, offlineMode = 'icon', bluetooth, expanded, showMetrics, showTitle = true, weather, showWeather = false, showNetwork = false, units = 'celsius', order = [], arrowStyle = 'chevron', arrowAngle = 80, weatherStyle = 'colorful', commute, showCommute = false, titleMode = 'fixed', titleCharacters = 12, animations = true, showDate = false, dateOptions = {}, showTime = false, timeOptions = {}, cpuHideIdle = false, cpuThreshold = 50, networkLayout = 'inline'}) {
+        const before = this._requestedItems();
         this._expanded = expanded;
         this._timeOptions = timeOptions;
         this._setNetworkLayout(networkLayout);
         this._time.visible = showTime && !expanded;
         this._updateTime();
         this._event.visible = Boolean(event && !expanded);
-        this._eventText.text = event?.text || '';
-        this._eventText.visible = Boolean(event?.text);
-        this._event.accessible_name = event?.label || event?.text || 'Upcoming event';
+        // Leaving items keep their last content while they fade out.
+        if (event) {
+            this._eventText.text = event.text || '';
+            this._eventText.visible = Boolean(event.text);
+            this._event.accessible_name = event.label || event.text || 'Upcoming event';
+        }
         this._dateDay = todayDay();
         const dateKey = `${this._dateDay}:${showDate}:${expanded}:${JSON.stringify(dateOptions)}`;
         if (dateKey !== this._dateKey) {
@@ -277,11 +298,11 @@ export class Pill {
         this._connectionIcon.icon_size = this._iconSize(connectionState.edge ? 14 : 16);
         const available = Boolean(media?.available);
         this._media.visible = available;
-        this._mediaIcon.visible = available;
-        this._mediaTitle.configure(available ? String(media.title ?? '') : '', titleMode, titleCharacters, available && showTitle, expanded, animations);
-        this._mediaIcon.icon_name = available
-            ? (media.status === 'Playing' ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic')
-            : 'audio-x-generic-symbolic';
+        if (available) {
+            this._mediaTitle.configure(String(media.title ?? ''), titleMode, titleCharacters, showTitle, expanded, animations);
+            this._mediaIcon.icon_name = media.status === 'Playing'
+                ? 'media-playback-pause-symbolic' : 'media-playback-start-symbolic';
+        }
         this._bluetooth.visible = Boolean(bluetooth?.available && bluetooth.devices.some(d => d.connected));
         this._cpuShown = cpuDotVisible(system?.cpu, {hideIdle: cpuHideIdle, threshold: cpuThreshold, shown: this._cpuShown});
         this._cpuDot.visible = Boolean(showMetrics && this._cpuShown);
@@ -293,11 +314,13 @@ export class Pill {
         this._weather.visible = Boolean(!connectionState.visible && showWeather && weather?.data?.current &&
             !(connectionState.hideUnavailable && (weather.stale || weather.status === 'offline' || weather.status === 'unavailable')));
         this._notifications.visible = Boolean(showNotifications && notifications?.unseen);
-        this._notificationsText.text = String(notifications?.unseen ?? 0);
+        if (this._notifications.visible) this._notificationsText.text = String(notifications.unseen);
         const agentTotals = agentCounts(agents?.sessions);
         this._agents.visible = Boolean(showAgents && agents?.connected && (agentTotals.working || agentTotals.waiting || agentTotals.attention || agentTotals.finished));
-        this._agentsText.text = `${agentTotals.working}${agentTotals.waiting ? ` · ◷${agentTotals.waiting}` : ''}${agentTotals.attention ? ` · !${agentTotals.attention}` : agentTotals.finished && !agentTotals.working && !agentTotals.waiting ? ` · ✓${agentTotals.finished}` : ''}`;
-        this._agents.accessible_name = agentSummary(agents?.sessions);
+        if (this._agents.visible) {
+            this._agentsText.text = `${agentTotals.working}${agentTotals.waiting ? ` · ◷${agentTotals.waiting}` : ''}${agentTotals.attention ? ` · !${agentTotals.attention}` : agentTotals.finished && !agentTotals.working && !agentTotals.waiting ? ` · ✓${agentTotals.finished}` : ''}`;
+            this._agents.accessible_name = agentSummary(agents?.sessions);
+        }
         const current = weather?.data?.current;
         const kind = weatherSceneKind(current);
         const weatherKey = `${weatherStyle}:${kind}:${this._textScale}`;
@@ -322,14 +345,16 @@ export class Pill {
                 arrow.gicon = new Gio.BytesIcon({bytes: GLib.Bytes.new(new TextEncoder().encode(arrowSvg(arrowStyle, i ? 'up' : 'down', arrowAngle)))});
             });
         }
-        this._weather.opacity = weather?.stale ? 140 : 255;
+        this._setOpacity(this._weather, weather?.stale ? 140 : 255);
         this._network.visible = Boolean(!connectionState.visible && showNetwork && showMetrics && system &&
             !(connectionState.hideUnavailable && (connection === 'offline' || system.rxBytes == null || system.txBytes == null)));
         const commuteState = commuteIndicator(commute);
         this._commute.visible = !connectionState.visible && showCommute && commuteState.visible &&
             !(connectionState.hideUnavailable && (!commute.data || commuteState.stale));
-        this._commuteValue.text = commuteState.text;
-        this._commute.opacity = commuteState.stale ? 160 : 255;
+        if (this._commute.visible) {
+            this._commuteValue.text = commuteState.text;
+            this._setOpacity(this._commute, commuteState.stale ? 160 : 255);
+        }
         const arranged = notchOrder(order);
         const key = `${arranged.join(',')}:${connectionState.anchor ?? ''}`;
         if (key !== this._orderKey) {
@@ -353,7 +378,87 @@ export class Pill {
         if (this._event.visible) description.push(this._event.accessible_name);
         this._description = description;
         this._updateDescription();
+        this._moveItems(before);
         return {connectionEdge: connectionState.edge};
+    }
+
+    _shown(group) {
+        return group.visible && this._motion.get(group)?.to !== 0;
+    }
+
+    // Leaving items are kept visible only while they fade; hide them again
+    // so render() states what it wants and changes can be compared.
+    _requestedItems() {
+        for (const [group, motion] of this._motion)
+            if (motion.to === 0) group.visible = false;
+        return new Set(this._groups.filter(group => group.visible));
+    }
+
+    _setOpacity(group, opacity) {
+        this._baseOpacity.set(group, opacity);
+        const motion = this._motion.get(group);
+        group.opacity = Math.round(opacity * (motion ? motion.opacity : 1));
+    }
+
+    // Appearing items fade in as their neighbours make room; disappearing
+    // ones fade out before the gap closes, on the island's glide timing.
+    _moveItems(before) {
+        let changed = false;
+        for (const group of this._groups) {
+            const wanted = group.visible;
+            const motion = this._motion.get(group);
+            if (motion?.to === 0) group.visible = true;
+            if (wanted === before.has(group)) continue;
+            this._motion.set(group, {...(motion ?? (wanted
+                ? {presence: 0, opacity: 0, scale: SHRUNK_SCALE}
+                : {presence: 1, opacity: 1, scale: 1})), to: wanted ? 1 : 0});
+            group.visible = true;
+            changed = true;
+        }
+        if (changed) this._startMotion();
+    }
+
+    _startMotion() {
+        if (this._motion.size === 0) return;
+        const duration = this.actor._islandMotionMs?.() ?? 0;
+        if (duration <= 0 || !this.actor.mapped) {
+            this._finishMotion();
+            return;
+        }
+        for (const motion of this._motion.values())
+            motion.from = {presence: motion.presence, opacity: motion.opacity, scale: motion.scale};
+        if (!this._timeline) {
+            this._timeline = new Clutter.Timeline({actor: this._content});
+            this._timeline.connect('new-frame', () => this._stepMotion(this._timeline.get_progress()));
+            this._timeline.connect('completed', () => this._finishMotion());
+        }
+        this._timeline.stop();
+        this._timeline.duration = duration;
+        this._stepMotion(0);
+        this._timeline.start();
+    }
+
+    _stepMotion(t) {
+        for (const [group, motion] of this._motion) {
+            Object.assign(motion, itemFrame(motion.from, motion.to, t));
+            this._layout.presence.set(group, motion.presence);
+            group.opacity = Math.round((this._baseOpacity.get(group) ?? 255) * motion.opacity);
+            group.scale_x = group.scale_y = motion.scale;
+        }
+        this._layout.layout_changed();
+    }
+
+    _finishMotion() {
+        this._timeline?.stop();
+        if (this._motion.size === 0) return;
+        for (const [group, motion] of this._motion) {
+            if (motion.to === 0) group.visible = false;
+            this._layout.presence.delete(group);
+            group.opacity = this._baseOpacity.get(group) ?? 255;
+            group.scale_x = group.scale_y = 1;
+        }
+        this._motion.clear();
+        this._layout.layout_changed();
     }
 
     _queueLayout() {

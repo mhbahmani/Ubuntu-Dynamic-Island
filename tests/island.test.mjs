@@ -12,7 +12,8 @@ function harness(animation = 220, backdrop = null, panel = null) {
             Object.assign(this, {visible: true, opacity: 255, width: 170, height: 34,
                 scale_x: 1, scale_y: 1, translation_y: 0}, props);
         }
-        connect() { return 1; }
+        connect(signal, handler) { ((this.handlers ??= {})[signal] ??= []).push(handler); return 1; }
+        emit(signal) { for (const handler of this.handlers?.[signal] ?? []) handler(this); }
         disconnect() {}
         add_child() {}
         add_constraint() {}
@@ -45,8 +46,10 @@ function harness(animation = 220, backdrop = null, panel = null) {
             const options = this.transition;
             this.transition = null;
             if (!options) return;
+            const width = this.width;
             for (const key of ANIMATED)
                 if (options[key] != null) this[key] = options[key];
+            if (this.width !== width) this.emit('notify::width');
             options.onComplete?.();
         }
     }
@@ -447,27 +450,50 @@ const notchWidth = (surface, width) => {
 test('collapsed notch glides to a new content width from the centre', () => {
     const {surface, pill} = harness();
     surface.actor.mapped = true;
+    let glides = 0;
+    pill._islandGlide = () => glides++;
+    assert.equal(pill._islandMotionMs(), 385, 'Items share the glide timing');
     notchWidth(surface, 200);
     assert.equal(surface.state, 'collapsed');
     assert.equal(surface.actor.width, 170, 'The surface does not snap');
     assert.equal(surface.actor.transition.width, 200);
     assert.equal(surface.actor.transition.height, 34);
-    assert.equal(surface.actor.transition.duration, 220);
-    assert.equal(surface.actor.transition.mode, 2, 'Ease-out cubic');
-    assert.equal(pill.width, 198, 'Content takes its final layout at once');
+    assert.equal(surface.actor.transition.duration, 385, 'Slower than the opening');
+    assert.equal(surface.actor.transition.mode, 3, 'Ease-in-out cubic');
+    assert.equal(glides, 1, 'Notch items restart on the surface timing');
     // The same measurement again keeps the running glide.
     const running = surface.actor.transition;
     notchWidth(surface, 200);
     assert.equal(surface.actor.transition, running);
+    assert.equal(glides, 1);
     surface.actor.finish();
     assert.equal(surface.actor.width, 200);
+    assert.equal(pill.width, 198, 'Content follows the surface width');
     // Shrinking glides too; a new target mid-glide retargets it.
     notchWidth(surface, 160);
     notchWidth(surface, 180);
     assert.equal(surface.actor.transition.width, 180);
-    assert.equal(pill.width, 178);
+    assert.equal(glides, 3);
     surface.actor.finish();
     assert.equal(surface.actor.width, 180);
+    assert.equal(pill.width, 178);
+});
+
+test('notch items glide only while docked with motion available', () => {
+    const {surface, pill, motion} = harness();
+    surface.actor.mapped = true;
+    assert.equal(pill._islandMotionMs(), 385);
+    motion.powerSaver = true;
+    assert.equal(pill._islandMotionMs(), 0, 'Power saver');
+    motion.powerSaver = false;
+    surface.expand();
+    assert.equal(pill._islandMotionMs(), 0, 'Opening');
+    surface.actor.finish();
+    assert.equal(pill._islandMotionMs(), 0, 'Open');
+    surface.collapse();
+    assert.equal(pill._islandMotionMs(), 0, 'Closing');
+    surface.actor.finish();
+    assert.equal(pill._islandMotionMs(), 385);
 });
 
 test('notch width changes snap without motion, while hidden, concealed or rescaled', () => {
@@ -506,12 +532,17 @@ test('power saver during a glide settles it at the new size', () => {
 });
 
 test('opening during a notch glide takes over from the current size', () => {
-    const {surface} = harness();
+    const {surface, pill} = harness();
     surface.actor.mapped = true;
+    let settled = 0;
+    pill._islandSettle = () => settled++;
     notchWidth(surface, 200);
     surface.expand();
+    assert.equal(settled, 1, 'Fading notch items settle before opening');
+    assert.equal(pill.width, 198, 'The notch keeps its final layout while opening');
     assert.equal(surface.actor.transition.width, 440);
     surface.actor.finish();
+    assert.equal(pill.width, 198);
     assert.equal(surface.state, 'expanded');
     surface.collapse(); surface.actor.finish();
     assert.equal(surface.actor.width, 200);

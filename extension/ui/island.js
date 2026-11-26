@@ -27,6 +27,9 @@ const PANEL_PADDING = 2;
 // notch reopen click) route through the stale chain and never arrive. Wait
 // for the press's release, capped for a release that never comes.
 const DISMISS_GUARD_MS = 400;
+// Notch content glides run slower than the opening, leaving room for items to
+// fade in and out while their neighbours move.
+const GLIDE_SCALE = 1.75;
 const clampRange = (value, lower, upper) => Math.max(lower, Math.min(upper, value));
 
 // The island is a single chrome-managed St.Widget surface: the compact pill
@@ -103,6 +106,7 @@ export class IslandSurface {
         this._pill.add_constraint(new Clutter.AlignConstraint({source: this._content,
             align_axis: Clutter.AlignAxis.Y_AXIS, factor: 0.5}));
         this._pill.set_pivot_point(0.5, 0.5);
+        this._pill._islandMotionMs = () => this._glideMs();
         this._card.set_pivot_point(0.5, 0);
         this._card.hide();
         // 1px inner top highlight, the "sheen" line of a glass panel.
@@ -128,7 +132,12 @@ export class IslandSurface {
         const track = (owner, signal, handler) =>
             this._connections.push([owner, owner.connect(signal, handler)]);
         if (this._themeContext) track(this._themeContext, 'notify::scale-factor', () => this.applyDimensions());
-        track(this.actor, 'notify::width', () => this._recenter());
+        track(this.actor, 'notify::width', () => {
+            // Docked, the notch content follows the surface so its items move
+            // with the border. Opening and closing keep it at a fixed width.
+            if (this.state === IslandState.COLLAPSED) this._pill.width = Math.max(1, this.actor.width - this._border);
+            this._recenter();
+        });
         // Hover, press, focus, typing and resizes repaint parts of the
         // island. Widen those frames to a full backdrop repaint up front.
         track(this.actor, 'queue-relayout', () => this._backdrop?.invalidate());
@@ -247,30 +256,36 @@ export class IslandSurface {
     }
 
     // Notch content changes (a media title, an upcoming event, an indicator)
-    // glide the docked surface to its new size from the centre, on the
-    // opening's timing. The content takes its final layout at once and the
-    // surface clip reveals or trims its edges, so no label reflows per frame.
-    // Without motion (power saver, reduced motion, hidden) it snaps.
+    // glide the docked surface to its new size from the centre. The content
+    // follows the surface width while ui/pill.js fades items in and out on the
+    // same curve, so nothing jumps or crosses the border. Items keep their
+    // natural widths; no label reflows per frame. Without motion (power
+    // saver, reduced motion, hidden) both snap.
     _resizeCollapsed() {
         const width = this._collapsedWidth;
         const height = this._collapsedHeight;
         const running = this.actor.get_transition('width') ?? this.actor.get_transition('height');
-        const duration = this._resizeMs();
+        const duration = this._glideMs();
         if (duration <= 0 || (!running && this.actor.width === width && this.actor.height === height)) {
             this._snapCollapsed();
             return;
         }
-        this._pill.width = Math.max(1, width - this._border);
         // Repeated measurements of the same content keep the running glide.
         if (running && this._resizeTarget?.[0] === width && this._resizeTarget?.[1] === height) return;
         this._resizeTarget = [width, height];
         for (const property of ['width', 'height']) this.actor.remove_transition(property);
-        this.actor.ease({width, height, duration, mode: Clutter.AnimationMode.EASE_OUT_CUBIC});
+        this.actor.ease({width, height, duration, mode: Clutter.AnimationMode.EASE_IN_OUT_CUBIC});
+        this._pill._islandGlide?.();
     }
 
     _resizeMs() {
         if (!this.actor.mapped || this._concealed || powerSaverActive()) return 0;
         return this._animationMs();
+    }
+
+    _glideMs() {
+        if (this.state !== IslandState.COLLAPSED) return 0;
+        return Math.round(this._resizeMs() * GLIDE_SCALE);
     }
 
     // ---- blend with the top bar ----
@@ -376,6 +391,11 @@ export class IslandSurface {
     expand() {
         if (this.expanded) return;
         const fromRest = this.state === IslandState.COLLAPSED;
+        if (fromRest) {
+            // The notch keeps one fixed layout while it fades into the card.
+            this._pill._islandSettle?.();
+            this._pill.width = Math.max(1, this._collapsedWidth - this._border);
+        }
         this.setConcealed(false);
         this._onBeforeExpand?.();
         const token = ++this._token;

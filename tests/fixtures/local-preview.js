@@ -668,7 +668,7 @@ export default class Preview extends UbuntuIsland {
         assert(settings.get_string('notifications-layout') === 'compact', 'Layout button did not switch back');
 
         this._island.collapse(); await delay(400);
-        assert(!pill._notifications.visible, 'Seen notifications still counted in the notch');
+        assert(!pill._shown(pill._notifications), 'Seen notifications still counted in the notch');
         assert(!card._tabBadges.get('notifications').get_parent().visible, 'Seen notifications still badged on the tab');
         postNotification({app: 'Chat (sample)', icon: 'user-available-symbolic', quiet: false,
             title: 'A deliberately long notification title that must not widen the collapsed notch'});
@@ -1218,7 +1218,7 @@ export default class Preview extends UbuntuIsland {
         assert(pill.actor.accessible_name.includes(pill._time.text), 'Clock time missing from accessible name');
         await this._capture('notch-time-seconds');
         await this._setIslandExpanded(true);
-        assert(!pill._secondsTimer && !pill._dateClock && !pill._time.visible, 'Expanded island retains a clock timer/subscription');
+        assert(!pill._secondsTimer && !pill._dateClock && !pill._shown(pill._time), 'Expanded island retains a clock timer/subscription');
         await this._setIslandExpanded(false);
         assert(pill._secondsTimer, 'Clock seconds did not resume when visible');
         pill.actor.hide();
@@ -1315,11 +1315,11 @@ export default class Preview extends UbuntuIsland {
         if (installed.includes('Vazir') || installed.includes('Vazirmatn'))
             assert(fonts.has('Vazir') || fonts.has('Vazirmatn'), 'Persian text is not using Vazir/Vazirmatn');
         settings.set_strv('pill-date-calendars', []);
-        assert(!pill._date.visible && !pill._dateClock, 'Empty calendar selection retained date indicator or clock');
+        assert(!pill._shown(pill._date) && !pill._dateClock, 'Empty calendar selection retained date indicator or clock');
         settings.set_strv('pill-date-calendars', ['jalali', 'gregorian']);
         for (let i = 0; i < 3; i++) {
             settings.set_boolean('pill-show-date', false);
-            assert(!pill._date.visible && !pill._dateClock, 'Disabled dates retained clock subscription');
+            assert(!pill._shown(pill._date) && !pill._dateClock, 'Disabled dates retained clock subscription');
             settings.set_boolean('pill-show-date', true);
             assert(pill._dateClock === clock, 'Dates did not resume after enabling');
             await this._setIslandExpanded(true);
@@ -1404,7 +1404,7 @@ export default class Preview extends UbuntuIsland {
         assert(!group._battery.visible, 'Powered-off Bluetooth retained a battery');
         this._settings.set_boolean('enable-bluetooth', false);
         updateBattery(100);
-        assert(group._battery.visible && !this._pill._bluetooth.visible, 'Sound battery depends on the Bluetooth tab or enables its notch indicator');
+        assert(group._battery.visible && !this._pill._shown(this._pill._bluetooth), 'Sound battery depends on the Bluetooth tab or enables its notch indicator');
         this._settings.set_boolean('enable-bluetooth', true);
         try {
             for (const scale of [1, 2]) for (const font of [1, 1.5, 2]) for (const width of [380, 440]) {
@@ -1859,7 +1859,7 @@ export default class Preview extends UbuntuIsland {
         assert(view.rows.size === 3 && view.rows.get(first.session.id).session.state === 'input', 'Undo restored stale status');
         assert(view.clearButton.visible && view.notchButton.visible, 'Main Agents actions missing');
         await click(view.notchButton);
-        assert(view.mode === 'list' && !this._settings.get_boolean('pill-show-agents') && !this._pill._agents.visible, 'Main notch control did not hide status');
+        assert(view.mode === 'list' && !this._settings.get_boolean('pill-show-agents') && !this._pill._shown(this._pill._agents), 'Main notch control did not hide status');
         await click(view.notchButton);
         assert(this._settings.get_boolean('pill-show-agents') && this._pill._agents.visible, 'Main notch control did not restore status');
         await click(view.clearButton);
